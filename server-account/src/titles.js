@@ -309,6 +309,8 @@ export const TIER_LISTS = Object.freeze({
   // Trakel's own: the title "Blood of Coldharbour", violet and crimson, a rose glyph and a haze with blood rising into
   // Daedric runes): an eighth title made for one player, and a list that grants an aura with it (TIER_AURA, below).
   coldharbour: 'COLDHARBOUR_HANDLES',
+  // Eterna's own: the World Turtle title, a turtle glyph and the Worldshell aura (TIER_AURA, below).
+  worldturtle: 'WORLD_TURTLE_HANDLES',
 });
 /** The glyph each of those titles carries, in the vocabulary's words. */
 export const TIER_GLYPH = Object.freeze({
@@ -325,6 +327,7 @@ export const TIER_GLYPH = Object.freeze({
   wikimaid: 'wikimaid',
   nirnrootsage: 'nirnrootsage',
   coldharbour: 'coldharbour',
+  worldturtle: 'worldturtle',
 });
 /** AEGIS: THE AURA A LIST'S TITLE CARRIES, where it carries one - held while the handle is listed, exactly as its glyph
  *  is, and gone on the next token once it is not. A grant like the glyph and unlike the Broker's: derived from the
@@ -337,6 +340,7 @@ export const TIER_AURA = Object.freeze({
   wikimaid: 'lilacwarren',
   nirnrootsage: 'sagesmoke',
   coldharbour: 'vampirichaze',
+  worldturtle: 'worldshell',
 }); // BLOOD-OF-COLDHARBOUR: the Vampiric Haze;   // NIRNROOT-SAGE: Sage's Smoke; WIKIMAID: the Lilac Warren; CRYSTAL-FIST: the Crystal Resonance; PRIMARCH: the Golden Radiance; SHADOW-CLOAK (2026-10-04, for the Shadow Fang account: a holo shadow cloak with red accents, extremely detailed): the Holo Shadow Cloak
 
 /** STAFF-PANEL2-FIX (design doc, Weak spots: "Cutting off a staff member misses most doors" - "A stored suspended flag is

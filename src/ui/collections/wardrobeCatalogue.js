@@ -525,6 +525,7 @@ export const WARDROBE = Object.freeze({
     ), // AUDIT COLLECTIONS-II (lane 1): `fest_given` counts the cakes others take (festival.js takeFromOffering)
     nirnrootsage: E('bestowed', 'bestowed', bestowed, { with: ['aura:sagesmoke', 'glyph:nirnrootsage'] }), // NIRNROOT-SAGE: Blob-Marley's own
     coldharbour: E('bestowed', 'bestowed', bestowed, { with: ['aura:vampirichaze', 'glyph:coldharbour'] }), // BLOOD-OF-COLDHARBOUR: Trakel's own
+    worldturtle: E('bestowed', 'bestowed', bestowed, { with: ['aura:worldshell', 'glyph:worldturtle'] }), // Eterna's own
     genesis: E('shop', 'shop', shop('title:genesis')), // SHOP: the pre-alpha title, on its plate of fire
     bloodhound: E('hunt', 'open', hunt('bloodhound')), // HUNTERS-MARK
     beastbane: E('hunt', 'open', hunt('beastbane')),
@@ -630,6 +631,14 @@ export const WARDROBE = Object.freeze({
           'A dark violet haze smouldering about you, drops of blood rising from the ground like embers and turning into Daedric runes.',
         ),
     }), // BLOOD-OF-COLDHARBOUR
+    worldshell: E('bestowed', 'bestowed', bestowed, {
+      with: ['title:worldturtle', 'glyph:worldturtle'],
+      look: () =>
+        t(
+          'coll.look.worldshell',
+          'Seven hexagons of green and purple turtle shell turning at your feet, the Flower of Life traced in their light.',
+        ),
+    }),
     eternal: E('shop', 'shop', shop('aura:eternal'), {
       look: () =>
         t(
@@ -720,6 +729,7 @@ export const WARDROBE = Object.freeze({
     wikimaid: E('bestowed', 'bestowed', bestowed, { with: ['title:wikimaid', 'aura:lilacwarren'] }),
     nirnrootsage: E('bestowed', 'bestowed', bestowed, { with: ['title:nirnrootsage', 'aura:sagesmoke'] }),
     coldharbour: E('bestowed', 'bestowed', bestowed, { with: ['title:coldharbour', 'aura:vampirichaze'] }),
+    worldturtle: E('bestowed', 'bestowed', bestowed, { with: ['title:worldturtle', 'aura:worldshell'] }),
     origin: E('shop', 'shop', shop('glyph:origin')), // SHOP: the pre-alpha glyph, the ouroboros dragon
     oblivion: E('shop', 'store', bundled), // STOREFRONT: the bundles' two, and the Folios' three
     gatesigil: E('shop', 'store', bundled),

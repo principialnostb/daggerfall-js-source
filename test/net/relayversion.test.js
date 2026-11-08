@@ -35,6 +35,7 @@ export const RELAY_GRAPH = graph('server/src/index.js');
  *  Every relay this repo has shipped a law for, and the sha256 of its law that IS it (see `graph` for what the law is).
  *  Append; never edit an existing row - an old row is a historical fact about bytes that have already been deployed. */
 const LAW = {
+  world307: 'd3aa709500463e178ef3360f34999086c8e45bb20004d7b2da53e28204ec060c',   // the World Turtle title, its glyph and the Worldshell aura join TITLES, GLYPHS and AURAS (net/identityToken.js)
   world306: '13ac9d5ba1a0baf1ba1aa8fad1cf61aff7e14efddcf5aa5e8504c3ff97284b44',   // the hub's book tells a toybox event only to a game whose hub hello says `tb` (server/src/staffEvents.js bookFor); the hello carries `tb` (wire.js); a socket's attachment keeps it (server/src/index.js)
   world305: '8a07ed699c53518300806303dbc973a7fa346b716ffc4e64b275e7ea12947053',   // the Moderator title joins TITLES (net/identityToken.js)
   world304: '4005d49fbdbaffd87f75aac569d5f5b27a198bea8d71900d496b9c5b91b818e8',   // the toybox: a developer's ghost frame (server/src/staffGhost.js), a toybox event's fields and moments (net/staffEvent/toyboxEvent.js), and a Dragon Attack's called dragon (net/dragon/dragonLaw.js dragonCalledOf, server/src/dragonFights.js), and an Invasion hosted by its city's cell (net/invasion/, server/src/invasionFights.js), its boss's three phases and telegraphed blows (net/invasion/invasionBlows.js)

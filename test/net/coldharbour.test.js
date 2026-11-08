@@ -44,9 +44,9 @@ const crimson = (c) => c[0] > 0.3 && c[0] > 2.5 * c[1] && c[0] > 1.5 * c[2];
 const violet = (c) => c[2] > c[1] && c[0] > c[1] && c[2] >= c[0] * 0.9;
 
 test('BLOOD-OF-COLDHARBOUR vocabulary: the title, the glyph and the aura each join their closed list last; "Blood of Coldharbour" and "Vampiric Haze" in words, the glyph named on the account card; the title crimson into magenta into lavender, edged in black, its one colour the magenta between them, apart from every title\'s; the rose in the lavender, filled; `R` on the classic face; the haze\'s button in the title\'s paint; the wire keeps all three (mutants: the gradient\'s order, the one colour, the mark, the fill, the paint)', () => {
-  assert.equal(TITLES.at(-2), 'coldharbour');
-  assert.equal(GLYPHS.at(-1), 'coldharbour');
-  assert.equal(AURAS.at(-1), 'vampirichaze');
+  assert.equal(TITLES.at(-3), 'coldharbour');
+  assert.equal(GLYPHS.at(-2), 'coldharbour');
+  assert.equal(AURAS.at(-2), 'vampirichaze');
   assert.equal(TITLE_TEXT.coldharbour, 'Blood of Coldharbour', 'Trakel\'s own word for it');
   assert.equal(AURA_TEXT.vampirichaze, 'Vampiric Haze');
   assert.equal(GLYPH_LABEL.coldharbour, 'Blood of Coldharbour', 'named on the account card');

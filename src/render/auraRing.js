@@ -203,7 +203,7 @@ import { FOG_FACTOR_GLSL } from './labGrass.js';
 import { AURA_PIXEL_GLSL } from './auraPixel.js';   // every look in Daggerfall's pixels
 import { buildProgram, compiledPass } from './glProgram.js';
 import { wrapAngle } from '../world/mat4.js';
-import { GLYPH_PATH, GLYPH_DETAIL, CRYSTAL_PURPLE, HOUR_BRASS, HOUR_GOLD, HOUR_LIGHT, HOUR_DAWN, HOUR_PEARL, HOUR_SUN, COIL_SEA, COIL_TIDE, COIL_FOAM, SPIRE_BEACON, SPIRE_BEACON_WHITE, SPIRE_EMBER, SPIRE_COAL, SPIRE_DAWN, SPIRE_DAWN_GOLD, SPIRE_DAWN_ROSE, WARREN_AMETHYST, WARREN_LILAC, WARREN_BLUSH, WARREN_FRILL, WARREN_PLUM, WITCH_MOSS, WITCH_FIRE, WITCH_GLOW, WITCH_VIOLET, HEARTH_TALLOW, NIRN_LEAF, NIRN_GLOW, NIRN_HAZE, NIRN_DEEP, NIRN_SMOKE, COLD_LAVENDER, COLD_VIOLET, COLD_CRIMSON, COLD_BLOOD, COLD_ROSE, COLD_SMOKE, COLD_MAGENTA, GENESIS_DEEP, GENESIS_ROOT, GENESIS_BLUE, GENESIS_VIOLET, GENESIS_HEART, GENESIS_CORE } from '../ui/playerBadge.js';   // SHADOW-CLOAK: the wearer's own glyph, its emblem; CRYSTAL-FIST AUDIT: the Crystal Fist's purple, the resonance's one colour; WIKIMAID: the warren's five
+import { GLYPH_PATH, GLYPH_DETAIL, CRYSTAL_PURPLE, HOUR_BRASS, HOUR_GOLD, HOUR_LIGHT, HOUR_DAWN, HOUR_PEARL, HOUR_SUN, COIL_SEA, COIL_TIDE, COIL_FOAM, SPIRE_BEACON, SPIRE_BEACON_WHITE, SPIRE_EMBER, SPIRE_COAL, SPIRE_DAWN, SPIRE_DAWN_GOLD, SPIRE_DAWN_ROSE, WARREN_AMETHYST, WARREN_LILAC, WARREN_BLUSH, WARREN_FRILL, WARREN_PLUM, WITCH_MOSS, WITCH_FIRE, WITCH_GLOW, WITCH_VIOLET, HEARTH_TALLOW, NIRN_LEAF, NIRN_GLOW, NIRN_HAZE, NIRN_DEEP, NIRN_SMOKE, COLD_LAVENDER, COLD_VIOLET, COLD_CRIMSON, COLD_BLOOD, COLD_ROSE, COLD_SMOKE, COLD_MAGENTA, GENESIS_DEEP, GENESIS_ROOT, GENESIS_BLUE, GENESIS_VIOLET, GENESIS_HEART, GENESIS_CORE, SHELL_JADE, SHELL_VIOLET, SHELL_LILAC, SHELL_DEEP, SHELL_OCEAN } from '../ui/playerBadge.js';   // SHADOW-CLOAK: the wearer's own glyph, its emblem; CRYSTAL-FIST AUDIT: the Crystal Fist's purple, the resonance's one colour; WIKIMAID: the warren's five
 
 /** The ring's radius about the feet (m), the ground quad's half-width, the flames' height, and the ground's lift. */
 export const AURA_RING_R = 0.85;
@@ -1069,6 +1069,50 @@ export function hazeCardsInto(cards, looks, t, kindle, at, eye) {
   return cards;
 }
 
+// THE WORLDSHELL, the World Turtle's own: a turtle's shell in green and purple, seven hexagons making one big one, on
+// the Flower of Life of the wearer's own art. Added whole. On the ground, seven plates turn slowly at the feet - one
+// under them, six round it - violet within jade rims, lit one after another round the middle, the world the turtle
+// carries glowing in the middle plate; the Flower of Life's seed (seven circles, each through its neighbours' middles)
+// traced in lilac over them; a ring round the whole, beaded where the circles touch it. On the strip, a low veil of
+// hexagons climbing off the ring, and small hexagons of shell rising past the chest.
+export const SHELL_PLATE_M = 0.265;                       // a plate's middle to its corner, m
+export const SHELL_STEP_M = Math.sqrt(3) * SHELL_PLATE_M;  // a plate's middle to its neighbour's - the seed's circles' radius too
+export const SHELL_R = 2 * SHELL_STEP_M;                  // the ring round the seed, where its outer circles touch, m
+export const SHELL_FILL = 0.86;                           // the share of a plate inside its seam
+export const SHELL_PLATES = 7;
+export const SHELL_VEIL_H = 0.5;                          // the veil off the ring, gone by the knee, m
+export const SHELL_H = 1.5;                               // the wall: the motes past the chest, m
+export const SHELL_CELLS = 24;                            // the veil's hexagons round the ring
+export const SHELL_MOTES = 12;
+export const SHELL_MOTE_M = 0.065;                        // a mote's middle to its corner, m
+export const SHELL_HZ = Object.freeze({ turn: 1 / 40, breath: 1 / 6, wave: 1 / 10, trace: 1 / 20, mote: 1 / 8, cell: 1 / 4 });
+export const SHELL_FLOW = Object.freeze({ veil: 0.5 });   // the veil's climb, its hexagons' rows a second
+/** Every rate whole over the clock, so the shell never jumps at the wrap. Pure. */
+export const shellRatesWhole = () => [...Object.values(SHELL_HZ), ...Object.values(SHELL_FLOW)].every((rate) => rate > 0 && Number.isInteger(Math.round(rate * AURA_CLOCK_PERIOD * 1e6) / 1e6));
+/** The World Turtle's colours (ui/playerBadge.js SHELL_*), RGB 0..1. */
+export const SHELL_RGB = Object.freeze({
+  jade: Object.freeze(SHELL_JADE.slice(0, 3)), violet: Object.freeze(SHELL_VIOLET.slice(0, 3)), lilac: Object.freeze(SHELL_LILAC.slice(0, 3)),
+  deep: Object.freeze(SHELL_DEEP.slice(0, 3)), ocean: Object.freeze(SHELL_OCEAN.slice(0, 3)),
+});
+/** Plate k's middle in the shell's own frame, metres: 0 under the feet, 1..6 round it from +x a sixth of a turn apart. Pure. */
+export const shellPlateMiddle = (k) => (k === 0 ? [0, 0] : [SHELL_STEP_M * Math.cos(((k - 1) * Math.PI) / 3), SHELL_STEP_M * Math.sin(((k - 1) * Math.PI) / 3)]);
+/** A point's reach from a plate's middle in the plate's own measure: its apothem at a side, its corners at +-y. Pure. */
+export const shellHexD = (x, y) => Math.max(Math.abs(x), 0.5 * Math.abs(x) + 0.8660254 * Math.abs(y));
+/** Which plate the ground's point (x, y metres about the feet; the shell turned `turn` radians) lies on: 0..6, or -1 in
+ *  a seam or past the seven. The shader's own pick (shellGround). Pure. */
+export function shellPlateAt(x, y, turn = 0) {
+  const turnCos = Math.cos(turn), turnSin = Math.sin(turn), px = turnCos * x + turnSin * y, py = -turnSin * x + turnCos * y;
+  let best = -1, nearest = Infinity;
+  for (let k = 0; k < SHELL_PLATES; k++) {
+    const [midX, midY] = shellPlateMiddle(k), reach = shellHexD(px - midX, py - midY);
+    if (reach < nearest) { nearest = reach; best = k; }
+  }
+  return nearest < SHELL_PLATE_M * 0.8660254 * SHELL_FILL ? best : -1;
+}
+/** How lit plate k (1..6) is at the clock `seconds`: the wave going round the middle, one plate after the next. The shader's
+ *  shellLit. Pure. */
+export const shellLit = (k, seconds) => 0.7 + 0.6 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * (SHELL_HZ.wave * seconds - (k - 1) / 6))), 6);
+
 /** SHOP (2026-10-28, the owner: "Eternal ... an extremely detailed flaming cape aura that attachs and flows on the back of
  *  your character"; bible/06-Systems/Shop.md): ETERNAL, the sixteenth look - A CAPE OF FIRE in the Genesis fire's colours
  *  (ui/playerBadge.js GENESIS_*). Its cloth is the Holo Shadow Cloak's (cloakPoint: hung from the posed shoulders, swung
@@ -1183,6 +1227,7 @@ export const AURA_LOOK = Object.freeze({
   gildedcoil: Object.freeze({ kind: 18, ringR: HELIX_R, flameH: HELIX_H, glyphs: 0 }),
   aetherwings: Object.freeze({ kind: 19, ringR: WING_POOL_R, flameH: WING_REACH[1], glyphs: WING_CARDS, mesh: 'wings' }),   // STOREFRONT: the Seraph Wings in aetherium blue (AETHER_WING_RGB), the Gilded Folio's capstone
   vampirichaze: Object.freeze({ kind: 20, ringR: HAZE_RUNE_R, flameH: HAZE_WALL_H, glyphs: HAZE_CARDS, shade: true }),   // BLOOD-OF-COLDHARBOUR: the runes and the haze's shade at the feet, the low haze on the strip, the wisps and the blood the third draw
+  worldshell: Object.freeze({ kind: 21, ringR: SHELL_R, flameH: SHELL_H, glyphs: 0 }),   // the plates and the seed at the feet, the veil and the motes on the strip
 });
 /** The look a wearer's aura is drawn with - Dagon's Fire for one that names none (the fire was the only aura before). */
 export const auraLookOf = (aura) => (typeof aura === 'string' && Object.hasOwn(AURA_LOOK, aura) ? AURA_LOOK[aura] : AURA_LOOK.dagonfire);
@@ -2962,6 +3007,93 @@ vec4 warrenBunny(vec2 uv, vec3 s) {
   return vec4(col * cover, cover);
 }
 `;
+/** THE WORLDSHELL - a ground (`p` metres about the feet) and a wall (the strip: `q` = (u round, v up)), added whole,
+ *  kindled within. A plate is the nearest of the seven middles (shellPlateAt's law); the veil's hexagons are a lattice
+ *  a whole number round the ring and up its climb, so neither seams behind the wearer nor jumps at the wrap. */
+const SHELL_GLSL = `
+const vec3 SH_JADE = ${v3(SHELL_RGB.jade)};
+const vec3 SH_VIOLET = ${v3(SHELL_RGB.violet)};
+const vec3 SH_LILAC = ${v3(SHELL_RGB.lilac)};
+const vec3 SH_DEEP = ${v3(SHELL_RGB.deep)};
+const vec3 SH_OCEAN = ${v3(SHELL_RGB.ocean)};
+float shellHexD(vec2 q) { q = abs(q); return max(q.x, 0.5 * q.x + 0.8660254 * q.y); }
+vec2 shellMiddle(int k) { if (k == 0) return vec2(0.0); float a = float(k - 1) * TAU / 6.0; return vec2(cos(a), sin(a)) * ${g3(SHELL_STEP_M)}; }
+float shellBreath() { return 0.85 + 0.15 * sin(uTime * TAU ${hzGlsl(SHELL_HZ.breath)}); }
+float shellLit(int k) { return k == 0 ? 0.5 + 0.4 * shellBreath() : 0.7 + 0.6 * pow(max(cos(TAU * (uTime ${hzGlsl(SHELL_HZ.wave)} - float(k - 1) / 6.0)), 0.0), 6.0); }
+vec3 shellGround(vec2 p) {
+  float r = length(p);
+  if (r > uGroundR) discard;
+  float px = turnPixel(), breath = shellBreath();
+  float turn = uTime * TAU ${hzGlsl(SHELL_HZ.turn)}, c = cos(turn), s = sin(turn);
+  vec2 q = vec2(c * p.x + s * p.y, -s * p.x + c * p.y);   // the shell's own frame, turned with it
+  // THE POOL: the shell's green under the feet, its deep in the seams
+  vec3 col = SH_JADE * exp(-r * r / 0.3) * 0.05 * breath + SH_DEEP * 0.12 * (1.0 - smoothstep(uRingR - 0.1, uRingR, r));
+  col += SH_VIOLET * 0.07 * smoothstep(0.5, 0.95, r / uRingR) * (1.0 - smoothstep(uRingR, uRingR + 0.05, r)) * breath;   // the shell's margin, lit toward the ring
+  // THE PLATES: violet within a jade rim, the seam between them dark, a scute's growth ring inside each
+  float d = 1e3;
+  int k = 0;
+  for (int j = 0; j < ${SHELL_PLATES}; j++) { float dj = shellHexD(q - shellMiddle(j)); if (dj < d) { d = dj; k = j; } }
+  float edge = ${g3(SHELL_PLATE_M * 0.8660254 * SHELL_FILL)}, lit = shellLit(k);
+  float inside = clamp((edge - d) / px + 0.5, 0.0, 1.0);
+  float wr = length(q), world = k == 0 ? clamp((edge * 0.62 - wr) / px + 0.5, 0.0, 1.0) : 0.0;
+  col += SH_VIOLET * inside * (0.16 + 0.34 * smoothstep(0.3 * edge, edge, d)) * lit * (1.0 - 0.8 * world);
+  col += SH_JADE * (turnBand(d, edge - 0.012, edge, px) * 0.85 + exp(-(d - edge) * (d - edge) / 0.00012) * 0.25) * lit * breath;
+  col += SH_LILAC * turnBand(d, edge * 0.55 - 0.004, edge * 0.55 + 0.004, px) * 0.18 * lit * (1.0 - world);
+  // THE WORLD the turtle carries, in the middle plate: the ocean's blue, its lands in the shell's green, turning with it
+  float land = smoothstep(0.5, 0.58, vnoiseP(q * 9.0 + 3.0, vec2(64.0)));
+  float sky = edge * 0.62 - wr;
+  col += (mix(SH_OCEAN, SH_JADE, land) * 0.55 * breath) * world + SH_LILAC * exp(-sky * sky / 0.0003) * 0.3 * (k == 0 ? 1.0 : 0.0);
+  // THE SEED OF LIFE: seven circles, each through its neighbours' middles, traced in lilac; a spark runs round each
+  float seed = 0.0, spark = 0.0;
+  for (int j = 0; j < ${SHELL_PLATES}; j++) {
+    vec2 o = q - shellMiddle(j);
+    float line = clamp((0.0045 - abs(length(o) - ${g3(SHELL_STEP_M)})) / px + 0.5, 0.0, 1.0);
+    float run = fract(atan(o.y, o.x) / TAU - uTime ${hzGlsl(SHELL_HZ.trace)} + float(j) / 7.0);
+    seed += line;
+    spark += line * pow(run, 16.0);
+  }
+  col += mix(SH_LILAC, SH_VIOLET, 0.35) * min(seed, 1.0) * 0.42 * breath + SH_LILAC * min(spark, 1.0) * 0.8;
+  // THE RING round the seed, and six jade beads where its outer circles touch it
+  float dr = r - uRingR;
+  col += SH_LILAC * turnBand(dr, -0.009, 0.009, px) * 0.8 * breath + SH_VIOLET * exp(-dr * dr / 0.004) * 0.35 * breath;
+  float sk = floor(atan(q.y, q.x) / (TAU / 6.0) + 0.5);
+  float bd = shellHexD(q - vec2(cos(sk * TAU / 6.0), sin(sk * TAU / 6.0)) * uRingR);
+  col += SH_JADE * (clamp((0.035 - bd) / px + 0.5, 0.0, 1.0) * 0.9 * breath + exp(-bd * bd / 0.002) * 0.2);
+  return col * uKindle * (1.0 - smoothstep(uGroundR - 0.25, uGroundR, r));
+}
+vec3 shellWall(vec2 q) {
+  float v = q.y, y = v * uFlameH, circ = TAU * uRingR, cell = circ / ${g1(SHELL_CELLS)};
+  float breath = shellBreath(), yv = y / ${g3(SHELL_VEIL_H)}, fv = max(1.0 - yv, 0.0);
+  // THE VEIL: hexagons climbing off the ring, jade at its foot into violet, gone by the knee - a lattice of period
+  // (1, root 3), so a whole number of it round the ring and its rows wrap with the clock
+  vec2 g = vec2(q.x * ${g1(SHELL_CELLS)}, (y / cell - uTime * ${SHELL_FLOW.veil.toFixed(3)}) * 1.7320508);
+  vec2 sp = vec2(1.0, 1.7320508);
+  vec2 a = mod(g, sp) - sp * 0.5, b = mod(g - sp * 0.5, sp) - sp * 0.5;
+  vec2 h = dot(a, a) < dot(b, b) ? a : b, id = g - h;
+  float hd = shellHexD(h);
+  float line = 1.0 - smoothstep(0.0, 0.07, 0.5 - hd);
+  vec2 slot = vec2(mod(floor(id.x * 2.0 + 0.5), ${g1(SHELL_CELLS * 2)}), mod(floor(id.y / 0.8660254 + 0.5), ${g1(SHELL_FLOW.veil * AURA_CLOCK_PERIOD * 2)}));
+  float hsh = fract(sin(dot(slot, vec2(12.9898, 78.233))) * 43758.5453);
+  float glint = pow(max(sin(uTime * TAU ${hzGlsl(SHELL_HZ.cell)} + hsh * TAU), 0.0), 8.0) * step(0.55, hsh);
+  vec3 tint = mix(SH_JADE, SH_VIOLET, smoothstep(0.0, 0.9, yv));
+  vec3 col = tint * (line * 0.55 + glint * 0.3 * (1.0 - smoothstep(0.3, 0.5, hd))) * fv * fv * breath;
+  col += mix(SH_JADE, SH_LILAC, 0.3) * exp(-yv * 7.0) * 0.18 * breath;
+  // THE MOTES: small hexagons of shell rising off the ring past the chest, jade and violet by turns, their rims bright
+  float mj = 0.0, mvi = 0.0;
+  for (int m = 0; m < ${SHELL_MOTES}; m++) {
+    float fm = float(m);
+    float h1 = fract(sin(fm * 73.31 + 2.7) * 43758.5453), h2 = fract(sin(fm * 29.17 + 5.3) * 24634.6345);
+    float mv = fract(uTime ${hzGlsl(SHELL_HZ.mote)} * (1.0 + mod(fm, 2.0)) + h2);
+    vec2 dm = vec2((fract(q.x - h1 + 0.5) - 0.5) * circ + 0.04 * sin(TAU * (mv * 2.0 + h1)), y - mv * uFlameH);
+    float md = shellHexD(dm) / (${g3(SHELL_MOTE_M * 0.8660254)} * (1.0 - 0.5 * mv));
+    float shape = (1.0 - smoothstep(0.85, 1.0, md)) * (0.45 + 0.55 * smoothstep(0.5, 0.9, md)) * (1.0 - mv) * smoothstep(0.0, 0.06, mv);
+    if (mod(fm, 2.0) < 0.5) mj += shape; else mvi += shape;
+  }
+  col += SH_JADE * mj * 0.9 + mix(SH_VIOLET, SH_LILAC, 0.35) * mvi;
+  // kindled UP: the veil rising from the feet
+  return col * clamp(uKindle * 1.25 - v, 0.0, 0.15) / 0.15;
+}
+`;
 /** STOREFRONT: THE DAEDRIC DOMINION - a ground (`p` metres about the feet) and a wall (the strip: `q` = (u round, v up)),
  *  each PREMULTIPLIED: its black band, its shadow and its thorns cover the ground, the script's fire and the embers are
  *  added. A letter's strokes are segments in its box along the ring (dominionLetter), DOMINION_SCRIPT its bits. */
@@ -3344,13 +3476,14 @@ uniform float uPixel;   // 1 the look in Daggerfall's pixels, 2 the levels alone
 out vec4 o;
 ${FOG_FACTOR_GLSL}${AURA_NOISE_GLSL}${AURA_PIXEL_GLSL}
 const float TAU = 6.283185307179586;
-${WARD_GLSL}${RADIANCE_GLSL}${RESONANCE_GLSL}${TURNING_GLSL}${MAELSTROM_GLSL}${SPIRE_GLSL}${CLOAK_SHAPE_GLSL}${CLOAK_FS_GLSL}${ETERNAL_SHAPE_GLSL}${ETERNAL_FS_GLSL}${WING_SHARED_GLSL}${WING_FS_GLSL}${WARREN_GLSL}${WITCH_GLSL}${SAGE_GLSL}${HAZE_GLSL}${DOMINION_GLSL}${HELIX_GLSL}
+${WARD_GLSL}${RADIANCE_GLSL}${RESONANCE_GLSL}${TURNING_GLSL}${MAELSTROM_GLSL}${SPIRE_GLSL}${CLOAK_SHAPE_GLSL}${CLOAK_FS_GLSL}${ETERNAL_SHAPE_GLSL}${ETERNAL_FS_GLSL}${WING_SHARED_GLSL}${WING_FS_GLSL}${WARREN_GLSL}${WITCH_GLSL}${SAGE_GLSL}${HAZE_GLSL}${DOMINION_GLSL}${HELIX_GLSL}${SHELL_GLSL}
 void auraLook(vec2 vP) {   // vP the surface's point the look answers - its texel's middle, or the fragment's
   if (uAura == 16) { vec4 c = uKind == 0 ? dominionGround(vP) : dominionWall(vP); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // STOREFRONT: the Daedric Dominion, premultiplied (AURA_LOOK shade), kindled within
   if (uAura == 17) { vec3 c = uKind == 0 ? helixGround(vP) : helixWall(vP); o = vec4(c * fogFactorAt(vWorld), 1.0); return; }   // STOREFRONT: the Aetherium Coil, added whole, kindled within
   if (uAura == 18) { vec3 c = uKind == 0 ? gildedGround(vP) : gildedWall(vP); o = vec4(c * fogFactorAt(vWorld), 1.0); return; }   // STOREFRONT: the Gilded Coil, as the Aetherium Coil is drawn
   if (uAura == 15) { vec4 c = uKind == 0 ? eternalGround(vP) : uKind == 1 ? eternalWall(vP) : eternalCard(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // SHOP: Eternal, premultiplied (AURA_LOOK shade), kindled within
   if (uAura == 20) { vec4 c = uKind == 0 ? hazeGround(vP) : uKind == 1 ? hazeWall(vP) : hazeCard(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // BLOOD-OF-COLDHARBOUR: premultiplied (AURA_LOOK shade), fogged
+  if (uAura == 21) { vec3 c = uKind == 0 ? shellGround(vP) : shellWall(vP); o = vec4(c * fogFactorAt(vWorld), 1.0); return; }   // the Worldshell, added whole, kindled within
   if (uAura == 14) { vec4 c = uKind == 0 ? sageGround(vP) : uKind == 1 ? sageWall(vP) : sageCard(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // NIRNROOT-SAGE: premultiplied (AURA_LOOK shade), fogged to nothing; kindled within (the shade and the runes fade in, the low smoke rises, the puffs and the nirnroots by node's law)
   if (uAura == 13) { vec3 c = uKind == 0 ? witchGround(vP) : witchWall(vP); o = vec4(c * fogFactorAt(vWorld), 1.0); return; }   // WITCH1: Witchfire, added whole, kindled within
   if (uAura == 12) { vec4 c = uKind == 0 ? warrenGround(vP) : uKind == 1 ? warrenWall(vP) : warrenBunny(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // WIKIMAID: premultiplied (AURA_LOOK shade), fogged to nothing; kindled within (the ground fades in, the sparkles rise, the rabbits come up - node's law)

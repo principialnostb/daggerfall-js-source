@@ -195,6 +195,9 @@ export const TITLE_TEXT = Object.freeze({
   get moderator() {
     return t('account.title.moderator', 'Moderator');
   },
+  get worldturtle() {
+    return t('account.title.worldturtle', 'World Turtle');
+  }, // Eterna's own
 });
 
 /** WB9g (2026-09-30, Mac: "an animated burning ground aura that circles the ground where your character stands"): AN
@@ -232,6 +235,9 @@ export const AURA_TEXT = Object.freeze({
   get vampirichaze() {
     return t('account.aura.vampirichaze', 'Vampiric Haze');
   }, // BLOOD-OF-COLDHARBOUR: a dark violet haze about the body, blood rising into Daedric runes, granted with the title
+  get worldshell() {
+    return t('account.aura.worldshell', 'Worldshell');
+  }, // seven hexagons of turtle shell turning at the feet, granted with the World Turtle title
 });
 
 /** SHADOW-FANG (2026-09-26, Mac): "the Shadow Fang account gets a brand new
@@ -385,6 +391,14 @@ export const COLD_BLOOD = Object.freeze([0.431, 0.039, 0.118, 1]); // #6e0a1e
 export const COLD_ROSE = Object.freeze([1, 0.435, 0.557, 1]); // #ff6f8e
 export const COLD_SMOKE = Object.freeze([0.227, 0.122, 0.31, 1]); // #3a1f4f
 export const COLD_MAGENTA = Object.freeze([0.784, 0.071, 0.478, 1]); // #c8127a
+/** The World Turtle's family, asked green and purple: the shell's JADE (the title's one colour, 56 from the nearest
+ *  title's), the plates' VIOLET, the LILAC of the Flower of Life's lines and the title's light end, the DEEP green of the
+ *  seams and the shade, and the OCEAN blue of the world the turtle carries (render/auraRing.js SHELL_RGB reads all five). */
+export const SHELL_JADE = Object.freeze([0.188, 0.784, 0.353, 1]); // #30c85a
+export const SHELL_VIOLET = Object.freeze([0.439, 0.212, 0.816, 1]); // #7036d0
+export const SHELL_LILAC = Object.freeze([0.863, 0.784, 1, 1]); // #dcc8ff
+export const SHELL_DEEP = Object.freeze([0.059, 0.227, 0.133, 1]); // #0f3a22
+export const SHELL_OCEAN = Object.freeze([0.184, 0.498, 0.878, 1]); // #2f7fe0
 /** SHOP (2026-10-28, the owner: Genesis's "blueish purple animated flame"; bible/06-Systems/Shop.md): THE GENESIS FIRE,
  *  the shop's three wares' one family - the title's flame plate, the Origin's dragon and Eternal's cape. Its DEEP, the
  *  indigo under the fire; its ROOT, the blue-white a flame burns at its base; its BLUE and VIOLET, the fire's body; its
@@ -568,6 +582,7 @@ export const TITLE_RGBA = Object.freeze({
   heartwaker: AETHERIUM_GLOW,
   numidiumecho: NUMIDIUM_GOLD,
   coldharbour: COLD_MAGENTA, // BLOOD-OF-COLDHARBOUR: the crimson and the violet blended - the colour a face that cannot draw a gradient uses
+  worldturtle: SHELL_JADE, // the shell's green - the colour a face that cannot draw a gradient uses
 });
 
 /** SHADOW-FANG: A TITLE DRAWN AS A GRADIENT - its stops, RGBA 0..1, left
@@ -595,6 +610,7 @@ export const TITLE_GRADIENT = Object.freeze({
   heartwaker: Object.freeze([DWEMER_BRASS, AETHERIUM_BLUE, AETHERIUM_GLOW]),
   numidiumecho: Object.freeze([DWEMER_BRASS, NUMIDIUM_GOLD, AETHERIUM_GLOW]),
   coldharbour: Object.freeze([COLD_CRIMSON, COLD_MAGENTA, COLD_LAVENDER]), // BLOOD-OF-COLDHARBOUR: "Blood" in the crimson, "Coldharbour" into the violet
+  worldturtle: Object.freeze([SHELL_JADE, SHELL_VIOLET, SHELL_LILAC]), // "World" in the shell's green, "Turtle" into the plates' violet
 });
 
 /** PENITENT: THE EDGE A GRADIENT TITLE WEARS, where it is not the title's
@@ -614,6 +630,7 @@ export const TITLE_EDGE = Object.freeze({
   witchwarden: Object.freeze([0, 0, 0, 1]), // WITCH1: its heart end is pale - edged in black, as the WikiMaid's
   nirnrootsage: Object.freeze([0, 0, 0, 1]), // NIRNROOT-SAGE: its haze end is pale - edged in black, as the Witchwarden's
   coldharbour: Object.freeze([0, 0, 0, 1]), // BLOOD-OF-COLDHARBOUR: its lavender end is light - edged in black, as the Nirnroot Sage's
+  worldturtle: Object.freeze([0, 0, 0, 1]), // its lilac end is light - edged in black
   genesis: Object.freeze([0, 0, 0, 1]), // SHOP: its heart end is pale - edged in black
   // STOREFRONT: each has a pale stop - edged in black
   ...Object.fromEntries(
@@ -763,6 +780,7 @@ export const GLYPH_RGBA = Object.freeze({
   tonalfork: AETHERIUM_TONE,
   cog: DWEMER_BRASS,
   coldharbour: COLD_LAVENDER, // BLOOD-OF-COLDHARBOUR: the ring and its thorns in the lavender - the petals, the heart and the drop are its details
+  worldturtle: SHELL_JADE, // the turtle in the shell's green - the plates and the world are its details
 });
 
 /** SHADOW-FANG: A GLYPH FILLED WITH A GRADIENT - its title's two stops,
@@ -891,6 +909,18 @@ export const GLYPH_DETAIL = Object.freeze({
       rgba: COLD_CRIMSON,
     }),
   ]),
+  // Two details, in order: the shell's seven plates in the violet, one in the middle and six round it, the green
+  // showing between them as seams; and the world the middle plate carries, in the ocean's blue.
+  worldturtle: Object.freeze([
+    Object.freeze({
+      path: 'M8 7.27L9.07 7.99L9.07 9.41L8 10.13L6.93 9.41L6.93 7.99ZM10.68 7.27L11.76 7.99L11.76 9.41L10.68 10.13L9.61 9.41L9.61 7.99ZM9.34 9.95L10.42 10.66L10.42 12.09L9.34 12.8L8.27 12.09L8.27 10.66ZM6.66 9.95L7.73 10.66L7.73 12.09L6.66 12.8L5.58 12.09L5.58 10.66ZM5.32 7.27L6.39 7.99L6.39 9.41L5.32 10.13L4.24 9.41L4.24 7.99ZM6.66 4.6L7.73 5.31L7.73 6.74L6.66 7.45L5.58 6.74L5.58 5.31ZM9.34 4.6L10.42 5.31L10.42 6.74L9.34 7.45L8.27 6.74L8.27 5.31Z',
+      rgba: SHELL_VIOLET,
+    }),
+    Object.freeze({
+      path: 'M8.62 8.7Q8.62 9 8.44 9.2Q8.26 9.41 8 9.41Q7.74 9.41 7.56 9.2Q7.38 9 7.38 8.7Q7.38 8.4 7.56 8.2Q7.74 7.99 8 7.99Q8.26 7.99 8.44 8.2Q8.62 8.4 8.62 8.7Z',
+      rgba: SHELL_OCEAN,
+    }),
+  ]),
 });
 /** WIKIMAID: A GLYPH'S DETAILS AS A LIST - one shape (the wolf's eye, the penitent's sword, the aegis's tendrils) or
  *  several in their order (the WikiMaid's ears, lace and face), so every face that draws a glyph walks one shape the same
@@ -955,6 +985,7 @@ export const GLYPH_MARK = Object.freeze({
   tonalfork: 'y', // the fork's two tines on its stem
   cog: '0', // a ring with its hole
   coldharbour: 'R', // BLOOD-OF-COLDHARBOUR: the rose
+  worldturtle: 'T', // the turtle
 });
 
 /** The printable range the classic font covers. ACC1d-MARK's own bound,
@@ -1075,6 +1106,11 @@ export const GLYPH_PATH = Object.freeze({
   // filled either way; the petals inside it are its details.
   coldharbour:
     'M8 0.95L8.55 0.97L9.1 1.05L9.64 1.17L9.65 1.17L9.96 1.22L10.22 1.21L10.32 1.19L10.75 1.03L10.98 0.9L11.16 0.8L10.95 1.68L10.95 1.68L11.18 1.8L11.64 2.1L12.08 2.44L12.49 2.81L12.86 3.22L13.2 3.66L13.5 4.13L13.5 4.13L13.69 4.39L13.88 4.56L13.96 4.62L14.38 4.81L14.63 4.89L14.83 4.94L14.06 5.41L14.06 5.41L14.13 5.66L14.25 6.2L14.33 6.75L14.35 7.3L14.33 7.85L14.25 8.4L14.13 8.94L14.13 8.95L14.08 9.26L14.09 9.52L14.11 9.62L14.27 10.05L14.4 10.28L14.5 10.46L13.62 10.25L13.62 10.25L13.5 10.48L13.2 10.94L12.86 11.38L12.49 11.79L12.08 12.16L11.64 12.5L11.18 12.8L11.17 12.8L10.91 12.99L10.74 13.18L10.68 13.26L10.49 13.68L10.41 13.93L10.36 14.13L10.27 14.55L9.89 13.36L9.64 13.43L9.1 13.55L8.55 13.63L8 13.65L7.45 13.63L6.9 13.55L6.36 13.43L6.35 13.43L6.04 13.38L5.78 13.39L5.68 13.41L5.25 13.57L5.02 13.7L4.84 13.8L4.47 14.03L5.05 12.92L4.83 12.8L4.36 12.5L3.92 12.16L3.51 11.79L3.14 11.38L2.8 10.94L2.5 10.48L2.5 10.47L2.31 10.21L2.12 10.04L2.04 9.98L1.62 9.79L1.37 9.71L1.17 9.66L1.94 9.19L1.94 9.19L1.87 8.94L1.75 8.4L1.67 7.85L1.65 7.3L1.67 6.75L1.75 6.2L1.87 5.66L1.87 5.65L1.92 5.34L1.91 5.08L1.89 4.98L1.73 4.55L1.6 4.32L1.5 4.14L2.38 4.35L2.38 4.35L2.5 4.12L2.8 3.66L3.14 3.22L3.51 2.81L3.92 2.44L4.36 2.1L4.83 1.8L4.83 1.8L5.09 1.61L5.26 1.42L5.32 1.34L5.51 0.92L5.59 0.67L5.64 0.47L6.11 1.24L6.11 1.24L6.36 1.17L6.9 1.05L7.45 0.97ZM7.45 1.73L6.91 1.81L6.37 1.94L5.86 2.13L5.36 2.36L4.89 2.64L4.45 2.97L4.04 3.34L3.67 3.75L3.34 4.19L3.06 4.66L2.83 5.16L2.64 5.67L2.51 6.21L2.43 6.75L2.4 7.3L2.43 7.85L2.51 8.39L2.64 8.93L2.83 9.44L3.06 9.94L3.34 10.41L3.67 10.85L4.04 11.26L4.45 11.63L4.89 11.96L5.36 12.24L5.86 12.47L6.37 12.66L6.91 12.79L7.45 12.87L8 12.9L8.55 12.87L9.09 12.79L9.63 12.66L10.14 12.47L10.64 12.24L11.11 11.96L11.55 11.63L11.96 11.26L12.33 10.85L12.66 10.41L12.94 9.94L13.17 9.44L13.36 8.93L13.49 8.39L13.57 7.85L13.6 7.3L13.57 6.75L13.49 6.21L13.36 5.67L13.17 5.16L12.94 4.66L12.66 4.19L12.33 3.75L11.96 3.34L11.55 2.97L11.11 2.64L10.64 2.36L10.14 2.13L9.63 1.94L9.09 1.81L8.55 1.73L8 1.7Z',
+  // A turtle seen from above, swimming up: its head, two front flippers swept out, the shell's oval, two back flippers
+  // and the tail - seven figures that never touch, so even-odd fills each whole. The plates are its details. Read from
+  // 13 px over a night sky and a pale one.
+  worldturtle:
+    'M9.35 2.05Q9.35 2.65 8.95 3.08Q8.56 3.5 8 3.5Q7.44 3.5 7.05 3.08Q6.65 2.65 6.65 2.05Q6.65 1.45 7.05 1.02Q7.44 0.6 8 0.6Q8.56 0.6 8.95 1.02Q9.35 1.45 9.35 2.05ZM3.9 5.2Q1.6 3.3 0.5 4.3Q1.4 6.4 3.5 7ZM12.1 5.2Q14.4 3.3 15.5 4.3Q14.6 6.4 12.5 7ZM12.5 8.7Q12.5 10.77 11.18 12.24Q9.86 13.7 8 13.7Q6.14 13.7 4.82 12.24Q3.5 10.77 3.5 8.7Q3.5 6.63 4.82 5.16Q6.14 3.7 8 3.7Q9.86 3.7 11.18 5.16Q12.5 6.63 12.5 8.7ZM4 12.2Q2 12.4 1.3 14.6Q3.4 14.6 4.9 13.3ZM12 12.2Q14 12.4 14.7 14.6Q12.6 14.6 11.1 13.3ZM7.2 13.95L8.8 13.95L8 15.7Z',
 });
 
 /** Is this glyph DRAWN as an outline rather than filled? The sprout is
@@ -1115,6 +1151,7 @@ export const GLYPH_STROKE = Object.freeze({
   tonalfork: true,
   cog: false,
   coldharbour: false,
+  worldturtle: false,
 }); // NIRNROOT-SAGE: the sprig filled; WIKIMAID: the rabbit filled; SEAT1c: the seats' four filled; ARENA4: the laurel's branches stroked; AEGIS: the pillars and the ring stroked; PRIMARCH: the cross filled; CRYSTAL-FIST: the slashes filled; WIKIMAID: the rabbit filled; SEAT1c: the seats' four filled; ARENA4: the laurel's branches stroked; AEGIS: the pillars and the ring stroked; PRIMARCH: the cross filled; CRYSTAL-FIST: the slashes filled
 
 /**
@@ -1301,6 +1338,7 @@ export const AURA_PAINT = Object.freeze({
   gildedcoil: 'numidiumecho',
   aetherwings: 'heartwaker',
   vampirichaze: 'coldharbour',
+  worldshell: 'worldturtle',
 }); // BLOOD-OF-COLDHARBOUR: the Vampiric Haze in the title's crimson into violet   // NIRNROOT-SAGE: Sage's Smoke in the Nirnroot Sage's leaf into glow into haze   // WITCH1: Witchfire in the Witchwarden's green   // WIKIMAID: the Lilac Warren in the WikiMaid's amethyst into blush; HOURS-FIRST: The First Hour in Hour's First's rose gold; SERPENT5: The Maelstrom in the Coilbreaker's sea; EG-E2: the Spire's three each in its title's paint
 /** SHADOW-FANG: `titlePaint`'s properties as CSS declarations, the colour
  *  left to the button (its border is drawn in it) - so a gradient title's
