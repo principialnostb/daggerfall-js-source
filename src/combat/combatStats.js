@@ -61,6 +61,7 @@ import { skillsLevel } from '../characters/enemy/enemyEntity.js';
 import { equipTableOf, EQUIP_SLOTS } from '../systems/equip.js';
 import { getItemHands, ITEM_HANDS } from '../characters/equipTable.js';
 import { clawMetalDamage } from './clawMetal.js'; // BAL6-GAUNTLETS: the beast's claws take its gauntlets' metal
+import { weaponGearRoll } from '../systems/weaponMastery.js';
 
 const int = Math.trunc;
 const clamp = (x) => Math.max(3, Math.min(97, x)); // CalculateSuccessfulHit / pcaaoSuccessfulHit: 3..97
@@ -268,7 +269,9 @@ function damageModel(ctx, swing, foe) {
     strMod = core.overhaul ? pcaaoDamageModifier(str) : damageModifier(str);
     matMod = clawMetalDamage(entity); // BAL6-GAUNTLETS: both cores add it where a weapon's material stands
   } else {
-    for (let r = baseDamageMin(weapon); r <= baseDamageMax(weapon); r++) rolls.push(weaponDamageMods(weapon, r));
+    const gearSpan = weaponGearRoll(entity, weapon); // the gear on its skill rides in its roll, at its mean
+    const gear = gearSpan ? (gearSpan[0] + gearSpan[1]) / 2 : 0;
+    for (let r = baseDamageMin(weapon); r <= baseDamageMax(weapon); r++) rolls.push(weaponDamageMods(weapon, r + gear));
     matMod = WEAPON_MATERIAL_MODIFIER[weapon.material] ?? 0;
     strMod = core.overhaul ? pcaaoDamageModifier(str) * (twoHanded ? 2 : 1) : damageModifier(str);
   }

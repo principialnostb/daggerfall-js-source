@@ -24,7 +24,7 @@ import { MELEE_DISTANCE } from '../characters/enemy/enemyMotor.js';   // single 
 import { CLASSIC_TO_UNITY_RATIO } from '../player/motor.js';   // C15 knockback units
 import { rand } from '../formats/dfRandom.js';
 import { enchantChanceToHitMod, doItemEnchantmentPayloads, PAYLOAD, isEnchantedItem, entityImprovedAdrenalineRush } from '../systems/enchantments.js';   // E1: the enchantment channels + the Strikes payload; AUDIT 39: ImprovesTalents' adrenaline flag lives in the fold's bag   // the monster multi-attack reflex gate (F2)
-import { entityArmorMod, entityWeightMult, weaponDamageMods, weaponBlowMods } from '../systems/entityMods.js';   // RF1: one read per channel - DFU's enchantment channel and every enhancement fold, summed there
+import { entityArmorMod, entityWeightMult, weaponDamageMods, weaponBlowMods, weaponRollAdd } from '../systems/entityMods.js';   // RF1: one read per channel - DFU's enchantment channel and every enhancement fold, summed there
 import { liveStat } from '../systems/statMods.js';   // S14: fortify-aware stat reads
 import { skillValue, SKILLS } from '../systems/skills.js';
 import { noteSkillChallenge } from '../systems/skillSoftcap.js';   // SOFTCAP1: the foe a blow was traded with, for the real-use law
@@ -479,7 +479,7 @@ export function silverDoubles(target) {
  *  NOTHING in the codebase mints - as this arm's fallback. */
 export function weaponAttackDamage(attacker, target, damageMod, weapon, rolls = Math.random, weaponAnimTime = 0, info = undefined) {
   const wMin = baseDamageMin(weapon), wMax = baseDamageMax(weapon);
-  let damage = weaponDamageMods(weapon, wMin + Math.floor(rolls() * (wMax + 1 - wMin))) + damageMod;   // RF1: the weapon's own modifiers over ITS roll, before the swing's mods
+  let damage = weaponDamageMods(weapon, wMin + Math.floor(rolls() * (wMax + 1 - wMin)) + weaponRollAdd(attacker, weapon, target, rolls)) + damageMod;   // the gear on its skill rides in the roll (weaponMastery.js weaponGearAdd)   // RF1: the weapon's own modifiers over ITS roll, before the swing's mods
   if (!target.isPlayer && isSkeletalTarget(target)) {   // DEX4b: a mod's skeletal enemy too
     if ((weapon.flags & 0x10) === 0) damage = Math.trunc(damage / 2);   // edged-weapon rule
     if (weapon.material === 2 && silverDoubles(target)) damage *= 2;    // Silver (RVN2: unless a veto keeps it plain)

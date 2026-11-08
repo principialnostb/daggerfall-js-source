@@ -47,8 +47,8 @@
   {
     "name": "SET2-pcaao-roll-layer-left-out",
     "file": "src/combat/pcaao.js",
-    "old": "    weaponDamageMods(\n      weapon,\n      range(weaponMinDamage(weapon.templateIndex), weaponMaxDamage(weapon.templateIndex), rolls),\n    ) + damageModifier;",
-    "new": "    range(weaponMinDamage(weapon.templateIndex), weaponMaxDamage(weapon.templateIndex), rolls) + damageModifier;",
+    "old": "    weaponDamageMods(\n      weapon,\n      range(weaponMinDamage(weapon.templateIndex), weaponMaxDamage(weapon.templateIndex), rolls) +\n        weaponRollAdd(attacker, weapon, target, rolls), // the gear on its skill, in its roll as the fists'\n    ) + damageModifier;",
+    "new": "    range(weaponMinDamage(weapon.templateIndex), weaponMaxDamage(weapon.templateIndex), rolls) +\n      weaponRollAdd(attacker, weapon, target, rolls) + damageModifier;",
     "tests": [
       "test/systems/set2_seams.test.js"
     ]

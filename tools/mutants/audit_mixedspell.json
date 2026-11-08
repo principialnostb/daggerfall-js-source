@@ -247,7 +247,7 @@
   {
     "name": "AUDITMS-L2-2-busy-without-fit",
     "file": "src/combat/twoHands/spellHand.js",
-    "old": "export const spellHandBusy = () => (live.up || live.fits) && live.busy;",
+    "old": "export const spellHandBusy = () => live.busy;",
     "new": "export const spellHandBusy = () => live.up && live.busy;",
     "tests": [
       "test/combat/spellhand.test.js"

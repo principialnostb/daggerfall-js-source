@@ -110,5 +110,5 @@ test('ARMORY-FISTS: a bare fist wears the kit\'s weapon piece - mine and a peer\
   const rigSrc = read('src/combat/weapon/weaponRig.js');
   assert.match(rigSrc, /heldGlow = heldFor \? spriteGlow\(heldFor\) : fistGlow\(\);/);
   assert.match(rigSrc, /return w \? glowOf\(w\) : fistGlow\(\); \};/);
-  assert.match(rigSrc, /fpArm\.setHandGlow\?\.\(wrapsMeshGlow\(\) \?\? \(armItem \? null : fistGlow\(\)\)\);/);
+  assert.match(rigSrc, /fpArm\.setHandGlow\?\.\(armItem\?\.werecreatureClaws \? glowOf\(armItem\) : \(wrapsMeshGlow\(\) \?\? \(armItem \? null : fistGlow\(\)\)\)\);/);
 });

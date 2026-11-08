@@ -35,23 +35,15 @@ import { SKILL_SOFT_CAP } from './skillSoftcap.js';
 import { isOnlinePage } from './online/onlineLane.js';
 import { sigilDueling } from './sigil/sigil.js';
 import { fightingClimb } from './spell/spellPower.js'; // MENTOR2: the climb fought with (CLIMB-PAST's one number, a point past 100 1%, is powerBlows.js's)
-import { registerWeaponBlowMod } from './entityMods.js';
+import { registerWeaponBlowMod, registerWeaponRollAdd } from './entityMods.js';
 import { blowRoom } from './powerCeiling.js'; // POWER-CEILING: the blow's one product
 import { registerSwingPaceMod } from '../characters/weaponStates.js';
 import { swingFamily } from '../combat/swingLaw.js'; // AUDIT MARTIAL L2 F3: the swing's family, no record built
 import { techniqueFamily } from '../combat/technique/techniqueRoster.js';
-import { healthShare } from '../combat/healthShare.js'; // FIELD BUGS 2026-10-18f RELAY-SHARE: a body's share of its health, the one law
 
 // AUDIT POTION-MIGHT D8: the climb's and the gear's numbers, in their one home (powerBlows.js) - the account's judge reads them
-import {
-  WEAPON_POTENCY_PER_POINT,
-  WEAPON_HALF_PER_POINT,
-  WEAPON_GEAR_PER_POINT,
-  WEAPON_GEAR_PCT_MOST,
-} from './powerBlows.js';
-export { WEAPON_POTENCY_PER_POINT, WEAPON_HALF_PER_POINT, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST };
-/** The line between the two halves: a share of the foe's health. */
-export const WEAPON_HALF_LINE = 0.5;
+import { WEAPON_POTENCY_PER_POINT, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST } from './powerBlows.js';
+export { WEAPON_POTENCY_PER_POINT, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST };
 
 /** The skill a blow is struck with, by its family (combat/technique/techniqueRoster.js techniqueFamily - an RRI class's
  *  own included): the bare hand Hand-to-Hand, the Thunderlock Archery (it is scored on it). Null for anything else. */
@@ -75,13 +67,6 @@ export function weaponClimb(entity, skill, { online = isOnlinePage() } = {}) {
   return c > SKILL_SOFT_CAP ? c - SKILL_SOFT_CAP : 0;
 }
 
-/** The struck foe's share of its health - null where this machine cannot know it: a body the relay runs, its health here
- *  a placeholder nothing empties (world/gate/gateBoss.js bossStandIn `relayHealth` - the Warden, his crystals and host,
- *  the Remnant, the Elite Gates' court, the sea serpent), with no word of its own heard. AUDIT MARTIAL L3 F2: read as
- *  full, the hammer took its x1.8 on every blow of a boss fight and the axe never its own. FIELD BUGS 2026-10-18f
- *  RELAY-SHARE: the one law (combat/healthShare.js) - such a body now reads the relay's own word of its health (its
- *  stand-in's owner's reader), so each half pays its own there too, and the mean only where no word is heard. */
-const shareOf = healthShare;
 /** WEAPON-GEAR (2026-10-27; Martial-Specialisations.md section 4): the climb above reads the
  *  trained skill, so gear bought a weapon no damage while the fists' roll read it whole. So each point of gear on a
  *  weapon skill adds 0.44% to its blow, from the first point (GEAR-ADDS): the percent here, 0 to 320. Online, mine, never the fists. */
@@ -147,15 +132,10 @@ function climbPastPct(skill, attacker, target, opts) {
   switch (skill) {
     case SKILLS.LongBlade:
     case SKILLS.Archery:
-      return climb * (WEAPON_POTENCY_PER_POINT * 100);
     case SKILLS.Axe:
-    case SKILLS.BluntWeapon: {
-      const share = shareOf(target);
-      if (share === null) return climb * (WEAPON_POTENCY_PER_POINT * 100); // the line unread: the halves' mean (x1.4), the sword's own
-      return (skill === SKILLS.Axe ? share < WEAPON_HALF_LINE : share >= WEAPON_HALF_LINE)
-        ? climb * (WEAPON_HALF_PER_POINT * 100)
-        : 0;
-    }
+    case SKILLS.BluntWeapon:
+      // one rate on every blow: a half-only bonus averaged under a sword's over a whole kill
+      return climb * (WEAPON_POTENCY_PER_POINT * 100);
     default:
       return 0;
   }
@@ -174,6 +154,19 @@ export function weaponPvpClimbPct(weapon, attacker, opts = {}) {
 
 /** The fraction a percent of a blow leaves, carried to the next, by weapon (or by my fists). */
 let _carry = new WeakMap();
+/** What the gear on the weapon's skill adds to the WEAPON'S OWN ROLL (combat/pcaao.js
+ *  pcaaoWeaponAttackDamage, combat/formulas.js weaponAttackDamage), as the fists' gear sits in theirs - so every system
+ *  over the weapon's roll and its blow (the damage affixes and their gems, an heirloom, the sets, the sigil, the
+ *  climb, the loot powers and imprints, the stars, the crit) multiplies it as it multiplies the fists'. At a foe: weaponGearRoll's span, rolled on `rolls`.
+ *  Between players: the duel stub's (combat/duelCombat.js resolveDuelStrike, `duelGearAdd`), rolled on its sheet. */
+export function weaponGearAdd(attacker, weapon, target, rolls = Math.random) {
+  if (!weapon) return 0;
+  if (attacker?.peer) return Math.max(0, Math.trunc(Number(attacker.duelGearAdd) || 0));
+  if (!target || target.isPlayer || target.warded || sigilDueling()) return 0;
+  const roll = weaponGearRoll(attacker, weapon);
+  return roll ? roll[0] + Math.floor(rolls() * (roll[1] + 1 - roll[0])) : 0;
+}
+
 /** THE BLOW: my blow at a foe, its skill past 100 - the fraction carried, never past the blow's whole. */
 export function weaponMasteryBlow(weapon, damage, attacker, target, info = null) {
   if (
@@ -186,12 +179,8 @@ export function weaponMasteryBlow(weapon, damage, attacker, target, info = null)
     sigilDueling()
   )
     return damage;
-  // The gear's roll over the blow first (the Stats page's estimate its mean), then the climb's percent over both
-  const roll = weaponGearRoll(attacker, weapon);
-  const geared = roll
-    ? damage +
-      (info?.estimate ? (roll[0] + roll[1]) / 2 : roll[0] + Math.floor(Math.random() * (roll[1] + 1 - roll[0])))
-    : damage;
+  // The gear's roll is in the weapon's own roll now (weaponGearAdd), so the climb's percent rides over both
+  const geared = damage;
   const pct = blowRoom(weaponClimbPct(weapon, attacker, target), 'mastery'); // POWER-CEILING
   if (!(pct > 0)) return geared;
   const key = weapon ?? attacker;
@@ -213,6 +202,7 @@ export function weaponMasteryPace(ctx, w) {
 
 export const WEAPON_MASTERY = 'weaponMastery';
 registerWeaponBlowMod(WEAPON_MASTERY, weaponMasteryBlow);
+registerWeaponRollAdd(weaponGearAdd);
 registerSwingPaceMod(WEAPON_MASTERY, weaponMasteryPace);
 
 /** Tests only: no fraction carried. */

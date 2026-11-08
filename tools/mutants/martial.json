@@ -423,39 +423,30 @@
     ]
   },
   {
-    "name": "MARTIAL2-the-half-line-moved",
+    "name": "MARTIAL2-the-axe-paid-nothing",
     "file": "src/systems/weaponMastery.js",
-    "old": "export const WEAPON_HALF_LINE = 0.5;",
-    "new": "export const WEAPON_HALF_LINE = 0.6;",
+    "old": "    case SKILLS.Axe:\n    case SKILLS.BluntWeapon:\n",
+    "new": "    case SKILLS.BluntWeapon:\n",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
   },
   {
-    "name": "MARTIAL2-the-axe-at-the-fresh-foe",
+    "name": "MARTIAL2-the-hammer-paid-nothing",
     "file": "src/systems/weaponMastery.js",
-    "old": "      return (skill === SKILLS.Axe ? share < WEAPON_HALF_LINE : share >= WEAPON_HALF_LINE)",
-    "new": "      return (skill === SKILLS.Axe ? share >= WEAPON_HALF_LINE : share >= WEAPON_HALF_LINE)",
+    "old": "    case SKILLS.BluntWeapon:\n      // one rate",
+    "new": "    case -1:\n      // one rate",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
   },
   {
-    "name": "MARTIAL2-the-hammer-at-the-wounded-foe",
-    "file": "src/systems/weaponMastery.js",
-    "old": "      return (skill === SKILLS.Axe ? share < WEAPON_HALF_LINE : share >= WEAPON_HALF_LINE)",
-    "new": "      return (skill === SKILLS.Axe ? share < WEAPON_HALF_LINE : share < WEAPON_HALF_LINE)",
-    "tests": [
-      "test/systems/martial_paths.test.js"
-    ]
-  },
-  {
-    "name": "MARTIAL2-the-half-not-doubled",
+    "name": "MARTIAL2-the-ceilings-climb-room-shrunk",
     "file": "src/systems/powerBlows.js",
     "old": "export const WEAPON_HALF_PER_POINT = 2 * WEAPON_POTENCY_PER_POINT;",
     "new": "export const WEAPON_HALF_PER_POINT = 1.5 * WEAPON_POTENCY_PER_POINT;",
     "tests": [
-      "test/systems/martial_paths.test.js"
+      "test/combat/powerceiling.test.js"
     ]
   },
   {
@@ -515,8 +506,8 @@
   {
     "name": "MARTIAL2-the-archer-unpaid",
     "file": "src/systems/weaponMastery.js",
-    "old": "    case SKILLS.Archery:\n      return climb * (WEAPON_POTENCY_PER_POINT * 100);",
-    "new": "      return climb * (WEAPON_POTENCY_PER_POINT * 100);",
+    "old": "    case SKILLS.Archery:\n    case SKILLS.Axe:\n",
+    "new": "    case SKILLS.Axe:\n",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]

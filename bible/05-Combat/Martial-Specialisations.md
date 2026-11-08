@@ -43,17 +43,15 @@ mastery and on the pause window's Growth tab.
   The Weapon technique key answers the path's signature when the weapon carries no line; the Martial technique key
   always does (`Weapon-Techniques.md`). Never the beast's claws or the Thunderlock.
 - **Weapons past 100** (`src/systems/weaponMastery.js`). Online, each point of a weapon skill's climb past 100 pays, to
-  effective 140 at 200: Long Blade and Archery every blow 1% harder (x1.4); Axe 2% harder on a foe under half health,
-  Blunt 2% on a foe at half or more (x1.8 there); Short Blade every swing 1% quicker through the swing pace
-  (`registerSwingPaceMod`, at most `SWING_PACE_MOST` 50%, never past the swing law's floor); Hand-to-Hand's formula
-  already reads the climb. On a body the relay runs, health is read from the relay's word (`healthShare`,
-  `src/combat/healthShare.js`).
+  effective 140 at 200: Long Blade, Archery, Axe and Blunt every blow 1% harder at any health (x1.4); Short Blade
+  every swing 1% quicker through the swing pace (`registerSwingPaceMod`, at most `SWING_PACE_MOST` 50%, never past the
+  swing law's floor); Hand-to-Hand's formula already reads the climb.
 - **Weapon gear** (`src/systems/weaponMastery.js`). Gear on a weapon skill adds to a blow at a foe the fists' own rule over its points: points / 10
   to points / 5 more damage, rolled, ahead of the climb's percent (`weaponGearRoll`, GEAR-ROLL), so each weapon family
   carries the same gear roll the fists' skill already does.
 - **Weapons in PvP.** A blow between players carries the same gear roll (the
   duel sheet's `gr`, `src/combat/duelCombat.js`), and its climb is PVP-EVEN's (`weaponPvpClimbPct`): every family 1%
-  harder a point on every blow (x1.4), the Axe and the Blunt Weapon with no half line, save the Short Blade, whose climb
+  harder a point on every blow (x1.4), save the Short Blade, whose climb
   stays its swing pace (kept in a refereed fight, as the paths' paces are not).
 
 ## Rules

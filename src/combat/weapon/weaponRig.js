@@ -2055,7 +2055,10 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
         // left blade its own
         fpArm.setWeaponGlow?.(meshGlow(armItem), armItem);
         fpArm.setOffWeaponGlow?.(offItem ? meshGlow(offItem) : null, offItem);
-        fpArm.setHandGlow?.(wrapsMeshGlow() ?? (armItem ? null : fistGlow()));   // HAND-WRAPS: the fists wear the wraps' glow (bible/05-Combat/Hand-Wraps.md); ARMORY-FISTS: bare, the kit's weapon piece
+        // The werewolf's claws ARE its hands (fpWeaponKey keys them as the empty hand, the robe's hand rows the
+        // 'hands' ranges), so they wear the glow the classic claws sprite wears (glowOf, the art's own ask) - as a weapon
+        // they took none: no blade mesh for setWeaponGlow, and a held item turned the fists' glow off
+        fpArm.setHandGlow?.(armItem?.werecreatureClaws ? glowOf(armItem) : (wrapsMeshGlow() ?? (armItem ? null : fistGlow())));   // HAND-WRAPS: the fists wear the wraps' glow (bible/05-Combat/Hand-Wraps.md); ARMORY-FISTS: bare, the kit's weapon piece
         // MW-D32: THE BODY FOLLOWS THE EQUIP TABLE. The same per-frame
         // read that swaps the weapon now hands the rig its worn list;
         // setWorn's fast path is one key compare, and a change - a

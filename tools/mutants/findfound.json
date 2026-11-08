@@ -52,8 +52,36 @@
   {
     "name": "FIND-FOUND-the-index-kept-across-a-find",
     "file": "src/ui/heldMap.js",
-    "old": "this._searchIndex.ink === ink && this._searchIndex.gen === gen) return this._searchIndex;",
-    "new": "this._searchIndex.ink === ink) return this._searchIndex;",
+    "old": "this._searchIndex.ink === ink && this._searchIndex.gen === gen && this._searchIndex.questKey === questKey) return this._searchIndex;",
+    "new": "this._searchIndex.ink === ink && this._searchIndex.questKey === questKey) return this._searchIndex;",
+    "tests": ["test/ui/findfound.test.js"]
+  },
+  {
+    "name": "QUEST-FIND-the-quest-rows-unread",
+    "file": "src/ui/heldMap.js",
+    "old": "const questRows = ink ? tamrielQuestRows(this.deps.questSites?.() ?? []) : [];",
+    "new": "const questRows = [];",
+    "tests": ["test/ui/findfound.test.js"]
+  },
+  {
+    "name": "QUEST-FIND-the-index-kept-across-a-quest-change",
+    "file": "src/ui/heldMap.js",
+    "old": "this._searchIndex.gen === gen && this._searchIndex.questKey === questKey) return this._searchIndex;",
+    "new": "this._searchIndex.gen === gen) return this._searchIndex;",
+    "tests": ["test/ui/findfound.test.js"]
+  },
+  {
+    "name": "QUEST-FIND-the-Bay-test-dropped",
+    "file": "src/ui/tamrielInk.js",
+    "old": "if (!name || !pixel || !Number.isInteger(pixel.x) || !Number.isInteger(pixel.y) || inBay(pixel.x, pixel.y)) continue;",
+    "new": "if (!name || !pixel || !Number.isInteger(pixel.x) || !Number.isInteger(pixel.y)) continue;",
+    "tests": ["test/ui/findfound.test.js"]
+  },
+  {
+    "name": "QUEST-FIND-the-dedupe-dropped",
+    "file": "src/ui/tamrielInk.js",
+    "old": "    if (seen.has(key)) continue;\n    seen.add(key);\n    out.push({ name, regionName: site.regionName ?? '', x: pixel.x, y: pixel.y, port: false });",
+    "new": "    out.push({ name, regionName: site.regionName ?? '', x: pixel.x, y: pixel.y, port: false });",
     "tests": ["test/ui/findfound.test.js"]
   }
 ]

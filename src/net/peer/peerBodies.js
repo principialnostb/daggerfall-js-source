@@ -1184,8 +1184,14 @@ export class PeerBodies {
     const heldNow = hands ? (hands.dual ? hands.right : peerWeaponOf(look, shown)) : null;
     b.rig.setWeaponGlow?.(heldNow && weaponGlowOn() ? glowFromWord(heldNow.glow) : null, heldNow); // AUDIT WEAPON-GLOW NET-1: and the weapon it is of
     b.rig.setHandGlow?.(
-      hands && weaponGlowOn() ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true))) : null,
-    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them
+      !weaponGlowOn()
+        ? null
+        : b.wolf
+          ? fistGlow(kit, true)
+          : hands
+            ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true)))
+            : null,
+    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them; a wolf's claws wear its weapon aura
     // AUDIT MIXED-PAIR L4-3: A PAIR IN BOTH HANDS - the mode and the lead, and the left hand's weapon mirrored on its own
     // bone, through the rig's own doors (the local rig's handArm: each a fast path, the left bound once a change)
     b.rig.setHands?.({ mode: hands?.dual ? HANDS_MODE.Dual : HANDS_MODE.Single, lead: hands?.lead ?? 'R' });

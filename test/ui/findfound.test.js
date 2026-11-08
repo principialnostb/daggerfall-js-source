@@ -7,7 +7,7 @@ import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { HeldMapWindow } from '../../src/ui/heldMap.js';
-import { tamrielFoundRows } from '../../src/ui/tamrielInk.js';
+import { tamrielFoundRows, tamrielQuestRows } from '../../src/ui/tamrielInk.js';
 import { discoverLocation, foundMadePlaces, restoreDiscovery } from '../../src/systems/discovery.js';
 import { countryOrdinal, countryPlaceId, countryPixelOfId } from '../../src/world/tamrielCountry.js';
 import { lairCellOf, lairPlaceId, lairSite, lairPixelOfId } from '../../src/world/tamrielDungeons.js';
@@ -123,4 +123,45 @@ test('AUDIT FIND-FOUND F1, F2 one name, many places: found homonyms past the Bay
   assert.deepEqual(shown, ['Morrowind, 8.2 km E', 'Morrowind, 232 km SE']);
   win._renderSearch([{ name: 'Helbenar', regionName: '', way: '8.2 km E', pastBay: true, pos: near }]);
   assert.equal(win._chrome.results.children[0].children[0].children[1].textContent, '8.2 km E', 'AUDIT DRAGON-CELL II E8: no lone comma');
+});
+
+test('QUEST-FIND THE ROWS: each quest site past the Bay on its own pixel, once per name and pixel; a Bay site, a site with no pixel and a nameless one left out (mutants: the Bay test dropped; the dedupe dropped)', () => {
+  const SK = { x: 2600, y: 600 };
+  assert.equal(inBay(SK.x, SK.y), false);
+  const rows = tamrielQuestRows([
+    { regionName: 'Skyrim', locationName: 'Kjan Orchard', worldPixel: SK },
+    { regionName: 'Skyrim', locationName: 'Kjan Orchard', worldPixel: { ...SK } },
+    { regionName: 'Daggerfall', locationName: 'Ashfield Hall', worldPixel: BAY },
+    { regionName: 'Daggerfall', locationName: 'Daggerfall' },
+    { regionName: 'Skyrim', locationName: '', worldPixel: SK },
+  ]);
+  assert.deepEqual(rows, [{ name: 'Kjan Orchard', regionName: 'Skyrim', x: SK.x, y: SK.y, port: false }]);
+});
+
+test('QUEST-FIND THE BOX (Discord, 2026-11-03: a vampire\'s letter named "Kjan Orchard" and the box had no such place): with the continent on, a quest\'s countryside place past the Bay is found by its name though never found - the moment the quest holds it - and picked as a place past the Bay; gone when the quest lets it go (mutants: the quest rows unread; the index kept across a quest change)', () => {
+  _resetForTests();
+  globalThis.location = { search: '?skin=enhanced' };
+  globalThis.document = fakeDocument();
+  const SK = { x: 2600, y: 600 };
+  let sites = [];
+  const win = new HeldMapWindow({
+    getPlayerPixel: () => ({ x: 5, y: 5 }), getClimateIndex: () => 231, woods: { heightMapBuffer: new Uint8Array(100).fill(10) }, mapSize: { width: 10, height: 10 },
+    gold: () => 1e6, goldPieces: () => 1e6, hasHorse: false, hasCart: false, hasShip: false, diseaseCount: () => 0, poisonCount: () => 0,
+    questSites: () => sites,
+  });
+  for (let i = 0; i < 20; i++) win.tick(0.05);
+  win._tamriel = true;
+  const kjan = () => win._findLocations('Kjan Orchard').filter((e) => e.pastBay && e.name === 'Kjan Orchard');
+  assert.deepEqual(kjan(), [], 'no quest names it: not in the box');
+  sites = [{ siteType: 1, regionName: 'Skyrim', locationName: 'Kjan Orchard', worldPixel: SK }];
+  const hit = kjan();
+  assert.deepEqual(hit.map((e) => [e.regionName, e.pos]), [['Skyrim', SK]], 'the quest holds it: in the box at once, never found');
+  win._focusOn = () => {};
+  win._searchPick(hit[0]);
+  assert.deepEqual([win._selected?.pastBay, win._selected?.name, win._selected?.x, win._selected?.y], [true, 'Kjan Orchard', SK.x + 0.5, SK.y + 0.5]);
+  discoverLocation(countryId(SK), { regionName: 'Skyrim', locationName: 'Kjan Orchard' });
+  assert.equal(kjan().length, 1, 'found as well: one row, not two');
+  restoreDiscovery(null);
+  sites = [];
+  assert.deepEqual(kjan(), [], 'the quest done: out of the box again');
 });

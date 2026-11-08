@@ -146,7 +146,7 @@ import { dungeonMap3dOn, tamrielMapOn } from './map/mapSkin.js';   // EM3-3D: th
 // TAMRIEL1 (2026-10-08, Mac: "the entirety of tamriel ... connected as a gigantic map ... seen by players ingame"): the
 // continent inked round the Bay on the world sheet - the sheet's pan box grows to the whole frame, the home view stays
 // the Bay's own fit, and past that fit the sheet is on the continent (ui/tamrielInk.js; bible/03-World/Tamriel.md)
-import { tamrielInkFor, paintTamrielInk, paintPastBay, pastBayStamp, tamrielHoverAt, tamrielCityAt, tamrielCityBucket, onContinent, ARENA_KIND_GLYPHS, releasePastBayInk, viewLeavesBay, tamrielFindRows, tamrielFoundRows } from './tamrielInk.js';   // TESA2: the press's city beside the hover's; BAY-LEFT-MAPS C9: the find box's places past the Bay (FIND-FOUND: and the found)
+import { tamrielInkFor, paintTamrielInk, paintPastBay, pastBayStamp, tamrielHoverAt, tamrielCityAt, tamrielCityBucket, onContinent, ARENA_KIND_GLYPHS, releasePastBayInk, viewLeavesBay, tamrielFindRows, tamrielFoundRows, tamrielQuestRows } from './tamrielInk.js';   // TESA2: the press's city beside the hover's; BAY-LEFT-MAPS C9: the find box's places past the Bay (FIND-FOUND: and the found)
 import { foundMadePlaces, discoveryGeneration } from '../systems/discovery.js';   // FIND-FOUND: the places past the Bay found, and when that moves
 import { eventWay } from '../systems/eventBoard.js';   // AUDIT FIND-FOUND F1: a homonym's way from the player, the board's own words
 import { tamrielFrameInBay, inBay } from '../world/tamriel/tamrielFrame.js';
@@ -1147,6 +1147,11 @@ export class HeldMapWindow {
   _close() {
     if (this.done) return;
     if (this._panelState) this._rememberPanel();
+    // a sheet that keeps its view past the close is handed the one it was closed on
+    for (const [id, sheet] of this._sheets ?? []) {
+      const view = this._slot?.live === id ? this._view : this._slot?.viewOf?.(id);
+      if (sheet?.keepView && view) sheet.keepView(view, this._paper);
+    }
     this.teleportationTravel = false;
     this._teardown();
     this._pastBayTiles?.clear();
@@ -1292,7 +1297,8 @@ export class HeldMapWindow {
       // corridor three pixels wide) and its homeView was only ever asked after a tab change
       const limits = this._limits();
       const home = this._sheet?.homeView?.(limits) ?? { ox: 0, oy: 0, scale: scaleMinOf(limits) };
-      this._view = clampView(home, limits);
+      // a sheet that kept the view it was closed on opens on that one instead
+      this._view = clampView(this._sheet?.keptView?.(limits) ?? home, limits);
       this._goal = { ...this._view };
     } else {
       // AUDIT FB1010 B1: a paper that changes size keeps the map point at its middle. The view's top-left was kept, so
@@ -3630,7 +3636,10 @@ export class HeldMapWindow {
     // names past the Bay - was never found.
     const ink = this._tamriel ? tamrielInkFor(this._model) : null;
     const gen = ink ? discoveryGeneration() : 0;   // FIND-FOUND: a place found while the sheet stands is in the box at once
-    if (this._searchIndex && this._searchIndex.ink === ink && this._searchIndex.gen === gen) return this._searchIndex;
+    // The quests' places past the Bay, found or not: read on each find (a handful), the index rebuilt only when they change
+    const questRows = ink ? tamrielQuestRows(this.deps.questSites?.() ?? []) : [];
+    const questKey = questRows.map((row) => `${row.name}@${row.x},${row.y}`).join(';');
+    if (this._searchIndex && this._searchIndex.ink === ink && this._searchIndex.gen === gen && this._searchIndex.questKey === questKey) return this._searchIndex;
     // AUDIT FIND-FOUND F2: the Bay's and the listed rows kept by the ink alone - a find reads the found rows again, not MAPS.BSA
     const base = this._searchBase?.ink === ink ? this._searchBase : (this._searchBase = { ink, byName: this._searchRows(ink) });
     const byName = new Map(base.byName);   // display name -> [entry]
@@ -3639,9 +3648,15 @@ export class HeldMapWindow {
     for (const row of ink ? tamrielFoundRows(foundMadePlaces()) : []) {
       byName.set(row.name, [...(byName.get(row.name) ?? []), { name: row.name, regionName: row.regionName, pastBay: true, port: row.port, pos: { x: row.x, y: row.y } }]);
     }
+    // A quest's place the box does not already hold on that pixel (a listed town, a found farm)
+    for (const row of questRows) {
+      const list = byName.get(row.name) ?? [];
+      if (list.some((entry) => entry.pastBay && entry.pos?.x === row.x && entry.pos?.y === row.y)) continue;
+      byName.set(row.name, [...list, { name: row.name, regionName: row.regionName, pastBay: true, port: row.port, pos: { x: row.x, y: row.y } }]);
+    }
     const distance = getDaggerfallDistance();
     distance.setDictionary([...byName.keys()]);
-    this._searchIndex = { byName, distance, ink, gen };
+    this._searchIndex = { byName, distance, ink, gen, questKey };
     return this._searchIndex;
   }
 

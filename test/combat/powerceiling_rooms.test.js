@@ -102,13 +102,13 @@ test('POWER-CEILING THE SKY OBEYS ITS ROOM (AUDIT HORIZONTAL D2): a sword under 
   reset();
 });
 
-test('POWER-CEILING MASTERY OBEYS ITS ROOM (AUDIT HORIZONTAL D2): an axe at a skill of 200 (140 effective) on a foe under half health lands its +80% whole with room and nothing once the product is spent (mutant: mastery asking and spending the raw per cent)', () => online(() => {
+test('POWER-CEILING MASTERY OBEYS ITS ROOM (AUDIT HORIZONTAL D2): an axe at a skill of 200 (140 effective) lands its +40% whole with room and nothing once the product is spent (mutant: mastery asking and spending the raw per cent)', () => online(() => {
   reset();
   const me = hero([S.Axe], 200);
   const axe = weapon(WEAPONS.War_Axe);
   const low = foe({ health: 10 });
-  assert.equal(weaponPastPct(axe, me, low), 80, 'the axe\'s two per cent an effective point past 100, at 140');
-  assert.equal(openBlow(() => weaponMasteryBlow(axe, 1000, me, low)), 1800, 'whole: +80%');
+  assert.equal(weaponPastPct(axe, me, low), 40, 'the axe\'s one per cent an effective point past 100, at 140');
+  assert.equal(openBlow(() => weaponMasteryBlow(axe, 1000, me, low)), 1400, 'whole: +40%');
   assert.equal(spentBlow(() => weaponMasteryBlow(axe, 1000, me, low)), 1000, `no room, no more - ${RULE}`);
   reset();
 }));

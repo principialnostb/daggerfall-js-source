@@ -267,7 +267,7 @@ test('MARTIAL3 THE SIGNATURE IN HAND: the technique key\'s answer with no line o
   assert.equal(techniqueWait('crush'), 0, 'no loot technique\'s clock moved');
 });
 
-test('MARTIAL2 THE WEAPON PAST 100: online, each effective point of the climb - Long Blade every blow 1% harder, Archery every arrow, the Axe 2% at a foe under half, the Blunt Weapon 2% at a foe at half or more, the Short Blade every swing 1% quicker, Hand-to-Hand nothing more; never offline, mentoring, in a duel, at a player or the Warden (mutants: a half\'s line moved; the axe and the hammer swapped; the climb read raw; offline paid)', () => {
+test('MARTIAL2 THE WEAPON PAST 100: online, each effective point of the climb - Long Blade, Archery, the Axe and the Blunt Weapon every blow 1% harder at any health, the Short Blade every swing 1% quicker, Hand-to-Hand nothing more; never offline, mentoring, in a duel, at a player or the Warden (mutants: the axe or the hammer paid on one half only; the climb read raw; offline paid)', () => {
   reset();
   page(true, () => {
     const lb = held(fighter([LB], 200), weapon(WEAPONS.Longsword));
@@ -280,11 +280,11 @@ test('MARTIAL2 THE WEAPON PAST 100: online, each effective point of the climb - 
     assert.equal(blow100(weapon(WEAPONS.Long_Bow), ar, foe()), 140);
     assert.equal(blow100(weapon(WEAPONS.Longsword), ar, foe()), 100, 'a sword in an archer\'s hand climbs nothing');
     const ax = fighter([AX], 200);
-    assert.equal(blow100(weapon(WEAPONS.War_Axe), ax, foe({ health: 49 })), 180, 'under half: x1.8');
-    assert.equal(blow100(weapon(WEAPONS.War_Axe), ax, foe({ health: 50 })), 100, 'at half: nothing');
+    assert.equal(blow100(weapon(WEAPONS.War_Axe), ax, foe({ health: 49 })), 140, 'under half: x1.4');
+    assert.equal(blow100(weapon(WEAPONS.War_Axe), ax, foe({ health: 50 })), 140, 'at half: x1.4');
     const bl = fighter([BL], 200);
-    assert.equal(blow100(weapon(WEAPONS.Warhammer), bl, foe({ health: 50 })), 180, 'at half or more: x1.8');
-    assert.equal(blow100(weapon(WEAPONS.Warhammer), bl, foe({ health: 49 })), 100);
+    assert.equal(blow100(weapon(WEAPONS.Warhammer), bl, foe({ health: 50 })), 140, 'at half or more: x1.4');
+    assert.equal(blow100(weapon(WEAPONS.Warhammer), bl, foe({ health: 49 })), 140, 'under half: x1.4');
     const hh = fighter([HH], 200);
     assert.equal(blow100(null, hh, foe()), 100, 'the fist\'s formula pays already');
     const sb = fighter([SB], 200);

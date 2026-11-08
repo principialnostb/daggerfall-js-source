@@ -6,7 +6,7 @@
 // net/mightLaw.js. The account Worker's alone (server-account/src/judge.js); it imports only what the Worker bundles.
 import { BLOW_TOPS } from '../systems/powerCeiling.js';
 import {
-  POWER_BLOW, SET_TIER_BLOW, WEAPON_POTENCY_PER_POINT, WEAPON_HALF_PER_POINT, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST,
+  POWER_BLOW, SET_TIER_BLOW, WEAPON_POTENCY_PER_POINT, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST,
   POTENCY_CAP, SPELL_POWER_MOST,
 } from '../systems/powerBlows.js';
 import { validAffix, readLines, powerOf, powerIdsOf } from '../systems/loot/lootRarity.js';
@@ -31,10 +31,10 @@ export const KIT_SET_PLACES = SET_BODY_SLOTS.length + 2;
 /** A Renown past every stage: a piece's own rank alone - the judge knows no Renown, and reads the most. */
 const ANY_RENOWN = Number.MAX_SAFE_INTEGER;
 const WEAPON_SKILLS = Object.freeze([SKILLS.ShortBlade, SKILLS.LongBlade, SKILLS.Axe, SKILLS.BluntWeapon, SKILLS.Archery]);
-/** MARTIAL2's climb by skill (weaponMastery.js climbPastPct): a sword's and a bow's a point, an axe's and a hammer's twice
- *  that on their half, a short blade's its pace and none of its blow. */
+/** MARTIAL2's climb by skill (weaponMastery.js climbPastPct): a point each for a sword, a bow, an axe and a hammer;
+ *  a short blade's is its pace and none of its blow. */
 const CLIMB_PER_POINT = Object.freeze({ [SKILLS.LongBlade]: WEAPON_POTENCY_PER_POINT, [SKILLS.Archery]: WEAPON_POTENCY_PER_POINT,
-  [SKILLS.Axe]: WEAPON_HALF_PER_POINT, [SKILLS.BluntWeapon]: WEAPON_HALF_PER_POINT });
+  [SKILLS.Axe]: WEAPON_POTENCY_PER_POINT, [SKILLS.BluntWeapon]: WEAPON_POTENCY_PER_POINT });
 /** A set tier that adds a weapon skill (sigilSets.js), by its value's name. */
 const TIER_SKILL = Object.freeze({ 'keen-eyed': ['archery', SKILLS.Archery], 'thick-skinned': ['blunt', SKILLS.BluntWeapon] });
 const FOE_GROUPS = Object.freeze(['undead', 'daedra', 'animal', 'humanoid', null]);

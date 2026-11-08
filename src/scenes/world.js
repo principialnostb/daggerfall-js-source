@@ -1230,6 +1230,7 @@ import { createTamrielPlaces } from './tamrielPlacesHost.js';   // HOST-SPLIT
 import { createTamrielSweeps } from './tamrielSweepsHost.js';   // HOST-SPLIT
 import { createTamrielPorts } from './tamrielPortsHost.js';   // HOST-SPLIT
 import { createQuestWorld } from './questWorld.js';   // HOST-SPLIT
+import { machineSites } from './quest/questProvinceSites.js';   // the quests' places past the Bay, for the map's find box
 import { createWorldQuickSave } from './worldQuickSave.js';   // HOST-SPLIT
 import { createCsaAudio } from './csaAudio.js';   // HOST-SPLIT
 import { createOceanHolesPits } from './oceanHolesPits.js';   // HOST-SPLIT
@@ -15660,7 +15661,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
       // GUIDE5: WHERE THE QUESTS POINT - every active quest's place the player's map holds, the followed one filled
       // (ui/quest/questMarks.js); a function for the gate's reason (a step logged while the map stands open). The enhanced
       // map alone draws them: a player who chose DFU's own maps chose DFU's look.
-      quests: () => (marksOn() ? questMapMarks(questTracker.views, questTracker.shown()?.id ?? null, questPixel) : []),
+      quests: () => (marksOn() ? questMapMarks(questTracker.views, questTracker.shown()?.id ?? null, questPixel) : []), questSites: () => [...machineSites(questBridge?.machine)],   // and every quest's site, for the find box past the Bay
       // BOUNTY1 (Mac: "board quests can be a green circle", then black - green is the party's): each held bounty's pixel, on both maps
       bounties: () => [...(bountyHost?.mapMarks() ?? []), ...(legacyHost?.mapMarks() ?? [])],   // LEGACY4: and where the house's fallen lie, ringed as a hunt is
       // RVN7c (bible/12-Enhanced-AI/Feud-Arc.md 18.3): each revenant lair heard of - a blood-red circle, on both maps

@@ -243,6 +243,12 @@ export function resolveDuelStrike(d, target, { rolls = Math.random, backFacing =
   // PlayerWeapon.resolveHit's does against a foe - its to-hit by the sheet's Agility, its share of the damage and its weight
   // AUDIT PISTOLET A1: and a pair's off-hand SHOT - a Pistolet's, the one ranged weapon a pair holds
   const off = (d.by === 'melee' || d.by === 'arrow') && d.off === true;
+  // The weapon's gear rolled into the weapon's own roll, where a blow at a foe takes it (weaponMastery.js
+  // weaponGearAdd), so the crit multiplies it there too - added after the roll it missed the crit and halved a geared weapon
+  const gearRoll = Array.isArray(d.a?.gr) ? d.a.gr : null;
+  if (gearRoll && weapon)
+    stub.duelGearAdd =
+      Math.max(0, int(gearRoll[0])) + Math.floor(rolls() * (Math.max(0, int(gearRoll[1]) - int(gearRoll[0])) + 1));
   const dmg = calculateAttackDamage(stub, target, {
     weapon,
     damageMod: swing.damage,
@@ -254,14 +260,7 @@ export function resolveDuelStrike(d, target, { rolls = Math.random, backFacing =
     say: null,
     onInflictPoison: null,
   });
-  const struck = Math.max(0, int(dmg));
-  const gearRoll = Array.isArray(d.a?.gr) ? d.a.gr : null; // the weapon's gear, rolled over a landed blow
-  const rolled =
-    struck > 0 && gearRoll
-      ? struck +
-        Math.max(0, int(gearRoll[0])) +
-        Math.floor(rolls() * (Math.max(0, int(gearRoll[1]) - int(gearRoll[0])) + 1))
-      : struck;
+  const rolled = Math.max(0, int(dmg));
   const climbed = rolled + Math.floor((rolled * Math.max(0, Number(d.a?.wp) || 0)) / 100); // PVP-SCALE: the weapon's climb
   const geared = climbed + Math.floor((climbed * Math.max(0, Number(d.a?.gp) || 0)) / 100); // PVP-GEAR: the striker's lines and powers
   const scaled = geared > 0 ? geared + Math.max(0, Math.trunc(Number(d.a?.gf) || 0)) : 0; // PVP-GEAR: and a landed blow's flat

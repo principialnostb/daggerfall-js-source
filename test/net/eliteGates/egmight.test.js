@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MIGHT_NONE, MIGHT_MOST, mightOk, mightX, mightOf, mightSigned } from '../../../src/net/mightLaw.js';
 import { kitMightParts, kitMightOf } from '../../../src/net/kitMight.js';
-import { POWER_BLOW, SET_TIER_BLOW, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST, WEAPON_POTENCY_PER_POINT, WEAPON_HALF_PER_POINT, POTENCY_CAP, SPELL_POWER_MOST } from '../../../src/systems/powerBlows.js';
+import { POWER_BLOW, SET_TIER_BLOW, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST, WEAPON_POTENCY_PER_POINT, POTENCY_CAP, SPELL_POWER_MOST } from '../../../src/systems/powerBlows.js';
 import * as WM from '../../../src/systems/weaponMastery.js';
 import * as LP from '../../../src/systems/loot/lootPowers.js';
 import { setById, tierValues } from '../../../src/systems/sigil/sigilSets.js';
@@ -101,7 +101,7 @@ test('EG-MIGHT THE KIT\'S PARTS, WORN AT ONCE: one weapon in hand - its damage l
   assert.ok(kitMightParts({ items: [g] }, all).loot + kitMightParts({ items: [g] }, all).roll > 0, 'a Gilded record\'s power or lines read');
 });
 
-test('EG-MIGHT THE KIT\'S PARTS, THE REST: a Master\'s work carries no power; sets together at the places they fill, at their pieces\' stage; a weapon\'s sigil; an heirloom\'s generations; a mastered skill\'s climb (a sword\'s and a bow\'s a point, an axe\'s and a hammer\'s two, a short blade\'s none) and its gear\'s points, Enhances Skill\'s +15 among them; a martial path held with both skills mastered (mutants: a Master\'s work a power; the largest set alone; the stage past its pieces\'; an unmastered climb; a short blade\'s climb paid; any path a path)', () => {
+test('EG-MIGHT THE KIT\'S PARTS, THE REST: a Master\'s work carries no power; sets together at the places they fill, at their pieces\' stage; a weapon\'s sigil; an heirloom\'s generations; a mastered skill\'s climb (a sword\'s, a bow\'s, an axe\'s and a hammer\'s a point, a short blade\'s none) and its gear\'s points, Enhances Skill\'s +15 among them; a martial path held with both skills mastered (mutants: a Master\'s work a power; the largest set alone; the stage past its pieces\'; an unmastered climb; a short blade\'s climb paid; any path a path)', () => {
   assert.equal(kitMightParts({ items: [sword({ rarity: 'common', provenance: 'p'.repeat(24), quality: 5 })] }, all).loot, 0);
   // sets: Nocturnal at four and the Thieftaker at four fill eight places - both sets' tiers, at Faint (their pieces' stage)
   const piece = (set, templateIndex, xp = 0) => ({ group: 'Armor', templateIndex, material: 0, sigil: { party: 1, xp, set } });
@@ -119,13 +119,13 @@ test('EG-MIGHT THE KIT\'S PARTS, THE REST: a Master\'s work carries no power; se
   const climb = effectiveSkill(200) - SKILL_SOFT_CAP;
   const at = (skill, mastered = [skill]) => kitMightParts({ skills: skills(50, { [skill]: 200 }), masteredSkills: mastered }, all).mastery;
   assert.deepEqual([at(SKILLS.LongBlade), at(SKILLS.Archery), at(SKILLS.Axe), at(SKILLS.BluntWeapon), at(SKILLS.ShortBlade), at(SKILLS.Axe, [])],
-    [climb * WEAPON_POTENCY_PER_POINT * 100, climb * WEAPON_POTENCY_PER_POINT * 100, climb * WEAPON_HALF_PER_POINT * 100, climb * WEAPON_HALF_PER_POINT * 100, 0, 0]);
+    [climb * WEAPON_POTENCY_PER_POINT * 100, climb * WEAPON_POTENCY_PER_POINT * 100, climb * WEAPON_POTENCY_PER_POINT * 100, climb * WEAPON_POTENCY_PER_POINT * 100, 0, 0]);
   const ring = { group: 'Jewellery', templateIndex: 133, affixes: [{ id: 'skill', param: SKILLS.Axe, value: 30 }, { id: 'skill', param: SKILLS.Axe, value: 20 }],
     enchantments: [{ type: ENCHANTMENT_TYPES.EnhancesSkill, param: SKILLS.Axe }] };
   assert.ok(Math.abs(kitMightParts({ items: [ring] }, all).mastery - (50 + ENHANCE_SKILL_MOD) * WEAPON_GEAR_PER_POINT) < 1e-9, 'its lines and its enchantment');
   const enchanted = (n) => ({ ...ring, enchantments: Array.from({ length: n }, () => ({ type: ENCHANTMENT_TYPES.EnhancesSkill, param: SKILLS.Axe })) });
   assert.equal(kitMightParts({ items: [enchanted(60)] }, all).mastery, WEAPON_GEAR_PCT_MOST, 'gear at its most');
-  assert.equal(kitMightParts({ skills: skills(50, { [SKILLS.Axe]: 200 }), masteredSkills: [SKILLS.Axe], items: [enchanted(60)] }, all).mastery, BLOW_TOPS.mastery, 'mastery at its top');
+  assert.equal(kitMightParts({ skills: skills(50, { [SKILLS.Axe]: 200 }), masteredSkills: [SKILLS.Axe], items: [enchanted(60)] }, all).mastery, climb * WEAPON_POTENCY_PER_POINT * 100 + WEAPON_GEAR_PCT_MOST, 'mastery at its most: the climb\'s and the gear\'s, under its top');
   // the gear's other points: the sky's, a set tier's, the line's blessings (to their most), a Legendary once in its place
   assert.ok(Math.abs(kitMightParts({}, all, { firm: { 'skill.LongBlade': 15 } }).mastery - 15 * WEAPON_GEAR_PER_POINT) < 1e-9, 'the sky\'s Long Blade');
   const keen = tierValues(setById('thieftaker').tiers.find((x) => x.key === 'keen-eyed'), 0).archery;
@@ -157,7 +157,7 @@ test('EG-MIGHT THE SKY AND THE SPELL: the sky\'s part is its tree\'s own blow (f
 });
 
 test('EG-MIGHT THE NUMBERS IT READS ARE THE CLIENT\'S: one home each (systems/powerBlows.js) - WEAPON-GEAR\'s and MARTIAL2\'s rates the client\'s own bindings, BAL9c\'s caps the loot\'s (mutant: a rate drifted)', () => {
-  assert.deepEqual([WM.WEAPON_GEAR_PER_POINT, WM.WEAPON_GEAR_PCT_MOST, WM.WEAPON_POTENCY_PER_POINT, WM.WEAPON_HALF_PER_POINT], [WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST, WEAPON_POTENCY_PER_POINT, WEAPON_HALF_PER_POINT]);
+  assert.deepEqual([WM.WEAPON_GEAR_PER_POINT, WM.WEAPON_GEAR_PCT_MOST, WM.WEAPON_POTENCY_PER_POINT], [WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST, WEAPON_POTENCY_PER_POINT]);
   assert.deepEqual([LP.POTENCY_CAP, LP.SPELL_POWER_MOST], [POTENCY_CAP, SPELL_POWER_MOST]);
 });
 

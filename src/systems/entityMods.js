@@ -220,6 +220,14 @@ export function entityResistMod(entity, elements) {
   for (const el of elements ?? []) if (r?.[el]) out += r[el];
   return out;
 }
+/** What the striker's gear adds to a weapon's own roll before its modifiers (systems/weaponMastery.js
+ *  weaponGearAdd registers it; both cores read it here, off the import cycle a direct read would make). */
+let _rollAdd = null;
+export function registerWeaponRollAdd(fn) {
+  _rollAdd = typeof fn === 'function' ? fn : null;
+}
+export const weaponRollAdd = (attacker, weapon, target, rolls) =>
+  _rollAdd ? Number(_rollAdd(attacker, weapon, target, rolls)) || 0 : 0;
 /** The weapon's rolled damage through every registered modifier, in
  *  registration order. */
 export function weaponDamageMods(weapon, damage) {

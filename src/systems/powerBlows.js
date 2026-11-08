@@ -39,7 +39,8 @@ export const POWER_BLOW = Object.freeze({
 });
 /** Each effective point of a weapon's climb past 100 is this much more of what it does (BAL9b's per point). */
 export const WEAPON_POTENCY_PER_POINT = SCHOOL_POTENCY_PER_POINT;
-/** The Axe's and the Blunt Weapon's: twice that, on their half of a foe's health. */
+/** Twice that: the power ceiling's room for a climb (tools/powerCeiling.mjs masteryBlowTop). No family pays it - every
+ *  blow's climb is WEAPON_POTENCY_PER_POINT. */
 export const WEAPON_HALF_PER_POINT = 2 * WEAPON_POTENCY_PER_POINT;
 /** WEAPON-GEAR: the percent each point of gear on a weapon skill adds to its blow (0.44: a sheet of 872, trained 200
  *  and 672 on it, is the climb's 40 + 296 = x4.36, the top mob was shown). */

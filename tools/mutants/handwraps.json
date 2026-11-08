@@ -294,7 +294,7 @@
   {
     "name": "HANDWRAPS-rig",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "        fpArm.setHandGlow?.(wrapsMeshGlow() ?? (armItem ? null : fistGlow()));",
+    "old": "        fpArm.setHandGlow?.(armItem?.werecreatureClaws ? glowOf(armItem) : (wrapsMeshGlow() ?? (armItem ? null : fistGlow())));",
     "new": "",
     "tests": [
       "test/combat/handwraps.test.js"
@@ -304,7 +304,7 @@
   {
     "name": "HANDWRAPS-peer",
     "file": "src/net/peer/peerBodies.js",
-    "old": "    b.rig.setHandGlow?.(\n      hands && weaponGlowOn() ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true))) : null,\n    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them",
+    "old": "    b.rig.setHandGlow?.(\n      !weaponGlowOn()\n        ? null\n        : b.wolf\n          ? fistGlow(kit, true)\n          : hands\n            ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true)))\n            : null,\n    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them; a wolf's claws wear its weapon aura",
     "new": "    // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them",
     "tests": [
       "test/combat/handwraps.test.js"
@@ -514,8 +514,8 @@
   {
     "name": "HANDWRAPS-peer-switch",
     "file": "src/net/peer/peerBodies.js",
-    "old": "    b.rig.setHandGlow?.(\n      hands && weaponGlowOn() ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true))) : null,\n    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them",
-    "new": "    b.rig.setHandGlow?.(hands ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true))) : null); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them",
+    "old": "    b.rig.setHandGlow?.(\n      !weaponGlowOn()\n        ? null\n        : b.wolf\n          ? fistGlow(kit, true)\n          : hands\n            ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true)))\n            : null,\n    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them; a wolf's claws wear its weapon aura",
+    "new": "    b.rig.setHandGlow?.(\n      b.wolf\n          ? fistGlow(kit, true)\n          : hands\n            ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true)))\n            : null,\n    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them; a wolf's claws wear its weapon aura",
     "tests": [
       "test/combat/handwraps.test.js"
     ],
@@ -550,5 +550,25 @@
       "test/combat/handwraps_audit.test.js"
     ],
     "note": "AUDIT C5: the running fists unlit"
+  },
+  {
+    "name": "WOLF-GLOW-peer",
+    "file": "src/net/peer/peerBodies.js",
+    "old": "    b.rig.setHandGlow?.(\n      !weaponGlowOn()\n        ? null\n        : b.wolf\n          ? fistGlow(kit, true)\n          : hands\n            ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true)))\n            : null,\n    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them; a wolf's claws wear its weapon aura",
+    "new": "    b.rig.setHandGlow?.(\n      !weaponGlowOn()\n        ? null\n        : b.wolf\n          ? null\n          : hands\n            ? (peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true)))\n            : null,\n    ); // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them; a wolf's claws wear its weapon aura",
+    "tests": [
+      "test/combat/wolfhandglow.test.js"
+    ],
+    "note": "a peer's wolf never wears its weapon aura"
+  },
+  {
+    "name": "WOLF-GLOW-rig",
+    "file": "src/combat/weapon/weaponRig.js",
+    "old": "        fpArm.setHandGlow?.(armItem?.werecreatureClaws ? glowOf(armItem) : (wrapsMeshGlow() ?? (armItem ? null : fistGlow())));",
+    "new": "        fpArm.setHandGlow?.((wrapsMeshGlow() ?? (armItem ? null : fistGlow())));",
+    "tests": [
+      "test/combat/wolfhandglow.test.js"
+    ],
+    "note": "the wolf's Morrowind hands never glow"
   }
 ]

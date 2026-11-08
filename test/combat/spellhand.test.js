@@ -46,7 +46,7 @@ test('SPELL-HAND THE LAW: a one-handed weapon in the hand that fights and NOTHIN
   // MorphSelf empties both hand slots, so the beast IS the fists' line above; its rig is DFU's (the claws, one hand)
 });
 
-test('SPELL-HAND THE LIVE WORD: the rig\'s once-a-frame word, read by the cast\'s doors - up, and busy only while up (mutants: busy without up; the word never kept)', () => {
+test('SPELL-HAND THE LIVE WORD: the rig\'s once-a-frame word, read by the cast\'s doors - up, and busy whatever the hands (CAST-WAITS; mutants: busy read only with the spell hand up; the word never kept)', () => {
   _resetSpellHand();
   assert.deepEqual([spellHandUp(), spellHandBusy()], [false, false]);
   tellSpellHand({ up: true, busy: false });
@@ -54,7 +54,7 @@ test('SPELL-HAND THE LIVE WORD: the rig\'s once-a-frame word, read by the cast\'
   tellSpellHand({ up: true, busy: true });
   assert.deepEqual([spellHandUp(), spellHandBusy()], [true, true]);
   tellSpellHand({ up: false, busy: true });
-  assert.deepEqual([spellHandUp(), spellHandBusy()], [false, false], 'a blow with no spell hand holds no cast');
+  assert.deepEqual([spellHandUp(), spellHandBusy()], [false, true], 'CAST-WAITS: a blow with no spell hand holds the cast too');
   _resetSpellHand();
   assert.equal(guardDrop(1, 100), 12, 'the guard: GUARD.LOWER of the picture\'s own height');
   assert.equal(guardDrop(0, 100), 0);
@@ -583,4 +583,31 @@ test('SPELL-HAND AUDIT L5-8 A SHOT\'S HIT STILL HELD IS A BLOW IN FLIGHT: under 
     await frame();
     assert.equal(spellHandBusy(), false, 'and the hands are free');
   } finally { arm.restore(); _resetSpellHand(); }
+});
+
+test('CAST-WAITS (weapon + magic stacking): with DFU\'s two-handed cast - a claymore, the fists - a cast pressed mid-blow WAITS for the blow to end, then leaves; the blow lands once, never under a cast already playing (mutant: the busy word read only with the spell hand up - the cast starts at once and the hidden blow lands under it)', async () => {
+  const weapon = (templateIndex, name) => ({ name, group: 'Weapons', templateIndex, material: 0 });
+  try {
+    for (const [name, right] of [['a claymore', weapon(122, 'Claymore')], ['the fists', null]]) {
+      _resetSpellHand();
+      let rig = null;
+      const { magic, casts } = audEngine(() => rig);
+      rig = await pistolRig({ right, cif: ART, spellArmed: () => magic.spellArmed(), readiedSpell: () => magic.readied(), abortSpell: () => magic.abortReadySpell() });
+      const step = (held) => { magic.firePending(EYE, DIR); return rig.frame(1 / 60, held); };
+      for (let i = 0; i < 30; i++) await step(false);
+      let hitAt = -1, castAt = -1, idleAt = -1, started = false;
+      for (let i = 0; i < 200; i++) {
+        if (i === 3) { magic.takeReady({ sp: SP_FIRE, free: true }); assert.equal(magic.interceptAttack(true, CAST_PRESS), true, `${name}: the press, mid-blow`); }
+        await step(i < 2);
+        const st = rig.r.playerWeapon.machine.state;
+        if (st !== 'Idle') started = true;
+        if (started && st === 'Idle' && idleAt < 0) idleAt = i;
+        if (rig.events.includes('hit') && hitAt < 0) hitAt = i;
+        if (fpsSpellCasting.isPlayingAnim && castAt < 0) castAt = i;
+      }
+      assert.ok(started && hitAt > 3, `${name}: the blow ran and landed`);
+      assert.ok(castAt >= idleAt && idleAt > 0, `${name}: the cast waited for the blow (cast ${castAt}, blow over ${idleAt})`);
+      assert.equal(casts.n, 1, `${name}: and left, once`);
+    }
+  } finally { _resetSpellHand(); }
 });

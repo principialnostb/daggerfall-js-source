@@ -33,6 +33,7 @@ import { heldMapWorn } from '../map/mapSkin.js'; // MAP-TOGGLE: the skin AND the
 import { AutomapWindow, preloadAutomapArt, automapArtLoaded } from './automapWindow.js';
 import { HeldMapWindow } from '../heldMap.js';
 import { noteFirstUse } from '../../systems/tutorials.js'; // TUT1: the first touch of a system pops its tutorial page
+import { liveDungeonAutomapKey } from '../../systems/automap/automap.js';
 
 export { preloadAutomapArt };
 
@@ -60,6 +61,8 @@ export function automapDoorReady() {
  */
 export function createAutomapWindow(deps = {}) {
   noteFirstUse('automap'); // TUT1
+  // the dungeon the map keeps its view for; a building's map keeps none
+  deps = { ...deps, viewKey: deps.viewKey ?? (deps.insideBuilding ? null : liveDungeonAutomapKey()) };
   // `document` for the reason every fork before this one gives: node
   // drives these hosts headless and keeps the canvas window rather than
   // getting a special case written for it.
@@ -74,6 +77,7 @@ export function createAutomapWindow(deps = {}) {
         startMarker: deps.startMarker ?? null,
         insideBuilding: !!deps.insideBuilding,
         title: deps.title ?? deps.dungeonName ?? '',
+        viewKey: deps.viewKey ?? null, // the dungeon whose view the sheet keeps
         party: deps.party ?? null, // DISC23-A: the party members whose bodies stand in this level (the classic 3D arm ignores it)
         portals: deps.portals ?? null, // TP-SEEN: every teleporter in the level (the classic 3D arm ignores it)
         fires: deps.fires ?? null, // REST3: the dungeon's own campfires (the classic 3D arm ignores them)

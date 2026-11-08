@@ -306,10 +306,10 @@
     ]
   },
   {
-    "name": "EG-MIGHT-the-axe-at-the-swords-rate",
+    "name": "EG-MIGHT-the-axe-at-twice-the-swords-rate",
     "file": "src/net/kitMight.js",
-    "old": "  [SKILLS.Axe]: WEAPON_HALF_PER_POINT,",
-    "new": "  [SKILLS.Axe]: WEAPON_POTENCY_PER_POINT,",
+    "old": "  [SKILLS.Axe]: WEAPON_POTENCY_PER_POINT, [SKILLS.BluntWeapon]",
+    "new": "  [SKILLS.Axe]: 2 * WEAPON_POTENCY_PER_POINT, [SKILLS.BluntWeapon]",
     "tests": [
       "test/net/eliteGates/egmight.test.js"
     ]

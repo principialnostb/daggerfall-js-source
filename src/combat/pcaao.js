@@ -100,7 +100,13 @@ import { effectiveUnitWeightInKg } from '../systems/inventory.js';
 import { templateByIndex } from '../systems/item/itemTemplates.js';
 import { enchantChanceToHitMod, isEnchantedItem, entityImprovedAdrenalineRush } from '../systems/enchantments.js';
 import { stampedTier } from '../systems/rarityTier.js'; // RARE-BREAK1: a piece off the rarity ladder, which the fading rule leaves alone (the leaf - RF1: no formula reads the ladder)
-import { entityEnchantArmorMod, entityArmorPoints, weaponDamageMods, weaponBlowMods } from '../systems/entityMods.js'; // RF1: the enchantment channels and the port's points (AUDIT SET P-M1: read apart) (SET2: and the weapon's own and the blow's, read here too)
+import {
+  entityEnchantArmorMod,
+  entityArmorPoints,
+  weaponDamageMods,
+  weaponBlowMods,
+  weaponRollAdd,
+} from '../systems/entityMods.js'; // RF1: the enchantment channels and the port's points (AUDIT SET P-M1: read apart) (SET2: and the weapon's own and the blow's, read here too)
 import { getItemHands, ITEM_HANDS } from '../characters/equipTable.js';
 import { createWeapon } from './enemyEquipment.js';
 import { clawMetalDamage } from './clawMetal.js'; // BAL6-GAUNTLETS: the beast's claws take its gauntlets' metal
@@ -576,7 +582,8 @@ export function pcaaoWeaponAttackDamage(
   let damage =
     weaponDamageMods(
       weapon,
-      range(weaponMinDamage(weapon.templateIndex), weaponMaxDamage(weapon.templateIndex), rolls),
+      range(weaponMinDamage(weapon.templateIndex), weaponMaxDamage(weapon.templateIndex), rolls) +
+        weaponRollAdd(attacker, weapon, target, rolls), // the gear on its skill, in its roll as the fists'
     ) + damageModifier;
   if (!isPlayer(target)) {
     if (target.careerIndex === SKELETAL_WARRIOR) {

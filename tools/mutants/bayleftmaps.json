@@ -456,7 +456,7 @@
   {
     "name": "BLM-C9-the-index-kept-for-good",
     "file": "src/ui/heldMap.js",
-    "old": "if (this._searchIndex && this._searchIndex.ink === ink && this._searchIndex.gen === gen) return this._searchIndex;",
+    "old": "if (this._searchIndex && this._searchIndex.ink === ink && this._searchIndex.gen === gen && this._searchIndex.questKey === questKey) return this._searchIndex;",
     "new": "if (this._searchIndex) return this._searchIndex;",
     "tests": [
       "test/ui/bayleft_find.test.js"

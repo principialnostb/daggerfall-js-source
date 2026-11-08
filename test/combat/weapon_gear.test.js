@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { WEAPONS, WEAPON_MATERIALS } from '../../src/characters/weapons.js';
 import { pcaaoWeaponAttackDamage, pcaaoModules } from '../../src/combat/pcaao.js';
 import {
-  weaponPastPct, weaponGearPct, weaponGearRoll, weaponPvpClimbPct, weaponMasteryBlow, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST, _resetWeaponMasteryForTests,
+  weaponPastPct, weaponGearPct, weaponGearRoll, weaponGearAdd, weaponPvpClimbPct, weaponMasteryBlow, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST, _resetWeaponMasteryForTests,
 } from '../../src/systems/weaponMastery.js';
 import { BLOW_TOPS } from '../../src/systems/powerCeiling.js';
 import { masteryBlowTop } from '../../tools/powerCeiling.mjs';
@@ -53,10 +53,10 @@ test('WEAPON-GEAR: every weapon family adds its climb and its gear - the sword, 
   const geared = player(200, 672), trained = player(200), both = player(200, 100);
   for (const w of [sword, bow]) near(weaponPastPct(w, geared, foe, ON), 335.68, `${w.templateIndex}: the climb's 40 and the gear's`);
   near(weaponPastPct(dagger, geared, foe, ON), 295.68, 'the dagger\'s climb is its pace, its gear its blow');
-  near(weaponPastPct(axe, geared, foe, ON), 295.68, 'the axe at full health: its climb pays nothing there, its gear does');
-  near(weaponPastPct(axe, geared, low, ON), 375.68, 'the axe\'s finish and its gear');
+  near(weaponPastPct(axe, geared, foe, ON), 335.68, 'the axe at full health: the sword\'s climb and its gear');
+  near(weaponPastPct(axe, geared, low, ON), 335.68, 'the axe at low health: the same');
   assert.equal(weaponPastPct(sword, trained, foe, ON), 40, 'no gear: MARTIAL2\'s climb, as it was');
-  assert.equal(weaponPastPct(axe, trained, low, ON), 80, 'the axe\'s finish, as it was');
+  assert.equal(weaponPastPct(axe, trained, low, ON), 40, 'the axe\'s climb is the sword\'s');
   near(weaponPastPct(sword, both, foe, ON), 84, '100 of gear on a trained 200 adds, never the greater');
   assert.equal(weaponPastPct(null, geared, foe, ON), 0, 'the fists read their skill in their roll already');
 });
@@ -68,13 +68,13 @@ test('WEAPON-GEAR: only my blow online at a foe - offline, a mentor, the beast, 
   assert.equal(weaponGearPct({ ...player(100, 672), isInBeastForm: true }, SKILLS.LongBlade, ON), 0);
   assert.equal(weaponGearPct({ ...player(100, 672), peer: true }, SKILLS.LongBlade, ON), 0);
   online(() => {
-    // At a foe the 672 points roll 67 to 134 over the blow, the climb's x1.4 over both (no percent of their own)
-    for (let i = 0; i < 200; i++) {
-      const d = weaponMasteryBlow(sword, 100, player(200, 672), foe);
-      assert.ok(d >= Math.floor(167 * 1.4) && d <= Math.ceil(234 * 1.4), `${d} in the gear roll's span`);
-    }
-    _resetWeaponMasteryForTests(); // the blows above carried a fraction the estimate would read
-    near(weaponMasteryBlow(sword, 100, player(200, 672), foe, { estimate: true }), 280.5, 'the estimate: the roll\'s mean, x1.4');
+    // At a foe the 672 points roll 67 to 134 into the weapon's own roll (weaponGearAdd); the blow
+    // modifier is the climb's x1.4 alone, over a blow that already carries them
+    assert.equal(weaponGearAdd(player(200, 672), sword, foe, () => 0), 67);
+    assert.equal(weaponGearAdd(player(200, 672), sword, foe, () => 0.9999), 134);
+    assert.equal(weaponGearAdd(player(200, 672), sword, { isPlayer: true }, () => 0), 0, 'a player target: none here');
+    assert.equal(weaponGearAdd(player(200, 672), null, foe, () => 0), 0, 'the fists: theirs is in their roll');
+    assert.equal(weaponMasteryBlow(sword, 100, player(200, 672), foe), 140, 'the climb alone over the blow');
     assert.equal(weaponMasteryBlow(sword, 100, player(200, 672), { isPlayer: true }), 100, 'a player takes the blow as struck');
     assert.equal(weaponMasteryBlow(sword, 100, player(100), foe), 100, 'skill 100, no gear: as struck');
   });
@@ -115,7 +115,23 @@ test('GEAR-ROLL: a blow between players carries the same roll - the sheet\'s `gr
   const at = (sheet) => resolveDuelStrike({ k: 'strike', by: 'melee', a: sheet, w: { t: WEAPONS.Longsword, m: WEAPON_MATERIALS.Daedric, c: 100 } }, duelStandIn(), { rolls: () => 0.5 }).dmg;
   const plain = at(bare), geared = at(a);
   assert.ok(plain > 0);
-  assert.ok(geared >= Math.floor((plain / 1.4 + 60) * 1.4) - 2 && geared <= Math.ceil((plain / 1.4 + 120) * 1.4) + 2, `${geared} against ${plain}`);
+  assert.ok(geared >= Math.floor((plain / 1.4 + 60) * 1.4) - 2, `${geared} against ${plain}`);
+}));
+
+test('between players a crit multiplies the gear\'s roll as it does at a foe - never added after it', () => online(() => {
+  const sword = daedric(WEAPONS.Longsword);
+  const me = player(200, 600);
+  const w = { t: WEAPONS.Longsword, m: WEAPON_MATERIALS.Daedric, c: 100 };
+  const at = (sheet) => resolveDuelStrike({ k: 'strike', by: 'melee', a: sheet, w }, duelStandIn(), { rolls: () => 0.5 }).dmg;
+  const noCrit = (p) => { p.skills[SKILLS.CriticalStrike] = 0; return p; };
+  const highCrit = (p) => { p.masteredSkills.push(SKILLS.CriticalStrike); p._mods.skills[SKILLS.CriticalStrike] = 600; return p; };
+  const plain = at(duelAttackerOf(noCrit(player(200, 0)), sword));
+  const geared = at(duelAttackerOf(noCrit(me), sword));
+  const critPlain = at(duelAttackerOf(highCrit(player(200, 0)), sword));
+  const critGeared = at(duelAttackerOf(highCrit(player(200, 600)), sword));
+  assert.ok(critPlain > plain, 'the high crit lands its crit');
+  const mult = critPlain / plain;
+  assert.ok(critGeared - critPlain >= (geared - plain) * mult * 0.9, `crit ${critGeared - critPlain} against bare ${geared - plain} x${mult}`);
 }));
 
 test('PVP-EVEN: between players every family\'s climb is 1% a point (x1.4 at 200) - the axe and the hammer with no half line - save the Short Blade\'s, which is its swing, and the fists\', which is in their roll', () => online(() => {
@@ -131,3 +147,20 @@ test('PVP-EVEN: between players every family\'s climb is 1% a point (x1.4 at 200
   assert.equal(weaponPvpClimbPct(daedric(WEAPONS.Longsword), me, { online: false }), 0, 'offline');
 }));
 
+
+test('the weapon\'s own damage lines (an affix, its gems, an heirloom) ride the gear\'s roll as the wraps\' ride the fists\'', async () => {
+  const { registerWeaponDamageMod } = await import('../../src/systems/entityMods.js');
+  online(() => {
+    const sword = daedric(WEAPONS.Longsword);
+    const at = (p) => pcaaoWeaponAttackDamage(p, foe, 0, 0, sword, () => 0, M);
+    const plainGap = at(player(100, 600)) - at(player(100));
+    assert.equal(plainGap, 60, 'the 600 points\' low roll, 60');
+    registerWeaponDamageMod('test-double', (w, d) => d * 2);
+    try {
+      const doubledGap = at(player(100, 600)) - at(player(100));
+      assert.equal(doubledGap, 120, 'a +100% damage line doubles the gear\'s roll too');
+    } finally {
+      registerWeaponDamageMod('test-double', null);
+    }
+  });
+});

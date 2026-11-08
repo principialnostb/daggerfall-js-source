@@ -580,6 +580,24 @@ export function tamrielFoundRows(found) {
   return out;
 }
 
+/** The find box's quest places past the Bay. A quest's remote site there (a person's home, a dungeon) may be a
+ *  countryside place or a lair the player has never found, and the box otherwise lists only found ones, so the place
+ *  the journal names could not be looked up. In the Bay such places are baked discovered and findable by name; past it
+ *  the quest's own site, which carries its pixel, is the row. `sites` the quests' site details; one name per pixel.
+ *  @param {Iterable<{ locationName?: string, regionName?: string, worldPixel?: { x: number, y: number } }>} sites */
+export function tamrielQuestRows(sites) {
+  const out = [], seen = new Set();
+  for (const site of sites ?? []) {
+    const pixel = site?.worldPixel, name = site?.locationName;
+    if (!name || !pixel || !Number.isInteger(pixel.x) || !Number.isInteger(pixel.y) || inBay(pixel.x, pixel.y)) continue;
+    const key = `${name}\n${pixel.x},${pixel.y}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, regionName: site.regionName ?? '', x: pixel.x, y: pixel.y, port: false });
+  }
+  return out;
+}
+
 export { ROAD_TILE };   // TESA13: the tile the layer is walked in - TESA15: world/arenaRoads.js's, which stamps it
 
 /** TESA13: ARENA'S ROADS AND TRACKS AS THE SHEET'S CHAINS - the layer the kernels paint past the Bay (world/arenaRoads.js:

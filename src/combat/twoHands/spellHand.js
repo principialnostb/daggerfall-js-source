@@ -66,7 +66,9 @@ export const spellHandUp = () => live.up;
 /** AUDIT SPELL-HAND L2-2: the weapon hand is mid-blow where a spell would go in the free hand - a spell readied there, or
  *  one readied THIS moment (the hotbar's ready-and-cast, a CasterOnly's instant cast) that the rig has not yet seen: a
  *  cast pressed now waits for the blow. */
-export const spellHandBusy = () => (live.up || live.fits) && live.busy;
+// Every hand, not only the spell hand's: with DFU's two-handed cast (fists, a two-hander, a bow, a shield or a pair) a cast
+// that started mid-blow let the hidden blow still land, so a swing and a cast hit in the same moment.
+export const spellHandBusy = () => live.busy;
 /** AUDIT SPELL-HAND L4-1: a cast press is waiting for the weapon's blow - the rig starts no new blow while it does, so a
  *  held swing button never starves the cast (the hands take turns: the blow, the cast, then the blows again). */
 export const castPending = () => live.pending;

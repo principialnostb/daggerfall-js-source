@@ -297,7 +297,7 @@ test('AUDIT MARTIAL L3 F1: an OLDER BUILD\'s save keeps the permanent choice - t
   assert.equal(none.martialPath, null, 'a newer save says null for none - the mirror is never asked');
 }));
 
-test('AUDIT MARTIAL L3 F2 / L2 F1: a body the relay runs reads no half line - its health a placeholder - so the Axe and the Blunt Weapon past 100 each pay the plain potency there (x1.4 at 200, the halves\' mean); an ordinary foe keeps its halves (mutants: the placeholder read as full)', () => clean(() => {
+test('AUDIT MARTIAL L3 F2 / L2 F1: the Axe and the Blunt Weapon past 100 pay the plain potency (x1.4 at 200) at every body - a relay\'s placeholder, a wounded foe, a fresh one (mutants: a half line put back)', () => clean(() => {
   const axe = fighter([AX], 200), hammer = fighter([BL], 200);
   const boss = bossStandIn({ mobile: 31 }, 'the Warden');
   const at = (p, w, foe) => WM.weaponPastPct(w, p, foe, { online: true });
@@ -305,8 +305,8 @@ test('AUDIT MARTIAL L3 F2 / L2 F1: a body the relay runs reads no half line - it
   assert.equal(at(hammer, weapon(WEAPONS.Warhammer), boss), 40);
   const wounded = realFoe(ORC); wounded.health = Math.floor(wounded.maxHealth * 0.2);
   const fresh = realFoe(ORC);
-  assert.deepEqual([at(axe, weapon(WEAPONS.War_Axe), wounded), at(axe, weapon(WEAPONS.War_Axe), fresh)], [80, 0]);
-  assert.deepEqual([at(hammer, weapon(WEAPONS.Warhammer), wounded), at(hammer, weapon(WEAPONS.Warhammer), fresh)], [0, 80]);
+  assert.deepEqual([at(axe, weapon(WEAPONS.War_Axe), wounded), at(axe, weapon(WEAPONS.War_Axe), fresh)], [40, 40]);
+  assert.deepEqual([at(hammer, weapon(WEAPONS.Warhammer), wounded), at(hammer, weapon(WEAPONS.Warhammer), fresh)], [40, 40]);
 }));
 
 test('AUDIT MARTIAL L3 F3 / EVENT-RULES: Grit regrows health HELD in the court whose law holds regeneration (WBX6) - half a round, none just after a hurt - its fatigue whole; outside it, both whole (mutants: the court unread; the pause unread)', () => clean(() => {

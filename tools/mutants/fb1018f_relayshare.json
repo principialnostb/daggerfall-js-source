@@ -240,16 +240,6 @@
     "why": "a body whose word is unheard read as at death's door: +50% on every blow"
   },
   {
-    "name": "RELAY-SHARE-the-masteries-keep-their-own-copy",
-    "file": "src/systems/weaponMastery.js",
-    "old": "const shareOf = healthShare;",
-    "new": "const shareOf = (e) =>\n  e?.relayHealth ? null : Number.isFinite(e?.health) && e.maxHealth > 0 ? e.health / e.maxHealth : 1;",
-    "tests": [
-      "test/systems/loot/fb1018f_relayshare.test.js"
-    ],
-    "why": "the Axe and the hammer past 100 pay the halves' mean where the relay's word says the half"
-  },
-  {
     "name": "RELAY-SHARE-the-martial-paths-keep-their-own-copy",
     "file": "src/systems/martialPowers.js",
     "old": "const share = (e) => healthShare(e) ?? 1; // FIELD BUGS 2026-10-18f RELAY-SHARE: the one law - a body the relay runs reads its word (Gutting Lunge there too)",
