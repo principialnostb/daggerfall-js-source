@@ -1,5 +1,40 @@
 # Motion Doctrine - one formula for how bodies move and fight (MOTION-DOCTRINE, 2026-10-27)
 
+## Fist transition repairs (2026-11-09)
+
+The owner's fist-series report was replayed with the configured mods, then with the body bare, in clothes and in
+the worn steel cuirass. The intended lowering of the hands during locomotion is retained.
+
+- Standing strike foot anchors survived a short walk while the previous strike's weight faded. A new moving
+  strike raised that weight and pulled the feet toward the old stance. Anchors and pending steps now belong only
+  to a standing body; the standing/moving share follows locomotion even between blows
+  (src/characters/bodyMotion/blowLegs.js:"const standing = grounded && still >= BLOW_LEGS_TIME.after;").
+- Bare-body and clothes captures also exposed the weapon lunge acting over the authored hand-to-hand legs. A
+  punch clip could exchange the lead feet while the layer pinned them to the previous stance, twisting the thigh
+  surface at the groin. Fists now keep the clip's whole-body drive and the existing locomotion overlay; the weapon
+  lunge and its residual anchors are cleared for that carry class
+  (src/characters/bodyMotion/blowLegs.js:"if (carryClassOf(word ?? {}) === 'fists') { clearLegs(); trunk = { yaw: 0, pitch: 0 }; return 0; }").
+- The fist guard faded the hand target but kept its full elbow-pole correction until the solve's cutoff. Opposite
+  pole vectors could also cancel and flip during the transition. The pole now follows its arc by the same fading
+  weight as the reach (src/characters/bodyMotion/guardElbows.js:"const pole = len(down) > 1e-6 ? swingWay(own, norm(down), d, GUARD_RAISE.drop * k) : own;").
+- The steel breastplate's separate deformation was in its authored rig, not a CPU/GPU mismatch; see
+  `04-Characters/Steel-Plate.md`, Rigid breastplate shell.
+
+These repair the port's procedural presentation; DFU has no skinned player body, and OpenMW's authored clip and
+bone-group skinning remain the references. No movement speed, damage, animation pack or generic skinning law changes.
+Regressions in test/characters/bodyMotion/blowlegs.test.js and guardelbows.test.js reproduce the stale anchors,
+the overwritten fist legs and the nonzero elbow displacement at the fade cutoff before the repairs. Existing weapon
+standing blow and stop-under-a-blow tests remain applicable. The plate has its own geometry regression.
+
+The final configured-game capture covers 300 frames each bare, clothed and armoured (203, 228 and 237 attack-state
+frames, all grounded). The weapon-leg layer has zero weight throughout all three fist runs; moving feet retain no
+standing anchors. The steel shell's largest measured edge-length error is under 0.00004 model units. A separate
+40-attack-frame capture matched CPU skinning to the observed GPU stream/palette, and the loaded guard module's
+fade-cutoff residual was 0.0201 model units. These checks do not certify every garment or imported animation:
+joint deformation remains in the bare-body and cloth captures, including changes also present in unmodified
+sampled poses; edge ratios alone are not an artistic verdict. Pictures, vertex/pose exports and reports remain
+local under `.proving-ground/skin-fix/`.
+
 The owner, 2026-10-27, after the BLOW-FLOW arc (`05-Combat/Blow-Flow.md`): of everything the animations do now, only the
 two-hander's blows in first person are "100% done"; the rest "still looks doubtful" - "foreign and modified", "smooth
 but sluggish", wooden. "I want one direction for animations and combat, so that it scales clearly to the world, the

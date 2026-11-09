@@ -19,6 +19,7 @@ import { solveBody, swingWay } from './bodySolve.js';
 import { kneePole } from './guardWalkBalance.js';   // CLIP-KNEE
 import { rotationPart } from '../../combat/climbRig.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
+import { carryClassOf } from './carry.js';
 
 const { add, sub, scale, len, norm, lerp3 } = algebra;
 
@@ -223,6 +224,15 @@ export function createBlowLegs() {
       still = word && Number(word.speed) > BLOW_LEGS_TIME.still ? 0 : still + Math.max(0, dt);
       const grounded = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating;
       const standing = grounded && still >= BLOW_LEGS_TIME.after;
+      // Hand-to-hand clips already drive the whole body, including changes of
+      // lead foot. Pinning them to a weapon lunge's anchors twists the thighs
+      // against their authored hips and stretches the body/clothes at the groin.
+      // Keep the locomotion history above live for a later weapon change.
+      if (carryClassOf(word ?? {}) === 'fists') { clearLegs(); trunk = { yaw: 0, pitch: 0 }; return 0; }
+      // A fading standing blow can survive the start of locomotion. Its old foot
+      // anchors must not survive with it: a new blow would pull the stride back
+      // toward that stance as the layer's weight rises again.
+      if (!standing) { anchor = null; settle = null; stepped = false; fromMove = true; feet.L.reset(); feet.R.reset(); }
       // RUNNING-BLOW-LEGS: running is a motor mode, not the 5.5..7 m/s speed band. Never re-solve
       // a running stride toward the attack's feet or pole, including any tail left by a walking blow.
       const struck = on && grounded && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand }, heavy) : null;
@@ -235,7 +245,7 @@ export function createBlowLegs() {
       const runFade = 1 - smooth(((Number(word?.speed) || 0) - BLOW_MOVE.fade[0]) / (BLOW_MOVE.fade[1] - BLOW_MOVE.fade[0]));
       const moving = struck && !standing && runFade > 1e-3 ? struck : null;
       if (moving && w < 1e-3) stand = 0;   // a layer that comes on moving starts on the stride's feet
-      stand = ease(stand, moving ? 0 : 1, BLOW_MOVE.ease, dt);
+      stand = ease(stand, standing ? 1 : 0, BLOW_MOVE.ease, dt);
       if (moving && stand < 1e-3) stand = 0;
       guard = ease(guard, moving ? runFade : 0, moving ? BLOW_MOVE.guardIn : BLOW_MOVE.guardOut, dt);
       // LEG-DRIVE: within a blow the stepped foot stays out (home only past the blows); out of them, home - the layer on

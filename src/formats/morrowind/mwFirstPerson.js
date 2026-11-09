@@ -3010,6 +3010,9 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
     // AUDIT MW-CLOAK x MWNPC1: the stowed gear goes with the cloak on this pose too - the follow reads the cloak where
     // the pose puts it and hands each turned piece's placement to the palette (formats/morrowind/mwCloakFit.js applyCloakFollow)
     if (assembly.afterPose) assembly.afterPose(assembly);
+    // Opt-in read-only geometry diagnostics: the exact pose/binds feeding the
+    // GPU palette, also reported below on the CPU path. No vertex copy by default.
+    if (typeof globalThis.__mwPoseAssemblyProbe === 'function') globalThis.__mwPoseAssemblyProbe(assembly);
     return assembly;
   }
   for (const p of pieces) {
@@ -3040,6 +3043,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // cloak (formats/morrowind/mwCloakFit.js followCloak), which reads the cloak where this pose just put it
   if (assembly.afterPose) assembly.afterPose(assembly);
   assembly.bounds = pieces.length ? foldPieceBounds(pieces) : null;   // PR-BOW1b: and each piece's own box, in the same walk
+  if (typeof globalThis.__mwPoseAssemblyProbe === 'function') globalThis.__mwPoseAssemblyProbe(assembly);
   // MW-CLOAK-PROBE: opt-in, read-only telemetry. Enabled only by
   // ?mwcloakprobe=1 or the Playwright harness. The browser overlay lives
   // in the user's normal game tab, so this shares the real session/assets.

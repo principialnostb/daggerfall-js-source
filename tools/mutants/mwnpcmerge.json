@@ -138,10 +138,11 @@
  {
   "name": "MWNPCMERGE-gpu-pose-no-afterpose",
   "file": "src/formats/morrowind/mwFirstPerson.js",
-  "old": "    if (assembly.afterPose) assembly.afterPose(assembly);\n    return assembly;\n  }",
-  "new": "    return assembly;\n  }",
+  "old": "    if (assembly.afterPose) assembly.afterPose(assembly);",
+  "new": "",
   "tests": [
-   "test/formats/morrowind/mwnpc_mainmerge.test.js"
+   "test/formats/morrowind/mwnpc_mainmerge.test.js",
+   "test/formats/morrowind/poseprobe.test.js"
   ]
  },
  {

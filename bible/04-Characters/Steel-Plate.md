@@ -21,6 +21,21 @@ a breastplate and the skirt under it, a pair of pauldrons, gauntlets, greaves an
 bones and their inverse binds, made once at bake time, and the game wears it on the very path it wears a retail
 armour mesh. Nothing about the plate is solved while the game runs.
 
+## Rigid breastplate shell (2026-11-09)
+
+Fist-series geometry diagnostics found adjacent shell vertices carried by different clavicle and spine bones.
+Those bones turn independently during a punch, stretching the metal plate. The first cuirass shape now follows
+`Bip01 Spine2` as one shell; the second shape, the separate waist band, retains its articulated joint weights
+(tools/bakeSteelPlate.mjs:"export function pieceRig(id, meshes, bind) {"). The NIF is regenerated from the committed
+source, not corrected at runtime. Other pieces and source geometry are unchanged.
+
+This is the port's own armour rig, continuing MW-STEEL4's departure from DFU's sprite presentation. OpenMW's
+[`RigGeometry::cull`](https://github.com/OpenMW/openmw/blob/master/components/sceneutil/riggeometry.cpp) remains the
+skinning reference: inverse bind times animated bone, weighted then post-transformed.
+No change to that law or weight normalization is made. The regression in test/formats/morrowind/mwsteel4.test.js
+turns spine and shoulder bones independently and measures every shell triangle edge; the byte-for-byte bake check
+in test/tooling/mwsteel1.test.js also passes. This does not certify the underlying body or every other garment.
+
 ## Which items
 
 Asked, Mac answered **Steel only**: Daggerfall's seven classic pieces in Steel (Cuirass 102, Gauntlets 103, Greaves 104,

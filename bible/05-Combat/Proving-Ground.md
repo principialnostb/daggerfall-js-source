@@ -103,6 +103,20 @@ captured. Marks save a screenshot; automatic snapshots are every 30 frames. Runs
 `.proving-ground/lab/`, never committed. The panel can step, play in small batches, orbit, annotate, import and export.
 
 **Limits are part of the result.** This is input replay from a repositioned player, not a world/AI/physics checkpoint.
+
+Geometry diagnostics can opt into `globalThis.__mwPoseAssemblyProbe`: poseAssembly reports the actual assembly
+after its pose and afterPose placement, on both the CPU and GPU paths
+(src/formats/morrowind/mwFirstPerson.js:"export function poseAssembly(assembly, { tracks = null, sampleTrack = null,").
+The callback is synchronous and read-only by contract; consumers must remove it after capture. With no callback,
+no geometry copies are made. It exposes the skeleton, pose, matrices, piece binds and source vertex arrays to a
+local probe, not a second renderer. test/formats/morrowind/poseprobe.test.js checks both paths.
+
+The fist diagnosis used this to compare CPU skinBatch output with the actual GPU stream and observed palette,
+and to export per-frame poses for replay. Sampling must confirm a ready drawn rig and actual attack-state coverage;
+a completed input script alone does not prove a punch occurred. Bare-body, clothing and armour captures are separate
+cases, and a shell fix never certifies the underlying body. Triangle edge changes locate candidates; they do not
+alone distinguish natural joint deformation from defective geometry. Local pictures and exports stay ignored.
+
 Replay does not guarantee identical random choices or settled secondary motion. The suite exercises gameplay inputs,
 not every imported clip. A missing body is unmeasured, never a passing check. Bone jumps are diagnostic signals, not
 an artistic verdict; surface penetration and foot contacts are not measured by LAB1. It does not yet edit bones,

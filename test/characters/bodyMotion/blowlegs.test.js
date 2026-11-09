@@ -10,6 +10,7 @@ import { blowPhase, blowLegsPose, createBlowLegs, settleOffsets, BLOW_LEGS, BLOW
 import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
 import { solveBody } from '../../../src/characters/bodyMotion/bodySolve.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
+import { MW_WEAPON_TYPE as T } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
 const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
@@ -75,6 +76,50 @@ function strike(type, opts = {}) {
   return { frames, body, legs };
 }
 const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+test('fist clips retain their authored legs through a series, including after a weapon strike', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton())), body = bodyOf(sk, GRAPH_ROOT, sm);
+  for (const hand of [{ mwType: T.HandToHand }, { mwType: T.None }, { mwType: T.LongBladeOneHand, hands: 'fists' }]) {
+    const legs = createBlowLegs();
+    for (let i = 0; i < 45; i++) {
+      legs.step(1 / 60, true, { on: true, grounded: true, speed: 0, shown: true, mwType: T.LongBladeOneHand, blow: blow('chop', 'release', 1) });
+      legs.apply(sk, new Map(), GRAPH_ROOT, sm);
+    }
+    assert.equal(legs.status().anchored, true, 'a weapon strike established foot anchors');
+    for (let i = 0; i < 90; i++) {
+      const clip = stridePose(sk, body, 0.15 * Math.sin(i / 10)), pose = new Map(clip);
+      const section = ['windup', 'release', 'follow'][Math.floor(i / 30)];
+      legs.step(1 / 60, true, { on: true, grounded: true, shown: true, speed: 0, ...hand, blow: blow('chop', section, i % 30 / 30) });
+      legs.apply(sk, pose, GRAPH_ROOT, sm);
+      assert.deepEqual(pose, clip, 'the authored fist pose is not overwritten by the weapon lunge');
+      assert.equal(legs.status().anchored, false);
+      assert.deepEqual(legs.trunkTurn(), { yaw: 0, pitch: 0 });
+    }
+  }
+});
+
+test('a standing series followed by a short walk and another strike cannot reuse the standing foot anchors', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const body = bodyOf(sk, GRAPH_ROOT, sm), legs = createBlowLegs();
+  const frame = (speed, attack, clip = new Map()) => {
+    legs.step(1 / 60, true, { on: true, grounded: true, speed, blow: attack });
+    const pose = new Map(clip);
+    legs.apply(sk, pose, GRAPH_ROOT, sm);
+    return sm(sk, pose, GRAPH_ROOT);
+  };
+  for (let i = 0; i < 45; i++) frame(0, blow('chop', 'windup', 1));
+  assert.equal(legs.status().anchored, true, 'the standing blow establishes anchors');
+  for (let i = 0; i < 30; i++) frame(4.4, null, stridePose(sk, body, 0.2 * Math.sin(i / 8)));
+  assert.ok(legs.weight() > 0.001, 'the previous strike still has a fading tail');
+  let worst = 0;
+  for (let i = 0; i < 30; i++) {
+    const clip = stridePose(sk, body, 0.2 * Math.sin((i + 30) / 8));
+    const before = sm(sk, clip, GRAPH_ROOT), after = frame(4.4, blow('chop', 'windup', i / 30), clip);
+    assert.equal(legs.status().anchored, false, 'locomotion owns the feet during the new blow');
+    for (const side of ['L', 'R']) worst = Math.max(worst, d(before.get(body.bones[side].foot).t, after.get(body.bones[side].foot).t));
+  }
+  assert.ok(worst < 0.5, `a moving foot was pulled ${worst.toFixed(2)} units off its stride`);
+});
 
 test('BLOW-LEGS: a standing thrust steps its lead foot forward and home - lifted, never slid - the back foot planted', () => {
   const { frames, body } = strike('thrust');
@@ -344,7 +389,9 @@ test('FEET-FREED: walking on after a blow struck walking, the feet stay on the s
 test('BLOW-LEGS: wired - the motion word to the weight layer, the hips and feet before the elbows\' clearance', () => {
   const bw = rd('src/characters/bodyMotion/bodyWeight.js');
   assert.match(bw, /legs\.step\(dt, active, word, weight\);/);
-  assert.match(bw, /if \(clearOn\) legs\.apply\(skeleton, pose, rootRef, skelMats\);[^\n]*\n\s+if \(clearOn\) clearArms\(/);
+  const legsAt = bw.indexOf('if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);');
+  const clearAt = bw.indexOf('clearArms(skeleton, pose, rootRef, skelMats,');
+  assert.ok(legsAt >= 0 && clearAt > legsAt, 'the leg solve precedes arm clearance');
   assert.match(rd('src/combat/fpArm.js'), /thirdBuilt\?\.mwType, dead, motion\.word\(\)[,)]/);   // RUN-STRIDE: the movement clip passed after the word
   assert.match(rd('src/characters/bodyMotion/bodyMotion.js'), /word: \(\) => input,/);
 });

@@ -13,6 +13,7 @@
 // helm; posed, each piece riding its bones; the first person's gauntlets by the arm's own bone names; and the rig's
 // law, the skin writer and the runtime's having nothing left of MW-STEEL1-3's solve.
 import { test } from 'node:test';
+import { rotAxisAngle } from '../../../src/combat/climbRig.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';
@@ -46,6 +47,28 @@ const unapply = (m, p) => { const d = sub(p, m.t); return [0, 1, 2].map((c) => m
 const segDist = (p, a, b) => { const d = sub(b, a); let t = ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1] + (p[2] - a[2]) * d[2]) / (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]); t = Math.max(0, Math.min(1, t)); return len(sub(p, [a[0] + d[0] * t, a[1] + d[1] * t, a[2] + d[2] * t])); };
 const vertsOf = (pieces) => pieces.flatMap((p) => Array.from({ length: p.positions.length / 3 }, (_, i) => [p.positions[i * 3], p.positions[i * 3 + 1], p.positions[i * 3 + 2]]));
 const centroid = (vs) => [0, 1, 2].map((k) => vs.reduce((s, v) => s + v[k], 0) / vs.length);
+
+test('steel breastplate preserves its metal shell when the spine and shoulders turn independently', async () => {
+  const { asm } = await wear({});
+  poseAssembly(asm);
+  const [shell, belt] = asm.pieces.filter((p) => p.slot === 'cuirass (daggerfall_steel_cuirass)');
+  const original = shell.positions.slice();
+  const pose = new Map();
+  for (const [name, angle] of [['bip01 spine', -0.3], ['bip01 spine2', 0.4], ['bip01 l clavicle', 0.7], ['bip01 r clavicle', -0.6]]) {
+    const ref = asm.skeleton.byName.get(name), rest = asm.skeleton.nodes.get(ref).rest;
+    pose.set(ref, { ...rest, rotation: rotAxisAngle([0, 0, 1], angle) });
+  }
+  const out = new Float32Array(original.length);
+  skinBatch(shell.batch, asm.skeleton, pose, skeletonSpaceMatrices(asm.skeleton, pose, GRAPH_ROOT), out);
+  const edge = (positions, a, b) => len(sub(positions.slice(a * 3, a * 3 + 3), positions.slice(b * 3, b * 3 + 3)));
+  let worst = 0;
+  for (let i = 0; i < shell.indices.length; i += 3) for (const [a, b] of [[i, i + 1], [i + 1, i + 2], [i + 2, i]]) {
+    const u = shell.indices[a], v = shell.indices[b];
+    worst = Math.max(worst, Math.abs(edge(out, u, v) - edge(original, u, v)));
+  }
+  assert.ok(worst < 0.001, `the metal shell stretched an edge by ${worst} units`);
+  assert.ok(belt.batch.skin.bones.length > 1, 'the separate waist band retains its articulated binding');
+});
 
 /** The third-person build's own path for the plate: compose, and hand the binder each add as combat/fpArm.js does -
  *  ownBodyPart answering nothing for a piece shipped skinned. */

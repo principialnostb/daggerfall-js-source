@@ -10,7 +10,7 @@
 
 import { bodyOf, turnOf, at, mul, transpose, algebra, ease, clamp01 } from './bodyKit.js';
 import { rotAxisAngle, orthonormal } from '../../combat/climbRig.js';
-import { bodyFrames } from './bodySolve.js';
+import { bodyFrames, swingWay } from './bodySolve.js';
 import { carryClassOf } from './carry.js';
 import { guardTraveling } from './guardTravel.js';
 
@@ -129,8 +129,9 @@ function raise(skeleton, pose, rootRef, skelMats, body, k) {
     // the elbow on its own side of the reach (its offset off the new line), leaned `drop` toward straight down
     const off = sub(sub(E, S), scale(d, dot(sub(E, S), d))), down = sub(scale(F.up, -1), scale(d, -dot(F.up, d)));
     const own = len(off) > 1e-6 ? norm(off) : norm(down);
-    let pole = len(down) > 1e-6 ? add(scale(own, 1 - GUARD_RAISE.drop), scale(norm(down), GUARD_RAISE.drop)) : own;
-    pole = len(pole) > 1e-6 ? norm(pole) : own;
+    // The pole fades with the reach. A fixed half-way pole could flip when
+    // the clip's elbow crossed above the reach, then snap off at the cutoff.
+    const pole = len(down) > 1e-6 ? swingWay(own, norm(down), d, GUARD_RAISE.drop * k) : own;
     const cosA = Math.max(-1, Math.min(1, (l1 * l1 + D * D - l2 * l2) / (2 * l1 * D)));
     const E2 = add(S, scale(add(scale(d, cosA), scale(pole, Math.sqrt(1 - cosA * cosA))), l1));
     const T = add(S, scale(d, D));

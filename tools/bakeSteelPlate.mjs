@@ -383,7 +383,12 @@ export function pieceRig(id, meshes, bind) {
   const segments = rigSegments(r.bones, bind);
   return {
     shape: r.shape,
-    weights: meshes.map((m) => jointWeights(m.positions, segments, { hang: r.hang ?? null })),
+    // The first cuirass shape is the metal shell, the second its separate waist
+    // band. Independent clavicle/spine influences stretched the shell during
+    // punches. It rides the chest as one plate; the band keeps its joint weights.
+    weights: meshes.map((m, i) => id === 'cuirass' && i === 0
+      ? Array.from({ length: m.positions.length / 3 }, () => [['Bip01 Spine2', 1]])
+      : jointWeights(m.positions, segments, { hang: r.hang ?? null })),
     bones: r.bones.map((b) => ({ name: b.name, bind: bind.get(b.name) })),
   };
 }
