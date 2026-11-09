@@ -193,14 +193,16 @@ jobs:
         run: npm ci && npm run build
         working-directory: next
 
-      # Pages publishes a site of at most 1 GB, and once the release this previews is live, the preview is the site's
-      # own art over again: it is left out, with a warning, rather than take the site past 900 MB.
+      # The preview carries the release's forge art, about 830 MB built, beside the live site, and Pages publishes the
+      # two together. Once the release is live the site carries that art itself and the preview is it over again, past
+      # 1.8 GB together: it is left out then, with a warning. Both sizes are logged either way.
       - name: Mount the next release under production site
         if: steps.nextbuild.outcome == 'success'
         run: |
           site=$(du -sb site | cut -f1)
           next=$(du -sb next/dist | cut -f1)
-          if [ $((site + next)) -gt 900000000 ]; then
+          echo "the site is $((site / 1000000)) MB, the next release $((next / 1000000)) MB"
+          if [ $((site + next)) -gt 1800000000 ]; then
             echo "::warning::the next release is not mounted: the site would be $(((site + next) / 1000000)) MB with it"
             exit 0
           fi
