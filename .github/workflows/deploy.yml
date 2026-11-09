@@ -193,9 +193,17 @@ jobs:
         run: npm ci && npm run build
         working-directory: next
 
+      # Pages publishes a site of at most 1 GB, and once the release this previews is live, the preview is the site's
+      # own art over again: it is left out, with a warning, rather than take the site past 900 MB.
       - name: Mount the next release under production site
         if: steps.nextbuild.outcome == 'success'
         run: |
+          site=$(du -sb site | cut -f1)
+          next=$(du -sb next/dist | cut -f1)
+          if [ $((site + next)) -gt 900000000 ]; then
+            echo "::warning::the next release is not mounted: the site would be $(((site + next) / 1000000)) MB with it"
+            exit 0
+          fi
           mkdir -p site/preview/next
           cp -a next/dist/. site/preview/next/
 
