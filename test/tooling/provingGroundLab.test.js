@@ -7,6 +7,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'vite';
 import { createLabPlugin } from '../../tools/provingGround/lab/server.mjs';
+import { registerExteriorFoeProbe, latestExteriorFoes } from '../../src/scenes/exteriorFoeProbe.js';
+
+test('LAB: the foe lookup returns the exact live pool, preserving spawn methods and its mutable actor list', () => {
+  const pool = { foes: [], spawnFoe() { this.foes.push({ type: 0 }); } };
+  assert.equal(registerExteriorFoeProbe(pool), pool);
+  assert.equal(latestExteriorFoes(), pool);
+  latestExteriorFoes().spawnFoe();
+  assert.equal(pool.foes.length, 1);
+  registerExteriorFoeProbe({ foes: [] }, true);
+  assert.equal(latestExteriorFoes(), pool, 'an indoor pool must not take the exterior probe slot');
+});
 
 test('LAB: generated gameplay suite covers every movement direction with all four attacks and standing attacks', () => {
   const suite = generateSuite();
@@ -41,11 +52,13 @@ test('LAB: bone analysis finds a known jump but never calls absent or non-finite
 test('LAB: UI and agent frame commands serialize; marks persist the observed frame and inputs release after failure', async () => {
   const out = mkdtempSync(join(tmpdir(), 'dfo-lab-'));
   const keys = new Set();
+  const mouseFrames = [];
+  let mouseHeld = false;
   let ticks = 0, inStep = false, fail = false;
   const page = {
     on() {}, off() {},
     keyboard: { async down(key) { keys.add(key); }, async up(key) { keys.delete(key); } },
-    mouse: { async down() {}, async up() {}, async move() {} },
+    mouse: { async down() { mouseHeld = true; }, async up() { mouseHeld = false; }, async move() {} },
     async evaluate() { return { s: { mg: 'walkforward' }, b: { hand: [ticks / 100, 0, 0] }, foes: [], sources: {}, clip: {} }; },
     async screenshot() { return new Uint8Array([1, 2, 3]); },
   };
@@ -55,6 +68,7 @@ test('LAB: UI and agent frame commands serialize; marks persist the observed fra
     await new Promise((resolve) => setTimeout(resolve, 1));
     inStep = false;
     if (fail) throw new Error('frame failed');
+    if (count === 1) mouseFrames.push(mouseHeld);
     ticks += count;
   } });
   try {
@@ -63,7 +77,7 @@ test('LAB: UI and agent frame commands serialize; marks persist the observed fra
     await driver.command('load', { scenario: { version: 1, name: 'walk', steps: [{ frames: 20, keys: ['KeyW'] }] } });
     const [a, b] = await Promise.all([driver.command('advance', { frames: 2 }), driver.command('advance', { frames: 3 })]);
     assert.equal(a.frame, 2); assert.equal(b.frame, 5);
-    assert.equal(keys.size, 0);
+    assert.deepEqual([...keys], ['KeyW'], 'stepping preserves held input while the simulation clock is paused');
     const marked = await driver.command('mark', { note: '<broken shoulder>' });
     const stored = JSON.parse(readFileSync(join(out, `${marked.run.id}.json`), 'utf8'));
     assert.deepEqual(stored.marks, [{ frame: 5, note: '<broken shoulder>' }]);
@@ -73,6 +87,12 @@ test('LAB: UI and agent frame commands serialize; marks persist the observed fra
     assert.equal(keys.size, 0, 'failed execution must not leave movement held');
     fail = false;
     assert.equal((await driver.command('advance')).frame, 6, 'a failed command must not poison the queue');
+    await driver.command('run');
+    assert.equal(keys.size, 0, 'scenario completion releases held input');
+    await driver.command('load', { scenario: { version: 1, name: 'attack', steps: [{ frames: 9, swing: 'down' }] } });
+    mouseFrames.length = 0;
+    for (let i = 0; i < 9; i++) await driver.command('advance');
+    assert.deepEqual(mouseFrames, [...Array(8).fill(true), false], 'single-frame stepping preserves the full drag window');
   } finally { await driver.close(); rmSync(out, { recursive: true, force: true }); }
 });
 

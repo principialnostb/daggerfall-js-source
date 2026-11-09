@@ -58,7 +58,7 @@ export function analyze(frames, { jump = 0.25 } = {}) {
       measured++;
       const prev = frames[i - 1];
       const q = prev?.b?.[bone];
-      if (!q || !q.every(Number.isFinite) || frame.f !== prev.f + 1) continue;
+      if (!Array.isArray(q) || q.length !== 3 || !q.every(Number.isFinite) || frame.f !== prev.f + 1) continue;
       const metres = Math.hypot(...p.map((v, k) => v - q[k]));
       if (metres > jump) findings.push({ frame: frame.f, bone, kind: 'bone-jump', metres, from: prev.mg, to: frame.mg });
     }

@@ -99,7 +99,7 @@ window.__pgKit = {
     const pool = (await mod('/src/scenes/exteriorFoes.js')).latestExteriorFoes();
     const me = window.__player.pos;
     return (pool?.foes ?? []).filter((f) => !f.dead).map((f) => {
-      const at = f.ai?.position ?? f.pos ?? f.feet ?? null;
+      const at = f.ai?.feet ?? f.ai?.position ?? f.pos ?? f.feet ?? null;
       return { type: f.mobileType, hp: f.entity?.health ?? null, dist: at ? +Math.hypot(at[0] - me[0], at[2] - me[2]).toFixed(2) : null };
     });
   },

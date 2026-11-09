@@ -7,6 +7,9 @@ export async function openLab({ page, context, lab, base, out }) {
   await page.waitForFunction(() => !!window.__pgKit);
   const kit = (fn, ...args) => page.evaluate(([name, values]) => window.__pgKit[name](...values), [fn, args]);
   const step = (n) => page.evaluate((count) => window.__pg.step(count), n);
+  if (await page.evaluate(() => (document.body?.innerText ?? '').includes('CLICK OR PRESS A KEY'))) {
+    await page.keyboard.press('Enter'); await step(1);
+  }
   await kit('third'); await step(30); await kit('setHome');
   const revision = execFileSync('git', ['-c', 'safe.directory=*', 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const driver = lab.attach({ page, step, kit, out, revision });

@@ -18,8 +18,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const HOME = join(ROOT, '.proving-ground');
 const OUT = join(HOME, 'out');
 const PROFILE = join(HOME, 'profile');
-const ARENA2 = process.env.ARENA2_PATH || 'D:/Steam/steamapps/common/The Elder Scrolls Daggerfall/DF/DAGGER/ARENA2';
-const MW_DATA = process.env.MORROWIND_DATA || 'D:/Steam/steamapps/common/Morrowind/Data Files';
+const ARENA2 = process.env.ARENA2_PATH || (existsSync(join(ROOT, 'ARENA2')) ? join(ROOT, 'ARENA2') : 'D:/Steam/steamapps/common/The Elder Scrolls Daggerfall/DF/DAGGER/ARENA2');
+const MW_DATA = process.env.MORROWIND_DATA || (existsSync(join(ROOT, 'Morrowind models')) ? join(ROOT, 'Morrowind models') : 'D:/Steam/steamapps/common/Morrowind/Data Files');
 const PORT = Number(process.env.PG_PORT || 5310);
 
 const args = process.argv.slice(2);
@@ -132,7 +132,7 @@ async function boot(context, page, base, lane, observePage = null) {
       observePage?.(page);
     }
     await load(page, url);
-    try { await page.waitForFunction(() => window.__shotReady === true, null, { timeout: 240000 }); break; } catch (e) {
+    try { await page.waitForFunction(() => window.__shotReady === true, null, { timeout: command === 'lab' ? 600000 : 240000 }); break; } catch (e) {
       // a boot that never readies: its picture and its word kept, then once more from the start
       await page.screenshot({ path: join(OUT, `boot-${lane}-stuck-${attempt}.png`) }).catch(() => {});
       const why = await page.evaluate(() => ({ frame: window.__frame, idle: window.__streamIdle?.(), built: window.__builtCount?.(), title: document.title })).catch(() => null);

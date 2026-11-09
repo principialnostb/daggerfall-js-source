@@ -88,7 +88,13 @@ the owner's local installs. The existing ground profile and `fork-seed.json` are
 `tools/provingGround/lab/server.mjs` mounts this route only for that command. Nothing is added to production routes.
 The panel and `tools/provingGround/lab/client.mjs` share a serialized, bounded JSON command API. Agents can request
 `suite`, `load <scenario.json>`, `advance <frames>`, `run`, `mark <note>`, `export` and `batch <count>` (default three).
-`LAB_URL` selects another local port. The CLI's third argument writes its result to a local file.
+`LAB_URL` selects another local port; `--out <file>` writes a CLI result locally. Local `ARENA2/` and `Morrowind models/`
+are detected when the environment paths are unset, before falling back to the Steam paths. A cold lab boot allows
+ten minutes for the world's first pixel; `/__lab/boot` and `/__lab/boot-image` expose its loading state and picture.
+The known initial story notice is acknowledged before controls are handed to the lab. The old kit's missing pool
+lookup is restored through `exteriorFoeProbe.js`: a weak reference registered by the existing pool constructor.
+`world.js` and `exterior.js` share that constructor; neither host grows. `worldModes.js` and `dungeonContext.js` are
+FLAGGED for this tool: LAB1 drives the exterior pool only, not indoor or dungeon foes.
 
 The first slice provides 47 generated input scenarios: eight movement directions, walk/run/stop transitions,
 four swing directions standing and moving, a turn, jump and sneak. JSON scenarios can select outfit names and one
@@ -106,6 +112,14 @@ contract after reproducible playback is verified, rather than adding another ren
 `test/tooling/provingGroundLab.test.js` checks coverage, scenario bounds and known diagnostic signals. Existing
 test-PR snapshot `a433274ec3` passes lint/types but has failing source pins and bible gates; snapshot preservation
 does not certify that baseline as release-ready.
+
+Live validation on the owner's Windows data: 120 frames of walk/run produced 2,040 sampled bone positions and
+observed `runforward`; a 150-frame standing chop observed 54 attack-state frames and 2,550 bone samples. It flagged
+three weapon-bone jumps for review, not three proven animation bugs. A rat (mobile type 0) spawned through the pool,
+its health was read, and the next scenario cleared it. Marks, source/transition logs and JSON export were exercised.
+The panel was rendered against that live API: 47 choices, the actual captured game frame and no page JavaScript
+errors. Six lab contract tests pass, as do lint and types. The baseline's 15 bible-gate failures remain; wider source
+pins also fail, including CRLF-sensitive checks and the pre-existing fpArm host ceiling. This is not a green release.
 
 1. **The original's character is kept.** The vanilla lane is the yardstick for silhouette and tempo; the rebuild may
    be smoother and more responsive, never more "AAA" (Motion-Doctrine section 1: mechanisms from the modern school,

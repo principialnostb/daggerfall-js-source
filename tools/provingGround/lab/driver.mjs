@@ -100,7 +100,10 @@ export function createLabDriver({ page, step, kit, out, revision = 'unknown' }) 
         run.frames.push({ f: cursor, label: s.label, ...frame.s, b: frame.b, sources: frame.sources, clip: frame.clip, foes: frame.foes });
         if (cursor % 30 === 0) await photograph(cursor);
       }
-    } finally { await release(); save(); }
+    } catch (error) { await release(); save(); throw error; }
+    // Paused fixed-clock frames retain browser input: releasing between +1 steps would cut every wind-up short.
+    if (!actionAt(cursor)) await release();
+    save();
     image = await page.screenshot({ type: 'png' });
     return status();
   }

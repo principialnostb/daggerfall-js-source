@@ -3,13 +3,14 @@
 <title>DFO · Animation Lab</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#10151b;color:#dce3ec;font:14px system-ui}header{padding:18px 24px;border-bottom:1px solid #303b49;display:flex;gap:20px;align-items:center}h1{font-size:19px;margin:0}small,.muted{color:#9aaabd}main{display:grid;grid-template-columns:minmax(480px,1fr) 390px;gap:18px;padding:18px}section{background:#19212b;border:1px solid #303b49;border-radius:8px;padding:14px;margin-bottom:14px}h2{font-size:14px;margin:0 0 12px;color:#b0c5da}button,select,input,textarea{font:inherit;color:inherit;background:#253242;border:1px solid #42546b;border-radius:5px;padding:8px}button{cursor:pointer}button:hover{background:#364b62}button:disabled{opacity:.45;cursor:wait}.row{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}select,textarea,input{width:100%}textarea{font:12px monospace;min-height:230px;resize:vertical}.screen{width:100%;min-height:300px;object-fit:contain;background:#080c10;image-rendering:pixelated}pre{font:12px monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto}#message{padding:9px 24px;min-height:36px;color:#b9d5f0}#findings button{display:block;width:100%;text-align:left;margin:5px 0}#clock{font:20px monospace;color:#8fd9c3}.warning{color:#e5c38d}label{display:block;margin-top:10px}a{color:#8ec5ff}@media(max-width:950px){main{grid-template-columns:1fr}}
+.screen{max-height:64vh}header{flex-wrap:wrap}
 </style>
 <header><h1>DFO / Animation Lab</h1><small>Игровой runtime · фиксированный шаг 1/60 с</small><span id="clock">Кадр 0</span></header>
 <div id="message" role="status">Подключение…</div>
 <main><div><section><img class="screen" id="screen" alt="Снимок игрового кадра"><div class="row"><button id="one">+1 кадр</button><button id="thirty">+30 кадров</button><button id="play">Проиграть</button><button id="stop">Пауза</button><button id="back">Сзади</button><button id="side">Сбоку</button><button id="front">Спереди</button></div><p class="muted">Пауза останавливает подачу шагов. Отдельная игровая вкладка использует тот же персонаж и мир.</p></section>
 <section><h2>Отметить проблему в текущем кадре</h2><input id="note" placeholder="Например: при ударе правое плечо резко проворачивается"><div class="row"><button id="mark">Сохранить отметку и кадр</button><button id="export">Экспорт случая JSON</button></div><div id="marks"></div></section>
 <section><h2>Сигналы автоматического анализа</h2><p class="muted">Скачки костей — повод проверить кадр. Быстрое правильное движение тоже может дать сигнал. Пересечения поверхностей пока не измеряются.</p><div id="findings"></div></section></div>
-<aside><section><h2>Сценарий</h2><select id="cases"></select><div class="row"><button id="load">Создать сцену</button><button id="apply">Применить JSON</button><button id="import">Импорт JSON</button><input type="file" id="file" accept=".json" hidden></div><textarea id="spec" spellcheck="false" aria-label="Сценарий JSON"></textarea><p class="warning">Сброс возвращает игрока и пересоздаёт противника. Состояние мира, AI и физики целиком пока не восстанавливается.</p></section>
+<aside><section><h2>Следующий сценарий</h2><select id="cases"></select><div class="row"><button id="load">Создать сцену</button><button id="apply">Применить JSON</button><button id="import">Импорт JSON</button><input type="file" id="file" accept=".json" hidden></div><textarea id="spec" spellcheck="false" aria-label="Сценарий JSON"></textarea><p class="warning">Сброс возвращает игрока и пересоздаёт противника. Состояние мира, AI и физики целиком пока не восстанавливается.</p></section>
 <section><h2>Фактическое состояние и источники</h2><pre id="state"></pre></section><section><h2>События и ошибки</h2><pre id="events"></pre></section></aside></main>
 <script type="module">
 const $ = (id) => document.getElementById(id);
@@ -21,13 +22,14 @@ async function command(command, args = {}) {
   if (!result.ok) throw new Error(result.error);
   return result.value;
 }
-function show(value) {
+function show(value, forceImage = true) {
+  const previous = current;
   current = value;
-  $('clock').textContent = `Кадр ${value.frame}`;
+  $('clock').textContent = `${value.run?.scenario.name ?? ''} · Кадр ${value.frame}`;
   $('state').textContent = JSON.stringify(value.current, null, 2);
   $('events').textContent = value.events.map((e) => `${e.frame} ${e.kind}: ${e.detail}`).join('\n');
   if (value.run) {
-    $('screen').src = `/__lab/image?t=${Date.now()}`;
+    if (forceImage || previous?.frame !== value.frame || previous?.run?.id !== value.run.id || previous?.run?.marks.length !== value.run.marks.length) $('screen').src = `/__lab/image?t=${Date.now()}`;
     $('marks').replaceChildren(...value.run.marks.map((mark) => { const p = document.createElement('p'); p.textContent = `${mark.frame}: ${mark.note}`; return p; }));
     $('findings').replaceChildren(...value.run.analysis.findings.slice(0, 60).map((finding) => {
       const button = document.createElement('button'); button.textContent = `Кадр ${finding.frame} · ${finding.kind} · ${finding.bone ?? ''}`;
@@ -72,4 +74,12 @@ await act(async () => {
   for (const [i, spec] of suite.entries()) { const option = document.createElement('option'); option.value = i; option.textContent = spec.name; $('cases').append(option); }
   $('cases').onchange(); show(await command('status'));
 });
+// Agent changes become visible without advancing the game or overwriting an editor draft.
+let polling = false;
+setInterval(async () => {
+  if (busy || playing || polling) return;
+  polling = true;
+  try { show(await command('status'), false); } catch (error) { message(error.message); }
+  finally { polling = false; }
+}, 1500);
 </script></html>

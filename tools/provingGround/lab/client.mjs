@@ -1,6 +1,13 @@
 // Codex and Claude use the SAME API as the panel. No console copying or arbitrary evaluation.
 import { readFileSync, writeFileSync } from 'node:fs';
-const [command = 'status', argument, destination] = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const outputAt = argv.indexOf('--out');
+const destination = outputAt >= 0 ? argv[outputAt + 1] : null;
+if (outputAt >= 0) {
+  if (!destination) throw new Error('--out needs a local filename');
+  argv.splice(outputAt, 2);
+}
+const [command = 'status', argument] = argv;
 const base = process.env.LAB_URL || 'http://localhost:5310';
 const request = async (name, args = {}) => {
   const response = await fetch(`${base}/__lab/command`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: name, args }) });
