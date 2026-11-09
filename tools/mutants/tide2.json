@@ -209,8 +209,8 @@
   {
     "name": "TIDE2-mk-buy",
     "file": "server-account/src/market.js",
-    "old": "const road = courierOf(hubsNow, from, region, units, courierSlow(env, nowS, region));",
-    "new": "const road = courierOf(hubsNow, from, region, units);",
+    "old": "const road = courierOf(hubsNow, from, region, l.kind === 'item' ? 1 : units, courierSlow(env, nowS, region));",
+    "new": "const road = courierOf(hubsNow, from, region, l.kind === 'item' ? 1 : units);",
     "tests": [
       "test/net/tide_economy.test.js"
     ],

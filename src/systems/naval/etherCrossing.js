@@ -31,6 +31,8 @@ import { inBay } from '../../world/tamriel/tamrielFrame.js'; // AUDIT FB1029g SE
 export const CROSS_DAYS = 3;
 /** How often the helm's waters are asked (s). */
 export const CROSS_CHECK_S = 0.5;
+/** A 'home' turned down (or taken back) is asked again after this many checks in the Veil - a minute. */
+export const HOME_AGAIN_CHECKS = 120;
 
 /**
  * A MAP PIXEL'S DISTANCE TO THE NEAREST LAND (Chebyshev, map pixels), out to `reach` (CROSS_LAND_PX; Infinity past it) - by
@@ -123,22 +125,27 @@ export function crossingWayAt(px, py, landPx, seaPx) {
  *  `asked(way)` remembers it asked until the waters are left (`offer(null)` - or another way's waters - forgets it).
  *  X1: the host marks it asked only when the box shows; `refused(way)` whether a refusal is said - once in its waters.
  *  SEA-ROWS: told the waters at every check (undefined, unmeasured: nothing); `journey` is Travel Options, null when off.
- *  Waters she comes into under way are the journey's, marked asked; when its `arrived` count moves there, she is asked. */
+ *  Waters she comes into under way are the journey's, marked asked; when its `arrived` count moves there, she is asked.
+ *  The Veil is the one way home, so 'home' is the journey's only while it is under way: stopped there by any hand she
+ *  is asked. A 'home' turned down is asked again after HOME_AGAIN_CHECKS, as leaving the Veil to reset it is 13 km. */
 export function createCrossingGate() {
   let asked = null,
     ours = false,
     said = null,
-    arrivals = null;
+    arrivals = null,
+    held = 0;
   return {
     offer(way, journey = null) {
       if (way === undefined) return false;
       const under = !!journey?.isTravelActive,
         n = journey?.arrived ?? 0;
       if (way !== said) said = null;
-      if (way !== asked || (ours && n !== arrivals)) {
+      if (way !== asked || (ours && (n !== arrivals || (way === 'home' && !under)))) {
         asked = null;
         ours = false;
-      } // left them, or a journey arrived in them
+      } // left them, or a journey arrived in them, or stopped in the Veil
+      if (asked === 'home' && !ours && ++held >= HOME_AGAIN_CHECKS) asked = null; // turned down there a while ago
+      if (asked !== 'home' || ours) held = 0;
       arrivals = n;
       if (under && way && asked == null) {
         asked = way;
@@ -149,6 +156,7 @@ export function createCrossingGate() {
     asked(way) {
       asked = way ?? null;
       ours = false;
+      held = 0;
     },
     refused(way) {
       if (said === way) return false;

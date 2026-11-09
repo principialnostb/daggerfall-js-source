@@ -728,7 +728,7 @@
   {
     "name": "AUDIT31-tab-empty-filter",
     "file": "src/ui/marketTab.js",
-    "old": "            st.family || marketQueryOf(st.find)\n              ? 'No Masterwork of that kind is up for auction.'\n              : 'No Masterwork is up for auction.',",
+    "old": "            st.family || st.affixes.some(Boolean) || marketQueryOf(st.find)\n              ? 'No Masterwork of that kind is up for auction.'\n              : 'No Masterwork is up for auction.',",
     "new": "            false ? 'No Masterwork of that kind is up for auction.' : 'No Masterwork is up for auction.',",
     "tests": [
       "test/ui/audit31_tabs.test.js"

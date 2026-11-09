@@ -114,6 +114,8 @@ import { itemLongName } from '../systems/item/itemInfo.js';
 import { walledText } from './storesWalled.js'; // RPT1026-MARKET STORES-SAID: what a listing may not take, said
 import { isStolen, stolenTag, stolenLine } from '../systems/stolenGoods.js'; // RPT1026-LEDGERLAW: a stolen piece said so where another player buys it
 import { marketAffixLines, marketAffixLine } from '../net/marketAffixLaw.js'; // the Goods searched by affix
+/** The views searched by affix: the Goods, and made pieces (a Master's work's lines). */
+const AFFIX_VIEWS = ['goods', 'crafted', 'auctions'];
 import { typedField } from './workSift.js'; // AUDIT BOARD-SIFT: a search read once its word is whole
 import { packPickerNode, packCardNode, freshPackSift, packTierWord } from './packPicker.js'; // PACK-PICK: a piece chosen from its picture
 import { itemLookRows } from '../systems/item/itemLook.js'; // PACK-PICK: and looked at before it is listed; MARKET-LOOK: and before it is bought
@@ -420,6 +422,8 @@ export function createMarketTab(m, ui) {
   /** MARKET-ANY: a pack piece's name, and its stack ("x12"). */
   const goodName = (rec) =>
     `${m.goodName?.(rec) ?? 'a piece'}${(rec?.stackCount ?? 1) > 1 ? ` x${rec.stackCount}` : ''}`;
+  /** A stack listed each: its units bought a few at a time, its price a unit's. */
+  const splits = (row) => row.kind === 'item' && row.listed > 1;
   /** MARKET-ANY: the crafted pieces the save holds, for the service to say how each may list ("My listings" reads them). */
   const heldIds = () =>
     [
@@ -457,7 +461,7 @@ export function createMarketTab(m, ui) {
       ...(sorts && st.sort && st.sort !== sorts[0] ? { sort: st.sort } : {}),
       ...(find ? (st.view === 'goods' ? { find } : { recipes: recipesNamed(find, families, recipeShownName) }) : {}),
       ...(st.view === 'crafted' && st.quality > 0 ? { quality: st.quality } : {}),
-      ...(st.view === 'goods' && st.affixes.some(Boolean)
+      ...(AFFIX_VIEWS.includes(st.view) && st.affixes.some(Boolean)
         ? {
             affixes: st.affixes
               .filter((a) => a !== null)
@@ -598,7 +602,7 @@ export function createMarketTab(m, ui) {
     st.page = 0;
     st.sort = null;
     if (word != null) st.query = st.find = word;
-    st.affixes = [null, null, null]; // the Goods' own
+    st.affixes = [null, null, null]; // each view's own
     st.quality = 0; // BOARD-SIFT: a view opens on its first page, its own order
     st.data = m.book.cached(view, q());
     load(false);
@@ -661,7 +665,7 @@ export function createMarketTab(m, ui) {
     row.region === m.region
       ? 0
       : row.road
-        ? courierFee(units, row.road.road) * (row.currency === 'gold' ? MARK_WORTH_GOLD : 1)
+        ? courierFee(row.kind === 'item' ? 1 : units, row.road.road) * (row.currency === 'gold' ? MARK_WORTH_GOLD : 1)
         : null;
   /** AUDIT 30 U16: a unit's price landed here - its courier's share of the pick's. */
   const landed = (row) => {
@@ -1034,9 +1038,15 @@ export function createMarketTab(m, ui) {
     const it = row.item;
     const b = rowButton(row, ' market-piece market-good');
     b.append(
-      named(goodName(it), itemPic(it)),
+      named(goodName(it), itemPic(it)), // a stack's name says how many are left
       el('span', 'market-quality', wearText(wearOf(it)) ?? 'whole'),
-      el('span', 'market-price', priceText(row.price, row.currency)),
+      el(
+        'span',
+        'market-price',
+        splits(row)
+          ? t('market.goods.each', '{price} each', { price: priceText(row.price, row.currency) })
+          : priceText(row.price, row.currency),
+      ),
       el('span', 'market-where', `${where(row)}${roadText(row)}`),
     );
     if (isStolen(it)) b.append(el('span', 'market-stolen', stolenTag())); // RPT1026-LEDGERLAW: the theft's mark rides the listing
@@ -1084,11 +1094,13 @@ export function createMarketTab(m, ui) {
    *  words and the button that hang on it, never the bar (AUDIT 30 U8). */
   function pickedBar(row) {
     const bar = el('div', 'market-bar');
-    const piece = row.kind === 'piece' || row.kind === 'item'; // MARKET-ANY: a pack's piece is bought whole
+    const piece = row.kind === 'piece' || (row.kind === 'item' && !splits(row)); // MARKET-ANY: a pack's piece is bought whole
     const unitsNow = () => (piece ? 1 : intOf(st.qty, 1, row.units));
     const what = (units) =>
       row.kind === 'item'
-        ? goodName(row.item)
+        ? splits(row)
+          ? `${m.goodName?.(row.item) ?? 'a piece'} x${units}`
+          : goodName(row.item)
         : piece
           ? m.pieceName(row.piece)
           : `${units} ${m.countName(row.material, units)}`;
@@ -1532,8 +1544,9 @@ export function createMarketTab(m, ui) {
           none: t('market.list.pickPack', 'Press a piece above to look at it and set its price.'),
         }),
       );
-      fields.append(field('Price in gold', price));
-      worth = () => st.list.price;
+      const stack = (chosen?.item?.stackCount ?? 1) > 1 ? chosen.item.stackCount : 1;
+      fields.append(field(stack > 1 ? t('market.list.goldEach', 'Price in gold, each') : 'Price in gold', price));
+      worth = () => st.list.price * stack;
       can = () => !!chosen;
       send = () =>
         act(
@@ -1550,12 +1563,13 @@ export function createMarketTab(m, ui) {
                 price: st.list.price,
                 hubs: hub ? { [m.region]: hub } : {},
                 currency: 'gold',
+                ...(stack > 1 ? { each: true } : {}),
               },
               null,
               g,
             );
           },
-          `Listed ${chosen ? goodName(chosen.item) : 'it'} at ${goldText(st.list.price)}.`,
+          `Listed ${chosen ? goodName(chosen.item) : 'it'} at ${goldText(st.list.price)}${stack > 1 ? ' each' : ''}.`,
         );
     } else {
       // PROF5b: an auction offers the Masterworks alone (10.2)
@@ -2098,7 +2112,7 @@ export function createMarketTab(m, ui) {
     }
     if (st.loading && !st.data) box.append(el('p', 'notice-empty', MARKET_WORDS.reading));
     if (st.view === 'auctions') {
-      box.append(filtersNode(CRAFTED_FAMILIES));
+      box.append(filtersNode(CRAFTED_FAMILIES), affixesNode());
       const rows = st.data?.rows ?? [];
       const list = el('div', 'market-rows');
       if (rows.length) list.append(listHead('market-auction', ['Masterwork', 'Quality', 'Standing bid']));
@@ -2112,7 +2126,7 @@ export function createMarketTab(m, ui) {
           el(
             'p',
             'notice-empty',
-            st.family || marketQueryOf(st.find)
+            st.family || st.affixes.some(Boolean) || marketQueryOf(st.find)
               ? 'No Masterwork of that kind is up for auction.'
               : 'No Masterwork is up for auction.',
           ),
@@ -2121,6 +2135,7 @@ export function createMarketTab(m, ui) {
       paged(box, list);
     } else if (st.view === 'materials' || st.view === 'crafted') {
       box.append(filtersNode(st.view === 'materials' ? LISTED_FAMILIES : CRAFTED_FAMILIES));
+      if (st.view === 'crafted') box.append(affixesNode());
       const rows = byLanded(st.data?.rows ?? []);
       const list = el('div', 'market-rows');
       if (rows.length)

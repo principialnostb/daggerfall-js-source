@@ -11,8 +11,8 @@
   {
     "name": "CROSS-gate-unforgotten",
     "file": "src/systems/naval/etherCrossing.js",
-    "old": "      if (way !== asked || (ours && n !== arrivals)) {",
-    "new": "      if (ours && n !== arrivals) {",
+    "old": "      if (way !== asked || (ours && (n !== arrivals || (way === 'home' && !under)))) {",
+    "new": "      if (ours && (n !== arrivals || (way === 'home' && !under))) {",
     "tests": [
       "test/systems/naval/ethercross.test.js"
     ]
@@ -520,5 +520,25 @@
     "tests": [
       "test/systems/naval/ethercross.test.js"
     ]
+  },
+  {
+    "name": "VEIL-home-stop-unheard",
+    "file": "src/systems/naval/etherCrossing.js",
+    "old": "      if (way !== asked || (ours && (n !== arrivals || (way === 'home' && !under)))) {",
+    "new": "      if (way !== asked || (ours && n !== arrivals)) {",
+    "tests": [
+      "test/systems/naval/ethercross.test.js"
+    ],
+    "why": "a journey stopped in the Veil never asks the way home"
+  },
+  {
+    "name": "VEIL-home-never-again",
+    "file": "src/systems/naval/etherCrossing.js",
+    "old": "      if (asked === 'home' && !ours && ++held >= HOME_AGAIN_CHECKS) asked = null; // turned down there a while ago\n",
+    "new": "",
+    "tests": [
+      "test/systems/naval/ethercross.test.js"
+    ],
+    "why": "a No in the Veil is never asked again until she leaves it"
   }
 ]

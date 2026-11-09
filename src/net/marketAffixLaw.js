@@ -69,3 +69,15 @@ export function marketAffixesOf(raw) {
   }
   return out;
 }
+
+/**
+ * Whether a piece's lines (`[{ id, param?, value }]`, or none) carry every line asked (marketAffixesOf's): each its kind,
+ * its param and at least its value. A made piece's lines are a Master's work's alone, read off its record; others carry
+ * none, so any line asked leaves them out.
+ * @param {ReadonlyArray<{ id: string, param?: any, value: number }> | null | undefined} lines
+ * @param {ReadonlyArray<{ id: string, param: any, min: number }>} asked
+ */
+export const affixesCarried = (lines, asked) =>
+  asked.every((a) =>
+    (lines ?? []).some((x) => x?.id === a.id && String(x.param ?? '') === String(a.param ?? '') && Number(x.value) >= a.min),
+  );

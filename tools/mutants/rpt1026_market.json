@@ -146,8 +146,8 @@
   {
     "name": "RPT1026-MARKET-ARRIVE-the-press-s-word-unchanged",
     "file": "src/scenes/vendorHost.js",
-    "old": "    );\n    if (r?.ok && r.data?.delivery?.id && !(await collectedAtPress(r.data.delivery.id))) {",
-    "new": "    );\n    if (false) {",
+    "old": "    const paid = vendorGoldText(row.price * units);\n    if (r?.ok && r.data?.delivery?.id && !(await collectedAtPress(r.data.delivery.id))) {",
+    "new": "    const paid = vendorGoldText(row.price * units);\n    if (false) {",
     "tests": [
       "test/net/rpt1026_market_arrive.test.js"
     ]

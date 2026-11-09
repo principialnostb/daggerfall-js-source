@@ -209,8 +209,8 @@
   {
     "name": "LW15-purse",
     "file": "server-account/src/market.js",
-    "old": "AND l.price = ?11 AND COALESCE((SELECT gold FROM market_gold WHERE player = l.seller AND char_id = l.char_id), 0) + ?8 <= ?12\n",
-    "new": "AND l.price = ?11\n",
+    "old": "AND l.price * (l.own + l.bought) = ?11 AND COALESCE((SELECT gold FROM market_gold WHERE player = l.seller AND char_id = l.char_id), 0) + ?8 <= ?12\n",
+    "new": "AND l.price * (l.own + l.bought) = ?11\n",
     "tests": [
       "test/systems/livingWorld/lw15_patrons.test.js"
     ]
@@ -581,7 +581,7 @@
   {
     "name": "LW15-AUDIT-P1-seller-day",
     "file": "server-account/src/market.js",
-    "old": "                    AND (SELECT COALESCE(SUM(price), 0) FROM market_patron_sales WHERE seller = l.seller AND day = ?10) + l.price <= ${PATRON_SELLER_DAY_GOLD}\n",
+    "old": "                    AND (SELECT COALESCE(SUM(price), 0) FROM market_patron_sales WHERE seller = l.seller AND day = ?10) + ?11 <= ${PATRON_SELLER_DAY_GOLD}\n",
     "new": "",
     "tests": [
       "test/systems/livingWorld/lw15_patrons.test.js"

@@ -20874,6 +20874,11 @@
   "tr": "af84340622db",
   "by": "claude-in-session"
  },
+ "market.goods.each": {
+  "en": "b390c8e65eb8",
+  "tr": "375c08b26e9c",
+  "by": "claude-in-session"
+ },
  "market.goods.sell": {
   "en": "c136aded14cc",
   "tr": "013623b85b0a",
@@ -20887,6 +20892,11 @@
  "market.list.craftedLabel": {
   "en": "28f64ab188cf",
   "tr": "79af616404c1",
+  "by": "claude-in-session"
+ },
+ "market.list.goldEach": {
+  "en": "0fdf585befc7",
+  "tr": "003d52cb893d",
   "by": "claude-in-session"
  },
  "market.list.kindAuction": {
@@ -45062,6 +45072,11 @@
  "vendor.buy.onWay": {
   "en": "de19e280a092",
   "tr": "db815065c327",
+  "by": "claude-in-session"
+ },
+ "vendor.buy.units": {
+  "en": "b57ba0798735",
+  "tr": "8dec621d2f1c",
   "by": "claude-in-session"
  },
  "vendor.collect.done": {

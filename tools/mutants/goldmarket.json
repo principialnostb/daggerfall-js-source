@@ -248,8 +248,8 @@
   {
     "name": "GOLDMARKET-tab-courier-drakes",
     "file": "src/ui/marketTab.js",
-    "old": "  const courierOf = (row, units) =>\n    row.region === m.region\n      ? 0\n      : row.road\n        ? courierFee(units, row.road.road) * (row.currency === 'gold' ? MARK_WORTH_GOLD : 1)\n        : null;",
-    "new": "  const courierOf = (row, units) => (row.region === m.region ? 0 : row.road ? courierFee(units, row.road.road) : null);",
+    "old": "  const courierOf = (row, units) =>\n    row.region === m.region\n      ? 0\n      : row.road\n        ? courierFee(row.kind === 'item' ? 1 : units, row.road.road) * (row.currency === 'gold' ? MARK_WORTH_GOLD : 1)\n        : null;",
+    "new": "  const courierOf = (row, units) => (row.region === m.region ? 0 : row.road ? courierFee(row.kind === 'item' ? 1 : units, row.road.road) : null);",
     "tests": [
       "test/net/goldmarket_client.test.js"
     ]

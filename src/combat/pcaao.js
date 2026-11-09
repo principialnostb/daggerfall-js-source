@@ -105,7 +105,7 @@ import {
   entityArmorPoints,
   weaponDamageMods,
   weaponBlowMods,
-  weaponRollAdd,
+  weaponRollWithGear,
 } from '../systems/entityMods.js'; // RF1: the enchantment channels and the port's points (AUDIT SET P-M1: read apart) (SET2: and the weapon's own and the blow's, read here too)
 import { getItemHands, ITEM_HANDS } from '../characters/equipTable.js';
 import { createWeapon } from './enemyEquipment.js';
@@ -582,8 +582,13 @@ export function pcaaoWeaponAttackDamage(
   let damage =
     weaponDamageMods(
       weapon,
-      range(weaponMinDamage(weapon.templateIndex), weaponMaxDamage(weapon.templateIndex), rolls) +
-        weaponRollAdd(attacker, weapon, target, rolls), // the gear on its skill, in its roll as the fists'
+      weaponRollWithGear(
+        range(weaponMinDamage(weapon.templateIndex), weaponMaxDamage(weapon.templateIndex), rolls),
+        attacker,
+        weapon,
+        target,
+        rolls,
+      ), // the gear on its skill, in its roll as the fists'
     ) + damageModifier;
   if (!isPlayer(target)) {
     if (target.careerIndex === SKELETAL_WARRIOR) {

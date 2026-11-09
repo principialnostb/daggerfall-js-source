@@ -34,8 +34,8 @@
   {
     "name": "AFB-SEA-F4-the-arrival-unheard",
     "file": "src/systems/naval/etherCrossing.js",
-    "old": "      if (way !== asked || (ours && n !== arrivals)) {",
-    "new": "      if (way !== asked) {",
+    "old": "      if (way !== asked || (ours && (n !== arrivals || (way === 'home' && !under)))) {",
+    "new": "      if (way !== asked || (ours && way === 'home' && !under)) {",
     "tests": [
       "test/systems/naval/auditcaptsea.test.js",
       "test/systems/naval/ethercross.test.js"
@@ -45,8 +45,8 @@
   {
     "name": "AFB-SEA-F4-an-arrival-forgets-a-refusal",
     "file": "src/systems/naval/etherCrossing.js",
-    "old": "      if (way !== asked || (ours && n !== arrivals)) {",
-    "new": "      if (way !== asked || n !== arrivals) {",
+    "old": "      if (way !== asked || (ours && (n !== arrivals || (way === 'home' && !under)))) {",
+    "new": "      if (way !== asked || n !== arrivals || (ours && way === 'home' && !under)) {",
     "tests": [
       "test/systems/naval/ethercross.test.js"
     ],

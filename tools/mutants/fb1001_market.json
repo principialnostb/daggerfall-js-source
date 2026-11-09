@@ -211,8 +211,8 @@
   {
     "name": "MARKET-ANY-service-the-offer-unread",
     "file": "server-account/src/market.js",
-    "old": "  if (goodRefusal(item)) return { error: 'market-not-good' };\n  if (typeof item.provenance === 'string') {",
-    "new": "  if (typeof item.provenance === 'string') {",
+    "old": "  if (goodRefusal(item)) return { error: 'market-not-good' };\n  // A stack priced",
+    "new": "  // A stack priced",
     "tests": [
       "test/systems/fb1001_market_goods.test.js"
     ]
@@ -258,8 +258,8 @@
   {
     "name": "MARKET-ANY-service-the-buy-delivery-unwritten",
     "file": "server-account/src/market.js",
-    "old": "        WHERE s.buyer = ?1 AND s.rid = ?2 AND s.n = ?3 AND s.kind = 'item'`).bind(me, rid, nonce),",
-    "new": "        WHERE s.buyer = ?1 AND s.rid = ?2 AND s.n = ?3 AND s.kind = 'none'`).bind(me, rid, nonce),",
+    "old": "        WHERE s.buyer = ?1 AND s.rid = ?2 AND s.n = ?3 AND s.kind = 'item'`).bind(me, rid, nonce, l.kind",
+    "new": "        WHERE s.buyer = ?1 AND s.rid = ?2 AND s.n = ?3 AND s.kind = 'none'`).bind(me, rid, nonce, l.kind",
     "tests": [
       "test/systems/fb1001_market_goods.test.js"
     ]
@@ -340,7 +340,7 @@
   {
     "name": "MARKET-ANY-service-a-pack-piece-bought-in-units",
     "file": "server-account/src/market.js",
-    "old": "  if (l.kind === 'piece' || l.kind === 'item') units = 1;   // MARKET-ANY: a piece from a pack, whole",
+    "old": "  if (l.kind === 'piece' || (l.kind === 'item' && Number(l.units) <= 1)) units = 1;",
     "new": "  if (l.kind === 'piece') units = 1;",
     "tests": [
       "test/systems/fb1001_market_goods.test.js"

@@ -104,8 +104,8 @@
   {
     "name": "BOARD-SIFT-service-the-count-without-the-quality",
     "file": "server-account/src/market.js",
-    "old": "read([db.prepare(`SELECT COUNT(*) AS n ${from}`).bind(nowS, keys, quality),",
-    "new": "read([db.prepare(`SELECT COUNT(*) AS n ${from}`).bind(nowS, keys, 0),",
+    "old": "piecesRead(db.prepare(`SELECT COUNT(*) AS n ${from}`).bind(nowS, keys, quality),",
+    "new": "piecesRead(db.prepare(`SELECT COUNT(*) AS n ${from}`).bind(nowS, keys, 0),",
     "tests": [
       "test/net/boardsift_market.test.js"
     ]
@@ -770,7 +770,7 @@
   {
     "name": "BOARD-SIFT-market-a-view-keeps-the-last-ones-filters",
     "file": "src/ui/marketTab.js",
-    "old": "    st.page = 0;\n    st.sort = null;\n    if (word != null) st.query = st.find = word;\n    st.affixes = [null, null, null]; // the Goods' own",
+    "old": "    st.page = 0;\n    st.sort = null;\n    if (word != null) st.query = st.find = word;\n    st.affixes = [null, null, null]; // each view's own",
     "new": "    if (word != null) st.query = st.find = word;",
     "tests": [
       "test/ui/boardsift.test.js"
@@ -788,8 +788,8 @@
   {
     "name": "BOARD-SIFT-market-auctions-empty-wording-blind-to-a-search",
     "file": "src/ui/marketTab.js",
-    "old": "            st.family || marketQueryOf(st.find)\n              ? 'No Masterwork of that kind is up for auction.'\n              : 'No Masterwork is up for auction.',",
-    "new": "            st.family ? 'No Masterwork of that kind is up for auction.' : 'No Masterwork is up for auction.',",
+    "old": "            st.family || st.affixes.some(Boolean) || marketQueryOf(st.find)\n              ? 'No Masterwork of that kind is up for auction.'\n              : 'No Masterwork is up for auction.',",
+    "new": "            st.family || st.affixes.some(Boolean) ? 'No Masterwork of that kind is up for auction.' : 'No Masterwork is up for auction.',",
     "tests": [
       "test/ui/boardsift.test.js"
     ]

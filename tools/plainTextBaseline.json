@@ -1731,7 +1731,7 @@
   "src/systems/professions/profItems.js": 22,
   "src/systems/professions/profSounds.js": 3,
   "src/systems/professions/profTemplates.js": 39,
-  "src/systems/quest/actions.js": 180,
+  "src/systems/quest/actions.js": 179,
   "src/systems/quest/castMarkers.js": 9,
   "src/systems/quest/clock.js": 105,
   "src/systems/quest/foe.js": 16,

@@ -7389,6 +7389,16 @@
   "tr": "4baa9f07cc0b",
   "by": "claude-in-session"
  },
+ "market.goods.each": {
+  "en": "b390c8e65eb8",
+  "tr": "e38302415438",
+  "by": "claude-in-session"
+ },
+ "market.list.goldEach": {
+  "en": "0fdf585befc7",
+  "tr": "74c532b12ced",
+  "by": "claude-in-session"
+ },
  "market.sift.affixLabel": {
   "en": "350f105edaf7",
   "tr": "350f105edaf7",
@@ -13347,6 +13357,11 @@
  "tutorials.wildZone.body2": {
   "en": "87989055cf87",
   "tr": "fd6b5fd56034",
+  "by": "claude-in-session"
+ },
+ "vendor.buy.units": {
+  "en": "b57ba0798735",
+  "tr": "072c7db8dc9b",
   "by": "claude-in-session"
  },
  "wagon.upkeep.boons.failing": {

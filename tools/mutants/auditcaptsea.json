@@ -2576,8 +2576,8 @@
   {
     "name": "ACS-X1-waters-left",
     "file": "src/systems/naval/etherCrossing.js",
-    "old": "      if (way !== said) said = null;\n      if (way !== asked || (ours && n !== arrivals)) {",
-    "new": "      if (way !== asked || (ours && n !== arrivals)) {",
+    "old": "      if (way !== said) said = null;\n      if (way !== asked || (ours && (n !== arrivals || (way === 'home' && !under)))) {",
+    "new": "      if (way !== asked || (ours && (n !== arrivals || (way === 'home' && !under)))) {",
     "tests": [
       "test/systems/naval/auditcaptsea.test.js"
     ]

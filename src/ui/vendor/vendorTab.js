@@ -218,7 +218,11 @@ export function createVendorTab(v, ui) {
     b.append(
       name,
       el('span', 'market-quality', wearText(wearOf(row.item)) ?? 'whole'),
-      el('span', 'market-price', goldText(row.price)),
+      el(
+        'span',
+        'market-price',
+        row.listed > 1 ? t('market.goods.each', '{price} each', { price: goldText(row.price) }) : goldText(row.price),
+      ),
       el(
         'span',
         'market-where',
@@ -254,20 +258,39 @@ export function createVendorTab(v, ui) {
       );
     }
     if (buy) {
-      const purse = v.purse?.();
-      const short = purse != null && purse < row.price;
-      bar.append(
-        el(
-          'span',
-          'market-ask',
+      // a stack listed each: how many, 1 to all that is left
+      const split = row.listed > 1;
+      const unitsNow = () => (split ? intOf(st.qty, 1, row.units) : 1);
+      const ask = el('span', 'market-ask');
+      const go = button('primary market-buy', ui.busy() ? 'Buying...' : 'Buy', () => act(() => v.buy(row, unitsNow())));
+      const refresh = () => {
+        const n = unitsNow(),
+          total = n * row.price,
+          purse = v.purse?.(),
+          short = purse != null && purse < total;
+        const what = split ? `${nameOf({ ...row.item, stackCount: 1 })} x${n}` : nameOf(row.item);
+        ask.textContent =
           purse == null
             ? VENDOR_TEXT.noGold
-            : `Buy ${nameOf(row.item)} for ${goldText(row.price)}?${short ? ' You cannot pay that.' : ''}`,
-        ),
-      );
-      const go = button('primary market-buy', ui.busy() ? 'Buying...' : 'Buy', () => act(() => v.buy(row)));
-      go.disabled = ui.busy() || purse == null || short;
-      bar.append(go);
+            : `Buy ${what} for ${goldText(total)}?${short ? ' You cannot pay that.' : ''}`;
+        go.disabled = ui.busy() || purse == null || short;
+      };
+      if (split) {
+        const n = /** @type {HTMLInputElement} */ (el('input', 'notice-input market-num'));
+        n.type = 'number';
+        n.min = '1';
+        n.max = String(row.units);
+        n.value = String(unitsNow());
+        n.setAttribute('aria-label', t('vendor.buy.units', 'Units to buy'));
+        n.setAttribute('data-focus', `vendor-qty|${row.id}`);
+        n.oninput = () => {
+          st.qty = intOf(n.value, 1, row.units);
+          refresh();
+        };
+        bar.append(n);
+      }
+      refresh();
+      bar.append(ask, go);
     }
     if (take) {
       bar.append(el('span', 'market-ask', `Take ${nameOf(row.item)} off sale and back into your pack?`));
@@ -349,7 +372,7 @@ export function createVendorTab(v, ui) {
     };
     const chosen = st.good;
     const go = button('primary market-post', ui.busy() ? 'Putting up...' : 'Put up for sale', () =>
-      act(() => v.put(chosen, st.price)),
+      act(() => v.put(chosen, st.price, (chosen?.stackCount ?? 1) > 1)),
     );
     go.setAttribute('data-focus', 'vendor-post'); // AUDIT PACK-PICK B2: a redraw keeps the focus on it
     go.disabled = ui.busy() || !chosen;

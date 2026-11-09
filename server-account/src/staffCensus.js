@@ -39,6 +39,7 @@ import { displayName } from './accounts.js';
 import { possessedItemLists, goldOf } from './judge.js';
 import { realmSaveTextOf, REALM_ID_RE } from './realm.js';
 import { lawTemplate, itemWorth, ITEM_UID_RE } from '../../src/systems/item/itemLaw.js';
+import { TEMPLATES } from '../../src/systems/item/itemKinds.js'; // the potion's bottle
 import { MINED_KEYS, minedMaterial, PLANT_GROUP_TEMPLATES } from '../../src/net/professionLaw.js';
 import { utcDay } from '../../src/net/marksLaw.js';
 import { kept as keptAnswer } from './staffEconomy.js'; // Home's watch kept as the economy's own is
@@ -181,13 +182,19 @@ export function kindOf(/** @type {unknown} */ v) {
   return Number.isSafeInteger(t) && t >= 0 && t < TEMPLATE_SCAN && lawTemplate(t) ? `t${t}` : null;
 }
 const templateOfKind = (/** @type {string} */ kind) => (kind.startsWith('t') ? Number(kind.slice(1)) : null);
+/** A potion is a Glass Bottle carrying a recipe key (loot.js
+ *  createPotion), so every potion a save holds is counted as that template, and a search for "potion" never named it. */
+const POTION_KIND = `t${TEMPLATES.Glass_Bottle}`;
+const POTION_WORDS = ['potions', 'bottles'];
 /** A kind's name as the panel shows it. */
 export const kindName = (/** @type {string} */ kind) =>
   kind === 'gold'
     ? 'Gold'
     : kind === 'marks'
       ? 'Marks (silver)'
-      : String(lawTemplate(templateOfKind(kind))?.name ?? kind);
+      : kind === POTION_KIND
+        ? 'Potions, every kind (and empty bottles)'
+        : String(lawTemplate(templateOfKind(kind))?.name ?? kind);
 /** The tally's JSON path for a kind ('g' is gold). */
 const pathOf = (/** @type {string} */ kind) => (kind === 'gold' ? '$.g' : `$.${kind}`);
 
@@ -201,15 +208,17 @@ export function findKinds(/** @type {unknown} */ q) {
   const out = [];
   if ('gold'.includes(s)) out.push({ kind: 'gold', name: kindName('gold') });
   if (['marks', 'silver', 'drakes'].some((w) => w.includes(s))) out.push({ kind: 'marks', name: kindName('marks') });
+  if (POTION_WORDS.some((word) => word.includes(s) || s.startsWith(word.slice(0, -1))))
+    out.push({ kind: POTION_KIND, name: kindName(POTION_KIND) });
   const exact = kindOf(s);
-  if (exact) out.push({ kind: exact, name: kindName(exact) });
+  if (exact && !out.some((found) => found.kind === exact)) out.push({ kind: exact, name: kindName(exact) });
   named ??= Array.from({ length: TEMPLATE_SCAN }, (_, t) => ({ t, name: String(lawTemplate(t)?.name ?? '') })).filter(
     (x) => x.name,
   );
   for (const x of named) {
     if (out.length >= 20) break;
     if (x.name.toLowerCase().includes(s) && !out.some((o) => o.kind === `t${x.t}`))
-      out.push({ kind: `t${x.t}`, name: x.name });
+      out.push({ kind: `t${x.t}`, name: kindName(`t${x.t}`) });
   }
   return out;
 }

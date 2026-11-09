@@ -228,6 +228,21 @@ export function registerWeaponRollAdd(fn) {
 }
 export const weaponRollAdd = (attacker, weapon, target, rolls) =>
   _rollAdd ? Number(_rollAdd(attacker, weapon, target, rolls)) || 0 : 0;
+/** The weapon's roll with its gear, remembering the share that was the weapon's own. A blow wears its weapon by a
+ *  tenth of its damage (formulas.js damageEquipment); without the share, a geared hit wore the blade many times the
+ *  base rate. damageEquipment takes the share (takeWeaponWearShare) and wears the blade by that part alone. */
+let _wearShare = 1;
+export function weaponRollWithGear(roll, attacker, weapon, target, rolls) {
+  const add = weaponRollAdd(attacker, weapon, target, rolls);
+  _wearShare = add > 0 ? Math.max(0, roll) / Math.max(1, roll + add) : 1;
+  return roll + add;
+}
+/** The share of the last rolled blow that was the weapon's own (1 with no gear), and back to 1 - read once per blow. */
+export function takeWeaponWearShare() {
+  const share = _wearShare;
+  _wearShare = 1;
+  return share;
+}
 /** The weapon's rolled damage through every registered modifier, in
  *  registration order. */
 export function weaponDamageMods(weapon, damage) {

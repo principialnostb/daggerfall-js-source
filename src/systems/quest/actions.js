@@ -435,6 +435,26 @@ export class PickOneOf extends ActionTemplate {
 // Q2b-i - THE STATE TRANCHE
 // ---------------------------------------------------------------
 
+// A plain `clicked npc` leaves the click to a later, unset `toting X and <same npc> clicked` while X is carried.
+// DFU gives the click to the first task; S0000020 clears its bare Mynisera click task as she offers the quest, so that
+// task re-armed on the next click and took the letter's hand-in. A departure from DFU.
+function handInWaits(quest, caller, person) {
+  let after = false;
+  for (const task of quest?.tasks?.values?.() ?? []) {
+    if (task === caller) {
+      after = true;
+      continue;
+    }
+    if (!after || task.dropped || task.getTriggerValue()) continue;
+    for (const a of task.actions ?? []) {
+      if (a?.constructor?.typeName !== 'TotingItemAndClickedNpc' || quest.getPerson(a.npcSymbol) !== person) continue;
+      const item = quest.getItem(a.itemSymbol);
+      if (item && quest.hooks?.carriesQuestItem?.(item)) return true;
+    }
+  }
+  return false;
+}
+
 /** ClickedNpc.cs: the click trigger. Once the owning task triggers it
  *  stays true ("another action will need to rearm/unset this task if
  *  another click is required"). The gold form deducts on success or
@@ -469,6 +489,7 @@ export class ClickedNpc extends ActionTemplate {
     const person = this.parentQuest.getPerson(this.npcSymbol);
     if (!person) return false;
     if (person.hasPlayerClicked) {
+      if (handInWaits(this.parentQuest, caller, person)) return false;
       if (this.goldAmount > 0 && this.taskSymbol && this.taskSymbol.name) {
         // AUDIT 68 S29-gold-hook-dup: ClickedNpc.cs:91-94 reads and spends PlayerEntity.GoldPieces, as ClickedFoe does
         if ((this.parentQuest.hooks?.getGoldPieces?.() ?? 0) >= this.goldAmount) {
