@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DFO · Animation Lab</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#10151b;color:#dce3ec;font:14px system-ui}header{padding:18px 24px;border-bottom:1px solid #303b49;display:flex;gap:20px;align-items:center}h1{font-size:19px;margin:0}small,.muted{color:#9aaabd}main{display:grid;grid-template-columns:minmax(480px,1fr) 390px;gap:18px;padding:18px}section{background:#19212b;border:1px solid #303b49;border-radius:8px;padding:14px;margin-bottom:14px}h2{font-size:14px;margin:0 0 12px;color:#b0c5da}button,select,input,textarea{font:inherit;color:inherit;background:#253242;border:1px solid #42546b;border-radius:5px;padding:8px}button{cursor:pointer}button:hover{background:#364b62}button:disabled{opacity:.45;cursor:wait}.row{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}select,textarea,input{width:100%}textarea{font:12px monospace;min-height:230px;resize:vertical}.screen{width:100%;min-height:300px;object-fit:contain;background:#080c10;image-rendering:pixelated}pre{font:12px monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto}#message{padding:9px 24px;min-height:36px;color:#b9d5f0}#findings button{display:block;width:100%;text-align:left;margin:5px 0}#clock{font:20px monospace;color:#8fd9c3}.warning{color:#e5c38d}label{display:block;margin-top:10px}a{color:#8ec5ff}@media(max-width:950px){main{grid-template-columns:1fr}}
+</style>
+<header><h1>DFO / Animation Lab</h1><small>Игровой runtime · фиксированный шаг 1/60 с</small><span id="clock">Кадр 0</span></header>
+<div id="message" role="status">Подключение…</div>
+<main><div><section><img class="screen" id="screen" alt="Снимок игрового кадра"><div class="row"><button id="one">+1 кадр</button><button id="thirty">+30 кадров</button><button id="play">Проиграть</button><button id="stop">Пауза</button><button id="back">Сзади</button><button id="side">Сбоку</button><button id="front">Спереди</button></div><p class="muted">Пауза останавливает подачу шагов. Отдельная игровая вкладка использует тот же персонаж и мир.</p></section>
+<section><h2>Отметить проблему в текущем кадре</h2><input id="note" placeholder="Например: при ударе правое плечо резко проворачивается"><div class="row"><button id="mark">Сохранить отметку и кадр</button><button id="export">Экспорт случая JSON</button></div><div id="marks"></div></section>
+<section><h2>Сигналы автоматического анализа</h2><p class="muted">Скачки костей — повод проверить кадр. Быстрое правильное движение тоже может дать сигнал. Пересечения поверхностей пока не измеряются.</p><div id="findings"></div></section></div>
+<aside><section><h2>Сценарий</h2><select id="cases"></select><div class="row"><button id="load">Создать сцену</button><button id="apply">Применить JSON</button><button id="import">Импорт JSON</button><input type="file" id="file" accept=".json" hidden></div><textarea id="spec" spellcheck="false" aria-label="Сценарий JSON"></textarea><p class="warning">Сброс возвращает игрока и пересоздаёт противника. Состояние мира, AI и физики целиком пока не восстанавливается.</p></section>
+<section><h2>Фактическое состояние и источники</h2><pre id="state"></pre></section><section><h2>События и ошибки</h2><pre id="events"></pre></section></aside></main>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+let suite = [], current = null, playing = false, busy = false;
+const message = (text) => { $('message').textContent = text; };
+async function command(command, args = {}) {
+  const response = await fetch('/__lab/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command, args }) });
+  const result = await response.json();
+  if (!result.ok) throw new Error(result.error);
+  return result.value;
+}
+function show(value) {
+  current = value;
+  $('clock').textContent = `Кадр ${value.frame}`;
+  $('state').textContent = JSON.stringify(value.current, null, 2);
+  $('events').textContent = value.events.map((e) => `${e.frame} ${e.kind}: ${e.detail}`).join('\n');
+  if (value.run) {
+    $('screen').src = `/__lab/image?t=${Date.now()}`;
+    $('marks').replaceChildren(...value.run.marks.map((mark) => { const p = document.createElement('p'); p.textContent = `${mark.frame}: ${mark.note}`; return p; }));
+    $('findings').replaceChildren(...value.run.analysis.findings.slice(0, 60).map((finding) => {
+      const button = document.createElement('button'); button.textContent = `Кадр ${finding.frame} · ${finding.kind} · ${finding.bone ?? ''}`;
+      button.title = 'Повторить входную последовательность до этого кадра (не восстановление мира)';
+      button.onclick = () => act(async () => { show(await command('load', { scenario: current.run.scenario })); show(await command('advance', { frames: finding.frame })); });
+      return button;
+    }));
+    if (value.run.analysis.status === 'unmeasured') $('findings').textContent = 'Кости ещё не измерены. Это не успешная проверка.';
+    else if (!value.run.analysis.findings.length) $('findings').textContent = 'В записанных кадрах сигналов нет. Качество движения и геометрия требуют отдельной проверки.';
+    for (const warning of value.run.coverage) { const p = document.createElement('p'); p.className = 'warning'; p.textContent = warning; $('findings').prepend(p); }
+  }
+}
+async function act(fn) {
+  if (busy) return;
+  busy = true;
+  document.querySelectorAll('button:not(#stop)').forEach((b) => { b.disabled = true; });
+  try { await fn(); message('Готово'); } catch (error) { playing = false; message(error.message); }
+  finally { busy = false; document.querySelectorAll('button').forEach((b) => { b.disabled = false; }); }
+}
+const advance = (frames) => act(async () => show(await command('advance', { frames })));
+$('one').onclick = () => advance(1); $('thirty').onclick = () => advance(30);
+$('load').onclick = () => act(async () => show(await command('load', { scenario: JSON.parse($('spec').value) })));
+$('apply').onclick = $('load').onclick;
+$('cases').onchange = () => { $('spec').value = JSON.stringify(suite[Number($('cases').value)], null, 2); };
+$('stop').onclick = () => { playing = false; message('Пауза после текущей группы кадров'); };
+$('play').onclick = async () => {
+  if (busy || playing) return;
+  playing = true;
+  while (playing) { await advance(6); if (!current?.run || current.run.complete) playing = false; }
+};
+for (const [id, yaw] of [['back', 0], ['side', Math.PI / 2], ['front', Math.PI]]) $(id).onclick = () => act(async () => show(await command('orbit', { yaw })));
+$('mark').onclick = () => act(async () => show(await command('mark', { note: $('note').value })));
+$('export').onclick = () => act(async () => {
+  const data = await command('export');
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a'); link.href = url; link.download = `${data.id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+$('import').onclick = () => $('file').click();
+$('file').onchange = () => act(async () => { const data = JSON.parse(await $('file').files[0].text()); $('spec').value = JSON.stringify(data.scenario ?? data, null, 2); });
+await act(async () => {
+  suite = await command('suite');
+  for (const [i, spec] of suite.entries()) { const option = document.createElement('option'); option.value = i; option.textContent = spec.name; $('cases').append(option); }
+  $('cases').onchange(); show(await command('status'));
+});
+</script></html>

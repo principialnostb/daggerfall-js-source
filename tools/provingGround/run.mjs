@@ -52,7 +52,8 @@ export function laneSeed(lane) {
 async function main() {
   mkdirSync(OUT, { recursive: true });
   process.env.ARENA2_PATH = ARENA2;
-  const server = await createServer({ root: ROOT, configFile: join(ROOT, 'vite.config.js'), logLevel: 'error', server: { port: PORT, strictPort: true, hmr: false } });
+  const lab = command === 'lab' ? (await import('./lab/server.mjs')).createLabPlugin() : null;
+  const server = await createServer({ root: ROOT, configFile: join(ROOT, 'vite.config.js'), logLevel: 'error', plugins: lab ? [lab.plugin] : [], server: { port: PORT, strictPort: true, hmr: false } });
   await server.listen();
   const base = `http://localhost:${PORT}`;
   const context = await chromium.launchPersistentContext(PROFILE, {
@@ -64,6 +65,7 @@ async function main() {
   // no part of a run, and a run must not hang on them or tell them anything
   await context.route((url) => !/^(http|ws)s?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(url.href) && !url.href.startsWith('data:') && !url.href.startsWith('blob:'), (route) => route.abort('blockedbyclient'));
   const page = wire(context.pages()[0] ?? await context.newPage());
+  lab?.watch(page);
   try {
     await ensureMorrowind(page, base);
     const lane = opt('lane', 'fork');
@@ -75,6 +77,11 @@ async function main() {
     }, { seed: laneSeed(lane) });
     if (command === 'boot') await boot(context, page, base, lane);
     if (command === 'session') { const live = await boot(context, page, base, lane); await session(live, lane, server); }
+    if (command === 'lab') {
+      const live = await boot(context, page, base, lane, lab.watch);
+      const { openLab } = await import('./lab/open.mjs');
+      await openLab({ page: live, context, lab, base, out: join(HOME, 'lab') });
+    }
   } finally {
     await context.close();
     await server.close();
@@ -115,12 +122,14 @@ async function ensureMorrowind(page, base) {
   console.log(`Morrowind data: ${n} files stored`);
 }
 
-async function boot(context, page, base, lane) {
+async function boot(context, page, base, lane, observePage = null) {
   const url = `${base}/play/?shot&play&world&test=nord-warrior&tod=12:00&weather=sunny&wseed=1`;
   console.log(`[${lane}] ${url}`);
+  observePage?.(page);
   for (let attempt = 1; ; attempt++) {
     if (attempt > 1) {   // a stuck boot's page is let go whole: a fresh tab, the same profile
       const old = page; page = wire(await context.newPage()); await old.close().catch(() => {});
+      observePage?.(page);
     }
     await load(page, url);
     try { await page.waitForFunction(() => window.__shotReady === true, null, { timeout: 240000 }); break; } catch (e) {

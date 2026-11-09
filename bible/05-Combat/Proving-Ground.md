@@ -76,6 +76,37 @@ pixel size, and its numbers checked against thresholds.
 
 ## 3. Rules for the rebuild
 
+### Animation Lab (LAB1, 2026-11-09)
+
+The owner asked for a shared visual and programmatic workspace: record a case once, mark its problem frame, let
+Codex or Claude generate scenarios and inspect the same run without asking the owner to film it again. LAB1 extends
+the ground above, not the game's hosts or an independent animation renderer. Its reference is the ground's existing
+gameplay input, rig status and body-bone sampling; it adds development controls, not a departure from DFU gameplay.
+
+Start `node tools/provingGround/run.mjs lab --headed --lane fork` with `ARENA2_PATH` and `MORROWIND_DATA` pointing to
+the owner's local installs. The existing ground profile and `fork-seed.json` are needed. Open `http://localhost:5310/__lab/`.
+`tools/provingGround/lab/server.mjs` mounts this route only for that command. Nothing is added to production routes.
+The panel and `tools/provingGround/lab/client.mjs` share a serialized, bounded JSON command API. Agents can request
+`suite`, `load <scenario.json>`, `advance <frames>`, `run`, `mark <note>`, `export` and `batch <count>` (default three).
+`LAB_URL` selects another local port. The CLI's third argument writes its result to a local file.
+
+The first slice provides 47 generated input scenarios: eight movement directions, walk/run/stop transitions,
+four swing directions standing and moving, a turn, jump and sneak. JSON scenarios can select outfit names and one
+mobile type (`foe`). Actual rig groups, selected source paths, pose time, player bones, foe status and warnings are
+captured. Marks save a screenshot; automatic snapshots are every 30 frames. Runs and pictures are local under
+`.proving-ground/lab/`, never committed. The panel can step, play in small batches, orbit, annotate, import and export.
+
+**Limits are part of the result.** This is input replay from a repositioned player, not a world/AI/physics checkpoint.
+Replay does not guarantee identical random choices or settled secondary motion. The suite exercises gameplay inputs,
+not every imported clip. A missing body is unmeasured, never a passing check. Bone jumps are diagnostic signals, not
+an artistic verdict; surface penetration and foot contacts are not measured by LAB1. It does not yet edit bones,
+record free manual play, inspect NPC skeletons, or create animation assets. Those extend this same scenario and API
+contract after reproducible playback is verified, rather than adding another renderer.
+
+`test/tooling/provingGroundLab.test.js` checks coverage, scenario bounds and known diagnostic signals. Existing
+test-PR snapshot `a433274ec3` passes lint/types but has failing source pins and bible gates; snapshot preservation
+does not certify that baseline as release-ready.
+
 1. **The original's character is kept.** The vanilla lane is the yardstick for silhouette and tempo; the rebuild may
    be smoother and more responsive, never more "AAA" (Motion-Doctrine section 1: mechanisms from the modern school,
    character from the stylised one). A change that reads foreign beside vanilla is reverted.

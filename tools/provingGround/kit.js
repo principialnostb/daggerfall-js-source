@@ -64,7 +64,7 @@ window.__pgKit = {
   },
   /** HOME: the open ground the scenarios start on - set to where the player stands now, or (no argument) the player
    *  put back there, facing yaw 0, settled for a moment. */
-  setHome() { window.__pgHome = window.__player.pos; return window.__pgHome; },
+  setHome() { window.__pgHome = [...window.__player.pos]; return window.__pgHome; },
   /** Home again. The world moves its origin by a map pixel (819.2 m) when the player crosses one, so a home kept from
    *  before is taken along by the nearest whole number of pixels to where the player now stands. */
   home() {
