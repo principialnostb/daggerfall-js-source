@@ -66,6 +66,9 @@
 //           on the screen to carry from.
 // Answers the refs it wrote, or null when nothing was asked.
 //
+// `preserve: { weight, bones: Set<string> }` retains an existing animation group's locals by its ownership share.
+// The carry remembers the drawn result, so an opposite-hand strike cannot exchange a walking stride.
+//
 // THE SECOND WEAPON'S BONE (offWeaponBoneAddon): Morrowind's retail skeletons carry no "Weapon Bone Left" - in OpenMW it
 // is an optional node under the left hand that only a modded skeleton has (the bow's attach bone, which falls back to
 // "Weapon Bone" without it). A skeleton without one is given one made BY THIS MIRROR from its own Weapon Bone - hand to
@@ -385,6 +388,18 @@ export function applyMirrorRig(skeleton, pose, root, skelMats, req) {
     let out = targets.get(ref);
     const off = k > 0 ? st.from.get(ref) : null;
     if (off) out = carried(off, out ?? clipL(ref), k);
+    // Locomotion already owns these locals before mirroring. Keep that owner's
+    // pose by its eased share; otherwise a left punch exchanges the walking feet.
+    const share = req.preserve?.bones?.has(skeleton.nodes.get(ref).name.toLowerCase())
+      ? Math.max(0, Math.min(1, req.preserve.weight || 0)) : 0;
+    if (out && share > 0) {
+      const original = clipL(ref);
+      out = share >= 1 ? original : carried({
+        q: quatOf(mat33Mul(original.rotation, transposed(out.rotation))),
+        d: original.translation.map((v, i) => v - out.translation[i]),
+        ds: (original.scale ?? 1) / (out.scale ?? 1),
+      }, out, share);
+    }
     // every bone's drawn local is kept, written or the clip's: a bone the clip moves under a change of composition (the
     // striking arm as its blow begins) is carried from where it was drawn as the bones the composition writes are - the
     // two hands' blows ease in alike

@@ -1,5 +1,74 @@
 # Motion Doctrine - one formula for how bodies move and fight (MOTION-DOCTRINE, 2026-10-27)
 
+## One fighter across weapon changes (2026-11-10)
+
+The owner confirmed that Dev's deformation repairs are visible, then distinguished surface correctness from motion
+quality: the female two-hander and shield feel more coordinated than the fists. His direction is to build from
+those worked-through motions and useful installed mods, so changing weapons does not make the actor look like three
+different fighters. This refines the common style below; it does not ask for identical weapon poses.
+
+- Preserve the accepted two-hander and shield as comparison cases. Share the body's balance, restrained movement,
+  readable preparation/contact/recovery and continuous transitions. Hand spacing, guard height, reach and stance width
+  may differ where the weapon requires it; isolated weapon tuning must still pass the cross-weapon comparison.
+- The installed MAO v0.72 readme (`Mods/Animations/Morrowind Animation Overhaul/MAO_readme.txt`) describes one
+  third-person set covering hand-to-hand, one-handed, two-handed and locomotion. Audit that coherent set before
+  inventing replacements. Its declared coverage is a candidate inventory, not proof of visual quality or of the
+  currently selected source. Simply Walking/Feminine Walk are walk overrides; Animation Blending's README describes
+  transition rules, not new combat choreography. Dynamic Animations' controllers are integration references, not
+  directly executable browser modules. Do not enable every overlapping pack as a substitute for choosing compatible clips.
+- Read the effective per-group source, built sex/body and actual drawn attack state in every comparison. A saved mod
+  switch alone is insufficient: the standard profile can hold an earlier source choice. Compare the same female body,
+  equipment and input with the accepted cases; repeat bare, clothed and armoured.
+- Judge complete sequences: guard to walk and back, each strike and recovery, held series, direction changes during
+  an attack, and weapon changes. Check the support foot, pelvis, trunk and striking hand together; smooth hands alone
+  do not establish a coordinated blow. New foot work must preserve the repaired no-stale-anchor/no-double-leg-solve
+  rules above.
+
+The shared implementation seams already exist: carry classification and stance parameters
+(src/characters/bodyMotion/carry.js:"export function carryClassOf({ mwType = MW_WEAPON_TYPE.None, shown = false, hands = 'single', spell = false } = {}) {"),
+choreography (src/characters/bodyMotion/melee.js:"export const MELEE = Object.freeze({"), and scenario comparisons
+(`Proving-Ground.md`, Animation Lab). This record changes the acceptance criteria, not runtime poses or combat timings.
+DFU has no skinned player choreography; the presentation remains our own, with the Morrowind/OpenMW references below.
+
+## Shared combat sources and moving strike ownership (2026-11-10)
+
+First implementation of the direction above, on the female Dark Elf Better Bodies underwear body (518 chest
+vertices, 154 groin vertices, neutral morphs), with the configured local mods:
+
+- MAO's `Xbase_anim_female.kf` is a sparse override: idle4/idle5 and plain forward walk/run, not a complete combat
+  library. The loader now inherits `Xbase_anim.kf` before that override, preserving last-source-wins per group
+  (src/formats/morrowind/mwWalkAnimationAssets.js:"export function animationOverhaulEntries("). This follows the
+  existing OpenMW source ordering recorded at `02-Formats/Morrowind-Rules.md`, rule 26 and the animation-source rules;
+  DFU has no skinned third-person player choreography.
+- `ThirdPersonFistsSource` defaults to MAO (1); Vanilla (0) retains the archive fist clips. MAO supplies the complete
+  fist family together: guard, attacks, follow-through, jump and stance locomotion, after optional walk-only packs.
+  The accepted weapon attacks keep their source. Shield bashes also use `handtohand`, so shield-bearing assemblies
+  explicitly exclude the replacement fist family
+  (src/formats/morrowind/mwWalkAnimationAssets.js:"export function fistAnimationSourceEnabled("). Missing local
+  assets retain archive fallback; no pack files are added to the repository. Rebuild/reload the rig after choosing.
+- A second, independent cause of inconsistent legs was the whole-body mirror of an opposite-hand punch. It ran
+  AFTER the movement overlay and exchanged the already walking legs. The lower group's existing eased ownership now
+  protects those locals through the mirror and its carry; the carry records the actual protected pose
+  (src/combat/lowerBodyLayer.js:"export function withMirrorLocomotion(",
+  src/combat/twoHands/mirrorRig.js:"if (out && share > 0) {"). Standing blows retain the authored whole-body motion;
+  the repaired weapon-leg bypass for fists remains. First-person requests have no lower-group protection.
+
+Validation: 780 gameplay-input frames for each of bare fists, shirt/pants, steel armour, claymore and sword/shield,
+for EACH source choice on the final implementation (7,800 frames total). Actual drawn attack states and selected
+sources were recorded; fists selected MAO only in mode 1, while claymore and shield attacks/bashes retained the
+archive source. Fixed-clock input replay is not a saved AI/physics/random checkpoint, so these are coverage and
+visual comparisons, not a claim of identical random combo timing. Captures are local under
+`.proving-ground/coherence/` and are not shipped.
+
+A separate read-only pose-stage probe compared the walking feet immediately before and after the mirror in the
+real configured renderer. With the earlier mirror code and the same MAO provider it measured 129 mirrored attack
+samples, up to 68.4818 model units of displacement from locomotion's pose. With the fix, 106 mirrored attack samples
+had exactly zero displacement at that stage. This proves group ownership, not the quality of every movement.
+The general jump heuristic still flags a run-entry foot candidate (about 11 cm) in the final bare-fist scenario;
+that is not certified away by this fix. HD/DMRA bodies, beasts and NPC combat are not visually certified by this pass.
+Tests in test/formats/morrowind/maofists.test.js and test/combat/mirror_locomotion.test.js cover the actual pack's
+sparse inheritance, complete family admission, shield exclusion, recovery stance, lower-body priority and carry.
+
 ## Fist transition repairs (2026-11-09)
 
 The owner's fist-series report was replayed with the configured mods, then with the body bare, in clothes and in

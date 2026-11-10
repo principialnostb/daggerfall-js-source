@@ -17,7 +17,6 @@ const FILES = IN_BROWSER
       // found nothing, and the setting silently left the game's own clips playing
       '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf',
       '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim_female.kf',
-      // Morrowind Animation Overhaul is intentionally excluded pending explicit reuse permission.
     ], import.meta.glob([
       '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
       "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
@@ -26,7 +25,6 @@ const FILES = IN_BROWSER
       // found nothing, and the setting silently left the game's own clips playing
       '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf',
       '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim_female.kf',
-      // Morrowind Animation Overhaul is intentionally excluded pending explicit reuse permission.
     ], {
       eager: true, query: '?url', import: 'default',
     }))
@@ -122,12 +120,11 @@ async function bytes(entry) {
 }
 
 /**
- * Returns selected source candidates for Simply Walking, the independent Feminine
- * Walk Cycle, Axel's female locomotion clips, and the optional full MAO set.
- * The full overhaul is admitted only when explicitly selected; the Vanilla
- * source remains available for unsupported races and any groups absent in the pack.
+ * Returns selected walk providers, inherited MAO locomotion, and the independently
+ * selected complete fist family. Weapon attacks stay on their existing sources;
+ * archive fallback remains available for missing packs and unsupported groups.
  */
-export async function loadWalkAnimationAssets({ female = false } = {}) {
+export async function loadWalkAnimationAssets({ female = false, shield = false } = {}) {
   if (!modGroupEnabled('animations')) return [];
   if (!IN_BROWSER) return [];
   const simplyCandidates = female
@@ -144,17 +141,20 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   ] : [];
   // MAO-SOURCE (2026-10-30, the owner compared Vanilla and MAO in the game): the pack's movement is the standard - its run
   // and its walks in a stance; the plain walk, the stance and the blows stay as they were. No setting: the choice is made.
-  const overhaul = { entry: female ? overhaulFemale : overhaulMale, variant: 'overhaul', family: 'all', movementOnly: true };
-  const selected = [];
+  const overhaul = { variant: 'overhaul', family: 'all', movementOnly: true };
+  const overhaulEntries = animationOverhaulEntries({ female, base: overhaulMale, femaleOverride: overhaulFemale });
+  const selected = [], fistSources = [];
   if (!simplyCandidates.some(({ entry }) => entry) && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] Vite did not resolve any Simply Walking KF source.', inspectWalkAnimationAssets());
     modDiagnostics.record({ level: 'warn', phase: 'animation-discovery', action: 'walk-assets-not-resolved', modId: 'simply-walking', resource: 'walk-pack', details: inspectWalkAnimationAssets() });
   }
   try {
-    if (overhaul?.entry) {
-      const data = await bytes(overhaul.entry);
-      if (data) selected.push({ name: overhaul.entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true, movementOnly: overhaul.movementOnly });
+    for (const entry of overhaulEntries) {
+      const data = await bytes(entry);
+      if (!data) continue;
+      selected.push({ name: entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true, movementOnly: overhaul.movementOnly });
+      if (fistAnimationSourceEnabled({ shield, choice: modSetting('morrowind-animation', 'ThirdPersonFistsSource') })) fistSources.push({ name: entry.path, bytes: data, variant: 'overhaul-fists', family: 'fists', animationFamily: 'fists' });
     }
     for (const { entry, variant, family } of simplyCandidates) {
       if (!entry) continue;
@@ -184,6 +184,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'walk-pack-load-failed', modId: overhaul?.variant ?? 'walk-packs', resource: 'walk-pack', message: String(error?.message ?? error), details: { selectedBeforeFailure: selected.length, female } });
     return [];
   }
+  selected.push(...fistSources);   // explicit complete fist family wins over optional walk-only packs
   if (!selected.length && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] no bundled walk KF source was selected.', inspectWalkAnimationAssets());
@@ -643,4 +644,31 @@ export function runVariantForActor({
   // No male-NPC run replacement is exposed yet; keep the existing Vanilla
   // provider policy instead of silently forcing the Original bypass.
   return 'vanilla';
+}
+/** MAO's female file is a sparse override, not a replacement for the shared library.
+ * Later sources win per group, as in tpAnimSources / OpenMW NpcAnimation. */
+export function animationOverhaulEntries({ female = false, base = null, femaleOverride = null } = {}) {
+  return [base, female ? femaleOverride : null].filter(Boolean);
+}
+
+/** A complete fist family, without changing the accepted weapon or shield clips. */
+export function isFistAnimationGroup(name) {
+  return /^(?:idlehh|handtohand|jumphh|(?:walk|run|sneak)(?:forward|back|left|right)hh|turn(?:left|right)hh)$/i.test(String(name ?? '').trim());
+}
+
+/** Keep source admission in one place for the runtime and diagnostic comparisons. */
+export function selectAnimationFamily(asset, report) {
+  const isOverhaul = asset.family === 'all' || asset.animationOverhaul === true;
+  const accepts = asset.family === 'fists' ? isFistAnimationGroup : asset.movementOnly ? isMovementAnimationGroup
+    : asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;
+  const full = isOverhaul && !asset.movementOnly;
+  const familyGroups = full ? report.groups : report.groups.filter(accepts);
+  const acceptsKey = asset.movementOnly ? isMovementAnimationKey : asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
+  const familyKeys = full ? report.keys : asset.family === 'fists' ? normalizeAnimationGroupKeys(report.keys, familyGroups) : report.keys.filter(acceptsKey);
+  return { isOverhaul, familyKeys, familyGroups };
+}
+
+/** Shield bashes also use handtohand; retain their accepted source. */
+export function fistAnimationSourceEnabled({ shield = false, choice = 0 } = {}) {
+  return !shield && choice === 1;
 }

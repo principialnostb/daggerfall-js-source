@@ -177,3 +177,10 @@ export function createLowerBodyLayer({ sampleTrack }) {
   };
   return layer;
 }
+
+/** A whole-body mirror must respect the lower group's existing ownership.
+ * The same eased weight protects locomotion while an opposite-hand blow enters/leaves. */
+export function withMirrorLocomotion(request, weight, skeleton) {
+  if (!(weight > 0) || !skeleton) return request;
+  return { ...request, preserve: { weight: Math.min(1, weight), bones: lowerBodyBones(skeleton) } };
+}

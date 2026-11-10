@@ -102,7 +102,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isMovementAnimationGroup, isMovementAnimationKey, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, normalizeAnimationGroupKeys, hitReactionTargetGroup, hitReactionTransitionBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, selectAnimationFamily, isWalkAnimationGroup, isRunAnimationGroup, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, normalizeAnimationGroupKeys, hitReactionTargetGroup, hitReactionTransitionBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawBodyPicture, drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -426,7 +426,7 @@ import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotio
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
 import { guardMovementGroup, armedUpperPlan } from './guardLocomotion.js';   // SHIELD-RUN-LEGS: the stance's legs, the armed upper body
-import { createLowerBodyLayer, lowerBodyBones, upperBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
+import { createLowerBodyLayer, lowerBodyBones, upperBodyBones, withMirrorLocomotion } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
 import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace, carriesBlend } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
 import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
@@ -3267,7 +3267,7 @@ async function buildTpBody({
     // The separate Feminine Walk Cycle is a female-only, walk-only override;
     // other actions keep the game's own sources and priority.
     if (!werewolf && !beast) {
-      const walkAssets = await loadWalkAnimationAssets({ female });
+      const walkAssets = await loadWalkAnimationAssets({ female, shield: carriesShield({ ok: arm.ok, arm }) });
       for (const asset of walkAssets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (asset.animationOverhaul || asset.family === 'all') {
@@ -3284,11 +3284,7 @@ async function buildTpBody({
           console.warn('[Morrowind animations] replacement KF could not be parsed/bound; vanilla walk retained:', reason);
           continue;
         }
-        const isOverhaul = asset.family === 'all' || asset.animationOverhaul === true;
-        const isFamilyGroup = asset.movementOnly ? isMovementAnimationGroup : asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;   // MAO-SOURCE
-        const isFamilyKey = asset.movementOnly ? isMovementAnimationKey : asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
-        const familyKeys = isOverhaul && !asset.movementOnly ? report.keys : report.keys.filter(isFamilyKey);
-        const familyGroups = isOverhaul && !asset.movementOnly ? report.groups : report.groups.filter(isFamilyGroup);
+        const { isOverhaul, familyKeys, familyGroups } = selectAnimationFamily(asset, report);
         if (!familyGroups.length || !familyKeys.length) {
           const reason = `locomotion animation ${asset.name}: no usable ${asset.family || 'walk'} groups; vanilla source retained`;
           missing.push(reason);
@@ -6212,7 +6208,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * for a sheet held, the stone, a spell, the dead, a beast.
    */
   function mirrorFor(rigKey, r, dt) {
-    const req = { carry: { key: 'none', dt, tau: POSE.LIMB_TAU, state: mirrorCarry[rigKey] }, dip: null };
+    const req = withMirrorLocomotion({ carry: { key: 'none', dt, tau: POSE.LIMB_TAU, state: mirrorCarry[rigKey] }, dip: null }, rigKey === 'third' ? lowerBody.weight() : 0, r?.arm?.skeleton);
     // TWO-HANDS FIELD (Mac: "No left arm"): the first-person arms mirror across the PICTURE - the eye's own middle - not
     // the chest the clip posed (mirrorRig.js pictureMirrorArm): the lens is the camera node, moved fpOffset across
     if (rigKey === 'first' && r && r.cameraRef != null) req.plane = { ref: r.cameraRef, dx: fpOffset[0] };

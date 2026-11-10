@@ -1683,6 +1683,11 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'OpenMW Dynamic Animations · 3-е лицо'),
         description: 'Third-person animation source for compatible rigs. OpenMW Dynamic Animations replaces matching game/archive groups, including directional walking, running, and sneaking; it can therefore change Vanilla locomotion, not just add new actions. Vanilla keeps the game/archive clips. The browser port translates KF group selection and deterministic variant choice into the JavaScript runtime; it does not execute the original OpenMW Lua scripts.',
       }),
+      ThirdPersonFistsSource: Object.freeze({
+        default: 1,
+        options: lazyWords('Vanilla', 'Morrowind Animation Overhaul'),
+        description: 'Third-person fists only: guard, attacks, recovery, jump and combat locomotion from one MAO family. The shared library is inherited before female-specific overrides. Weapon and shield attacks keep their existing sources. Rebuild the character rig after changing this source; missing local assets retain archive fallback.',
+      }),
       HitReactionSource: Object.freeze({
         default: 0,   // TEST-PR: the owner's set, Vanilla
         options: lazyWords('Vanilla', 'Hit Reactions Animated v2'),
