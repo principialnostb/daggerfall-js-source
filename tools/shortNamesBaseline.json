@@ -2332,7 +2332,6 @@
  "src/ui/pixelGround.js": 16,
  "src/ui/playerBadge.js": 27,
  "src/ui/playerHistory.js": 8,
- "src/ui/plus/plusCursor.js": 4,
  "src/ui/plus/plusPad.js": 37,
  "src/ui/plus/plusPadBinds.js": 16,
  "src/ui/poi/poiEditorPanel.js": 142,

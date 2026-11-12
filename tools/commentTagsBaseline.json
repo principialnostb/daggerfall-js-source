@@ -1,6 +1,6 @@
 {
  "app/afterPack.cjs": 1,
- "app/launcher/launcher.js": 7,
+ "app/launcher/launcher.js": 5,
  "app/launcher/pad.js": 1,
  "app/launcherPreload.cjs": 1,
  "app/lib/arena2Detect.cjs": 10,
@@ -18,7 +18,7 @@
  "app/lib/selfSwap.cjs": 1,
  "app/lib/shellDialogs.cjs": 2,
  "app/lib/updateCheck.cjs": 1,
- "app/main.cjs": 122,
+ "app/main.cjs": 120,
  "app/preload.cjs": 9,
  "scripts/bakeBooks.mjs": 1,
  "scripts/bakeSettings.mjs": 2,
