@@ -9,8 +9,8 @@ import { AURA_KINDLE_S } from '../render/auraRing.js';
 import { startWeaponPiecePreview } from '../render/weaponPiecePreview.js';
 import { armoryKitOf, armoryKitPieces } from '../net/armoryLaw.js';
 import { armoryKitLook, armoryWeaponStage, armoryGlowSpec } from '../systems/weaponGlowLooks.js';
-import { titleBadge, paintTitle, glyphBadges, glyphSvgNode } from './playerBadge.js';
-import { profileIconNode } from './profileIcons.js';
+import { titleBadge, paintTitle, glyphBadges, glyphSvgNode } from '../ui/playerBadge.js';
+import { profileIconNode } from '../ui/profileIcons.js';
 import { sealWareOf } from '../net/discordShopLaw.js';
 
 /** The moment a still is drawn at (s on the stage's clock): the look fully lit and the camera a quarter round. */
@@ -45,7 +45,9 @@ export function wareDrawing(id) {
     const alone = armoryWeaponStage(kit);
     if (alone) return { how: 'stage', parts: [{ part: 'blade', look: alone }] };
     const look = armoryKitLook(kit);
-    const slots = Object.entries(armoryKitPieces(kit)).filter(([, k]) => k).map(([slot]) => slot);
+    const slots = Object.entries(armoryKitPieces(kit))
+      .filter(([, k]) => k)
+      .map(([slot]) => slot);
     const focus = slots.length === 1 ? (SLOT_FOCUS[/** @type {keyof typeof SLOT_FOCUS} */ (slots[0])] ?? null) : null;
     /** @type {StagePart} */
     const figure = focus ? { part: 'figure', aura: null, kit, focus } : { part: 'figure', aura: null, kit };
@@ -70,7 +72,13 @@ export function startPart(canvas, part, o = {}) {
     return spec ? startWeaponPiecePreview(canvas, spec, { clear: [...STAGE_CLEAR], now }) : null;
   }
   const focus = o.close && part.focus ? part.focus : null;
-  return startAuraPreview(canvas, part.aura, { kit: part.kit, now, clear: [...STAGE_CLEAR], ground: [...STAGE_GROUND], focus });
+  return startAuraPreview(canvas, part.aura, {
+    kit: part.kit,
+    now,
+    clear: [...STAGE_CLEAR],
+    ground: [...STAGE_GROUND],
+    focus,
+  });
 }
 
 /**
@@ -93,7 +101,8 @@ export function focusBox({ y, zoom }) {
 export function partStill(doc, part, { width = 240, height = 240 } = {}) {
   const focus = part.part === 'figure' ? (part.focus ?? null) : null;
   const k = focus ? Math.max(1, focus.zoom) : 1;
-  const w = Math.round(width * k), h = Math.round(height * k);
+  const w = Math.round(width * k),
+    h = Math.round(height * k);
   const canvas = doc.createElement('canvas');
   canvas.style.cssText = `position:fixed;left:-${w + 64}px;top:0;width:${w}px;height:${h}px;visibility:hidden;pointer-events:none`;
   doc.body.append(canvas);
@@ -109,7 +118,9 @@ export function partStill(doc, part, { width = 240, height = 240 } = {}) {
     const cut = doc.createElement('canvas');
     cut.width = Math.round(canvas.width * bw);
     cut.height = Math.round(canvas.height * bh);
-    cut.getContext('2d')?.drawImage(canvas, canvas.width * x, canvas.height * y, cut.width, cut.height, 0, 0, cut.width, cut.height);
+    cut
+      .getContext('2d')
+      ?.drawImage(canvas, canvas.width * x, canvas.height * y, cut.width, cut.height, 0, 0, cut.width, cut.height);
     return cut.toDataURL('image/png');
   } catch {
     return null;

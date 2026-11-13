@@ -1,7 +1,7 @@
 // @ts-check
 // The Courier's Cabinet, as a cabinet: a shelf for each kind, each ware a card showing the ware as the game draws it, a
-// ribbon on what is yours. The pictures come from the game's own painters (kit/, built from src/ui/cabinetPreview.js
-// by tools/journalKit.mjs); where the kit or WebGL2 is missing, a card shows the ware's wax seal instead. A card's
+// ribbon on what is yours. The pictures come from the game's own painters (kit/, built from
+// src/journalKit/cabinetPreview.js by tools/journalKit.mjs); where the kit or WebGL2 is missing, a card shows the ware's wax seal instead. A card's
 // picture opens the ware up close: an aura or armory pieces moving on the figure, a weapon piece on its blade.
 // A ware is bought by pressing its seal and holding it while the wax ring fills (or, by keyboard, Enter twice), so a
 // passing click never spends Seals. The purchase is the router's own press (pdaCabinet.js), as in Discord.
@@ -11,8 +11,8 @@ import { localUrl } from './render.js';
 import { sounds } from './sound.js';
 import { wordsFor } from './words.js';
 
-/** @typedef {typeof import('../../src/ui/cabinetPreview.js')} Kit */
-/** @typedef {import('../../src/ui/cabinetPreview.js').StagePart} StagePart */
+/** @typedef {typeof import('../../src/journalKit/cabinetPreview.js')} Kit */
+/** @typedef {import('../../src/journalKit/cabinetPreview.js').StagePart} StagePart */
 
 /** How long a seal is held to buy, ms. */
 const HOLD_MS = 1100;
@@ -25,14 +25,19 @@ const KIT_URL = new URL('./kit/cabinetPreview.js', import.meta.url).href;
 /** @type {Promise<Kit | null> | null} */
 let kitAsk = null;
 /** The game's painters, loaded once and only when the Cabinet opens; null where the kit is not there. */
-const loadKit = () => (kitAsk ??= import(/* @vite-ignore */ KIT_URL).then((m) => /** @type {Kit} */ (m)).catch(() => null));
+const loadKit = () =>
+  (kitAsk ??= import(/* @vite-ignore */ KIT_URL).then((m) => /** @type {Kit} */ (m)).catch(() => null));
 /** Stills already drawn, by ware and part, kept while the page is open (the Cabinet redraws after each purchase). */
 /** @type {Map<string, string | null>} */
 const stills = new Map();
 /** @param {Kit} kit @param {string} id @param {number} i @param {StagePart} part */
 function stillOf(kit, id, i, part) {
   const key = `${id}:${i}`;
-  if (!stills.has(key)) stills.set(key, kit.partStill(document, part, part.part === 'blade' ? { width: 120, height: 240 } : { width: 240, height: 240 }));
+  if (!stills.has(key))
+    stills.set(
+      key,
+      kit.partStill(document, part, part.part === 'blade' ? { width: 120, height: 240 } : { width: 240, height: 240 }),
+    );
   return stills.get(key) ?? null;
 }
 
@@ -68,8 +73,12 @@ export function mountCabinet(host, o = {}) {
   /** The words under a ware's name: its price, or that it is yours, and how to buy it. @param {any} w */
   function buyWords(w) {
     const short = !w.held && w.price > cab.seals;
-    const price = w.held ? 'Yours' : `${grouped(w.price)} ${escapeHtml(cab.word)}${w.price < w.seals ? ` <s>${grouped(w.seals)}</s>` : ''}`;
-    const hint = w.held ? '' : `<div class="ware-hint">${short ? `You need ${grouped(w.price - cab.seals)} more Seals` : 'Press and hold the seal to buy'}</div>`;
+    const price = w.held
+      ? 'Yours'
+      : `${grouped(w.price)} ${escapeHtml(cab.word)}${w.price < w.seals ? ` <s>${grouped(w.seals)}</s>` : ''}`;
+    const hint = w.held
+      ? ''
+      : `<div class="ware-hint">${short ? `You need ${grouped(w.price - cab.seals)} more Seals` : 'Press and hold the seal to buy'}</div>`;
     return `<div class="ware-price">${price}</div>${hint}`;
   }
   /** A ware's wax seal: the buy control, its ring filling as it is held. @param {any} w */
@@ -268,7 +277,7 @@ export function mountCabinet(host, o = {}) {
         // the stage reads its canvas's size, so it starts once the glass is laid out
         requestAnimationFrame(() => {
           if (!box.isConnected) return;
-          const s = kit.startPart(canvas, part, { close: true });   // a piece seen at its slot, as its still frames it
+          const s = kit.startPart(canvas, part, { close: true }); // a piece seen at its slot, as its still frames it
           if (s) running.push(s);
           else still();
         });
@@ -284,7 +293,9 @@ export function mountCabinet(host, o = {}) {
     const refresh = () => {
       const w = cab?.wares?.find((/** @type {any} */ x) => x.id === w0.id) ?? w0;
       card.innerHTML = `<h3>${escapeHtml(w.name)}</h3><p class="viewer-look">${escapeHtml(w.look)}</p>${
-        d?.how === 'stage' && d.parts.length > 1 ? '<p class="margin">The weapon piece is shown on its own blade.</p>' : ''
+        d?.how === 'stage' && d.parts.length > 1
+          ? '<p class="margin">The weapon piece is shown on its own blade.</p>'
+          : ''
       }<div class="ware-buy viewer-buy${!w.held && w.price > cab.seals ? ' short' : ''}"${w.held ? '' : ' tabindex="0"'}>${w.held ? '' : sealHtml(w)}<div class="ware-words">${buyWords(w)}</div></div>`;
       box.classList.toggle('held', !!w.held);
       const buyEl = /** @type {HTMLElement | null} */ (card.querySelector('.viewer-buy'));
@@ -328,7 +339,9 @@ export function mountCabinet(host, o = {}) {
         for (const s of running) s.stop();
         running.length = 0;
         box.remove();
-        const back = opener.isConnected ? opener : [...root.querySelectorAll('.ware')].find((c) => /** @type {HTMLElement} */ (c).dataset.id === w0.id);
+        const back = opener.isConnected
+          ? opener
+          : [...root.querySelectorAll('.ware')].find((c) => /** @type {HTMLElement} */ (c).dataset.id === w0.id);
         /** @type {HTMLElement | null} */ (back?.querySelector('.ware-view') ?? null)?.focus();
       },
     };

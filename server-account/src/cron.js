@@ -105,7 +105,7 @@ import { STAFF_MESSAGE_KEEP_S } from './staffMessage.js'; // STAFF-PANEL5-MESSAG
 import { STAFF_EVENT_KEEP_S } from './staffEvents.js'; // STAFF-EVENT: a staff event's month
 import { STAFF_FEED_KEEP_S } from './staffNet.js'; // STAFF-PANEL5-FEEDS: the relay's net feed's day
 import { REACT_KEEP_S } from './staffReactions.js'; // STAFF-PANEL5-FEEDS: the bot check's 14 days
-import { pdaMinute, pdaHour } from './pdaClock.js'; // the Discord PDA: its notices, polls, expeditions and Terminal
+import { pdaMinute, pdaHour, _resetPdaClockForTests } from './pdaClock.js'; // the Discord PDA: its notices, polls, expeditions and Terminal
 
 /** The two schedules - wrangler.toml's [triggers] crons name exactly these (test/server/scale4b.test.js holds the two to
  *  each other). The hour's minute is off the hour, where every other Worker's cron lands. */
@@ -124,7 +124,7 @@ export const ROUNDS_MAX = 25;
  *  thousand queries at most (Workers Paid), and a backlog of sold auctions is about eleven a sale. Each job's share is
  *  this over its list's length; a settler stops between items once its share is spent, so a firing runs at most this
  *  and one item a job. The minute's backlog goes on the next minute (and on any read that settles it). */
-export const FIRING_STATEMENTS_MAX = 600;
+export const FIRING_STATEMENTS_MAX = 650;
 
 /** Ask `step` again while it took a whole page (`page`) and `more()` says the job's share is not spent, ROUNDS_MAX
  *  times at most - answering what it took in all. */
@@ -167,6 +167,7 @@ export const LODE_CLOCK_EVERY_MIN = 5;
 export const _resetCronForTests = () => {
   lodesPicked = -1;
   writsPosted = -1;
+  _resetPdaClockForTests();
 };
 
 /** @typedef {{ db: any, nowS: number, rand: (b: Uint8Array) => void, budget: () => boolean }} CronCtx */

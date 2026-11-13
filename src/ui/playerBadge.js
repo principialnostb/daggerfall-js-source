@@ -54,6 +54,7 @@ import { chapterTitleText } from '../net/npcChapterLaw.js'; // CHAP4c: a chapter
 import { seatTitleText } from '../net/townSeatLaw.js'; // SEAT1c: a seat title in words, off its claim
 import { setTitleFlame, TITLE_PLATE } from './titleFlame.js'; // SHOP: a flame title's plate, on the faces paintTitle paints
 import { t } from '../systems/textManager.js'; // STOREFRONT: the new titles' and auras' words, in the player's language
+import { ETHER_WORD } from '../world/ethericSea.js'; // the sea's name, from its one home
 
 /** SEAT1c: THE PLACE A SEAT TITLE NAMES - the client's own seat by key (`{ name, region }`), or null. The host sets it
  *  once its seats are derived (scenes/world.js); until then, and offline, a seat title reads its plain word. */
@@ -243,7 +244,7 @@ export const AURA_TEXT = Object.freeze({
   }, // seven hexagons of turtle shell turning at the feet, granted with the World Turtle title
   // the Courier's Cabinet's two, bought with Seals in Discord
   get eltherictide() {
-    return t('account.aura.eltherictide', 'Eltheric Tide');
+    return t('account.aura.eltherictide', '{word} Tide', { word: ETHER_WORD });
   },
   get veilwake() {
     return t('account.aura.veilwake', 'Veilwake');

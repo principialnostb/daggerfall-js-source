@@ -42,8 +42,8 @@ book is one page with its tabs across the top. Motion stops for a player who ask
 its event is live; its card says when and where, and keeps its reminder.
 
 **The Cabinet** (`cabinetView.js`). A shelf for each kind of ware. Each card shows the ware as the game draws it, by the
-game's own painters (`src/ui/cabinetPreview.js`). An aura stands on the shop's figure (`render/auraPreview.js`). An
-armory piece is worn by the figure, framed on its slot. The weapon piece stands on the blade's stage. A title sits on
+game's own painters (`src/journalKit/cabinetPreview.js`). An aura stands on the shop's figure
+(`render/auraPreview.js`). An armory piece is worn by the figure, framed on its slot. The weapon piece stands on the blade's stage. A title sits on
 its plate over the character's name, a glyph beside the name, and a portrait in its bezel. A card's picture opens the
 ware up close, moving, with its seal to buy it: a single armory piece with the camera drawn in on its slot
 (`stageLens`), as its card frames it. With less motion asked for, it is a still.
@@ -120,7 +120,7 @@ Daggerfall Unity has no Discord, no online service and no journal Activity; none
 - `server-account/src/journalDoor.js` - the door; `server-account/src/pdaRouter.js` `journalPress` - its presses
 - `server-account/src/seaJournal.js`, `server-account/src/seaJournalLaw.js`, `server-account/src/pdaSea.js` - the Ocean in the journal
 - `server-account/migrations/0219_journal_sea_cabinet.sql` - the captains, fights and log, and the Cabinet's wares
-- `src/ui/cabinetPreview.js` - the Cabinet's wares as the game draws them; `tools/journalKit.mjs` - its bundle
+- `src/journalKit/cabinetPreview.js` - the Cabinet's wares as the game draws them; `tools/journalKit.mjs` - its bundle
 - `test/journalRig.mjs` - the proxy's signed word, driven through the Worker's own door
 - `test/server/journal_activity.test.js`, `test/server/sea_journal.test.js`, `test/server/pda_journal.test.js`,
   `test/server/journal_kit.test.js`

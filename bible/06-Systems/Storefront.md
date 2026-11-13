@@ -75,7 +75,7 @@ title, the Eltheric Tide and Veilwake auras, the Courier's Seal glyph, The Couri
 Aura Armory's Tidebound pieces, one at a time or as a set. A ware belongs to the account as soon as it is bought. The
 service keeps it in `players.discord_wares` (migration 0219), and `server-account/src/titles.js` `cabinetKeys` counts
 it as held. The game then draws, signs and lists it like any other ware. The Collections page names the Cabinet as
-its source. The Cabinet in Discord shows each ware drawn by these same painters (`src/ui/cabinetPreview.js`,
+its source. The Cabinet in Discord shows each ware drawn by these same painters (`src/journalKit/cabinetPreview.js`,
 `Journal-Activity.md`).
 
 **The Cabinet's looks.** Each aura has a look of its own, not shared with any aura made for one player

@@ -1,5 +1,5 @@
 Key,Value
-account.aura.eltherictide,"Eltheric Tide"
+account.aura.eltherictide,"{word} Tide"
 account.aura.veilwake,"Veilwake"
 account.card.voyages,"已完成的航程"
 account.discord.how,"在 Discord 中開啟 DFO Courier，按下 Link account，然後輸入此代碼。還剩 {n, plural, other {# 分鐘}}有效。"

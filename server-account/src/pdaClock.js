@@ -22,6 +22,19 @@ async function step(/** @type {string} */ name, /** @type {() => Promise<number>
   }
 }
 
+/** Seen a linked player in this isolate: links outlive any minute, so the question is asked until one is found. */
+let linkSeen = false;
+/** Whether any player has linked Discord. Every step after the Courier's card serves a linked player, so a world
+ *  with none asks this alone each minute. */
+async function anyLinked(/** @type {any} */ db) {
+  if (!linkSeen) linkSeen = !!(await db.prepare('SELECT 1 FROM discord_links LIMIT 1').first());
+  return linkSeen;
+}
+/** For the tests: forget the link this isolate saw. */
+export const _resetPdaClockForTests = () => {
+  linkSeen = false;
+};
+
 /** The minute. @param {ClockCtx & { fetchFn?: any }} ctx @param {any} env */
 export async function pdaMinute(ctx, env) {
   const fetchFn = fetchOf(ctx);
@@ -41,6 +54,7 @@ export async function pdaMinute(ctx, env) {
   let n = 0;
   for (const [name, fn] of /** @type {[string, () => Promise<number>][]} */ (steps)) {
     if (!more()) break;
+    if (name !== 'terminal' && !(await anyLinked(c.db))) break;
     n += await step(name, fn);
   }
   return n;

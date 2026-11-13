@@ -3,7 +3,10 @@
 // minigame shares one shop. Seals are earned by play in Discord alone, are never sold for money, never traded and
 // never turned into Aurum, gold or items. Every ware is cosmetic and is the account's at once: the game reads it off
 // the account row (`players.discord_wares`) as it reads the shop's.
-// Pure; imports nothing, so neither the relay's graph nor the token's grows by it.
+// Pure. It imports the sea's name alone, from its one home (world/ethericSea.js). Neither the relay's graph nor the
+// token's holds this module, so neither grows by it.
+
+import { ETHER_WORD } from '../world/ethericSea.js';
 
 /** What the currency is called where a player reads it. */
 export const SEALS_WORD = 'Seals';
@@ -29,18 +32,95 @@ export const TIDEBOUND_PIECES = Object.freeze(['tidecirclet', 'tidepearl', 'tide
  * glyph's, a portrait's, or the armory pieces (a set gives its line's every piece).
  */
 export const SEAL_WARES = Object.freeze([
-  ware('dc-aura-eltherictide', 'aura', ['eltherictide'], 'Eltheric Tide', 1800, 'Rings of sea-green light spread slowly around your feet.'),
-  ware('dc-aura-veilwake', 'aura', ['veilwake'], 'Veilwake', 1500, 'A pale blue mist surrounds you and trails behind you as you move.'),
-  ware('dc-title-veilcourier', 'title', ['veilcourier'], 'Courier of the Veil', 900, 'Your name on a glowing sea-green plate.'),
+  ware(
+    'dc-aura-eltherictide',
+    'aura',
+    ['eltherictide'],
+    `${ETHER_WORD} Tide`,
+    1800,
+    'Rings of sea-green light spread slowly around your feet.',
+  ),
+  ware(
+    'dc-aura-veilwake',
+    'aura',
+    ['veilwake'],
+    'Veilwake',
+    1500,
+    'A pale blue mist surrounds you and trails behind you as you move.',
+  ),
+  ware(
+    'dc-title-veilcourier',
+    'title',
+    ['veilcourier'],
+    'Courier of the Veil',
+    900,
+    'Your name on a glowing sea-green plate.',
+  ),
   ware('dc-glyph-waxseal', 'glyph', ['waxseal'], 'Courier’s Seal', 600, 'A red wax seal next to your name.'),
-  ware('dc-icon-courier', 'icon', ['courier'], 'The Courier', 400, 'A sealed letter and a quill, as your profile picture.'),
-  ware('dc-icon-tidecompass', 'icon', ['tidecompass'], 'Tide Compass', 400, 'A compass over ocean waves, as your profile picture.'),
-  ware('dc-armory-tidecirclet', 'armory', ['tidecirclet'], 'Tidebound Circlet', 500, 'Sea-glass beads that float around your head, with spray that jumps from the front.'),
-  ware('dc-armory-tidepearl', 'armory', ['tidepearl'], 'Tidebound Pearl', 500, 'A nautilus shell that floats in front of your chest. Light runs along its spiral to a pearl.'),
-  ware('dc-armory-tidebracers', 'armory', ['tidebracers'], 'Tidebound Bracers', 500, 'A stream of water that coils around each arm without touching it.'),
-  ware('dc-armory-tidegreaves', 'armory', ['tidegreaves'], 'Tidebound Greaves', 500, 'Surf that washes up a ring of water around your shins, and ripples where you step.'),
-  ware('dc-armory-tideedge', 'armory', ['tideedge'], 'Tidebound Edge', 500, 'Water that ripples along your weapon and drips from it.'),
-  ware('dc-armory-tidebound', 'armory', [...TIDEBOUND_PIECES], 'The Tidebound Set', 2000, 'All five Tidebound pieces, for less than buying them one at a time.'),
+  ware(
+    'dc-icon-courier',
+    'icon',
+    ['courier'],
+    'The Courier',
+    400,
+    'A sealed letter and a quill, as your profile picture.',
+  ),
+  ware(
+    'dc-icon-tidecompass',
+    'icon',
+    ['tidecompass'],
+    'Tide Compass',
+    400,
+    'A compass over ocean waves, as your profile picture.',
+  ),
+  ware(
+    'dc-armory-tidecirclet',
+    'armory',
+    ['tidecirclet'],
+    'Tidebound Circlet',
+    500,
+    'Sea-glass beads that float around your head, with spray that jumps from the front.',
+  ),
+  ware(
+    'dc-armory-tidepearl',
+    'armory',
+    ['tidepearl'],
+    'Tidebound Pearl',
+    500,
+    'A nautilus shell that floats in front of your chest. Light runs along its spiral to a pearl.',
+  ),
+  ware(
+    'dc-armory-tidebracers',
+    'armory',
+    ['tidebracers'],
+    'Tidebound Bracers',
+    500,
+    'A stream of water that coils around each arm without touching it.',
+  ),
+  ware(
+    'dc-armory-tidegreaves',
+    'armory',
+    ['tidegreaves'],
+    'Tidebound Greaves',
+    500,
+    'Surf that washes up a ring of water around your shins, and ripples where you step.',
+  ),
+  ware(
+    'dc-armory-tideedge',
+    'armory',
+    ['tideedge'],
+    'Tidebound Edge',
+    500,
+    'Water that ripples along your weapon and drips from it.',
+  ),
+  ware(
+    'dc-armory-tidebound',
+    'armory',
+    [...TIDEBOUND_PIECES],
+    'The Tidebound Set',
+    2000,
+    'All five Tidebound pieces, for less than buying them one at a time.',
+  ),
 ]);
 
 /** A ware by its id, or null. */
@@ -85,13 +165,21 @@ export function sealPrice(row, id) {
   if (!w || holdsWare(row, id)) return null;
   if (w.codes.length < 2) return w.seals;
   const held = discordHeld(row, w.kind);
-  const credit = SEAL_WARES.filter((x) => x.codes.length === 1 && w.codes.includes(x.codes[0]) && held.includes(x.codes[0])).reduce((n, x) => n + x.seals, 0);
+  const credit = SEAL_WARES.filter(
+    (x) => x.codes.length === 1 && w.codes.includes(x.codes[0]) && held.includes(x.codes[0]),
+  ).reduce((n, x) => n + x.seals, 0);
   return Math.max(Math.ceil(w.seals / 5), w.seals - credit);
 }
 
 /** The row's ware text with one more id, kept in the cabinet's order. */
 export function withWare(/** @type {unknown} */ text, /** @type {string} */ id) {
-  const have = new Set(String(text ?? '').split(' ').filter((x) => sealWareOf(x)));
+  const have = new Set(
+    String(text ?? '')
+      .split(' ')
+      .filter((x) => sealWareOf(x)),
+  );
   have.add(id);
-  return SEAL_WARES.map((w) => w.id).filter((x) => have.has(x)).join(' ');
+  return SEAL_WARES.map((w) => w.id)
+    .filter((x) => have.has(x))
+    .join(' ');
 }

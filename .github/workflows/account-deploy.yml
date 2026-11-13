@@ -48,8 +48,8 @@ on:
     # DISCORD-CODE: and the deploy's last step runs tools/discordModCommands.mjs, so its own graph is listed (after this
     # workflow's own line) - test/server/discord_setup.test.js holds it, and the commands it writes live under
     # server-account/. No comment inside the list: the pins read it as one run of lines.
-    # The journal's kit (tools/journalKit.mjs, the Cabinet's pictures) is bundled from src/ui/cabinetPreview.js at the
-    # deploy, so its graph is listed last, with the tool - test/server/accountdeploy.test.js holds it.
+    # The journal's kit (tools/journalKit.mjs, the Cabinet's pictures) is bundled from
+    # src/journalKit/cabinetPreview.js at the deploy, so its graph is listed last, with the tool - test/server/accountdeploy.test.js holds it.
     paths:
       - "server-account/**"
       - "src/net/identityToken.js"
@@ -511,7 +511,7 @@ on:
       - "src/net/invasion/invasionWire.js"
       - "src/net/invasion/invasionBlows.js"
       - "src/systems/toybox/toyboxSpecial.js"
-      - "src/ui/cabinetPreview.js"
+      - "src/journalKit/cabinetPreview.js"
       - "src/render/auraPreview.js"
       - "src/render/auraRing.js"
       - "src/ui/playerBadge.js"
@@ -826,8 +826,8 @@ jobs:
           fi
 
       # THE JOURNAL'S KIT: the Cabinet in Discord's Activity draws each ware with the game's own painters, bundled
-      # from src/ui/cabinetPreview.js into journal/kit/ (never committed). It is built here, from this commit, so the
-      # Deploy below uploads it with the journal; a kit past its size budget fails the job rather than ship.
+      # from src/journalKit/cabinetPreview.js into journal/kit/ (never committed). It is built here, from this commit,
+      # so the Deploy below uploads it with the journal; a kit past its size budget fails the job rather than ship.
       - uses: actions/cache@v4
         id: kitdeps
         with:

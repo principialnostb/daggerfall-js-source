@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import '../chargenDom.mjs';
 import { buildKit, KIT_ENTRY, KIT_OUT, KIT_BUDGET } from '../../tools/journalKit.mjs';
 import { graph } from '../importGraph.mjs';
-import { wareDrawing, wareNode, focusBox, SLOT_FOCUS } from '../../src/ui/cabinetPreview.js';
+import { wareDrawing, wareNode, focusBox, SLOT_FOCUS } from '../../src/journalKit/cabinetPreview.js';
 import { armoryGlowSpec } from '../../src/systems/weaponGlowLooks.js';
 import { glowSpec, ARMORY_LEVEL, ARMORY_GLOW } from '../../src/systems/weaponGlow.js';
 import { SEAL_WARES, TIDEBOUND_PIECES } from '../../src/net/discordShopLaw.js';

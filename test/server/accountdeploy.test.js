@@ -417,7 +417,7 @@ test('ACC1-CI: the deploy is verified BY CONTENT, and reads the host and version
   }
   // the journal's kit (tools/journalKit.mjs) is bundled from the game's tree at the deploy and uploaded with the journal:
   // a change to any file it bundles, or to the tool, must deploy, and the kit is built before the Worker goes up
-  const kit = graph('src/ui/cabinetPreview.js');
+  const kit = graph('src/journalKit/cabinetPreview.js');
   assert.ok(kit.includes('src/render/auraRing.js') && kit.includes('src/ui/profileIcons.js'), `the kit's walk no longer sees its painters: ${kit.join(', ')}`);
   for (const f of [...kit, 'tools/journalKit.mjs']) assert.ok(listed.includes(f), `${f} is bundled into the journal's kit and a change to it would not deploy`);
   const built = wf.indexOf('node tools/journalKit.mjs'), deployed = wf.indexOf('$WRANGLER deploy');
