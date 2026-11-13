@@ -29,7 +29,7 @@
 // (discord.js MOD_CHANNEL_NEEDS); one missing turns the deploy red and is named, where before a card simply never came.
 import { isMain } from './lib/isMain.mjs';
 import { DISCORD_USER_AGENT, MOD_CHANNEL_NEEDS } from '../server-account/src/discord.js';
-import { DISCORD_COMMANDS, MOD_COMMAND } from '../server-account/src/discordCommands.js';
+import { DISCORD_COMMANDS, MOD_COMMAND, commandLabel } from '../server-account/src/discordCommands.js';
 
 export { DISCORD_COMMANDS, MOD_COMMAND };
 
@@ -71,6 +71,14 @@ export function channelPermissions({ guildId, roles, memberRoles, userId, overwr
   if (own) apply(BigInt(own.allow), BigInt(own.deny));
   return p;
 }
+
+/** What the PDA does across the server, as Discord's permission bits: make its Terminal's channel, pin the card there,
+ *  and post its cards and direct messages. A gap here is said, never red: the PDA's other screens still work. */
+export const PDA_SERVER_NEEDS = Object.freeze([
+  ['Manage Channels', 1n << 4n],
+  ['Pin Messages', 1n << 51n],
+  ['Send Messages', 1n << 11n],
+]);
 
 /** DISCORD-SETUP: the application pointed at `url`, every command written in the server `channel` is in, and the bot's
  *  permissions there read. Answers `{ app, guild, pointed, commands, missing }` (`pointed`: the URL was changed, not
@@ -153,7 +161,47 @@ export async function discordSetup({
     overwrites: chan.permission_overwrites ?? [],
   });
   const missing = MOD_CHANNEL_NEEDS.filter(([, bit]) => (have & bit) !== bit).map(([name]) => name);
-  return { app: app.id, guild: chan.guild_id, pointed, commands: commands.map((c) => c.name), missing };
+  const base = channelPermissions({
+    guildId: chan.guild_id,
+    roles: roles ?? [],
+    memberRoles: member?.roles ?? [],
+    userId: app.bot.id,
+    overwrites: [],
+  });
+  const pdaMissing = PDA_SERVER_NEEDS.filter(([, bit]) => (base & bit) !== bit).map(([name]) => name);
+  const activity = await activityEntry(call, app.id);
+  return {
+    app: app.id,
+    guild: chan.guild_id,
+    pointed,
+    commands: commands.map((c) => c.name),
+    missing,
+    pdaMissing,
+    activity,
+  };
+}
+
+/** The journal's Activity's entry in the App Launcher: its name and words. */
+export const ENTRY_NAME = 'journal';
+export const ENTRY_DESCRIPTION = 'Open your DFO Online journal and the Eltheric Ocean.';
+/**
+ * THE ACTIVITY'S LAUNCHER ENTRY. Discord makes it (a global command of type 4, PRIMARY_ENTRY_POINT, launched by Discord
+ * itself) when a person turns Activities on in the Developer Portal, which no API can do. The deploy finds it among the
+ * global commands and gives it the journal's name; it never makes one, and never touches another global command.
+ * Answers `{ on, renamed, id }`, or `{ on: false }` when Activities are off or the list could not be read.
+ */
+export async function activityEntry(call, appId) {
+  const list = await call('reading the global commands', `/applications/${appId}/commands`);
+  if (list.error) return { on: false, unread: true };
+  const entry = (Array.isArray(list.json) ? list.json : []).find((c) => c?.type === 4);
+  if (!entry) return { on: false };
+  if (entry.name === ENTRY_NAME && entry.description === ENTRY_DESCRIPTION)
+    return { on: true, renamed: false, id: entry.id };
+  const r = await call("naming the Activity's launcher entry", `/applications/${appId}/commands/${entry.id}`, 'PATCH', {
+    name: ENTRY_NAME,
+    description: ENTRY_DESCRIPTION,
+  });
+  return { on: true, renamed: !r.error, id: entry.id, ...(r.error ? { why: r.error } : {}) };
 }
 
 /** What the deploy says of a setup: its lines, and what stops it (`error` - the deploy goes red on it): the cards'
@@ -161,7 +209,17 @@ export async function discordSetup({
 export function setupReport(done, url) {
   const lines = [
     `- the Interactions Endpoint URL: \`${url}\` (${done.pointed ? 'set now' : 'already set'})`,
-    `- the commands: ${done.commands.map((n) => `/${n}`).join(', ')}, written in server ${done.guild} for application ${done.app}`,
+    `- the commands: ${done.commands.map((n) => commandLabel(DISCORD_COMMANDS.find((c) => c.name === n) ?? { name: n })).join(', ')}, written in server ${done.guild} for application ${done.app}`,
+    done.pdaMissing?.length
+      ? `- the PDA: the bot lacks ${done.pdaMissing.join(', ')} across the server - the Terminal is not made or pinned until it has them (or DISCORD_TERMINAL_CHANNEL names a channel it can post in)`
+      : '- the PDA: the bot can make, post and pin its Terminal',
+    done.activity?.on
+      ? `- the journal's Activity: on, launched as \`/${ENTRY_NAME}\` and from the App Launcher${done.activity.renamed ? ' (named now)' : ''}${done.activity.why ? ` - ${done.activity.why}` : ''}`
+      : `- the journal's Activity: off. A person turns it on once in the Developer Portal (no API can): Activities, Settings, Enable Activities, with Web, iOS and Android ticked; then Activities, URL Mappings, \`/\` to \`${String(
+          url,
+        )
+          .replace(/^https:\/\//, '')
+          .replace(/\/v1\/discord\/interactions$/, '')}\`. The next deploy names its launcher entry.`,
   ];
   if (!done.missing.length)
     return {
@@ -214,7 +272,7 @@ async function main() {
     console.error(`Discord said ${res.status}: ${text}`);
     process.exit(1);
   }
-  console.log(`${DISCORD_COMMANDS.map((c) => `/${c.name}`).join(', ')} registered in guild ${guild}.`);
+  console.log(`${DISCORD_COMMANDS.map(commandLabel).join(', ')} registered in guild ${guild}.`);
 }
 
 if (isMain(import.meta.url)) await main();

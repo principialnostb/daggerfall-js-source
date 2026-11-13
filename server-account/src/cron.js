@@ -105,6 +105,7 @@ import { STAFF_MESSAGE_KEEP_S } from './staffMessage.js'; // STAFF-PANEL5-MESSAG
 import { STAFF_EVENT_KEEP_S } from './staffEvents.js'; // STAFF-EVENT: a staff event's month
 import { STAFF_FEED_KEEP_S } from './staffNet.js'; // STAFF-PANEL5-FEEDS: the relay's net feed's day
 import { REACT_KEEP_S } from './staffReactions.js'; // STAFF-PANEL5-FEEDS: the bot check's 14 days
+import { pdaMinute, pdaHour } from './pdaClock.js'; // the Discord PDA: its notices, polls, expeditions and Terminal
 
 /** The two schedules - wrangler.toml's [triggers] crons name exactly these (test/server/scale4b.test.js holds the two to
  *  each other). The hour's minute is off the hour, where every other Worker's cron lands. */
@@ -269,11 +270,14 @@ export const MINUTE_JOBS = Object.freeze([
       return lodes.length;
     },
   ],
+  // the Discord PDA's minute: its direct messages, polls closed, revenants back, and the Terminal kept (pdaClock.js)
+  ['pda', (ctx, env) => pdaMinute(ctx, env)],
 ]);
 
 /** @type {readonly CronJob[]} */
 export const HOUR_JOBS = Object.freeze([
   ['board', (ctx) => rounds(() => sweepBoard(ctx.db, ctx.nowS, SWEEP_ROWS), SWEEP_ROWS)],
+  ['pda', (ctx, env) => pdaHour(ctx, env)], // the Discord PDA's sweeps: sent notices, spent codes, each module's own
   ['guild-board', (ctx) => rounds(() => sweepGuildNotes(ctx.db, ctx.nowS, SWEEP_ROWS), SWEEP_ROWS)],
   ['harvests', (ctx) => rounds(() => sweepHarvests(ctx.db, ctx.nowS, SWEEP_ROWS), SWEEP_ROWS)],
   ['craft-writs', (ctx) => rounds(() => sweepCraftWrits(ctx.db, ctx.nowS, SWEEP_ROWS), SWEEP_ROWS)], // CRAFT-WRITS: a filled one stays (its brews are counted by it)
@@ -568,8 +572,11 @@ export async function runCron(
 ) {
   if (!env?.DB || maintaining(env) || !Number.isSafeInteger(nowS)) return [];
   const out = [];
-  const share = Math.floor(FIRING_STATEMENTS_MAX / Math.max(1, jobs.length));
-  for (const [name, job] of jobs) {
+  // Each job's share is what the firing has left over the jobs still to run, so a quiet job's unspent share passes on
+  // and the firing as a whole is still bounded by FIRING_STATEMENTS_MAX.
+  let spent = 0;
+  for (const [i, [name, job]] of jobs.entries()) {
+    const share = Math.floor(Math.max(0, FIRING_STATEMENTS_MAX - spent) / Math.max(1, jobs.length - i));
     const tally = { n: 0 };
     const started = Date.now();
     let ok = true,
@@ -582,6 +589,7 @@ export async function runCron(
       console.warn(`[cron] ${name} failed`, e?.message ?? e);
     }
     const ms = Date.now() - started;
+    spent += tally.n;
     out.push({ name, ok, changed, statements: tally.n, ms });
     try {
       env.METRICS?.writeDataPoint?.({

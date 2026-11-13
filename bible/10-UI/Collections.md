@@ -32,7 +32,8 @@ stays.
 source, availability, how it is had, an aura's look, what comes with it, and its scope where it is a character's.
 Sources are listed from what play earns first to what no play earns (`WARDROBE_SOURCES`). Availabilities
 (`WARDROBE_AVAIL`, tags in `AVAIL_TAG`): open, chance, ranked, seasonal or offseason, patron, dormant, auto, staff,
-bestowed, closed, retired, shop, store, pass and daily.
+bestowed, closed, retired, shop, store, pass, daily and cabinet. A Courier's Cabinet ware's source is the Cabinet
+(`discord`) and its availability `cabinet`: sold for Seals in Discord, its price read off `src/net/discordShopLaw.js`.
 
 - The seats' glyphs are a character's (`scope: 'character'`): signed onto each member's token at sign-in, never into
   the account's wardrobe. They read "Per character", are never dimmed and are left out of every count.

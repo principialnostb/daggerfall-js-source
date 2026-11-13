@@ -272,6 +272,7 @@ export function startWeaponPiecePreview(
     gl.uniform1i(at(glow, 'uField'), 1);
     gl.uniform2i(at(glow, 'uFieldAt'), pad, pad);
     gl.uniform1i(at(glow, 'uLook'), spec.code);
+    gl.uniform1i(at(glow, 'uGlowSkin'), spec.skin ?? 0); // a skin's own pattern in its look's code (the Tidebound Edge's)
     gl.uniform1f(at(glow, 'uLevel'), spec.level);
     gl.uniform1f(at(glow, 'uTime'), (now() - t0) % GLOW_CLOCK_PERIOD);
     gl.uniform1f(at(glow, 'uDmax'), glowFieldReach(spec.look));

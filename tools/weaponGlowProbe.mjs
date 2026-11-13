@@ -2,8 +2,11 @@
 // on art that is NOT game data - a pixel sword drawn here, and a sword mesh built here - so the looks can be seen and
 // tuned without ARENA2 or the Morrowind archives. Top row: the classic sprite's outline (drawScreenQuadGlow), fire,
 // frost, shock, and fire again on the same sword painted at three texels a pixel (an HD frame); bottom row: the Morrowind pass (drawCharacter's _drawWeaponGlow in the sprite
-// target), fire, frost, shock and arcane. One PNG per clock time asked.
-// Usage: node tools/weaponGlowProbe.mjs [outDir] [seconds...]   (starts its own vite server; needs Chromium)
+// target), fire, frost, shock and arcane. A second sheet does the same for the Aura Armory's and the rung's looks: brand,
+// edge, gilded and the Tidebound Edge (tide, the edge's code in its own skin), each in both drawers. One PNG of each per
+// clock time asked.
+// Usage: node tools/weaponGlowProbe.mjs [outDir] [seconds...]   (starts its own vite server; needs Chromium - CHROMIUM
+// names one of the machine's own)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -17,6 +20,7 @@ const PORT = 5207;
 const server = await createServer({ server: { port: PORT, strictPort: true, cors: true }, logLevel: 'warn' });
 await server.listen();
 const browser = await chromium.launch({
+  ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}),
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 });
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
@@ -97,7 +101,8 @@ function model(angle) {
 }
 
 const LOOKS = ['fire', 'frost', 'shock'];
-window.__draw = (seconds, level) => {
+const ARMORY = ['brand', 'edge', 'gilded', 'tide'];
+window.__draw = (seconds, level, armory = false) => {
   Object.defineProperty(performance, 'now', { value: () => seconds * 1000, configurable: true });
   renderer.beginFrame(I, I, new Float32Array([0.3, -1, 0.2]));
   renderer.setLighting(new Float32Array([1, 1, 1]), 0);
@@ -110,15 +115,15 @@ window.__draw = (seconds, level) => {
   // the fourth the HD sword with fire, its outline the first's size
   for (let i = 0; i < 4; i++) {
     const dst = { x: i * 400 + 200 - SW * 1.5, y: 430 - SH * 3, w: SW * 3, h: SH * 3 };
-    const tex = i === 3 ? swordHd : sword;
+    const tex = i === 3 && !armory ? swordHd : sword;
     renderer.drawScreenQuad(tex, dst, undefined, [1, 1, 1, 1]);
-    renderer.drawScreenQuadGlow(tex, dst, undefined, glowSpec(LOOKS[i % 3], level), { art: [SW, SH], view: [1600, 900] });
+    renderer.drawScreenQuadGlow(tex, dst, undefined, armory ? glowSpec(ARMORY[i], 2) : glowSpec(LOOKS[i % 3], level), { art: [SW, SH], view: [1600, 900] });
   }
   // the Morrowind pass, a 400 x 450 picture each
   const proj = perspective(Math.PI / 4, 400 / 450, 0.5, 40);
   for (let i = 0; i < 4; i++) {
-    const look = [...LOOKS, 'arcane'][i];
-    mesh.weaponGlow = glowSpec(look, look === 'arcane' ? 2 : level);
+    const look = armory ? ARMORY[i] : [...LOOKS, 'arcane'][i];
+    mesh.weaponGlow = glowSpec(look, armory || look === 'arcane' ? 2 : level);
     const tex = renderer.renderCharacterSprite(mesh, model(-0.5 + i * 0.12), proj, I, 400, 450);
     renderer.drawScreenQuad(tex, { x: i * 400, y: 450, w: 400, h: 450 }, { u0: 0, v0: 450 / 1024, u1: 400 / 1024, v1: 0 });
   }
@@ -135,6 +140,12 @@ for (const level of [1, 3]) {
     await page.screenshot({ path: file });
     console.log('wrote', file);
   }
+}
+for (const t of times) {
+  await page.evaluate(([s]) => window.__draw(s, 2, true), [t]);
+  const file = `${outDir}/armory-t${t.toFixed(2)}.png`;
+  await page.screenshot({ path: file });
+  console.log('wrote', file);
 }
 await browser.close();
 await server.close();

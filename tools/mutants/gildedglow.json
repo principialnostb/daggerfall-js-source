@@ -84,21 +84,23 @@
   {
     "name": "GGLOW-the-word-off-the-wire",
     "file": "src/net/wire.js",
-    "old": "|edge2|gilded2)$/;",
-    "new": "|edge2)$/;",
+    "old": "|edge2|gilded2|tide2)$/;",
+    "new": "|edge2|tide2)$/;",
     "tests": [
       "test/systems/gildedglow.test.js",
       "test/systems/weaponglow1.test.js"
-    ]
+    ],
+    "note": "Re-aimed by content: the Courier's Cabinet's wares beside it."
   },
   {
     "name": "GGLOW-the-window-lost",
     "file": "src/render/weaponGlowGlsl.js",
-    "old": "    ['fire', 'frost', 'shock', 'arcane', 'brand', 'edge', 'gilded'].map((look) => {",
-    "new": "    ['fire', 'frost', 'shock', 'arcane', 'brand', 'edge'].map((look) => {",
+    "old": "    ['fire', 'frost', 'shock', 'arcane', 'brand', 'edge', 'gilded', 'tide'].map((look) => {",
+    "new": "    ['fire', 'frost', 'shock', 'arcane', 'brand', 'edge', 'tide'].map((look) => {",
     "tests": [
       "test/systems/gildedglow.test.js"
-    ]
+    ],
+    "note": "Re-aimed by content: the Courier's Cabinet's wares beside it."
   },
   {
     "name": "GGLOW-the-reach-max-wider",
@@ -184,7 +186,7 @@
   {
     "name": "GGLOW-the-relay-unmoved",
     "file": "src/net/wire.js",
-    "old": "export const RELAY_VERSION = 'world307';",
+    "old": "export const RELAY_VERSION = 'world309';",
     "new": "export const RELAY_VERSION = 'world285';",
     "tests": [
       "test/net/relayversion.test.js"

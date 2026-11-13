@@ -55,6 +55,10 @@ newest 12 slain; older ones become tombstones (at most 200) so an older save nev
 the wire (`src/net/wire.js` `validFoeRecord`, at most 64 characters). Another player's revenants are puppets, hidden
 with their owner when the crowd setting leaves that player undrawn.
 
+**From Discord.** A sworn may be sent on an errand or recalled from the Discord PDA (`11-Multiplayer/Discord-PDA.md`).
+The game takes such an errand up on its next wake, through `sendOnErrand` with the service's return and seed, and
+tells the service of errands sent in the game (`src/systems/revenant/revenantRemote.js`).
+
 ## Rules
 
 - **Kill or spare, in the loot window** (Mac); a kill shows its own execution and drops a named trophy weapon (Mac);
@@ -82,6 +86,7 @@ champion foes it stands on, and the encounter roll it takes a share of. Every ru
 - `src/systems/revenant/revenantFate.js`, `revenantTrophy.js`, `revenantCompanions.js` - yield, kill, spare
 - `src/systems/revenant/revenantGear.js`, `revenantArts.js`, `revenantErrands.js`, `revenantStars.js` - the sworn
 - `src/systems/revenant/revenantFeud.js`, `revenantVoice.js`, `revenantPersonality.js` - memory and voice
+- `src/systems/revenant/revenantRemote.js`, `revenantRemoteLaw.js` - errands sent and recalled from Discord
 - `test/systems/revenant.test.js` - the record and its deeds
 - `test/systems/revenant/rvngear.test.js`, `test/net/smithrri.test.js` - the sworn's gear, the mod's two weapons in it
 - `test/systems/rvn11c_betray.test.js` - betrayal; the FEUD tests are listed on `12-Enhanced-AI/Feud-Arc.md`

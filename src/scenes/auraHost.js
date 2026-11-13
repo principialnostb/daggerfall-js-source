@@ -223,6 +223,7 @@ export function createAuraHost(deps) {
         // PICTURE is, in the saddle too, and swung by the way the body turns (`turn`); AUDIT CAPE-CARD A3: my sprite's a card
         // (`card`), so in the saddle, with no figure to read, what hangs on my back stands behind it as on a walker
         for (const w of auraDraw) if (auraLookOf(w.aura).mesh) { auraCapeStep(w, w === self ? { feet: liftedFeet(player.bodyFeetAt(), selfLiftNow), yaw: faced?.yaw ?? player.bodyYawFor(deps.camYaw()), turn: faced?.turn, bones: selfLiftNow > 0 ? null : mwViewBodyBones(CLOAK_BONES) ?? auraSpriteBones(mwViewSpriteFigure()), card: !!faced } : deps.bodies()?.bonesOf(w.id, CLOAK_BONES) ?? auraSpritePosed(w, spriteAnswer(layers, 'figureOf', w.id), spriteAnswer(layers, 'faceOf', w.id, eye)), w === self ? player.height / CAPSULE_HEIGHT : 1); auraMotionStep(w, now); }
+        for (const w of auraDraw) if (auraLookOf(w.aura).trail) auraMotionStep(w, now);   // a look that trails the walk reads how its wearer moves
         // BACK-HOLSTER: a sprite's cape and wings stand at its painted body (auraSpriteAcross), moved there for the pass alone
         for (const w of auraDraw) w.across = auraLookOf(w.aura).mesh ? auraSpriteAcross(w === self ? (selfLiftNow > 0 || mwViewBodyBones(CLOAK_BONES) ? null : mwViewSpriteFigure()) : deps.bodies()?.bonesOf(w.id, CLOAK_BONES) ? null : spriteAnswer(layers, 'figureOf', w.id)) : 0;
       }

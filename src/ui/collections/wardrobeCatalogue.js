@@ -34,6 +34,7 @@ import { PASS_SEASONS, passItemOf, passSeasonById, passTracksOpen } from '../../
 import { aurumPriceOf } from '../../net/aurumLaw.js'; // AURUM: a daily ware's price in Aurum
 import { passPanelNumeral, passFolioName } from '../passText.js';
 import { EFFECT_SLOTS, EFFECTS } from '../../net/effectLaw.js'; // AUDIT-STOREFRONT II (lane E 8): the effects' words of how
+import { sealWareOf } from '../../net/discordShopLaw.js'; // a Courier's Cabinet ware's price in Seals and its look
 
 /** The kinds, in the Collections page's order, and the wardrobe's list that holds each (accountFlow.js wardrobe) - ARMORY:
  *  the Aura Armory's pieces after the auras. */
@@ -69,6 +70,7 @@ export const WARDROBE_SOURCES = Object.freeze([
   wordPair('account', () => t('coll.src.account', 'Your Account')),
   wordPair('guild', () => t('coll.src.guild', 'The Guild Shop')), // GUILD-SHOP: bought for silver on the Guild window's Shop page
   wordPair('shop', () => t('coll.src.shop', 'The Shop')), // SHOP: the pause face's shop, its pre-alpha wares
+  wordPair('discord', () => t('coll.src.discord', 'The Courier’s Cabinet')), // bought with Seals, earned by play in Discord
   wordPair('patrons', () => t('coll.src.patrons', 'Patrons')),
   wordPair('staff', () => t('coll.src.staff', 'The Game’s Staff')),
   wordPair('bestowed', () => t('coll.src.bestowed', 'Bestowed by Name')),
@@ -107,6 +109,7 @@ export const WARDROBE_AVAIL = Object.freeze([
   'store',
   'pass',
   'daily',
+  'cabinet',
 ]); // SHOP: `shop`, sold in the shop while the pre-alpha lasts (wrangler.toml SHOP_ON_SALE); AURUM: `daily`, for Aurum in the daily wares
 /** The availabilities a player can act on now - the page's "Obtainable" filter. */
 export const AVAIL_NOW = Object.freeze([
@@ -119,6 +122,7 @@ export const AVAIL_NOW = Object.freeze([
   'store',
   'pass',
   'daily',
+  'cabinet',
 ]); // STOREFRONT: `store` sold in the shop for good, `pass` while its season runs (wardrobeAvail)
 /** Each availability's tag (a chip on the row), as a player reads it. */
 export const AVAIL_TAG = Object.freeze({
@@ -138,6 +142,7 @@ export const AVAIL_TAG = Object.freeze({
   store: () => t('coll.avail.shop', 'In the shop'),
   pass: () => t('coll.avail.folios', 'Folios'),
   daily: () => t('coll.avail.daily', 'Daily wares'),
+  cabinet: () => t('coll.avail.cabinet', 'In Discord'),
 });
 /** Each availability in a sentence (the row opened whole). `date` the open festival's last day, in words. */
 export const AVAIL_LINE = Object.freeze({
@@ -166,6 +171,11 @@ export const AVAIL_LINE = Object.freeze({
     t(
       'coll.availLine.daily',
       'Sold for Aurum in the shop’s daily wares when it comes round. Those who buy it keep it.',
+    ),
+  cabinet: () =>
+    t(
+      'coll.availLine.cabinet',
+      'Sold for Seals in the Courier’s Cabinet in Discord. Seals cannot be bought with money. Once you buy it, you keep it.',
     ),
 });
 
@@ -248,6 +258,20 @@ const shopPiece = (/** @type {string} */ id) => () =>
     'coll.how.shopPieceAurum',
     'Buy it from the shop, the gem on the pause screen, for {aurum, number} Aurum. The Eternal Set gives it with the other four for {set, number} Aurum.',
     { aurum: shopWareById(id)?.price ?? 0, set: shopWareById('armory:eternalset')?.price ?? 0 },
+  );
+/** THE COURIER'S CABINET: a ware's words of how - its price in Seals, the cabinet's own (net/discordShopLaw.js). */
+const cabinet = (/** @type {string} */ id) => () =>
+  t(
+    'coll.how.cabinet',
+    'Buy it for {seals, number} Seals in the Courier’s Cabinet in Discord. Earn Seals by playing the games there.',
+    { seals: sealWareOf(id)?.seals ?? 0 },
+  );
+/** A Tidebound piece's words of how - alone at its price, or with the four others in the Tidebound Set. */
+const cabinetPiece = (/** @type {string} */ key) => () =>
+  t(
+    'coll.how.cabinetPiece',
+    'Buy it for {seals, number} Seals in the Courier’s Cabinet in Discord, or get all five pieces in the Tidebound Set for {set, number} Seals.',
+    { seals: sealWareOf(`dc-armory-${key}`)?.seals ?? 0, set: sealWareOf('dc-armory-tidebound')?.seals ?? 0 },
   );
 const patron = (/** @type {string} */ tier) => () =>
   t(
@@ -561,6 +585,7 @@ export const WARDROBE = Object.freeze({
     tremorborn: E('pass', 'pass', passReward('title:tremorborn'), S1),
     heartwaker: E('pass', 'pass', passReward('title:heartwaker'), S1),
     numidiumecho: E('pass', 'pass', passReward('title:numidiumecho'), S1),
+    veilcourier: E('discord', 'cabinet', cabinet('dc-title-veilcourier')),
   }),
   aura: Object.freeze({
     dagonfire: E('broker', 'open', broker('aura:dagonfire'), {
@@ -674,6 +699,13 @@ export const WARDROBE = Object.freeze({
       ...S1,
       look: () => t('coll.look.gildedcoil', 'The Aetherium Coil gilded and brighter, gold motes rising through it.'),
     }),
+    // the Courier's Cabinet's two
+    eltherictide: E('discord', 'cabinet', cabinet('dc-aura-eltherictide'), {
+      look: () => t('coll.look.eltherictide', 'Rings of sea-green light spread slowly around your feet.'),
+    }),
+    veilwake: E('discord', 'cabinet', cabinet('dc-aura-veilwake'), {
+      look: () => t('coll.look.veilwake', 'A pale blue mist surrounds you and trails behind you as you move.'),
+    }),
   }),
   icon: Object.freeze({
     tallowskull: E('festival', 'seasonal', wyrd('icon:tallowskull')),
@@ -694,6 +726,8 @@ export const WARDROBE = Object.freeze({
       ),
     ), // AURUM-ONLY: in the shop for good
     guildcrest: E('guild', 'open', guildWare('guildcrest')), // GUILD-SHOP: the Guild Crest
+    courier: E('discord', 'cabinet', cabinet('dc-icon-courier')),
+    tidecompass: E('discord', 'cabinet', cabinet('dc-icon-tidecompass')),
   }),
   glyph: Object.freeze({
     sprout: E('account', 'auto', () => t('coll.how.sprout', 'Every new account shows it for its first two weeks.')),
@@ -736,6 +770,7 @@ export const WARDROBE = Object.freeze({
     gearcrown: E('pass', 'pass', passReward('glyph:gearcrown'), S1), // PASS-PANELS: the premium track's, its bundle retired
     tonalfork: E('pass', 'pass', passReward('glyph:tonalfork'), S1),
     cog: E('pass', 'pass', passReward('glyph:cog'), S1),
+    waxseal: E('discord', 'cabinet', cabinet('dc-glyph-waxseal')),
   }),
   // ARMORY (bible/04-Characters/Aura-Armory.md section 4): the Dagonfire line the Sigil Broker sells, the Eternal line the shop
   armory: Object.freeze(
@@ -750,20 +785,24 @@ export const WARDROBE = Object.freeze({
             ? E('guild', 'open', guildWare(p.key), {
                 look: ARMORY_LOOK[/** @type {keyof typeof ARMORY_LOOK} */ (p.key)],
               })
-            : p.source === 'gift' // THANKS-POST: the Storefront update's gift, to every account standing then
-              ? E(
-                  'account',
-                  'retired',
-                  () =>
-                    t(
-                      'coll.how.giftThanks',
-                      'A gift to every player who had an account when the Storefront update came out.',
-                    ),
-                  { look: ARMORY_LOOK[/** @type {keyof typeof ARMORY_LOOK} */ (p.key)] },
-                )
-              : E('shop', 'shop', shopPiece(`armory:${p.key}`), {
+            : p.source === 'discord' // the Tidebound line, the Courier's Cabinet's
+              ? E('discord', 'cabinet', cabinetPiece(p.key), {
                   look: ARMORY_LOOK[/** @type {keyof typeof ARMORY_LOOK} */ (p.key)],
-                }),
+                })
+              : p.source === 'gift' // THANKS-POST: the Storefront update's gift, to every account standing then
+                ? E(
+                    'account',
+                    'retired',
+                    () =>
+                      t(
+                        'coll.how.giftThanks',
+                        'A gift to every player who had an account when the Storefront update came out.',
+                      ),
+                    { look: ARMORY_LOOK[/** @type {keyof typeof ARMORY_LOOK} */ (p.key)] },
+                  )
+                : E('shop', 'shop', shopPiece(`armory:${p.key}`), {
+                    look: ARMORY_LOOK[/** @type {keyof typeof ARMORY_LOOK} */ (p.key)],
+                  }),
       ]),
     ),
   ),

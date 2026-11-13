@@ -17,7 +17,7 @@ import {
   GUILD_SHOP_WARES, GUILD_SHOP_KEYS, GUILD_FURNITURE_MODELS, GUILD_RENAME_SILVER, GUILD_LOGO_FEE, guildWareOf, guildWaresHeld, guildWareOfModel, guildWareRoom,
 } from '../../src/net/guild/guildShopLaw.js';
 import { GUILD_LOGO_SIDE, GUILD_LOGO_MAX_BYTES, GUILD_LOGO_GAP_S, guildLogoShapeOf, guildLogoPathOf, guildLogoUrl } from '../../src/net/guild/guildLogoLaw.js';
-import { ARMORY_PIECES, armoryKitOk } from '../../src/net/armoryLaw.js';
+import { ARMORY_PIECES, armoryKitOk, armoryPieceAt } from '../../src/net/armoryLaw.js';
 import { ICONS } from '../../src/net/identityToken.js';
 import { MARKS_KINDS } from '../../src/net/marksLaw.js';
 import { REFUSALS } from '../../src/net/accountClient.js';
@@ -84,7 +84,8 @@ test('GUILD-SHOP the law: ten wares in four sections - three an account\'s (each
   for (const k of ['guild-rename', 'guild-shop', 'logo-fee']) assert.equal(MARKS_KINDS[k], 'burn', k);
   for (const k of ['logo-escrow', 'logo-return']) assert.equal(MARKS_KINDS[k], 'move', k);
   // the kit's third line: the armlet alone in its slot
-  assert.deepEqual([armoryKitOk('00c00'), armoryKitOk('c0000'), armoryKitOk('00c0c')], [true, false, false]);
+  assert.deepEqual([armoryKitOk('00c00'), armoryKitOk('f0000'), armoryKitOk('00c0f')], [true, false, false]);   // a letter no piece of its slot has
+  assert.equal(armoryPieceAt('arms', 'c')?.key, 'insigniaarmlet', 'the arms slot\'s third is the armlet');
 });
 
 test('GUILD-LOGO the law: a square PNG or WebP of 64 to 256 pixels and at most 48 KiB; an id of 32 hex is its address (mutants: the square; the bounds; the type)', () => {

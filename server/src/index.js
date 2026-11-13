@@ -204,6 +204,7 @@ import { mintKetchReceipt, readKetchReceipt, KT_RECEIPT_TTL_S } from '../../src/
 import { dungeonToDeck } from '../../src/net/ketch/ketchDeck.js';   // KETCH: a pose of the dungeon's frame in the deck's
 import { instanceOwnerOf } from '../../src/net/instanceRoom.js';
 import { sdCopyRight, sdNewcomerWord, sdAcctTell, sdAcctInternal, SD_INTERNAL_ACCT, sdSeatsInternal, SD_INTERNAL_SEATS, sdOpenDoor, SD_OPEN_PATH } from './sdCopy.js';   // SD-PARTY: a party's own Hour - its door, one life and one win a Hollow   // KETCH: a captain's digest, INSTANCES' own
+import { lookGlowWorn } from '../../src/net/wire.js';   // the Tidebound Edge's glow word only beside its piece
 import { validKetchIn, ketchRelayGate, KT_BRAIN_MIN, KT_VOYAGE_KEY, KT_RC_PREFIX, ketchReceiptKey, KT_INTERNAL_RC, KT_TELL_RETRY_MS, validKtRcTell } from '../../src/net/wire.js';   // KETCH: its words, their bucket, its brain's number, its record's key; AUDIT KETCH L1-2: the hub's keeping of its receipts
 import { RELAY_CFG_TTL_MS, RELAY_INTERNAL_CFG, mayRelayCfg, relayCfgValue } from '../../src/net/relayCfg.js';   // SCALE5b: the relay's settings, at run time
 import { leaseKeyOf, mintLease, readLease, leaseRoom, LEASE_FRAME_MIN_MS, LEASE_OLD_REASON } from '../../src/net/roomLease.js';   // LEASE1: the hub's word on every socket, in every room
@@ -405,6 +406,8 @@ import { egHallOf, egCircleOfHall, EG_LAST_WORD_MS, EG_ABSENT_TRIAL_MS } from '.
 import { mintEgReceipt } from '../../src/net/eliteGates/egReceipt.js';
 import { dragonWord, dragonTick, dragonTrails, dragonFellInternal, dragonJudgeInternal, dragonReceiptTo, sweepDragonReceipts, mergeBeats, DRAGON_REST_MS, DRAGON_INTERNAL_FELL, DRAGON_INTERNAL_JUDGE } from './dragonFights.js';   // DRAGON2: the Dwarven Dragon's fight, the relay's half
 import { dragonGate } from '../../src/net/wire.js';   // DRAGON2: its frames' own bucket
+import { pdaRelayDoor, pdaRelayInternal } from './pdaRelay.js';   // the Discord PDA's doors: the live events' public facts, and a player's friends
+import { PDA_RELAY_PREFIX, PDA_INTERNAL_PREFIX } from './pdaRelayLaw.js';
 import { invasionWord, invasionTick } from './invasionFights.js';   // an invasion's fight, hosted by its city's cell
 import { invasionGate } from '../../src/net/wire.js';
 // EG-ZA (2026-10-12, Mac: "I said I want everything"; Elite-Gates.md sections 22 and 23): A KEY IS NEVER LOST - the hub's
@@ -693,6 +696,7 @@ export default {
     if (url.pathname === SD_OPEN_PATH) return sdOpenDoor(env, url);   // SD-SOLO: which shared Hour a player in no party goes to
     if (url.pathname === EG_LIVE_PATH) return egLiveAsk(env.ROOMS);   // EG-H2: the Spire's live breaches, for the deploy's hold and drain
     if (url.pathname === SAFE_LAW_PATH) return lawDoor(request, env);   // SAFE4: a mute or ban the account service pushed, for the hub
+    if (url.pathname.startsWith(PDA_RELAY_PREFIX)) return pdaRelayDoor(request, env, url);   // the Discord PDA's live events and friends
     const key = roomOf(url.pathname);
     if (!key || (key.startsWith('chat:') && !isChatRoom(key))) return json({ error: 'no such room' }, 404);   // AUDIT CHAT A1: no object is minted for a channel the port does not run
     if (key.startsWith('owned:') && !privateInteriorOf(key)) return json({ error: 'no such private room' }, 404);
@@ -1136,6 +1140,7 @@ export class Room {
     if (path === HOLDEM_INTERNAL_VOID) return this._holdemVoidInternal(request);   // AUDIT SCALE II R3-3 (c): a layer's void, spent by its place
     if (path === SAFE_INTERNAL_LAW) return this._lawInternal(request);   // SAFE4: an order the account service pushed through the Worker's door
     if (path === FOLLOW_INTERNAL_SAY) return followSayInternal(this, request);   // STAFF-PANEL5-FOLLOW: a room telling the bus a followed account came or went
+    if (path.startsWith(PDA_INTERNAL_PREFIX)) return pdaRelayInternal(this, path, request);   // the Discord PDA: the hub's live facts and a player's friends
     const key = roomOf(new URL(request.url).pathname);
     if (!key || (key.startsWith('owned:') && !privateInteriorOf(key))) return json({ error: 'no such private room' }, 404);
     // AUDIT WB A1: A SEAT IS A HELLO'S. A socket that opened and never said hello kept its seat for as long as it stood
@@ -3507,6 +3512,7 @@ export class Room {
     // AUDIT LEGACY III O1: and the realm character itself - `ci`, beside the realm's yes alone (identityToken.js claimsValid)
     // INT7: and its ARMS (`wa`, the judged pack's most reach and its bow) - every referee's clip of a blow between players
     if (c.ak) house.ak = c.ak;
+    m.look = lookGlowWorn(m.look, c.ak);   // a sold piece's glow word only beside the kit the token signed
     if (c.sc === 1) house.sc = 1;   // AUDIT GUILD-SHOP S2: `sc`, the Guild Sailcloth held - a peer flies the owner's sailcloth only on it   // ARMORY: `ak`, the Aura Armory's kit the token signed for (stamped by `badged` beside the aura) - set here, as `fo` is, the return's literal being pinned
     if (c.fx) house.fx = c.fx;   // STOREFRONT: `fx`, the effects kit the token signed for (stamped by `badged` beside the armory's kit)
     if (c.vl) house.vl = c.vl;   // PVP-VILLAIN-KEEP: `vl`, the villain meter the token signed for (wildRef.js wildTokenAtt puts it on the socket)
@@ -4614,6 +4620,7 @@ export class Room {
       const now = Date.now();
       a = this._meterLook(ws, a, now); if (!a) return;
       if (isChatRoom(a.key)) return;
+      m.look = lookGlowWorn(m.look, a.ak);   // a sold piece's glow word only beside the kit this socket's token signed
       // AUDIT-SEATS R3: AND IN A BATTLE ROOM THE ACCOUNT'S OWN GATE, as its hello's (`_battleHelloGate`) - the room's stored
       // bucket there is the stands', and a crowd of spectators draining it would refuse a fighter's change of gear 'busy',
       // its socket closed mid-battle

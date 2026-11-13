@@ -1,0 +1,436 @@
+[
+  {
+    "name": "TIDEBOUND-spray-never-falls",
+    "file": "src/render/armoryTide.js",
+    "old": "  return [C.spray * 4 * a * (1 - a), C.out * a,",
+    "new": "  return [C.spray * a, C.out * a,",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-spray-shader-off-its-law",
+    "file": "src/render/armoryTide.js",
+    "old": "vec3 tideSprayArc(float a) { return vec3(${g(C.spray)} * 4.0 * a",
+    "new": "vec3 tideSprayArc(float a) { return vec3(${g(C.spray)} * 3.0 * a",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-spray-all-at-once",
+    "file": "src/render/armoryTide.js",
+    "old": "count: 10, flight: 0.45,",
+    "new": "count: 10, flight: 0.95,",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-spray-off-the-back",
+    "file": "src/render/armoryTide.js",
+    "old": "seed) * 2 - 1) * TIDE_CIRCLET.spread,",
+    "new": "seed) * 2 - 1) * Math.PI,",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-shell-never-turns",
+    "file": "src/render/armoryTide.js",
+    "old": "a = fract(Math.atan2(y, x) / TAU - turn);",
+    "new": "a = fract(Math.atan2(y, x) / TAU);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-light-runs-out",
+    "file": "src/render/armoryTide.js",
+    "old": "d = T - TIDE_SHELL.turns * (1 - p);",
+    "new": "d = T - TIDE_SHELL.turns * p;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-shader-light-runs-out",
+    "file": "src/render/armoryTide.js",
+    "old": "d = T - ${g(SH.turns)} * (1.0 - p);",
+    "new": "d = T - ${g(SH.turns)} * p;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-pearl-flares-mid-run",
+    "file": "src/render/armoryTide.js",
+    "old": "Math.exp(-(((fract(t * TIDEBOUND_HZ.shell + 0.5) - 0.5) / 0.07) ** 2))",
+    "new": "Math.exp(-(((fract(t * TIDEBOUND_HZ.shell) - 0.5) / 0.07) ** 2))",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-shell-whorls-dark",
+    "file": "src/render/armoryTide.js",
+    "old": "  float lines = max(max(inner, outer), max(mouth, septum * 0.75));",
+    "new": "  float lines = max(mouth, septum * 0.75);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-shell-past-its-rim",
+    "file": "src/render/armoryTide.js",
+    "old": "  float inside = tout <= ${g(SH.turns)} && tin >= 0.0 ? 1.0 : 0.0;",
+    "new": "  float inside = 1.0;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-stream-flows-from-the-hand",
+    "file": "src/render/armoryTide.js",
+    "old": "const s = along * TIDE_STREAM.ripples - t * TIDEBOUND_HZ.stream;",
+    "new": "const s = along * TIDE_STREAM.ripples + t * TIDEBOUND_HZ.stream;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-shader-stream-flows-back",
+    "file": "src/render/armoryTide.js",
+    "old": "float s = along * ${g(ST.ripples)} - uTime",
+    "new": "float s = along * ${g(ST.ripples)} + uTime",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-surf-never-slows",
+    "file": "src/render/armoryTide.js",
+    "old": "return [S.top * (1 - (1 - a) ** 2), a,",
+    "new": "return [S.top * a, a,",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-surf-never-fades",
+    "file": "src/render/armoryTide.js",
+    "old": "smooth(0, 0.08, a) * (1 - a) ** 1.3];",
+    "new": "smooth(0, 0.08, a)];",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-shader-surf-a-ring",
+    "file": "src/render/armoryTide.js",
+    "old": "    float y = h + ${g(SU.amp)} * (0.5 + 0.5 * a) *",
+    "new": "    float y = h + 0.0 * (0.5 + 0.5 * a) *",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-ripple-shrinks",
+    "file": "src/render/armoryTide.js",
+    "old": "const r1 = 0.12 + 0.8 * (1 - (1 - a) ** 2), r2 = r1 * 0.6;",
+    "new": "const r1 = 0.92 - 0.8 * (1 - (1 - a) ** 2), r2 = r1 * 0.6;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-rate-off-the-clock",
+    "file": "src/render/armoryTide.js",
+    "old": "bead: 1 / 8, shell:",
+    "new": "bead: 1 / 7, shell:",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-life-off-the-clock",
+    "file": "src/render/armoryTide.js",
+    "old": "hand: Object.freeze([1.2, 1.5])",
+    "new": "hand: Object.freeze([1.3, 1.5])",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-ripple-stands-up",
+    "file": "src/render/armoryPass.js",
+    "old": "p = cs.xyz + vec3(c.x, 0.0, c.y) * cs.w;",
+    "new": "p = cs.xyz + vec3(c.x, c.y, 0.0) * cs.w;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-cards-another-lines",
+    "file": "src/render/armoryPass.js",
+    "old": "  if (${TIDE}) return tideCardAt(k, info);",
+    "new": "  if (false) return tideCardAt(k, info);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-drawn-by-another-lines-look",
+    "file": "src/render/armoryPass.js",
+    "old": "  if (${TIDE}) c = tideLight();",
+    "new": "  if (false) c = tideLight();",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-circlet-floats-over-the-crown",
+    "file": "src/render/armoryPass.js",
+    "old": "c = add(add(head, up, C.brow * s), hover(0)), top = add(c, axis, (C.band / 2) * s)",
+    "new": "c = add(add(pt('crown'), up, C.brow * s), hover(0)), top = add(c, axis, (C.band / 2) * s)",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-circlet-tipped-back",
+    "file": "src/render/armoryPass.js",
+    "old": "const C = TIDE_CIRCLET, axis = unit(add(up, fwd, C.tilt))",
+    "new": "const C = TIDE_CIRCLET, axis = unit(add(up, fwd, -C.tilt))",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-plate-under-the-spray",
+    "file": "src/render/armoryPass.js",
+    "old": "Math.max(tipped, C.spray - tipped + C.drop)",
+    "new": "tipped",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-pearl-a-sigils-back",
+    "file": "src/render/armoryPass.js",
+    "old": "cards(1, 1, chest, chest, UP, [0, 0], TIDE_SHELL.glow * s, f, 1, true);\n      return out;",
+    "new": "cards(1, 1, chest, chest, UP, [0, 0], TIDE_SHELL.glow * s, f, 1, true);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-stream-from-the-hand",
+    "file": "src/render/armoryPass.js",
+    "old": "const A = add(mix(u.el, wa, 0.08), hv), B = add(mix(u.el, wa, 0.94), hv);",
+    "new": "const A = add(mix(u.el, wa, 0.94), hv), B = add(mix(u.el, wa, 0.08), hv);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-stream-unfitted-to-the-wolf",
+    "file": "src/render/armoryPass.js",
+    "old": "tube(0, A, B, S.fore * fit + gap, S.wrist * fit + gap, fwd, false, inF(A));",
+    "new": "tube(0, A, B, S.fore + gap, S.wrist * fit + gap, fwd, false, inF(A));",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-a-sprites-forearm-drawn",
+    "file": "src/render/armoryPass.js",
+    "old": "const S = TIDE_STREAM, hv = hover(i);\n        if (full) {",
+    "new": "const S = TIDE_STREAM, hv = hover(i);\n        if (true) {",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-footfalls-unhanded",
+    "file": "src/render/armoryPass.js",
+    "old": "if (key === 'cinderstride' || key === 'tidegreaves') gl.uniform4fv(U.uTrail",
+    "new": "if (key === 'cinderstride') gl.uniform4fv(U.uTrail",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-no-ripples",
+    "file": "src/render/armoryPass.js",
+    "old": "    if (key === 'tidegreaves') cards(2, ARMORY_TRAIL, at, at, UP);\n",
+    "new": "",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-surf-on-the-leg",
+    "file": "src/render/armoryPass.js",
+    "old": "r0 = TIDE_SURF.foot + gap, r1 = TIDE_SURF.knee + gap",
+    "new": "r0 = TIDE_SURF.foot, r1 = TIDE_SURF.knee + gap",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-edge-crest-runs-back",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "/ GLOW_TIDE.wave - t * GLOW_TIDE.run",
+    "new": "/ GLOW_TIDE.wave + t * GLOW_TIDE.run",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-edge-shader-off-its-law",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "  return 0.9 + 0.4 * lv + 1.5 * gwTideCrest(c, t) + 0.3 * chop;",
+    "new": "  return 0.9 + 0.4 * lv + 2.5 * gwTideCrest(c, t) + 0.3 * chop;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-edge-skin-unread",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "  if (look == 6 && uGlowSkin == ${GLOW_TIDE.skin}) return gwTideReach(c, t, lv);",
+    "new": "  if (false) return gwTideReach(c, t, lv);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-edge-no-skin-line",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "    bool skin = h * gwTideReach(c, t, lv) < 1.0;",
+    "new": "    bool skin = false;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-drops-rise",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "mod(floor(c.y) + floor(t * ${GLOW_TIDE.fall.toFixed(1)})",
+    "new": "mod(floor(c.y) - floor(t * ${GLOW_TIDE.fall.toFixed(1)})",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-drops-anywhere",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "textureSize(uField, 0) - 1), 0).b > 0.25) return true;",
+    "new": "textureSize(uField, 0) - 1), 0).b > -1.0) return true;",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-mesh-drops-rise",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "shift: Object.freeze([side, -down])",
+    "new": "shift: Object.freeze([side, down])",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-field-key-skin-lost",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "spec.code + 8 * (spec.skin ? 1 : 0) + 16 *",
+    "new": "spec.code + 0 * (spec.skin ? 1 : 0) + 16 *",
+    "tests": [
+      "test/render/armorytide.test.js",
+      "test/systems/gildedglow.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-field-short-of-the-drops",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "look === 'tide' ? GLOW_TIDE.slack : 0",
+    "new": "look === 'tide' ? 0 : 0",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-pad-short-of-the-drops",
+    "file": "src/render/weaponGlowGlsl.js",
+    "old": "      ? Math.max(GLOW_RINGS[0], ...GLOW_TIDE.drops)",
+    "new": "      ? GLOW_RINGS[0]",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-spec-without-its-skin",
+    "file": "src/systems/weaponGlowLooks.js",
+    "old": "    skin: GLOW_SKIN[/** @type {keyof typeof GLOW_SKIN} */ (look)] ?? 0,",
+    "new": "    skin: 0,",
+    "tests": [
+      "test/render/armorytide.test.js",
+      "test/net/courierscabinet.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-sprite-skin-unset",
+    "file": "src/render/renderer.js",
+    "old": "    gl.uniform1i(u.look, glow.code);\n    gl.uniform1i(u.glowSkin, glow.skin ?? 0);",
+    "new": "    gl.uniform1i(u.look, glow.code);\n    gl.uniform1i(u.glowSkin, 0);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-world-skin-unset",
+    "file": "src/render/renderer.js",
+    "old": "      gl.uniform1i(u.look, glow.code);\n      gl.uniform1i(u.glowSkin, glow.skin ?? 0);",
+    "new": "      gl.uniform1i(u.look, glow.code);\n      gl.uniform1i(u.glowSkin, 0);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-mesh-skin-unset",
+    "file": "src/render/renderer.js",
+    "old": "gl.uniform1i(u.glowSkin, g.skin ?? 0);",
+    "new": "gl.uniform1i(u.glowSkin, 0);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-a-skins-field-the-edges",
+    "file": "src/render/renderer.js",
+    "old": "const flat = glowFieldKey(glow, cutL, cutR, aw, ah);",
+    "new": "const flat = glowFieldKey({ code: glow.code }, cutL, cutR, aw, ah);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-stage-skin-unset",
+    "file": "src/render/weaponPiecePreview.js",
+    "old": "gl.uniform1i(at(glow, 'uGlowSkin'), spec.skin ?? 0);",
+    "new": "gl.uniform1i(at(glow, 'uGlowSkin'), 0);",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "TIDEBOUND-close-lens-unaimed",
+    "file": "src/render/auraPreview.js",
+    "old": "lookY: S.lookY + (1 - 2 * focus.y) * half * S.dist,",
+    "new": "lookY: S.lookY,",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  }
+]

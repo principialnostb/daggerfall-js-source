@@ -76,9 +76,9 @@
   },
   {
     "name": "WEAPON-GLOW1-the-ramp-left-open",
-    "file": "src/systems/weaponGlow.js",
-    "old": "        ramp: Object.freeze(GLOW_RAMPS[/** @type {keyof typeof GLOW_RAMPS} */ (look)].flat()),",
-    "new": "        ramp: GLOW_RAMPS[/** @type {keyof typeof GLOW_RAMPS} */ (look)].flat(),",
+    "file": "src/systems/weaponGlowLooks.js",
+    "old": "    ramp: Object.freeze(ramp.flat()),",
+    "new": "    ramp: ramp.flat(),",
     "tests": [
       "test/systems/weaponglow1.test.js"
     ],
@@ -493,9 +493,9 @@
   {
     "name": "WEAPON-GLOW1-every-word-on-the-wire",
     "file": "src/net/wire.js",
-    "old": "export const LOOK_GLOW_RE = /^(?:(?:fire|frost|shock)[123]|arcane2|brand2|edge2|gilded2)$/;",
-    "new": "export const LOOK_GLOW_RE = /^(fire|frost|shock|arcane|brand|edge|gilded)([123])$/;",
-    "note": "Re-aimed by content (GILDED-GLOW): the pattern takes gilded2 too.",
+    "old": "export const LOOK_GLOW_RE = /^(?:(?:fire|frost|shock)[123]|arcane2|brand2|edge2|gilded2|tide2)$/;",
+    "new": "export const LOOK_GLOW_RE = /^(fire|frost|shock|arcane|brand|edge|gilded|tide)([123])$/;",
+    "note": "Re-aimed by content (GILDED-GLOW): the pattern takes gilded2 too. Re-aimed by content: the Courier's Cabinet's wares beside it.",
     "tests": [
       "test/systems/weaponglow1.test.js"
     ],

@@ -100,8 +100,20 @@ export const MOD_COMMAND = Object.freeze({
   ],
 });
 
+/** The PDA's one command: on any member's Apps menu, it opens that player's card (pdaFriends.js). A user command takes no
+ *  words, so the PDA keeps its rule of no typed commands. Everyone sees it. */
+export const PROFILE_COMMAND = Object.freeze({
+  name: 'DFO Profile',
+  type: 2,
+  contexts: [0],
+});
+
 /** Every command the bot has - the list the deploy writes over the server's. */
-export const DISCORD_COMMANDS = Object.freeze([MOD_COMMAND]);
+export const DISCORD_COMMANDS = Object.freeze([MOD_COMMAND, PROFILE_COMMAND]);
+
+/** A command as the deploy's report names it: a slash command by its slash, an Apps menu command by its menu. */
+export const commandLabel = (/** @type {{ name: string, type?: number }} */ c) =>
+  c.type === 2 ? `${c.name} (Apps menu)` : `/${c.name}`;
 
 /** A command's subcommands, as declared. @param {string} name @returns {string[]} */
 export const subcommandsOf = (name) =>

@@ -36,7 +36,7 @@ export function guildWareSvg(key, heraldry, size = 56) {
     case 'insigniaarmlet':
       return (
         `${open}<path d="M18 4 C26 4 34 6 40 12 L52 56 C46 60 34 61 26 58 L14 16 C13 9 14 5 18 4 Z" fill="#b98a6a" stroke="#5a3d2c" stroke-width="1.5"/>` +
-        `<path d="M17 24 L44 21 L47 31 L19 35 Z" fill="${field}" stroke="#e8c050" stroke-width="2.5"/>${shieldAt(heraldry, 25, 19, 16)}</svg>`
+        `${shieldAt(heraldry, 46, 9, 16)}</svg>` // the shield floating beside the arm
       );
     case 'guildcrest':
       return `${open}<rect x="6" y="6" width="52" height="52" rx="26" fill="#2c4f86" stroke="#e8c050" stroke-width="4"/>${shieldAt(heraldry, 18, 15, 28)}</svg>`;

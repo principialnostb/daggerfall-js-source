@@ -1,0 +1,366 @@
+[
+  {
+    "name": "HOVER-a-gap-of-nought",
+    "file": "src/render/armoryHover.js",
+    "old": "arms: Object.freeze({ gap: 0.06, bob: 0.008 }),",
+    "new": "arms: Object.freeze({ gap: 0, bob: 0.008 }),",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-every-piece-in-step",
+    "file": "src/render/armoryHover.js",
+    "old": "return ((h ^ (h >>> 16)) >>> 0) / 4294967296;",
+    "new": "return 0;",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-phase-unmixed",
+    "file": "src/render/armoryHover.js",
+    "old": "  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);\n  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);\n",
+    "new": "",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-a-bob-off-the-clock",
+    "file": "src/render/armoryHover.js",
+    "old": "  head: 1 / 5,",
+    "new": "  head: 1 / 5.5,",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-bob-its-height-twice",
+    "file": "src/render/armoryHover.js",
+    "old": "ARMORY_HOVER[slot].bob * Math.sin(",
+    "new": "2 * ARMORY_HOVER[slot].bob * Math.sin(",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-lag-forward",
+    "file": "src/render/armoryHover.js",
+    "old": "return [-vx * ARMORY_LAG.s * k, -vz * ARMORY_LAG.s * k];",
+    "new": "return [vx * ARMORY_LAG.s * k, vz * ARMORY_LAG.s * k];",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-lag-unbounded",
+    "file": "src/render/armoryHover.js",
+    "old": "const k = len > most ? most / len : 1;",
+    "new": "const k = 1;",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-a-ring-untilted",
+    "file": "src/render/armoryHover.js",
+    "old": "const out = [0, 1, 2].map((i) => d[i] * c + w[i] * s)",
+    "new": "const out = [0, 1, 2].map((i) => d[i])",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-tilt-unturned",
+    "file": "src/render/armoryHover.js",
+    "old": "const a = TAU * (t * hz + ph)",
+    "new": "const a = TAU * ph",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-way-in-along-the-limb",
+    "file": "src/render/armoryHover.js",
+    "old": "const p = [v[0] - d[0] * k, v[1] - d[1] * k, v[2] - d[2] * k]",
+    "new": "const p = [v[0], v[1], v[2]]",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-fade-reversed",
+    "file": "src/render/armoryHover.js",
+    "old": "export const armoryOpen = (/** @type {number} */ c) => 1 - smooth(",
+    "new": "export const armoryOpen = (/** @type {number} */ c) => smooth(",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-shaders-fade-reversed",
+    "file": "src/render/armoryHover.js",
+    "old": "float armoryOpen(float c) { return 1.0 - smoothstep(",
+    "new": "float armoryOpen(float c) { return smoothstep(",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-shaders-turn-the-other-way",
+    "file": "src/render/armoryHover.js",
+    "old": "return fract(u - uTime / per);",
+    "new": "return fract(u + uTime / per);",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-fade-never-applied",
+    "file": "src/render/armoryPass.js",
+    "old": "  if (uMesh == ${TUBE}) c *= armoryOpen(vS.z);",
+    "new": "",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-facing-never-handed",
+    "file": "src/render/armoryPass.js",
+    "old": "L, dot(nrm, uIn), 0.0);",
+    "new": "L, 0.0, 0.0);",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-way-in-never-set",
+    "file": "src/render/armoryPass.js",
+    "old": "            if (U.uIn) gl.uniform3fv(U.uIn, d.I ?? NO_IN);\n",
+    "new": "",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-clock-never-handed",
+    "file": "src/render/armoryPass.js",
+    "old": "armoryDraws(key, w, eye, !(w._d > ARMORY_DETAIL_M), right, t)",
+    "new": "armoryDraws(key, w, eye, !(w._d > ARMORY_DETAIL_M), right)",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-chest-piece-on-the-chest",
+    "file": "src/render/armoryPass.js",
+    "old": "add(pt('chest'), fwd, gap * s), hover(0))",
+    "new": "pt('chest'), hover(0))",
+    "tests": [
+      "test/render/armoryhover.test.js",
+      "test/render/armory.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-crown-on-the-head",
+    "file": "src/render/armoryPass.js",
+    "old": "const base = add(add(pt('crown'), up, gap * s), hover(0))",
+    "new": "const base = add(pt('crown'), hover(0))",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-halo-sunk-to-the-head",
+    "file": "src/render/armoryPass.js",
+    "old": "lift: ARMORY_HOVER.head.gap + 0.165 *",
+    "new": "lift: 0.165 *",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-rings-hug-the-arm",
+    "file": "src/render/armoryPass.js",
+    "old": "const Ru = u.k * ARMORY_BODY.upper * fit + gap,",
+    "new": "const Ru = u.k * ARMORY_BODY.upper * fit,",
+    "tests": [
+      "test/render/armoryhover.test.js",
+      "test/render/armorymirror.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-rings-hug-the-shin",
+    "file": "src/render/armoryPass.js",
+    "old": "const r = ARMORY_BODY.ankle + (ARMORY_BODY.shin - ARMORY_BODY.ankle) * a + gap;",
+    "new": "const r = ARMORY_BODY.ankle + (ARMORY_BODY.shin - ARMORY_BODY.ankle) * a;",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-plate-on-the-arm",
+    "file": "src/render/armoryPass.js",
+    "old": "on = add(mid, outward, (ARMORY_BODY.upper * fit + gap + A.size * Math.sin(A.turn)) * s);",
+    "new": "on = add(mid, outward, ARMORY_BODY.upper * fit * s);",
+    "tests": [
+      "test/render/insigniaarmlet.test.js",
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-a-sprites-plate-on-the-arm",
+    "file": "src/render/armoryPass.js",
+    "old": "sgn * (k * ARMORY_BODY.upper + gap + A.size * 0.6) * s",
+    "new": "sgn * 0 * s",
+    "tests": [
+      "test/render/armorymirror.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-a-spur-on-the-skin",
+    "file": "src/render/armoryPass.js",
+    "old": "(ARMORY_SPUR_ROOT * (upper ? u.k : 1) * fit + gap + p.r) * s",
+    "new": "(ARMORY_SPUR_ROOT * (upper ? u.k : 1) * fit) * s",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-a-spur-unspun",
+    "file": "src/render/armoryPass.js",
+    "old": "const spin = 2 * Math.PI * (t * ARMORY_HOVER_HZ.spin + phase(k + 100))",
+    "new": "const spin = 2 * Math.PI * phase(k + 100)",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-a-spur-unswayed",
+    "file": "src/render/armoryPass.js",
+    "old": "sway = ARMORY_SPUR_SWAY * Math.sin(",
+    "new": "sway = 0 * Math.sin(",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-tip-at-the-bobs-middle",
+    "file": "src/render/armoryPass.js",
+    "old": "const bob = ARMORY_HOVER.head.bob * s;   // the top of its bob",
+    "new": "const bob = 0;   // the top of its bob",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-embers-rising",
+    "file": "src/render/armoryPass.js",
+    "old": "- uU * age * age * ${ARMORY_EMBER_FALL.toFixed(2)}",
+    "new": "+ uU * age * age * ${ARMORY_EMBER_FALL.toFixed(2)}",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-wolfs-shank-two-rings",
+    "file": "src/render/armoryPass.js",
+    "old": "(pose.hock ? R.shin.slice(-1) : R.shin)",
+    "new": "R.shin",
+    "tests": [
+      "test/render/armory.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-preview-crown-cut",
+    "file": "src/render/auraPreview.js",
+    "old": "return tip != null && tip > PREVIEW_STAGE.top ? lookY + tip - PREVIEW_STAGE.top : lookY;",
+    "new": "return lookY;",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-surf-sleeve-on-the-foot",
+    "file": "src/render/armoryPass.js",
+    "old": "A = add(mix(ft, kn, TIDE_SURF.from), hv)",
+    "new": "A = add(ft, hv)",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-bead-drift-off-its-law",
+    "file": "src/render/armoryTide.js",
+    "old": "h21(vec2(mod(id, ${g(C.beads)}), 5.0))",
+    "new": "h21(vec2(mod(id, ${g(C.beads)}), 6.0))",
+    "tests": [
+      "test/render/armorytide.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-bead-drift-left-out",
+    "file": "src/render/armoryTide.js",
+    "old": "(vP.y - 0.5) * H - tideBeadDrift(id) * uScale",
+    "new": "(vP.y - 0.5) * H",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-circlet-on-the-head",
+    "file": "src/render/armoryTide.js",
+    "old": "r: ARMORY_BODY.head + ARMORY_HOVER.head.gap,",
+    "new": "r: ARMORY_BODY.head,",
+    "tests": [
+      "test/render/armorytide.test.js",
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "HOVER-the-stream-on-the-arm",
+    "file": "src/render/armoryPass.js",
+    "old": "tube(0, A, B, S.upper * kk + gap, S.upper * kk + gap, fwd, false, inU(A));",
+    "new": "tube(0, A, B, S.upper * kk, S.upper * kk, fwd, false, inU(A));",
+    "tests": [
+      "test/render/armoryhover.test.js"
+    ]
+  },
+  {
+    "name": "ARMLET-the-turn-unclamped",
+    "file": "src/render/armoryPass.js",
+    "old": "const turn = Math.max(-A.turn, Math.min(A.turn, Math.atan2(dot(e, across), dot(e, outward))));",
+    "new": "const turn = Math.atan2(dot(e, across), dot(e, outward));",
+    "tests": [
+      "test/render/insigniaarmlet.test.js"
+    ]
+  },
+  {
+    "name": "ARMLET-the-plate-never-turned",
+    "file": "src/render/armoryPass.js",
+    "old": "const turn = Math.max(-A.turn, Math.min(A.turn, Math.atan2(dot(e, across), dot(e, outward))));",
+    "new": "const turn = 0;",
+    "tests": [
+      "test/render/insigniaarmlet.test.js"
+    ]
+  },
+  {
+    "name": "ARMLET-turned-away-from-the-eye",
+    "file": "src/render/armoryPass.js",
+    "old": "const turn = Math.max(-A.turn, Math.min(A.turn, Math.atan2(dot(e, across), dot(e, outward))));",
+    "new": "const turn = Math.max(-A.turn, Math.min(A.turn, -Math.atan2(dot(e, across), dot(e, outward))));",
+    "tests": [
+      "test/render/insigniaarmlet.test.js"
+    ]
+  },
+  {
+    "name": "ARMLET-its-place-from-its-turn",
+    "file": "src/render/armoryPass.js",
+    "old": "on = add(mid, outward, (ARMORY_BODY.upper * fit + gap + A.size * Math.sin(A.turn)) * s);",
+    "new": "on = add(mid, outward, (ARMORY_BODY.upper * fit + gap) * s);",
+    "tests": [
+      "test/render/insigniaarmlet.test.js"
+    ]
+  }
+]

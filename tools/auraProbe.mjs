@@ -208,7 +208,10 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const port = server.address().port;
-const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}); // NIRNROOT-SAGE: a browser of the machine's own, as brokerProbe.mjs takes one
+const browser = await chromium.launch({
+  ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}),
+  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+}); // NIRNROOT-SAGE: a browser of the machine's own, as brokerProbe.mjs takes one
 try {
   const page = await browser.newPage({ viewport: { width: 640, height: 480 } });
   const errs = [];

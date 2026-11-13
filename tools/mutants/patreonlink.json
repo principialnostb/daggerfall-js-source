@@ -422,7 +422,7 @@
   {
     "name": "PL-no-read-back",
     "file": "src/ui/enhanced/enhancedAccount.js",
-    "old": "      if (flow.stage === 'in' && flow.patreon?.on && typeof flow.refresh === 'function') Promise.resolve(flow.refresh()).catch(() => {});",
+    "old": "      if (flow.stage === 'in' && (flow.patreon?.on || flow.discordCode) && typeof flow.refresh === 'function') Promise.resolve(flow.refresh()).catch(() => {});",
     "new": "      void 0;",
     "tests": [
       "test/server/patreon_link.test.js"

@@ -39,9 +39,9 @@ const green = (c) => c[1] > c[0] * 1.5 && c[1] > c[2] * 1.5;
 const violet = (c) => c[2] > c[0] && c[0] > c[1];
 
 test('World Turtle vocabulary: the title, the glyph and the aura each join their closed list last, in words and on the account card; the title jade into violet into lilac, edged in black, its one colour apart from every other title', () => {
-  assert.equal(TITLES.at(-1), 'worldturtle');
-  assert.equal(GLYPHS.at(-1), 'worldturtle');
-  assert.equal(AURAS.at(-1), 'worldshell');
+  assert.equal(TITLES.at(-2), 'worldturtle');
+  assert.equal(GLYPHS.at(-2), 'worldturtle');
+  assert.equal(AURAS.at(-3), 'worldshell');
   assert.equal(TITLE_TEXT.worldturtle, 'World Turtle');
   assert.equal(AURA_TEXT.worldshell, 'Worldshell');
   assert.equal(GLYPH_LABEL.worldturtle, 'World Turtle', 'named on the account card');

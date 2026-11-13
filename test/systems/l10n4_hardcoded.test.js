@@ -86,7 +86,7 @@ const HARDCODED = {
   'src/net/accountClient.js': 14,
   'src/net/arena/arenaBrain.js': 2,
   'src/net/arena/arenaLaw.js': 28,
-  'src/net/armoryLaw.js': 12,   // THANKS-POST: and the Crystal Spurs'; GUILD-SHOP: and the Insignia Armlet's (armory.test.js holds every piece's service name to its client words). ARMORY: ARMORY_NAME - the pieces' names and the Eternal set's in the service's English (the shop's receipt, the account's letters); the client says them through ui/armoryText.js, a pin holding the two equal
+  'src/net/armoryLaw.js': 17,   // the Tidebound line's five; THANKS-POST: and the Crystal Spurs'; GUILD-SHOP: and the Insignia Armlet's (armory.test.js holds every piece's service name to its client words). ARMORY: ARMORY_NAME - the pieces' names and the Eternal set's in the service's English (the shop's receipt, the account's letters); the client says them through ui/armoryText.js, a pin holding the two equal
   'src/net/effectLaw.js': 11,   // STOREFRONT: EFFECTS' names - the kill effects', portal skins' and mount looks' in the service's English (the shop's receipt); the client says them through ui/effectText.js, a pin holding the two equal
   'src/net/bagLaw.js': 26,
   'src/net/boardLaw.js': 4,
@@ -175,6 +175,7 @@ const HARDCODED = {
   'src/net/serpent/serpentLaw.js': 7,
   'src/net/serpent/serpentLink.js': 6,
   'src/net/serverPost.js': 5,
+  'src/net/discordShopLaw.js': 22,   // the Courier's Cabinet's wares' names and looks in the service's English (Discord's own words); the game says them through its own tables
   'src/net/shopLaw.js': 8,   // ARMORY: SHOP_KIND_NAME's 'Aura Armory' - the receipt's word for the ware's kind, the service's English (the shop's window says it through ui/enhanced/enhancedShop.js); STOREFRONT: +16, OWN_NAME - the new wares' names and the pass's kinds in the service's English (Stripe's line, the receipt); the window says them through ui/enhanced/enhancedShop.js shopWareName and the badges' own tables, pins holding them equal (test/ui/shop_window.test.js, storefront_badges.test.js); PASS-PANELS: 9 fewer, the passes', boosters' and Seasonal Collector's names gone with them
   'src/net/siege/siegeLink.js': 27,
   'src/net/siege/siegeRef.js': 4,

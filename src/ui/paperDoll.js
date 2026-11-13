@@ -254,7 +254,7 @@ export const paperDollIdentityKey = ({ race = 'Breton', gender = 'male', faceInd
  *  only from the four hosts' boots (with the PRE-CHARGEN Breton/male/0
  *  stand-in) and from the three chargen completions, so a character
  *  who arrived by RESTORE - `systems/save/save.js` restorePlayer, which is
- *  every `?load` boot, and main.js:"if (choice === 'continue' || choice === 'load' || choice === 'online')" makes Continue, Load Game AND
+ *  every `?load` boot, and src/main.js:"if (choice === 'continue' || choice === 'load' || choice === 'online')" makes Continue, Load Game AND
  *  Online all `?load` - wore the stand-in's body, face and morphology
  *  for the rest of the session.
  *

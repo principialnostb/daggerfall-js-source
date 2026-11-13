@@ -49,6 +49,12 @@ compatibility_date = "2026-09-01"
 account_id = "a27adccb38c8e8b82fa32e5736274a94"
 workers_dev = true
 
+# The journal's Activity: the book Discord opens inside itself, served from journal/ as static files beside the
+# service. A path that names a file there is answered without the Worker; every other path, /v1/ included, runs it.
+# Discord reaches it through one URL mapping, `/` to this Worker's host (bible/11-Multiplayer/Discord-PDA.md).
+[assets]
+directory = "./journal"
+
 # An uncaught error is logged, not lost - AUDIT ONLINE A17's law, on
 # this side too.
 [observability]
@@ -108,7 +114,7 @@ crons = ["* * * * *", "41 * * * *"]
 [vars]
 # Answered by /health so a deploy that did not happen cannot look like
 # one that did. Kept in step with ACCOUNT_VERSION in src/service.js.
-ACCOUNT_VERSION = "acct247"
+ACCOUNT_VERSION = "acct249"
 # WB5b: THE RELAY'S PUBLIC HALF, GATE_PUBLIC_KEY - the key an Oblivion
 # Gate's kill receipts verify with (src/net/gate/gateReceipt.js) - is NOT a
 # var here. GATE-KEYS (2026-09-26): the account deploy mints the pair
@@ -245,6 +251,11 @@ DISCORD_MODERATORS = "128705730965536768:Lattymoy"
 # server's Discord invite the frozen player's Staff tab shows beside its Copy button (server-account/src/staffFreeze.js
 # discordInvite), so it changes without a game update. An https address; empty, the tab shows none.
 DISCORD_INVITE_URL = "https://discord.gg/QADbZYQ73j"
+# THE DISCORD PDA (src/pdaTerminal.js). Each empty is the default: the Terminal in a #dfo-terminal channel the bot makes
+# and keeps, polls posted beside it, and feedback cards in the moderators' channel. A channel id here overrides one.
+DISCORD_TERMINAL_CHANNEL = ""
+DISCORD_POLL_CHANNEL = ""
+DISCORD_FEEDBACK_CHANNEL = ""
 # FOUNDER5 (2026-10-07, Mac: "Can we grant every account before sept 25th
 # the founder title"): THE FOUNDERS BY NAME. Founder is held by every
 # registered account that first played by the end of 24 September on any

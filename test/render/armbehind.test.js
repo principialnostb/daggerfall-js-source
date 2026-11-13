@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { glslFunctions, GlslDiscard } from '../glsl.mjs';
 import { armClip, armWornSide, armoryDraws, armoryPrograms, ArmoryRenderer, ARMORY_PIECE_INDEX } from '../../src/render/armoryPass.js';
 import { newPose, POSE_AT } from '../../src/render/armoryPose.js';
+import { ARMORY_HOVER, armoryHoverAt, armoryPhase } from '../../src/render/armoryHover.js';
 
 const kept = (/** @type {number[]} */ c, /** @type {number[]} */ p) => c[0] * p[0] + c[1] * p[1] + c[2] * p[2] + c[3] >= 0;
 const towardEye = (/** @type {number[]} */ p, /** @type {number[]} */ eye, /** @type {number} */ t) => p.map((v, i) => v + (eye[i] - v) * t);
@@ -73,7 +74,7 @@ test('ARM-BEHIND the shader RUN and the pass: a fragment on the cut side discard
   assert.ok(clips().length > 0 && clips().every((c) => c.every((v) => v === 0)), 'a rig\'s: nought');
 });
 
-test('CHEST-CENTRE (2026-10-31, the owner: "The aura armory chest piece also isnt centwrwd at some angles"): on a card the chest piece stands on the eye\'s line through the picture\'s chest from every side - the heart before the card from the front and behind it from behind, the Sigil\'s back the other way round; a rig\'s stays its chest\'s face (mutants: the depth along the facing again; the Sigil\'s back 0.24 m behind the card)', () => {
+test('CHEST-CENTRE (2026-10-31, the owner: "The aura armory chest piece also isnt centwrwd at some angles"): on a card the chest piece stands on the eye\'s line through the picture\'s chest from every side, give or take its bob - the heart before the card from the front and behind it from behind, the Sigil\'s back the other way round; a rig\'s the torso\'s gap before its chest\'s face (mutants: the depth along the facing again; the Sigil\'s back 0.24 m behind the card; the gap left off)', () => {
   const card = newPose();
   Object.assign(card, { card: true, limbs: 'upper' });
   const ci = POSE_AT.chest;
@@ -86,14 +87,16 @@ test('CHEST-CENTRE (2026-10-31, the owner: "The aura armory chest piece also isn
     return Math.hypot(...c) / Math.hypot(...d);
   };
   const near = (/** @type {number[]} */ p, /** @type {number[]} */ eye) => Math.hypot(p[0] - eye[0], p[1] - eye[1], p[2] - eye[2]) < Math.hypot(onPic[0] - eye[0], onPic[1] - eye[1], onPic[2] - eye[2]);
+  const t = 7.3, rest = (/** @type {number[]} */ p, /** @type {string} */ key, /** @type {number} */ k) => { const h = armoryHoverAt('torso', armoryPhase(key, k) + 0.37, t, null, 1); return [p[0] - h[0], p[1] - h[1], p[2] - h[2]]; };
   for (const deg of [0, 45, 135, 180, 225, 315]) {
     const a = (deg * Math.PI) / 180, eye = [at[0] + 3 * Math.sin(a), 1.5, at[2] + 3 * Math.cos(a)], front = Math.cos(a) > 0;
-    const heart = armoryDraws('emberheart', w, eye, true, right).find((d) => d.mesh === 2);
-    const sigil = armoryDraws('eternalsigil', w, eye, true, right).filter((d) => d.mesh === 2);
-    for (const d of [heart, ...sigil]) assert.ok(d && line(d.A, eye) < 1e-9, `${deg}: on the eye's line through the picture's chest (${d && line(d.A, eye)})`);
+    const heart = armoryDraws('emberheart', w, eye, true, right, t).find((d) => d.mesh === 2);
+    const sigil = armoryDraws('eternalsigil', w, eye, true, right, t).filter((d) => d.mesh === 2);
+    for (const [d, key, k] of /** @type {const} */ ([[heart, 'emberheart', 0], [sigil[0], 'eternalsigil', 0], [sigil[1], 'eternalsigil', 1]])) assert.ok(d && line(rest(d.A, key, k), eye) < 1e-9, `${deg}: on the eye's line through the picture's chest (${d && line(rest(d.A, key, k), eye)})`);
+    assert.ok(line(heart.A, eye) <= ARMORY_HOVER.torso.bob + 1e-9, `${deg}: its bob up and down the picture, no more`);
     assert.equal(near(heart.A, eye), front, `${deg}: the heart before the card from the front, behind it from behind`);
     assert.equal(near(sigil[1].A, eye), !front, `${deg}: the Sigil's back before the card from behind`);
   }
-  const rig = armoryDraws('emberheart', { ...w, pose: newPose() }, [1, 1.5, 1], true, right).find((d) => d.mesh === 2);
-  assert.ok(rig && Math.abs(rig.A[2] - (at[2] + newPose().pts[ci + 2])) < 1e-9, 'a rig\'s on its chest\'s face');
+  const rig = armoryDraws('emberheart', { ...w, pose: newPose() }, [1, 1.5, 1], true, right, t).find((d) => d.mesh === 2);
+  assert.ok(rig && Math.abs(rig.A[2] - (at[2] + newPose().pts[ci + 2] + ARMORY_HOVER.torso.gap)) < 1e-9, 'a rig\'s the torso\'s gap before its chest\'s face');
 });

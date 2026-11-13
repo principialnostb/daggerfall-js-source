@@ -79,6 +79,7 @@ import { PAID_KEEP } from './revenant.js'; // AUDIT RVN-STARS S4: the errands' s
 import { t } from '../textManager.js'; // L10N4: RVN-GEAR's and RVN-ERRAND's words through the text core
 import { popupMessage } from '../notify.js'; // RVN-ERRAND: an errand's words where the card is not drawn (the line every skin draws)
 import { equipTableOf } from '../equip.js'; // RVN-GEAR: never a piece the player wears
+import { remoteErrandsStep, reportGameErrand } from './revenantRemote.js'; // errands sent from the Discord PDA, and the game's own told to it
 
 /** How many revenants may be sworn to the player at once - with it and away. */
 export const REVENANT_RETINUE_MAX = 6;
@@ -344,6 +345,7 @@ export function sendOnErrand(
       }),
     }),
   ); // its own leaving words, the errand's card
+  reportGameErrand(_player, 'send', r, e);
   return null;
 }
 /** RECALLED before its errand is done: back at once with nothing, and worn from the road - resting a rest's length
@@ -351,6 +353,7 @@ export function sendOnErrand(
 export function recallFromErrand(id, now = Math.floor(ownMinutes())) {
   const r = revenantRecord(_player, id);
   if (!r?.sworn || stateOf(r) !== 'errand') return false;
+  reportGameErrand(_player, 'recall', r, r.companion.errand);
   revenantCompanionUpdate(_player, id, (c) => {
     c.state = 'resting';
     c.errand = null;
@@ -647,6 +650,12 @@ export function revenantParty({ onWake = null } = {}) {
           onWake?.(r);
         }
       }
+      remoteErrandsStep(
+        _player,
+        now,
+        { send: sendOnErrand, recall: recallFromErrand, record: (id) => revenantRecord(_player, id) },
+        { say: popupMessage },
+      );
     },
     knock(boat, id, now) {
       const r = revenantRecord(_player, id);

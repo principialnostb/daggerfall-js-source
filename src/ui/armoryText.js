@@ -20,6 +20,7 @@ export const ARMORY_LINE_TEXT = Object.freeze({
   eternal: () => t('armory.line.eternal', 'Eternal'),
   guild: () => t('armory.line.guild', 'Guild'), // GUILD-SHOP
   crystal: () => t('armory.line.crystal', 'Crystal'), // THANKS-POST
+  tidebound: () => t('armory.line.tidebound', 'Tidebound'), // the Courier's Cabinet's, bought with Seals in Discord
 });
 /** Each piece's name. */
 export const ARMORY_TEXT = Object.freeze({
@@ -35,50 +36,55 @@ export const ARMORY_TEXT = Object.freeze({
   eternaledge: () => t('armory.name.eternaledge', 'Eternal Edge'),
   insigniaarmlet: () => t('armory.name.insigniaarmlet', 'Insignia Armlet'), // GUILD-SHOP
   crystalspurs: () => t('armory.name.crystalspurs', 'Crystal Spurs'), // THANKS-POST
+  tidecirclet: () => t('armory.name.tidecirclet', 'Tidebound Circlet'),
+  tidepearl: () => t('armory.name.tidepearl', 'Tidebound Pearl'),
+  tidebracers: () => t('armory.name.tidebracers', 'Tidebound Bracers'),
+  tidegreaves: () => t('armory.name.tidegreaves', 'Tidebound Greaves'),
+  tideedge: () => t('armory.name.tideedge', 'Tidebound Edge'),
 });
-/** What each piece looks like, in a sentence or two. */
+/** What each piece looks like, in a sentence or two. Every body piece floats a little way off the body. */
 export const ARMORY_LOOK = Object.freeze({
   burningcrown: () =>
     t(
       'armory.look.burningcrown',
-      'A circlet of molten iron, with horns of flame and a door of white fire at the brow. Embers lift off the points.',
+      'A crown of molten iron floats above your head, with horns of flame and a door of white fire at the front. Embers lift off the points.',
     ),
   emberheart: () =>
     t(
       'armory.look.emberheart',
-      'A cracked coal burns in the chest and beats like a heart. Fire runs out along its veins with every beat.',
+      'A cracked coal floats in front of your chest and beats like a heart. Fire runs along its veins with every beat, and embers fall from it.',
     ),
   ashbound: () =>
     t(
       'armory.look.ashbound',
-      'A chain of glowing iron winds round the arms, from the shoulders to the wrists. Ash falls from it.',
+      'Loose rings of glowing iron chain float around your arms, from the shoulders to the wrists. Ash falls from them.',
     ),
   cinderstride: () =>
     t(
       'armory.look.cinderstride',
-      'Low flames lick up the shins from a ring of coal at each ankle. Each step leaves an ember on the ground that burns out.',
+      'Rings of burning coal float around your shins, and low flames lick up from them. Each step leaves an ember on the ground that burns out.',
     ),
   breachbrand: () =>
     t('armory.look.breachbrand', 'Fire runs along the weapon from the grip to the point, and drips from the tip.'),
   eternalhalo: () =>
     t(
       'armory.look.eternalhalo',
-      "A band of blue-violet fire turns over the head, runes round it and the Origin's spark at its front.",
+      "A ring of blue-violet fire floats above your head, with runes around it and the Origin's spark at its front.",
     ),
   eternalsigil: () =>
     t(
       'armory.look.eternalsigil',
-      "The Origin's dragon of light circles the spark on the chest, biting its own tail. A slow light runs round it.",
+      "The Origin's dragon of light floats in front of your chest, around the spark, biting its own tail. A second one floats behind your back.",
     ),
   eternalarmlets: () =>
     t(
       'armory.look.eternalarmlets',
-      'Engraved bands of blue-violet fire circle the upper arms and the wrists. Flames lick up off them.',
+      'Engraved rings of blue-violet fire float around your upper arms and wrists and turn slowly. Flames lick up from them.',
     ),
   eternalgreaves: () =>
     t(
       'armory.look.eternalgreaves',
-      'Blue-violet fire wraps the legs from the knee to the foot, under a lattice of light. Sparks rise as you walk.',
+      "Rings of blue-violet fire with a lattice of light float around your shins. The top ring holds the Origin's spark. Sparks rise as you walk.",
     ),
   eternaledge: () =>
     t(
@@ -88,13 +94,38 @@ export const ARMORY_LOOK = Object.freeze({
   insigniaarmlet: () =>
     t(
       'armory.look.insigniaarmlet',
-      "A gilt band round the left upper arm, enamelled in your guild's colors, with its arms on a shield of beaten gold.",
+      "A gilt shield with your guild's arms floats beside your left upper arm, in a glow of your guild's colors.",
     ), // GUILD-SHOP
   crystalspurs: () =>
     t(
       'armory.look.crystalspurs',
-      'Small spurs of crystal along both arms, each a different size. Their colors shift slowly from amethyst to aqua to rose.',
+      'Small spurs of crystal float just off both arms and turn slowly, each a different size. Their colors shift from amethyst to aqua to rose.',
     ), // THANKS-POST
+  tidecirclet: () =>
+    t(
+      'armory.look.tidecirclet',
+      'Sea-glass beads float in a ring around your head, with a pearl at the front. Each bead drifts up and down, and drops of spray jump from the front.',
+    ),
+  tidepearl: () =>
+    t(
+      'armory.look.tidepearl',
+      'A nautilus shell of pearl lines floats in front of your chest. Light runs along its spiral to the pearl at its center.',
+    ),
+  tidebracers: () =>
+    t(
+      'armory.look.tidebracers',
+      'A stream of water coils around each arm without touching it and flows toward your hand. Foam shows on its ripples, and drops fall.',
+    ),
+  tidegreaves: () =>
+    t(
+      'armory.look.tidegreaves',
+      'Lines of surf wash up a ring of water around your shins and fade. Drops run back down, and a ripple spreads where you step.',
+    ),
+  tideedge: () =>
+    t(
+      'armory.look.tideedge',
+      'Water ripples along your weapon toward the point, with foam on its waves. Drops fall from its lower edge.',
+    ),
 });
 /** A SET's name and look (the shop's Eternal Set, its five pieces at once). */
 export const ARMORY_SET_TEXT = Object.freeze({ eternalset: () => t('armory.name.eternalset', 'The Eternal Set') });

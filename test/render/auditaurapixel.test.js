@@ -11,6 +11,7 @@ import { AURA_PIXEL_GLSL, AURA_PIXEL_STEPS, AURA_CARD_TEXELS, AURA_CLOTH_TEXELS,
 import { AURA_FS, AURA_LOOK, AURA_GROUND_R, RADIANCE_R, RADIANCE_H, AuraRingRenderer } from '../../src/render/auraRing.js';
 import { armoryDraws, armoryPrograms, armWornSide, ARMORY_PIECE_INDEX } from '../../src/render/armoryPass.js';
 import { newPose, POSE_AT } from '../../src/render/armoryPose.js';
+import { ARMORY_HOVER } from '../../src/render/armoryHover.js';
 import { createAuraHost, peerMounted } from '../../src/scenes/auraHost.js';
 import { createHorseCartPool } from '../../src/scenes/horseCartPool.js';
 import { HCC_WIRE_KIND } from '../../src/systems/horse/horseCartWire.js';
@@ -146,7 +147,8 @@ test('AUDIT AURA-PIXEL C4/D2: on a card a chest piece seen edge on is gone; and 
   const w = { at: [0, 0, 0], yaw: 0, pose: card, seed: 0.37, kindle: 1, torn: -1, mounted: false, _d: 3 }, right = [1, 0, 0];
   const side = armoryDraws('emberheart', w, [3, 1.3, 0], true, right).find((d) => d.mesh === 2);
   assert.ok(side && side.face === 0, `edge on: gone (${side?.face})`);
-  const rig = armoryDraws('emberheart', { ...w, pose: newPose() }, [3, 1.3, 0], true, right).find((d) => d.mesh === 2);
+  const edgeOn = [3, 1.3, newPose().pts[POSE_AT.chest + 2] + ARMORY_HOVER.torso.gap];   // square to its side, where it floats
+  const rig = armoryDraws('emberheart', { ...w, pose: newPose() }, edgeOn, true, right).find((d) => d.mesh === 2);
   assert.ok(rig && rig.face > 0.25, `a rig\'s keeps its edge-on light (${rig?.face})`);
   // behind and to the wearer's right (the eye at -z, +x): the left arm is hidden, the right one hangs over the back
   const eye = [2.1, 1.3, -2.1], back = armoryDraws('eternalsigil', w, eye, true, right).filter((d) => d.mesh === 2)[1];

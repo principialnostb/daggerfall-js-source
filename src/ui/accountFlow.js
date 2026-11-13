@@ -59,6 +59,8 @@ import {
   equipGlyph,
   adoptIdentity,
   unlinkPatreon,
+  discordCode, // the Discord PDA: a one-time code to type in Discord
+  unlinkDiscord,
   buyAurumWare, // AURUM: a ware bought for Aurum (AURUM-ONLY: any but a pack)
   passUnlock,
   passBuy, // PASS-PANELS: a premium track opened and a track's item bought, for Aurum
@@ -289,6 +291,10 @@ export function AccountFlow({ io, storage, onChange = () => {}, now = () => Date
     patreon: /** @type {any} */ (null),
     /** PATREON-LINK: the link was followed and the player has not come back to a linked account yet */
     patreonWaiting: false,
+    /** The Discord PDA's row as the service answers it - `{ linked, name, linkedAt, canLink }` - or null, and the code
+     *  last asked for (`{ code, expiresAt }`) while it lives. */
+    discord: /** @type {any} */ (null),
+    discordCode: /** @type {{ code: string, expiresAt: number } | null} */ (null),
     /** SHOP: the shop's card as the service answers it (net/shopLaw.js shopCardOf) - its wares, what is held, a Buy link
      *  each - or null (nobody signed in, a service from before acct205) */
     shop: /** @type {any} */ (null),
@@ -365,6 +371,8 @@ export function AccountFlow({ io, storage, onChange = () => {}, now = () => Date
     self.wardrobe = null; // ACC3c: a wardrobe outliving its account is a title drawn for nobody
     self.patreon = null;
     self.patreonWaiting = false; // PATREON-LINK: and a link for nobody
+    self.discord = null;
+    self.discordCode = null;
     self.shop = null;
     self.shopWaiting = null;
     self.pass = null;
@@ -463,6 +471,7 @@ export function AccountFlow({ io, storage, onChange = () => {}, now = () => Date
     // card then draws no picker at all rather than an empty one.
     self.wardrobe = r.data.wardrobe ?? null;
     self.patreon = r.data.patreon ?? null; // PATREON-LINK: the card's Patreon row, or none from a service before it
+    self.discord = r.data.discord ?? null; // the Discord PDA's row, or none from a service before it
     self.shop = shopCardOf(r.data.shop); // SHOP: the shop's card, or none from a service before it
     self.pass = passCardOf(r.data.pass); // STOREFRONT: the season's card, or none
     self.aurum = aurumCardOf(r.data.aurum); // AURUM: the Aurum's card, or none
@@ -520,6 +529,11 @@ export function AccountFlow({ io, storage, onChange = () => {}, now = () => Date
     }); // `start`'s word, adopted as it adopts it
     self.wardrobe = d.wardrobe ?? null;
     self.patreon = d.patreon ?? null;
+    self.discord = d.discord ?? null;
+    if (self.discord?.linked && self.discordCode) {
+      self.discordCode = null;
+      self.note = t('account.flow.discordLinked', 'Discord linked. Open the Terminal in Discord to use your PDA.');
+    }
     self.shop = shopCardOf(d.shop);
     self.pass = passCardOf(d.pass); // STOREFRONT
     self.aurum = aurumCardOf(d.aurum); // AURUM
@@ -586,6 +600,49 @@ export function AccountFlow({ io, storage, onChange = () => {}, now = () => Date
         icon: iconStated(r.data),
         secret: asked,
       }); // a lapsed tier's glyph off my own screen at once
+      changed();
+      return true;
+    } catch {
+      return refuse(accountRefusalText('offline'));
+    }
+  };
+
+  /** The Discord PDA: a one-time code for the player to type in Discord. The account is read again when the window has
+   *  the focus back, so a link made meanwhile shows. */
+  self.askDiscordCode = async () => {
+    if (self.busy || self.stage !== 'in') return false;
+    self.busy = true;
+    self.error = '';
+    self.note = '';
+    changed();
+    try {
+      const r = await ask(() => discordCode(door()));
+      if (!r) return false;
+      if (!r.ok) return refuse(accountRefusalText(r.error));
+      self.discordCode = { code: String(r.data.code), expiresAt: Number(r.data.expiresAt) };
+      self.busy = false;
+      changed();
+      return true;
+    } catch {
+      return refuse(accountRefusalText('offline'));
+    }
+  };
+
+  /** The Discord PDA unlinked from the game's side. */
+  self.unlinkDiscord = async () => {
+    if (self.busy || self.stage !== 'in') return false;
+    self.busy = true;
+    self.error = '';
+    self.note = '';
+    changed();
+    try {
+      const r = await ask(() => unlinkDiscord(door()));
+      if (!r) return false;
+      if (!r.ok) return refuse(accountRefusalText(r.error));
+      self.discord = { ...(self.discord ?? {}), linked: false, name: null, linkedAt: null };
+      self.discordCode = null;
+      self.busy = false;
+      self.note = t('account.flow.discordUnlinked', 'Discord unlinked.');
       changed();
       return true;
     } catch {
@@ -1292,6 +1349,8 @@ export function AccountFlow({ io, storage, onChange = () => {}, now = () => Date
       self.wardrobe = null;
       self.patreon = null;
       self.patreonWaiting = false; // PATREON-LINK
+      self.discord = null;
+      self.discordCode = null;
       self.shop = null;
       self.shopWaiting = null;
       self.pass = null;

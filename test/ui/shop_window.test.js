@@ -371,7 +371,7 @@ test('SHOP: Genesis - its letters the fire\'s pale heart, 44 or more from every 
   assert.equal(p.backgroundImage, '', 'the fire is the class\'s - never clipped into the letters');
   assert.equal(p.color, '#d6b8ff');
   assert.match(p.textShadow, /#0b0620/, 'edged dark, so they read over the fire');
-  assert.deepEqual(Object.keys(TITLE_FLAME), ['genesis', 'dawnbringer', 'voidwalker', 'eternalchampion', 'heartwaker', 'numidiumecho']);   // PIN MOVED (STOREFRONT): the name visuals' plates and the pass's two
+  assert.deepEqual(Object.keys(TITLE_FLAME), ['genesis', 'dawnbringer', 'voidwalker', 'eternalchampion', 'heartwaker', 'numidiumecho', 'veilcourier']);   // PIN MOVED (STOREFRONT): the name visuals' plates and the pass's two
   const doc = fakeDoc();
   const node = doc.createElement('div');
   node.ownerDocument = doc;

@@ -31,7 +31,9 @@ import { busyRead, BUSY_SHED_MS } from '../../src/net/busyLaw.js'; // BUSY-GATE:
  *  reason: a deploy that did not happen looks exactly like one that
  *  did. Kept in step with ACCOUNT_VERSION in wrangler.toml, which
  *  test/server/accountworker.test.js holds. */
-export const ACCOUNT_VERSION = 'acct247'; // acct247: Eterna holds the World Turtle title, its glyph and the Worldshell aura by name (titles.js WORLD_TURTLE_HANDLES). No migration. Deploy the relay first, then this.
+export const ACCOUNT_VERSION = 'acct249'; // acct249: the Courier's Cabinet's wares bought with Seals count as held - a title, two auras, a glyph, two icons and the Tidebound pieces, read off the row's `discord_wares` (migration 0219; titles.js cabinetKeys); an Admin holds the Courier's Seal. Deploy the relay (world309) first, then this.
+// acct248: the Discord PDA - the account link, the PDA's screens and game routes, its outbox, polls, feedback, boards and expeditions (migrations 0215-0218), and the Terminal kept by the clock. Deploy the relay (world308) first, then this.
+// acct247: Eterna holds the World Turtle title, its glyph and the Worldshell aura by name (titles.js WORLD_TURTLE_HANDLES). No migration. Deploy the relay first, then this.
 // acct246: a checkpoint whose batch the database fails, and whose record did not move, is answered `server` (503), not `lease` (realm.js checkpointRealm). No migration. Deploy in either order with the site.
 // acct245: a secret not in mintSecret's shape, or one the primary did not know, costs no lookup (accounts.js SECRET_RE, SESSION_MISS_KEPT_S); one address is counted across isolates (overAddressLimit, wrangler.toml ADDRESS_LIMIT); a pass find may carry several deeds (battlePass.js, `sources`, and `batch` in the pass); seven more hot routes believe the session pass (sessionPass.js PASS_PATHS). No migration. Deploy in either order with the site.
 // acct244: one address, ADDRESS_MAX requests a minute across every route, counted in the isolate's memory (accounts.js overAddressRate). No migration. Deploy in either order with the site.

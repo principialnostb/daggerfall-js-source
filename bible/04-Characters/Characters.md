@@ -21,7 +21,7 @@ models for them, and the cosmetic systems worn on a body. Combat itself is in `0
 - `Townsfolk-Outfits.md` - each walker sprite's own outfit
 - `Layered-Gearing.md` - the sprite body in the armour and weapon it wears
 - `Wardrobe.md` - collected looks for gear (transmog)
-- `Aura-Armory.md` - cosmetic effects worn on the body's parts
+- `Aura-Armory.md` - cosmetic effects floating a little way off the body's parts
 
 ## Rules
 

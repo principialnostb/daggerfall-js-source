@@ -155,6 +155,11 @@ const CATALOGUE = {
   'icon:gatefire': 'shop store', 'icon:aurbis': 'shop store', 'icon:elderscroll': 'shop store', 'icon:azurastar': 'shop store',
   'icon:redmountain': 'shop store', 'icon:hourglass': 'shop store', 'icon:sanguinerose': 'shop store', 'icon:whitegold': 'shop store',
   'armory:insigniaarmlet': 'guild open', 'icon:guildcrest': 'guild open', 'armory:crystalspurs': 'account retired' /* THANKS-POST (PIN MOVED): the update's gift */,   // GUILD-SHOP (PIN MOVED): the guild shop's armlet and crest, any member's for silver
+  // the Courier's Cabinet's, sold for Seals in Discord
+  'title:veilcourier': 'discord cabinet', 'aura:eltherictide': 'discord cabinet', 'aura:veilwake': 'discord cabinet',
+  'glyph:waxseal': 'discord cabinet', 'icon:courier': 'discord cabinet', 'icon:tidecompass': 'discord cabinet',
+  'armory:tidecirclet': 'discord cabinet', 'armory:tidepearl': 'discord cabinet', 'armory:tidebracers': 'discord cabinet',
+  'armory:tidegreaves': 'discord cabinet', 'armory:tideedge': 'discord cabinet',
 };
 
 // ── THE CATALOGUE ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -166,7 +171,7 @@ test('COLLECTIONS-II THE CATALOGUE IS WHOLE AND AS RECORDED: every title, aura, 
   for (const kind of W.WARDROBE_KINDS) for (const e of W.wardrobeEntries(kind)) got[`${kind}:${e.key}`] = [e.src, e.avail, ...(e.scope ? [e.scope] : [])].join(' ');
   assert.deepEqual(got, CATALOGUE);
   // PIN MOVED (WYRM-RIDER): the Dwarven Dragon's source, after the Sea Serpent's
-  assert.deepEqual(W.WARDROBE_SOURCES.map(([id]) => id), ['spire', 'abyss', 'serpent', 'dragon', 'broker', 'questlines', 'hunt', 'mastery', 'festival', 'pass', 'seats', 'chapters', 'ranked', 'world', 'account', 'guild', 'shop', 'patrons', 'staff', 'bestowed'] /* PIN MOVED (GUILD-SHOP): the guild shop, after the account's own */ /* PIN MOVED (SHOP): the shop before the patrons */ /* PIN MOVED (STOREFRONT): the Battle Pass after the festival, a season's play */, 'play\'s first, what no play earns last');   // PIN MOVED (HUNTERS-MARK, MARKS-OF-MASTERY): The Hunt and Marks of Mastery, play's own, after the questlines
+  assert.deepEqual(W.WARDROBE_SOURCES.map(([id]) => id), ['spire', 'abyss', 'serpent', 'dragon', 'broker', 'questlines', 'hunt', 'mastery', 'festival', 'pass', 'seats', 'chapters', 'ranked', 'world', 'account', 'guild', 'shop', 'discord', 'patrons', 'staff', 'bestowed'] /* PIN MOVED (GUILD-SHOP): the guild shop, after the account's own */ /* PIN MOVED (SHOP): the shop before the patrons */ /* PIN MOVED (STOREFRONT): the Battle Pass after the festival, a season's play */, 'play\'s first, what no play earns last');   // PIN MOVED (HUNTERS-MARK, MARKS-OF-MASTERY): The Hunt and Marks of Mastery, play's own, after the questlines
   for (const kind of W.WARDROBE_KINDS) for (const e of W.wardrobeEntries(kind)) {
     const how = e.how();
     assert.ok(typeof how === 'string' && how.length > 12, `${kind}:${e.key} says how`);

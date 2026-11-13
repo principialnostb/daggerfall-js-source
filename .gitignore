@@ -124,3 +124,6 @@ Thumbs.db
 desktop.ini
 # the private server bundles (scripts/privateRelay.mjs)
 app/private/
+
+# the journal Activity's kit, built from src/ by tools/journalKit.mjs at the account deploy
+server-account/journal/kit/

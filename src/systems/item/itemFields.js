@@ -248,7 +248,8 @@ export const ITEM_FIELDS = Object.freeze({
   // look there is, or absent. The WEARER's mark (net/realm/realmTradeLaw.js RECEIVER_MARKS): stripped off the wire
   appearance: rec(validAppearanceField),
   // GLOW-SET (bible/05-Combat/Weapon-Glow.md law 9): a staff's pick of glow, one of the wire's words (net/wire.js
-  // LOOK_GLOW_RE, test/systems/glowset.test.js holds the two equal). The piece's own, so it rides a trade
+  // LOOK_GLOW_RE) but `tide2`, the Tidebound Edge's, which is sold and never given by /glow (test/systems/glowset.test.js
+  // holds the two equal but that one). The piece's own, so it rides a trade
   glowSet: oneOf([
     'fire1',
     'fire2',

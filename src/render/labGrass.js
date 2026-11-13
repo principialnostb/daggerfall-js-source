@@ -31,7 +31,7 @@ import { buildTuftMips, buildTuftSheet, pixelGrass, PX_RAMP_STEPS, PX_TINT_BANDS
 import { meadowGrass, buildMeadowMips, meadowCardCorners, meadowCardIndices, MEADOW_SLOTS, MEADOW_CARDS, MEADOW_CARDS_FAR, MEADOW_NEAR_AT, MEADOW_BLADES_PER_TUFT, MEADOW_VARIANTS, MEADOW_LUSH, MEADOW_SHARES, MEADOW_PATCH_SCALE,
   MEADOW_FACE, meadowArtGround, MEADOW_GREEN, MEADOW_SHIFT, MEADOW_GREEN_EDGE, MEADOW_TOP, MEADOW_REACH, MEADOW_WIND_REACH, MEADOW_BOXES, MEADOW_SEED, MEADOW_NEAR_BAND, MEADOW_SLOPE_FLOOR, MEADOW_CELL, MEADOW_BUSH, MEADOW_FLOWERS, MEADOW_DRY, MEADOW_SHORT, MEADOW_TALL } from './grassMeadow.js';   // MEADOW1: the owner's sprites on crossed cards
 import { buildProgram } from './glProgram.js';   // AUDIT 68 S17-gl-program-dup: the one compile and link
-import { FOG_GLSL } from './fogGlsl.js';   // AUDIT 68 S17-fog-glsl-dup: fogFactorAt's one home - the terrain's own text, not a tenth copy
+import { FOG_FACTOR_GLSL } from './fogGlsl.js';   // AUDIT 68 S17-fog-glsl-dup: fogFactorAt's one home - the terrain's own text, not a tenth copy
 import { CLOUD_SHADOW_GLSL } from './cloudShadow.js';   // GRASS-LIT: the deck's shadow, the reader the terrain takes
 import { SHADOW_GLSL, SHADOW_SUN_UNIT, SHADOW_POINT_UNIT, SHADOW_LO_UNIT, SHADOW_POINT_CASTERS, SHADOW_CASTER_TABLE } from './shadowPass.js';   // GRASS-LIT: the sun map, the receiver the terrain takes
 import { AIR_ADAPT_GLSL } from './airPass.js';   // GRASS-LIT: the eye's adaptation, as every lane program exposes by it
@@ -468,7 +468,7 @@ export function applyGrassEdits(text, edits) {
  *  edits hand the fragment its world point and blend it to the fog colour by the terrain's own fogFactorAt
  *  (render/fogGlsl.js, the text TERRAIN_FS interpolates), over the fog the renderer set for the frame (LabGrassRenderer.draw's
  *  `light.fog`). They land AFTER the pixel style's, so the fog is not snapped to a ramp rung (the style's default). */
-export const FOG_FACTOR_GLSL = FOG_GLSL + '\n';   // AUDIT 68 (the merge): fogGlsl.js's text, which every renderer.js program interpolates
+export { FOG_FACTOR_GLSL }; // every renderer.js program interpolates it; its home is fogGlsl.js
 export const GRASSFOG_VS_EDITS = Object.freeze([
   Object.freeze({
     why: 'the blade hands the fragment its world point, which the fog measures its distance from',

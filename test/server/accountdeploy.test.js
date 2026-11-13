@@ -415,6 +415,13 @@ test('ACC1-CI: the deploy is verified BY CONTENT, and reads the host and version
   for (const f of outside) {
     assert.ok(listed.includes(f), `${f} is bundled into the account Worker and a change to it would not deploy`);
   }
+  // the journal's kit (tools/journalKit.mjs) is bundled from the game's tree at the deploy and uploaded with the journal:
+  // a change to any file it bundles, or to the tool, must deploy, and the kit is built before the Worker goes up
+  const kit = graph('src/ui/cabinetPreview.js');
+  assert.ok(kit.includes('src/render/auraRing.js') && kit.includes('src/ui/profileIcons.js'), `the kit's walk no longer sees its painters: ${kit.join(', ')}`);
+  for (const f of [...kit, 'tools/journalKit.mjs']) assert.ok(listed.includes(f), `${f} is bundled into the journal's kit and a change to it would not deploy`);
+  const built = wf.indexOf('node tools/journalKit.mjs'), deployed = wf.indexOf('$WRANGLER deploy');
+  assert.ok(built > 0 && deployed > built, 'the kit is built before the Worker and its journal are deployed');
 });
 
 test('IMPORT-GRAPH1: the walk is what the bundler bundles - each Worker\'s graph is exactly the files esbuild bundles from its entry, a JSON table a leaf; the relay\'s order is the hash\'s (mutants: a re-export unread; a named re-export unread; a dynamic import unread; a table parsed; a package walked)', async () => {

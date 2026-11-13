@@ -29,11 +29,12 @@
   {
     "name": "THANKS-POST-the-hold-unread",
     "file": "server-account/src/titles.js",
-    "old": "    ...giftPiecesOf(player),\n  ]); // GUILD-SHOP: the Insignia Armlet; THANKS-POST: a gift's pieces",
-    "new": "  ]); // GUILD-SHOP: the Insignia Armlet; THANKS-POST: a gift's pieces",
+    "old": "    ...giftPiecesOf(player),\n    ...cabinetKeys(player, 'armory'),\n  ]); // GUILD-SHOP: the Insignia Armlet; THANKS-POST: a gift's pieces",
+    "new": "    ...cabinetKeys(player, 'armory'),\n  ]); // GUILD-SHOP: the Insignia Armlet; THANKS-POST: a gift's pieces",
     "tests": [
       "test/server/thanks_post.test.js"
-    ]
+    ],
+    "note": "Re-aimed by content: the Courier's Cabinet's wares beside it."
   },
   {
     "name": "THANKS-POST-a-guest-given-it",
@@ -101,8 +102,8 @@
   {
     "name": "THANKS-POST-one-arm",
     "file": "src/render/armoryPass.js",
-    "old": "    for (const arm of /** @type {const} */ (['left', 'right'])) {\n      const u = upperArm(arm, ARMORY_SPUR_ROOT), from = out.length;",
-    "new": "    for (const arm of /** @type {const} */ (['left'])) {\n      const u = upperArm(arm, ARMORY_SPUR_ROOT), from = out.length;",
+    "old": "    for (const [arm, i] of ARMS) {\n      const u = upperArm(arm, ARMORY_SPUR_ROOT), from = out.length;",
+    "new": "    for (const [arm, i] of ARMS.slice(0, 1)) {\n      const u = upperArm(arm, ARMORY_SPUR_ROOT), from = out.length;",
     "tests": [
       "test/server/thanks_post.test.js"
     ],
@@ -111,8 +112,8 @@
   {
     "name": "THANKS-POST-spurs-into-the-body",
     "file": "src/render/armoryPass.js",
-    "old": "const dir = unit(add(add(outward, back, SPUR_TAN[k]), d, p.lean));",
-    "new": "const dir = unit(add(add([-outward[0], -outward[1], -outward[2]], back, SPUR_TAN[k]), d, p.lean));",
+    "old": "const turned = add(outward, back, SPUR_TAN[j])",
+    "new": "const turned = add(mul(outward, -1), back, SPUR_TAN[j])",
     "tests": [
       "test/server/thanks_post.test.js"
     ],
@@ -157,8 +158,8 @@
   {
     "name": "AUDIT-LANE3-F7-the-spurs-a-round-tube",
     "file": "src/render/armoryPass.js",
-    "old": "tube(k, root, add(root, dir, p.len * s), p.r, 0.0015, fwd, true);",
-    "new": "tube(k, root, add(root, dir, p.len * s), p.r, 0.0015);",
+    "old": "tube(j, root, add(root, dir, p.len * s), p.r, 0.0015, N, true);",
+    "new": "tube(j, root, add(root, dir, p.len * s), p.r, 0.0015, N);",
     "tests": [
       "test/server/thanks_post.test.js"
     ]
@@ -184,10 +185,11 @@
   {
     "name": "AUDIT-LANE3-F5-the-locked-look-two-lines-alone",
     "file": "src/ui/enhanced/enhancedStyle.js",
-    "old": ".card button.actarmory.locked.aura-dagonfire, .card button.actarmory.locked.aura-eternal, .card button.actarmory.locked.aura-guild, .card button.actarmory.locked.aura-crystal {",
+    "old": ".card button.actarmory.locked.aura-dagonfire, .card button.actarmory.locked.aura-eternal, .card button.actarmory.locked.aura-guild, .card button.actarmory.locked.aura-crystal, .card button.actarmory.locked.aura-tidebound {",
     "new": ".card button.actarmory.locked.aura-dagonfire, .card button.actarmory.locked.aura-eternal {",
     "tests": [
       "test/server/thanks_post.test.js"
-    ]
+    ],
+    "note": "Re-aimed by content: the Courier's Cabinet's wares beside it."
   }
 ]

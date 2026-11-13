@@ -376,6 +376,9 @@ import { staffMessagesFor, staffMessageOk } from './staffMessage.js';   // STAFF
 import { hiddenToken, takeHiddenSeen } from './staffHidden.js';   // STAFF-PANEL5-HIDDEN: a hidden staff member's token, and a private home it entered
 import { HIDDEN_SEEN_PATH, HIDDEN_SEEN_MAX_BYTES, HIDDEN_SEEN_SIG_HEADER } from '../../src/net/hiddenSeen.js';
 import { discordSigned, discordInteraction, DISCORD_BODY_MAX } from './discord.js';
+import { pdaRouteOf, answerPdaRoute } from './pdaRoutes.js';
+import { isJournalPath, journalDoor } from './journalDoor.js';   // the journal's Activity: its own door, no session
+import { discordLinkView } from './pdaLink.js';   // the account card's Discord row   // the Discord PDA's routes the game and Discord's picture fetch call
 import { guildShopOf, buyGuildWare, guildArmsOf } from './guildShop.js';   // GUILD-SHOP: the guild shop, in silver; every guild's arms by its tag
 import { submitGuildLogo, withdrawGuildLogo, clearGuildLogo, guildLogoBytes } from './guildLogos.js';   // GUILD-LOGO: a guild's own logo, reviewed on Discord
 import { GUILD_LOGO_BODY_MAX, guildLogoPathOf } from '../../src/net/guild/guildLogoLaw.js';   // SAFE8: the moderators' queue in Discord
@@ -834,7 +837,9 @@ const service = {
 
     // Above every answer that can reach D1: the public siege read below and a junk token's session read have no bound of their own.
     const address = request.headers.get('cf-connecting-ip');
-    if (overAddressRate(address, nowS) || await overAddressLimit(env.ADDRESS_LIMIT, address)) return no('rate', 429, origin);
+    // the journal's Activity reaches us through Discord's proxy, so every player shares a few addresses: its door
+    // limits each player by Discord id instead (journalDoor.js), and a request no one vouches for by address
+    if (!isJournalPath(path) && (overAddressRate(address, nowS) || await overAddressLimit(env.ADDRESS_LIMIT, address))) return no('rate', 429, origin);
 
     // SEAT2a part three: THE DEPLOY BLACKOUT'S QUESTION (Seats-Arc 17) - public, as the health is: whether any battle is
     // live or starts within thirty minutes, and the latest end among them. It names no guild.
@@ -895,7 +900,7 @@ const service = {
     const realmSlot = realmPathOf(path);   // REALM P1: a realm character's save, matched as a save slot is
     const poiPath = poiPathOf(path);   // POI-1: the POI store's paths, matched the same way
     const logoPath = guildLogoPathOf(path);   // GUILD-LOGO: a guild's logo, by its id
-    if (!ROUTES.has(path) && !slot && !realmSlot && !poiPath && !logoPath) return no('not-found', 404, origin);
+    if (!ROUTES.has(path) && !slot && !realmSlot && !poiPath && !logoPath && !pdaRouteOf(path) && !isJournalPath(path)) return no('not-found', 404, origin);
 
     if (!env.DB) return no('no-database', 503, origin);
     // ADMIT-LINE (admit.js): A SIGN-IN TAKES ITS PLACE IN THE LINE before it costs the database a statement - the open
@@ -928,6 +933,11 @@ const service = {
     const ctx = { db, primary: env.DB, subtle, rand, nowS };   // SCALE4g: `primary` the binding, for a read-then-store a session must not make (board.js)
 
     try {
+      // THE JOURNAL'S ACTIVITY (journalDoor.js): Discord's proxy vouches for the player, so no session is read
+      if (isJournalPath(path)) {
+        const exec = /** @type {any} */ (held).exec;
+        return await journalDoor({ ...ctx, bucket: env.SAVES, self: url.origin }, env, request, path, typeof exec?.waitUntil === 'function' ? { later: (p) => exec.waitUntil(p) } : {});
+      }
       // PATREON-LINK: THE THREE DOORS A BROWSER AND PATREON KNOCK AT. No session: each is proven by what it carries
       // (patreon.js says what, and why the link asks before it writes). Answered before the JSON ladder below, because
       // none of them is JSON going in - a callback is a GET a person reads, the confirm a form, and the webhook a body
@@ -1106,6 +1116,14 @@ const service = {
       if (body === undefined && path === '/v1/realm/lineage') return no('lineage-too-large', 413, origin);
       if (body === undefined && path === '/v1/homes/decor/batch') return no('too-large', 413, origin);   // DECOR-BATCH: past 128 KiB, before a session is read
       if (!body) return no('body', 400, origin);
+      // THE PDA'S OPEN ROUTES need no session: the map's picture, which Discord fetches. Bounded per address, as a logo is.
+      const pdaRoute = pdaRouteOf(path);
+      if (pdaRoute?.open) {
+        const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+        if (overAccountRate(`pda:${ip}`, nowS, POI_OPEN_MAX, ACCOUNT_WINDOW_S)) return no('rate', 429, origin);
+        const r = await answerPdaRoute({ ...ctx, db: env.DB, bucket: env.SAVES, self: url.origin }, env, path, null, body, request);
+        return r instanceof Response ? r : json(r.json, r.status, origin);
+      }
       // YARD-SHED (2026-10-06, the service down - "D1 DB is overloaded. Requests queued for too long."): A TOWN'S YARDS NEED
       // NO SESSION. Their answer is every caller's alike, any guest's to read, and the two reads a session costs were most
       // of the database's day - so they are answered here, from the isolate's kept cells (yardCells.js yardCellsKept),
@@ -1431,12 +1449,13 @@ const service = {
         // service's config and clock, which is why it alone takes env.
         // AURA-FAST: every read below is its own and asks D1 in the same breath - one after another they were some twenty
         // round trips, and the account card and the Collections page waited on all of them in turn
-        const [duels, gates, raids, serpents, dragons, sds, stars, ketch, renown, marks, worn, purse, devices, patreon, shop, pass, aurum] = await Promise.all([
+        const [duels, gates, raids, serpents, dragons, sds, stars, ketch, renown, marks, worn, purse, devices, patreon, shop, pass, aurum, discord] = await Promise.all([
           duelRecordOf(ctx, who.player.id), gateRecordOf(ctx, who.player.id), raidRecordOf(ctx, who.player.id), serpentRecordOf(ctx, who.player.id),
           dragonRecordOf(ctx, who.player.id), sdRecordOf(ctx, who.player.id), starRecordOf(ctx, who.player.id), ketchRecordOf(ctx, who.player.id),
           renownTracksOf(ctx, who.player.id), marksCardOf(ctx, who.player, env), withSeatTitles(ctx, who.player, env), insigniaPurse(ctx, who.player),
           devicesOf(ctx, who.player.id), patreonCardOf(who.player, env, { subtle, rand, nowS, origin: url.origin }),
           shopCardOf(who.player, env, { subtle, rand, nowS, origin: url.origin }), passOf(ctx, who.player, env), aurumCardOf(ctx, who.player, env),
+          discordLinkView(ctx, who.player),
         ]);
         return json({
           // DUEL1: and the duelling record, counted off the results (the profile card's K/D); WB5b: and the gates closed
@@ -1452,6 +1471,7 @@ const service = {
           shop,   // SHOP: the wares, what is held, and a Buy link each
           pass: 'error' in pass ? null : pass,   // STOREFRONT: the season's card - a guest's, or none, null
           aurum,   // AURUM: the balance, the day's wares, the week's deeds - a guest's null
+          discord,   // the Discord PDA's link: whether linked, as whom, and whether this account may link
         }, 200, origin);
       }
 
@@ -2678,6 +2698,13 @@ const service = {
         }
         const r = path === '/v1/mail/read' ? await readLetter(ctx, who.player, env, body.id) : await deleteLetter(ctx, who.player, body.id);
         return 'error' in r ? no(r.error, 404, origin) : json(r, 200, origin);
+      }
+
+      // THE DISCORD PDA's routes behind a session: the link code, the link's state, and each PDA module's own
+      // (pdaRoutes.js). A route that needs a registered account says so itself.
+      if (pdaRoute) {
+        const r = await answerPdaRoute({ ...ctx, bucket: env.SAVES, self: url.origin }, env, path, who.player, body, request);
+        return r instanceof Response ? r : json(r.json, r.status, origin);
       }
 
       // SERVER-POST (2026-10-08, Mac: "an ingame server mailbox that goes next to the hourglass in the pause menu ... First

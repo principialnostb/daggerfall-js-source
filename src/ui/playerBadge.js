@@ -198,6 +198,9 @@ export const TITLE_TEXT = Object.freeze({
   get worldturtle() {
     return t('account.title.worldturtle', 'World Turtle');
   }, // Eterna's own
+  get veilcourier() {
+    return t('account.title.veilcourier', 'Courier of the Veil');
+  }, // the Courier's Cabinet's, bought with Seals in Discord
 });
 
 /** WB9g (2026-09-30, Mac: "an animated burning ground aura that circles the ground where your character stands"): AN
@@ -238,6 +241,13 @@ export const AURA_TEXT = Object.freeze({
   get worldshell() {
     return t('account.aura.worldshell', 'Worldshell');
   }, // seven hexagons of turtle shell turning at the feet, granted with the World Turtle title
+  // the Courier's Cabinet's two, bought with Seals in Discord
+  get eltherictide() {
+    return t('account.aura.eltherictide', 'Eltheric Tide');
+  },
+  get veilwake() {
+    return t('account.aura.veilwake', 'Veilwake');
+  },
 });
 
 /** SHADOW-FANG (2026-09-26, Mac): "the Shadow Fang account gets a brand new
@@ -399,6 +409,20 @@ export const SHELL_VIOLET = Object.freeze([0.439, 0.212, 0.816, 1]); // #7036d0
 export const SHELL_LILAC = Object.freeze([0.863, 0.784, 1, 1]); // #dcc8ff
 export const SHELL_DEEP = Object.freeze([0.059, 0.227, 0.133, 1]); // #0f3a22
 export const SHELL_OCEAN = Object.freeze([0.184, 0.498, 0.878, 1]); // #2f7fe0
+/** The Courier's Cabinet's sea: the Eltheric Tide's DEEP teal, its SEA-GLASS and its FOAM; the title's LIGHT, the sea-glass
+ *  lit (46 from the nearest title's); the Tidebound pieces' TEAL into PEARL (render/armoryPass.js TIDE_RGB). The Veil's
+ *  PALE blue-violet and its WHITE mist; the wax of the Courier's Seal, its DEEP shade and its warm GLOW. */
+export const TIDE_DEEP = Object.freeze([0.122, 0.435, 0.471, 1]); // #1f6f78
+export const TIDE_GLASS = Object.freeze([0.435, 0.827, 0.78, 1]); // #6fd3c7
+export const TIDE_FOAM = Object.freeze([0.91, 1, 0.973, 1]); // #e8fff8
+export const TIDE_LIGHT = Object.freeze([0.376, 0.941, 0.847, 1]); // #60f0d8
+export const TIDE_TEAL = Object.freeze([0.165, 0.631, 0.596, 1]); // #2aa198
+export const TIDE_PEARL = Object.freeze([0.949, 0.984, 1, 1]); // #f2fbff
+export const VEIL_PALE = Object.freeze([0.725, 0.784, 1, 1]); // #b9c8ff
+export const VEIL_WHITE = Object.freeze([0.914, 0.933, 1, 1]); // #e9eeff
+export const WAX_RED = Object.freeze([0.541, 0.122, 0.094, 1]); // #8a1f18
+export const WAX_DEEP = Object.freeze([0.353, 0.071, 0.055, 1]); // #5a120e
+export const WAX_GLOW = Object.freeze([0.91, 0.455, 0.29, 1]); // #e8744a
 /** SHOP (2026-10-28, the owner: Genesis's "blueish purple animated flame"; bible/06-Systems/Shop.md): THE GENESIS FIRE,
  *  the shop's three wares' one family - the title's flame plate, the Origin's dragon and Eternal's cape. Its DEEP, the
  *  indigo under the fire; its ROOT, the blue-white a flame burns at its base; its BLUE and VIOLET, the fire's body; its
@@ -583,6 +607,7 @@ export const TITLE_RGBA = Object.freeze({
   numidiumecho: NUMIDIUM_GOLD,
   coldharbour: COLD_MAGENTA, // BLOOD-OF-COLDHARBOUR: the crimson and the violet blended - the colour a face that cannot draw a gradient uses
   worldturtle: SHELL_JADE, // the shell's green - the colour a face that cannot draw a gradient uses
+  veilcourier: TIDE_LIGHT, // the sea-glass lit - its letters over the plate, and the colour a face with no plate uses
 });
 
 /** SHADOW-FANG: A TITLE DRAWN AS A GRADIENT - its stops, RGBA 0..1, left
@@ -611,6 +636,7 @@ export const TITLE_GRADIENT = Object.freeze({
   numidiumecho: Object.freeze([DWEMER_BRASS, NUMIDIUM_GOLD, AETHERIUM_GLOW]),
   coldharbour: Object.freeze([COLD_CRIMSON, COLD_MAGENTA, COLD_LAVENDER]), // BLOOD-OF-COLDHARBOUR: "Blood" in the crimson, "Coldharbour" into the violet
   worldturtle: Object.freeze([SHELL_JADE, SHELL_VIOLET, SHELL_LILAC]), // "World" in the shell's green, "Turtle" into the plates' violet
+  veilcourier: Object.freeze([TIDE_GLASS, TIDE_LIGHT, VEIL_PALE]), // "Courier" in the sea-glass, "of the Veil" into its pale light
 });
 
 /** PENITENT: THE EDGE A GRADIENT TITLE WEARS, where it is not the title's
@@ -631,6 +657,7 @@ export const TITLE_EDGE = Object.freeze({
   nirnrootsage: Object.freeze([0, 0, 0, 1]), // NIRNROOT-SAGE: its haze end is pale - edged in black, as the Witchwarden's
   coldharbour: Object.freeze([0, 0, 0, 1]), // BLOOD-OF-COLDHARBOUR: its lavender end is light - edged in black, as the Nirnroot Sage's
   worldturtle: Object.freeze([0, 0, 0, 1]), // its lilac end is light - edged in black
+  veilcourier: Object.freeze([0, 0, 0, 1]), // its Veil end is pale - edged in black
   genesis: Object.freeze([0, 0, 0, 1]), // SHOP: its heart end is pale - edged in black
   // STOREFRONT: each has a pale stop - edged in black
   ...Object.fromEntries(
@@ -734,6 +761,20 @@ export const TITLE_FLAME = Object.freeze({
     ink: '#1e1404',
     glow: rgb3(AETHERIUM_BLUE),
   }),
+  // the Courier's Cabinet's: a plate of sea-glass, its light passing slowly through it
+  veilcourier: plate({
+    style: 'pulse',
+    frames: 32,
+    seconds: 4.8,
+    seed: 67,
+    tongues: 4,
+    embers: 0,
+    haze: Object.freeze([0.024, 0.118, 0.133, 0.9]),
+    root: ramp4([[0.031, 0.176, 0.196], TIDE_DEEP, TIDE_TEAL, TIDE_GLASS]),
+    tips: ramp4([TIDE_DEEP, TIDE_GLASS, TIDE_LIGHT, TIDE_FOAM]),
+    ink: '#03181b',
+    glow: rgb3(TIDE_GLASS),
+  }),
 });
 
 /** A glyph's colour. The sprout is green because Mac said green; the
@@ -781,6 +822,7 @@ export const GLYPH_RGBA = Object.freeze({
   cog: DWEMER_BRASS,
   coldharbour: COLD_LAVENDER, // BLOOD-OF-COLDHARBOUR: the ring and its thorns in the lavender - the petals, the heart and the drop are its details
   worldturtle: SHELL_JADE, // the turtle in the shell's green - the plates and the world are its details
+  waxseal: WAX_RED, // the seal's wax - its ring, its sheen and the quill pressed in it are its details
 });
 
 /** SHADOW-FANG: A GLYPH FILLED WITH A GRADIENT - its title's two stops,
@@ -921,6 +963,23 @@ export const GLYPH_DETAIL = Object.freeze({
       rgba: SHELL_OCEAN,
     }),
   ]),
+  // Four details, in order: the ring the seal's die pressed, in the deep wax; the sheen on its upper left rim and the
+  // quill pressed in its middle, in the warm light; and the quill's shaft over it, in the deep wax.
+  waxseal: Object.freeze([
+    Object.freeze({
+      path: 'M13.35 8.1L13.28 8.94L13.09 9.75L12.77 10.53L12.33 11.24L11.78 11.88L11.14 12.43L10.43 12.87L9.65 13.19L8.84 13.38L8 13.45L7.16 13.38L6.35 13.19L5.57 12.87L4.86 12.43L4.22 11.88L3.67 11.24L3.23 10.53L2.91 9.75L2.72 8.94L2.65 8.1L2.72 7.26L2.91 6.45L3.23 5.67L3.67 4.96L4.22 4.32L4.86 3.77L5.57 3.33L6.35 3.01L7.16 2.82L8 2.75L8.84 2.82L9.65 3.01L10.43 3.33L11.14 3.77L11.78 4.32L12.33 4.96L12.77 5.67L13.09 6.45L13.28 7.26ZM12.8 8.1L12.74 7.35L12.57 6.62L12.28 5.92L11.88 5.28L11.39 4.71L10.82 4.22L10.18 3.82L9.48 3.53L8.75 3.36L8 3.3L7.25 3.36L6.52 3.53L5.82 3.82L5.18 4.22L4.61 4.71L4.12 5.28L3.72 5.92L3.43 6.62L3.26 7.35L3.2 8.1L3.26 8.85L3.43 9.58L3.72 10.28L4.12 10.92L4.61 11.49L5.18 11.98L5.82 12.38L6.52 12.67L7.25 12.84L8 12.9L8.75 12.84L9.48 12.67L10.18 12.38L10.82 11.98L11.39 11.49L11.88 10.92L12.28 10.28L12.57 9.58L12.74 8.85Z',
+      rgba: WAX_DEEP,
+    }),
+    Object.freeze({
+      path: 'M2.6 6.13L2.74 5.49L2.97 4.85L3.28 4.24L3.68 3.68L4.17 3.17L4.72 2.74L5.34 2.39L6 2.14L6.69 1.99L7.38 1.95L8.08 2.01L8.74 2.16L9.38 2.39L9.97 2.7L9.97 2.7L9.35 2.51L8.71 2.39L8.07 2.35L7.43 2.38L6.79 2.48L6.17 2.65L5.57 2.89L5 3.19L4.47 3.56L3.99 3.98L3.55 4.46L3.17 4.98L2.85 5.54L2.6 6.13Z',
+      rgba: WAX_GLOW,
+    }),
+    Object.freeze({
+      path: 'M6.44 9.66L6.39 9.09L6.46 8.64L6.56 8.24L6.7 7.86L6.87 7.52L7.08 7.21L7.31 6.93L7.57 6.68L7.85 6.45L8.16 6.25L8.5 6.07L8.86 5.92L9.23 5.78L9.63 5.66L10.05 5.57L10.55 5.55L10.47 5.99L10.34 6.38L10.19 6.74L10.03 7.09L9.85 7.42L9.65 7.74L9.44 8.04L9.21 8.32L8.95 8.58L8.68 8.81L8.38 9.03L8.06 9.22L7.71 9.39L7.34 9.53L6.94 9.63ZM6.21 9.49L6.61 9.89L5.38 10.72Z',
+      rgba: WAX_GLOW,
+    }),
+    Object.freeze({ path: 'M6.47 9.4L10.15 5.87L10.23 5.95L6.7 9.63Z', rgba: WAX_DEEP }),
+  ]),
 });
 /** WIKIMAID: A GLYPH'S DETAILS AS A LIST - one shape (the wolf's eye, the penitent's sword, the aegis's tendrils) or
  *  several in their order (the WikiMaid's ears, lace and face), so every face that draws a glyph walks one shape the same
@@ -986,6 +1045,7 @@ export const GLYPH_MARK = Object.freeze({
   cog: '0', // a ring with its hole
   coldharbour: 'R', // BLOOD-OF-COLDHARBOUR: the rose
   worldturtle: 'T', // the turtle
+  waxseal: 'o', // a round seal
 });
 
 /** The printable range the classic font covers. ACC1d-MARK's own bound,
@@ -1111,6 +1171,10 @@ export const GLYPH_PATH = Object.freeze({
   // 13 px over a night sky and a pale one.
   worldturtle:
     'M9.35 2.05Q9.35 2.65 8.95 3.08Q8.56 3.5 8 3.5Q7.44 3.5 7.05 3.08Q6.65 2.65 6.65 2.05Q6.65 1.45 7.05 1.02Q7.44 0.6 8 0.6Q8.56 0.6 8.95 1.02Q9.35 1.45 9.35 2.05ZM3.9 5.2Q1.6 3.3 0.5 4.3Q1.4 6.4 3.5 7ZM12.1 5.2Q14.4 3.3 15.5 4.3Q14.6 6.4 12.5 7ZM12.5 8.7Q12.5 10.77 11.18 12.24Q9.86 13.7 8 13.7Q6.14 13.7 4.82 12.24Q3.5 10.77 3.5 8.7Q3.5 6.63 4.82 5.16Q6.14 3.7 8 3.7Q9.86 3.7 11.18 5.16Q12.5 6.63 12.5 8.7ZM4 12.2Q2 12.4 1.3 14.6Q3.4 14.6 4.9 13.3ZM12 12.2Q14 12.4 14.7 14.6Q12.6 14.6 11.1 13.3ZM7.2 13.95L8.8 13.95L8 15.7Z',
+  // A wax seal from above: ten blobs of wax round a disc, a little uneven, filled whole. The pressed ring, the sheen
+  // and the quill are its details.
+  waxseal:
+    'M15.11 8.1L14.91 8.83L14.54 9.49L14.29 10.14L14.07 10.8L13.94 11.53L13.65 12.2L13.01 12.61L12.3 12.88L11.72 13.22L11.18 13.6L10.68 14.13L10.09 14.54L9.38 14.57L8.67 14.45L8 14.47L7.32 14.55L6.59 14.75L5.83 14.79L5.19 14.41L4.66 13.88L4.1 13.46L3.52 13.07L2.85 12.74L2.27 12.26L2.06 11.53L2.02 10.76L1.89 10.08L1.71 9.44L1.39 8.79L1.21 8.1L1.44 7.41L1.8 6.78L2.02 6.16L2.17 5.5L2.2 4.75L2.4 4.03L2.94 3.55L3.59 3.2L4.13 2.78L4.66 2.32L5.17 1.75L5.8 1.32L6.56 1.32L7.31 1.5L8 1.57L8.68 1.6L9.4 1.5L10.12 1.57L10.7 2.03L11.18 2.6L11.69 3.03L12.24 3.39L12.92 3.67L13.52 4.09L13.8 4.75L13.92 5.46L14.16 6.1L14.45 6.73L14.86 7.38Z',
 });
 
 /** Is this glyph DRAWN as an outline rather than filled? The sprout is
@@ -1152,6 +1216,7 @@ export const GLYPH_STROKE = Object.freeze({
   cog: false,
   coldharbour: false,
   worldturtle: false,
+  waxseal: false,
 }); // NIRNROOT-SAGE: the sprig filled; WIKIMAID: the rabbit filled; SEAT1c: the seats' four filled; ARENA4: the laurel's branches stroked; AEGIS: the pillars and the ring stroked; PRIMARCH: the cross filled; CRYSTAL-FIST: the slashes filled; WIKIMAID: the rabbit filled; SEAT1c: the seats' four filled; ARENA4: the laurel's branches stroked; AEGIS: the pillars and the ring stroked; PRIMARCH: the cross filled; CRYSTAL-FIST: the slashes filled
 
 /**
@@ -1339,6 +1404,8 @@ export const AURA_PAINT = Object.freeze({
   aetherwings: 'heartwaker',
   vampirichaze: 'coldharbour',
   worldshell: 'worldturtle',
+  eltherictide: 'veilcourier',
+  veilwake: 'veilcourier',
 }); // BLOOD-OF-COLDHARBOUR: the Vampiric Haze in the title's crimson into violet   // NIRNROOT-SAGE: Sage's Smoke in the Nirnroot Sage's leaf into glow into haze   // WITCH1: Witchfire in the Witchwarden's green   // WIKIMAID: the Lilac Warren in the WikiMaid's amethyst into blush; HOURS-FIRST: The First Hour in Hour's First's rose gold; SERPENT5: The Maelstrom in the Coilbreaker's sea; EG-E2: the Spire's three each in its title's paint
 /** SHADOW-FANG: `titlePaint`'s properties as CSS declarations, the colour
  *  left to the button (its border is drawn in it) - so a gradient title's
@@ -1352,6 +1419,7 @@ export const ARMORY_LINE_GRADIENT = Object.freeze({
     Object.freeze([1, 0.38, 0.72, 1]),
   ]),
   guild: Object.freeze([Object.freeze([0.753, 0.541, 0.243, 1]), Object.freeze([0.91, 0.75, 0.42, 1])]),
+  tidebound: Object.freeze([TIDE_TEAL, TIDE_GLASS, TIDE_PEARL]), // sea-glass into pearl, as its pieces are drawn
 });
 /** A line's paint as a badge titlePaint reads. */
 export const armoryLineBadge = (/** @type {string} */ line) => {

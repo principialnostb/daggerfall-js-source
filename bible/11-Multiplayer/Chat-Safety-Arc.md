@@ -106,6 +106,8 @@ Daggerfall Unity has no chat; none of this is a DFU member.
 - `test/server/safe_service.test.js`, `test/server/safe_review.test.js`, `test/server/discord_setup.test.js` - service, reviewer, Discord setup
 
 Claude as staff, which reads the stored feeds and suggests cases to staff, is in `Claude-Staff.md`.
+The same bot is the players' journal and the staff's Staff desk (`Discord-PDA.md`); a linked moderator acts on the case
+cards without a `DISCORD_MODERATORS` row.
 
 ## Open
 

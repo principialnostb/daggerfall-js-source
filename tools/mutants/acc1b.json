@@ -113,12 +113,12 @@
   {
     "name": "ACC1b-12-an-unknown-path-answers-401",
     "file": "server-account/src/index.js",
-    "old": "    if (!ROUTES.has(path) && !slot && !realmSlot && !poiPath && !logoPath) return no('not-found', 404, origin);",
+    "old": "    if (!ROUTES.has(path) && !slot && !realmSlot && !poiPath && !logoPath && !pdaRouteOf(path) && !isJournalPath(path)) return no('not-found', 404, origin);",
     "new": "    if (false) return no('not-found', 404, origin);",
     "tests": [
       "test/server/accountworker.test.js"
     ],
-    "note": "Every typo'd route then reads as an auth failure to a caller with no secret."
+    "note": "Every typo'd route then reads as an auth failure to a caller with no secret. Re-aimed by content: the journal's path beside the PDA's."
   },
   {
     "name": "ACC1b-13-the-body-is-parsed-before-it-is-bounded",

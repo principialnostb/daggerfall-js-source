@@ -172,8 +172,8 @@
   {
     "name": "AUDIT-SCALE-II-A3-before-session",
     "file": "server-account/src/index.js",
-    "old": "      if (!body) return no('body', 400, origin);\n      // YARD-SHED",
-    "new": "      if (!body) return no('body', 400, origin);\n      held.said.parts = heartbeatPartsOf(body);\n      // YARD-SHED",
+    "old": "      if (!body) return no('body', 400, origin);\n      // THE PDA'S OPEN ROUTES",
+    "new": "      if (!body) return no('body', 400, origin);\n      held.said.parts = heartbeatPartsOf(body);\n      // THE PDA'S OPEN ROUTES",
     "tests": [
       "test/server/auditscale2_acct.test.js"
     ],

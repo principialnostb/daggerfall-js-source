@@ -10,12 +10,19 @@ export const ARMORY_SLOTS = Object.freeze(['head', 'torso', 'arms', 'legs', 'wea
 /** An empty slot in a kit. */
 export const ARMORY_EMPTY = '0';
 /** The lines a piece belongs to: where it is had, and the colours it is drawn in. */
-export const ARMORY_LINES = Object.freeze(['dagonfire', 'eternal', 'guild', 'crystal']);
+export const ARMORY_LINES = Object.freeze(['dagonfire', 'eternal', 'guild', 'crystal', 'tidebound']);
 /** How a line's pieces are had (the owner: "The dagon breach set should be very expensive from the dagon breach shop
  *  dealer"): the Sigil Broker sells the Dagonfire line for Deadlands Embers (insignia.js); the shop sells the Eternal line;
  *  GUILD-SHOP: the guild shop sells the guild line for silver (guildShopLaw.js), drawn in the wearer's guild's arms.
- *  THANKS-POST: the crystal line is a gift, never sold (net/giftLaw.js). */
-export const ARMORY_SOURCE = Object.freeze({ dagonfire: 'broker', eternal: 'shop', guild: 'guild', crystal: 'gift' });
+ *  THANKS-POST: the crystal line is a gift, never sold (net/giftLaw.js). The Tidebound line is bought with Seals in the
+ *  Courier's Cabinet in Discord (net/discordShopLaw.js). */
+export const ARMORY_SOURCE = Object.freeze({
+  dagonfire: 'broker',
+  eternal: 'shop',
+  guild: 'guild',
+  crystal: 'gift',
+  tidebound: 'discord',
+});
 
 const piece = (
   /** @type {string} */ key,
@@ -38,6 +45,11 @@ export const ARMORY_PIECES = Object.freeze([
   piece('eternaledge', 'weapon', 'b', 'eternal'),
   piece('insigniaarmlet', 'arms', 'c', 'guild'), // GUILD-SHOP: the guild's arms on one upper arm
   piece('crystalspurs', 'arms', 'd', 'crystal'), // THANKS-POST: small crystal spurs along both arms, the update's gift
+  piece('tidecirclet', 'head', 'c', 'tidebound'),
+  piece('tidepearl', 'torso', 'c', 'tidebound'),
+  piece('tidebracers', 'arms', 'e', 'tidebound'),
+  piece('tidegreaves', 'legs', 'c', 'tidebound'),
+  piece('tideedge', 'weapon', 'c', 'tidebound'),
 ]);
 /** Every piece's key. */
 export const ARMORY_KEYS = Object.freeze(ARMORY_PIECES.map((p) => p.key));
@@ -68,6 +80,11 @@ export const ARMORY_NAME = Object.freeze({
   eternaledge: 'Eternal Edge',
   insigniaarmlet: 'Insignia Armlet',
   crystalspurs: 'Crystal Spurs',
+  tidecirclet: 'Tidebound Circlet',
+  tidepearl: 'Tidebound Pearl',
+  tidebracers: 'Tidebound Bracers',
+  tidegreaves: 'Tidebound Greaves',
+  tideedge: 'Tidebound Edge',
   eternalset: 'The Eternal Set',
 });
 
