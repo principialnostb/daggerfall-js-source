@@ -97,6 +97,8 @@ export const PSEUDO_ARCHIVES = Object.freeze([
   N(38321, 'systems/lockpick/lockpickArt.js', 'LOCKPICK_ARCHIVE', 'port', 'the Lockpick - a hook pick over a tension wrench (LOCKPICK)'),
   N(38331, 'world/tamriel/ghostfenceModel.js', 'GHOSTFENCE_ARCHIVE', 'port', "the Ghostfence - its pylons' basalt and their orbs' light (GHOSTFENCE)"),
   N(38341, 'world/guildFurnitureArt.js', 'GUILD_ART_ARCHIVE', 'port', "a guild hall's furniture - its wood, gilt, velvet and iron, and the hall's banner and shield (GUILD-SHOP)"),
+  N(38342, 'world/torchModel.js', 'TORCH_ARCHIVE', 'port', 'original solid torch fixtures and fire paint'),
+  N(38343, 'world/treasureModel.js', 'TREASURE_ART', 'port', 'original solid dungeon treasure paint'),
   N(38351, 'world/aurumCofferArt.js', 'AURUM_COFFER_ARCHIVE', 'port', "an Aurum coffer - shut and full, open and empty (AURUM-CACHES)"),
   N(38361, 'world/fissureArt.js', 'FISSURE_ARCHIVE', 'port', "a Brass Fissure - its scorched earth, its crack, its slabs and its wreckage (STOREFRONT)"),   // 38341 on its branch, GUILD-SHOP's at the merge of main
   N(38400, 'world/capitalShapes.js', 'CAPITAL_ARCHIVE', 'port', "the capitals past the Bay - their stone, roofs, domes and statues, painted at run time (TESA10, TESA-LORE)"),

@@ -131,6 +131,12 @@ const mul4 = (a, b, out) => {   // column-major a*b
 };
 const _pv = new Float32Array(16);
 
+// Keep large close-up props from gaining detail just because they cover more of the screen.
+export function footprintBlockPixels(height, rows, fraction, referenceFraction, maxScale = 1.65) {
+  const scale = Math.min(maxScale, Math.max(1, Math.sqrt(fraction / referenceFraction)));
+  return blockPixels(height, rows / scale);
+}
+
 /**
  * Draw `draws` ({ mesh, model }, drawn in order under one picture) pixelated at `rows` per screen height, or straight
  * through renderer.drawCharacter when the dial is off or a block would be one pixel. `corners`, optional: world points
@@ -138,10 +144,15 @@ const _pv = new Float32Array(16);
  * Optional opacity applies only to pixel write-back: translucent callers draw opaque into the isolated target;
  * their HD/one-pixel fallback belongs to the caller. Character callers keep the default one.
  */
-export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1) {
+export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null) {
   const gl = renderer.gl;
   const vp = /** @type {Int32Array} */ (gl.getParameter(gl.VIEWPORT));
-  const px = blockPixels(vp[3], rows);
+  const footprint = footprintProfile && corners
+    ? screenRect(corners, mul4(renderer._proj, renderer._view, _pv), vp[2], vp[3], 0)
+    : null;
+  const px = footprint
+    ? footprintBlockPixels(vp[3], rows, footprint[2] * footprint[3] / (vp[2] * vp[3]), footprintProfile.area, footprintProfile.maxScale)
+    : blockPixels(vp[3], rows);
   if (px <= 1 || renderer._spriteDepth > 0) {
     for (const d of draws) draw(d);
     return;

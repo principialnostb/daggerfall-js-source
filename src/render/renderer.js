@@ -1,4 +1,6 @@
 // @ts-check
+import { rememberCampfireBatch, releaseCampfireBatch, drawCampfireBillboards } from './campfireBillboards.js';
+import { drawTreasurePiles, releaseTreasurePile } from './treasurePiles.js';
 // WebGL2 renderer for world geometry. Presentation layer - ours, not DFU's
 // (Port-Doctrine). Semantics it must honor from the data side:
 //   - UVs can be negative or > 1 (DFU relies on REPEAT wrapping).
@@ -7356,7 +7358,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // IDLER-STICKY: `_shIdler`, a flat whose look changed where it stands - a mover for good (shadowPass.js), born undefined.
     // MWNPC5b: `castOnly` - a foe standing in its Morrowind body: the billboard draws nothing, born undefined (MWNPC16: and
     // casts nothing - the body casts its own shape, shadowPass.js recordCharacter).
-    return {
+    return rememberCampfireBatch({
       vao, indexCount: count * 6, archive, record, size, buffers, origin: null, frame: null, bounds, _quads: count, _dyn: !!dynamic,
       _arena: arena, _q0: q0, _ibOff: q0 * BB_QUAD_INDEX_BYTES,
       _scales: scales ?? null, lptProto: undefined, farH: undefined, sunLift: undefined,
@@ -7367,7 +7369,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       _shGen: undefined, _shAx: NaN, _shAy: NaN, _shAz: NaN, _shSeen: undefined, _shOx: NaN, _shOy: NaN, _shOz: NaN, _shFrame: undefined,
       _shRec: undefined, _shFlip: undefined, _shDyn: undefined, _shSway: undefined, _shMovedAt: undefined, _shId: undefined,
       _shAnim: undefined, _shIdler: undefined,
-    };
+    }, centers);
   }
 
   /**
@@ -7392,6 +7394,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     if (!batch?.vao || !centers) return false;
     const count = Math.min(centers.length, batch._quads ?? 0);
     if (!count) return false;
+    rememberCampfireBatch(batch, centers.slice(0, count));
     const verts = (batch._moveScratch && batch._moveScratch.length >= count * 20)
       ? batch._moveScratch
       : (batch._moveScratch = new Float32Array(count * 20));
@@ -7447,6 +7450,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   destroyBillboardBatch(batch) {
     const gl = this.gl;
     if (!batch) return;
+    releaseCampfireBatch(batch);
+    releaseTreasurePile(this, batch);
     batch._dead = true;   // EL2: a shadow record from the last frame may still hold it
     batch._place = null;   // PERF-EXT1: the placement grid is the batch's, and goes with it
     if (batch._arena) this._bbArenaFree(batch);   // PERF-ARENA: its range back to its arena - the arena's VAO is not the batch's to delete
@@ -7493,6 +7498,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
 
   /** Release a billboard batch's GPU resources. */
   destroyBatch(batch) {
+    releaseCampfireBatch(batch);
+    releaseTreasurePile(this, batch);
     const gl = this.gl;
     batch._dead = true;   // EL2
     if (batch._arena) { this._bbArenaFree(batch); return; }   // PERF-ARENA: its range back to its arena
@@ -8762,6 +8769,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
 
   drawBillboards(batches, camRight, camUp) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
+    batches = drawTreasurePiles(this, drawCampfireBillboards(this, batches));
     const gl = this.gl;
     // PERF-ARENA: the still flats share their arena's VAO, so consecutive flats skip the bind on the shadow's word - and
     // a pass that bound an array of its own behind the shadow's back (a foreign pass that forgot markForeignPass) would

@@ -30,6 +30,8 @@ import { dungeonFirePlan, colliderFireProbe, inFireWard, DUNGEON_FIRE_FLAT, fire
 import { standDungeonFlora } from '../world/dungeon/dungeonFlora.js';   // the seabed under a flooded block's water
 import { withFireMarks } from '../ui/nodeMarks.js';   // REST3: the campfires on the compass
 import { expandMacros } from '../systems/talk/talkSession.js';   // MACRO1: the global symbols every TEXT.RSC box passes through (MacroHelper)
+import { createDungeonPropPreviews, closeDungeonPropPreviews } from './dungeonPropPreviews.js';
+import { configureDungeonFurnitureDraw, addDungeonFurnitureCollision, addDungeonFurnitureMover, placeDungeonLoot } from './dungeonFurniture.js';
 import { executeConsoleCommand } from '../systems/consoleCommands.js';   // E3: the probe door runs the real database
 import { enterDungeonAutomap, exitDungeonAutomap, detachedAutomapRecord, buildRevealIndex, bindAutomapLayout, automapRevealTick, automapEntranceTick, automapTrailTick, automapWaySteps, capsuleCentreFromEye, SCAN_INTERVAL_S, recordTeleporterConnection, teleporterConnection, registerAutomapConsoleCommands } from '../systems/automap/automap.js';   // A1; ROAD-C c2/S8 the teleport listener + the three console verbs, ROAD-E E3 on the command database
 import { automapKeyOf } from '../systems/automap/automap.js';   // TESA8: a dungeon's automap key by its location - a lair past the Bay its own
@@ -249,6 +251,8 @@ import { peerHanded, notCarried } from '../systems/peerWord.js';   // SS3: a bou
 import { floorLanding, closestDoorTo, dungeonVoidRescue } from '../player/enterExit.js';   // DE1: TransitionDungeonInterior orients away from the door it came through; VOID-DUNGEON: the failsafe's record
 import { trs, multiply, identity, UP_Y } from '../world/mat4.js';
 import { StaticBatchBuilder, keyResolver, SHADOW_CELL_SIZE } from '../render/staticBatch.js';   // PERF5: the level's static models as one mesh; LA-AUDIT A1: with its shadow cells
+import { mountTorchBatch } from '../world/torchMount.js'; import { markDungeonProp, markTreasurePile } from '../render/treasurePiles.js';
+import { selectTreasureAppearance } from '../world/treasureModel.js';
 import { Collider } from '../player/collider.js';
 import { ActionSystem } from '../world/actionSystem.js';
 import { collectDungeonEnemies, dungeonPlace, expandEliteEnemies, enemyHierarchyOrder } from '../characters/dungeonEnemies.js'; import { markDungeonChampions, applyChampion, championName } from '../systems/champions.js'; import { lootCrown } from './lootLines.js';   // LOOT7: the layout's champions; LOOT11: a find's line of light
@@ -807,7 +811,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
           // the static AABB is truthful.
           o.aabb = aabb;
           o.restOnlyTrigger = true;
-          dynamicDraws.push({ gpu, object: o });
+          addDungeonFurnitureMover(dynamicDraws, collider, p.modelIdNum, cpu, matrix, gpu, o);
           automapEntries.push(amapRow(o.key, aabb, true, cpu, matrix));   // A1: revealed at the AT-REST bounds (a moved platform's probe misses - recorded)
           continue;
         }
@@ -849,9 +853,9 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
       drawList.push({ mesh: gpu, matrix, key: `${bi}:${p.position}`, aabb, ...(climateFree ? { texRemap: NO_CLIMATE_REMAP } : {}) });   // AUDIT PRE-MERGE 1003 W4: drawn by its own (empty) table
       { const sk = p.action ? null : searchableKind(p.modelIdNum); if (sk) searchables.push({ kind: sk, aabb, key: `${bi}:${p.position}`, lock: 0, items: [], records: !!(b.layout.castleBlock && isShopShelfModel(p.modelIdNum)) }); }   // AUDIT WHERE-ROBES P1: `records` - the shelf a crown's Hall of Records is too   // SEARCH1: `items` its find - the room's container once searched (srch:<i>)   // SEARCH1: a model with an action is the action's
       // PERF5: the remap for this model is in the map (ensureRemap above); the entry stays in drawList for the automap
-      if (cpu.normals && cpu.uvs) { staticBuilder.add(cpu, matrix, climateFree ? ownTexKey : resolveTexKey); drawList[drawList.length - 1]._batched = true; }   // AUDIT PRE-MERGE 1003 W4
+      if (cpu.normals && cpu.uvs) configureDungeonFurnitureDraw(drawList[drawList.length - 1], staticBuilder, collider, p.modelIdNum, cpu, matrix, climateFree ? ownTexKey : resolveTexKey);   // AUDIT PRE-MERGE 1003 W4
       automapEntries.push(amapRow(`${bi}:${p.position}`, aabb, !!p.action, cpu, matrix));
-      collider.addMesh('dungeon', cpu.positions, cpu.indices, matrix);
+      addDungeonFurnitureCollision(collider, cpu, matrix);
       if (standable && hasActionCollision(standable)) triggerSurfaces.addMesh(standable.key, cpu.positions, cpu.indices, matrix);   // DISC29-A; AUDIT PRE-MERGE 0929 D1/D2: every collision-trigger model's, for its contact
       colliderTris += cpu.indices.length / 3;
     }
@@ -4022,10 +4026,10 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
         const isRandom = !m.archive && m.record === RANDOM_TREASURE_MARKER_RECORD;
         const isFixed = m.archive === RANDOM_TREASURE_ARCHIVE;
         if (!isRandom && !isFixed) continue;
-        // PARTY-LOOT: online, the picture a random pile wears is the room's too - drawn off its place in the room (every
+        // The picture a random pile wears is drawn from its dungeon and placement order (every
         // client builds the same piles in the same order), so no two players see two different bags on one marker
-        const iconRoll = isOnlinePage() ? seededRolls(`dungeon:${dfLocation?.dungeon?.recordElement?.header?.locationId ?? 'probe'}|loot:${lootPiles.length}|icon`) : Math.random;
-        const record = isFixed ? m.record : RANDOM_TREASURE_ICONS[Math.floor(iconRoll() * RANDOM_TREASURE_ICONS.length)];
+        const iconRoll = seededRolls(`dungeon:${dfLocation?.dungeon?.recordElement?.header?.locationId ?? 'probe'}|loot:${lootPiles.length}|icon`);
+        const record = isFixed ? m.record : selectTreasureAppearance(RANDOM_TREASURE_ICONS[Math.floor(iconRoll() * RANDOM_TREASURE_ICONS.length)], iconRoll);
         // AUDIT 23 (items-1): LootTables.cs:229/:237 pass the PLAYER's gender; AUDIT 24 (wave 43): the PILE trio
         // (LootTables.GenerateLoot:147-159); LR1: a pile rolls at its DUNGEON's tier - one home since WORLD8
         // (rollPileItems), which the hour's respawn rolls again
@@ -4043,7 +4047,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
   }
 
   const flatAnims = new FlatAnimator();   // FA1
-  const billboardBatches = [];
+  const billboardBatches = createDungeonPropPreviews({ ...deps, collider, active: () => !_ctxDead && !isOnlinePage() && opts.selfId?.() == null });
   // AUDIT 24 (wave 39): the blood pool registers into the SAME
   // persistent draw list the missile impact uses (:1395/:1404), so a
   // splash appears and disappears the way an impact flash does.
@@ -4078,7 +4082,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
     if (!t || record >= t.recordCount) continue;
     uploadRecord(archive, record);
     size = billboardSize(t, record);
-    const batch = renderer.createBillboardBatch(archive, record, size, based);
+    const batch = markDungeonProp(mountTorchBatch(renderer.createBillboardBatch(archive, record, size, based), based, collider, { only: ['dungeon'] }), based);
     armFlatAnim(batch, t, archive, record, flatAnims, uploadRecordFrame);
     billboardBatches.push(batch);
     coverItems.push(...flatBodies(t, archive, record, size, based));   // PROP-BODIES (a person's none: its noCover)
@@ -4177,13 +4181,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
     // by up to floorLanding's whole 10-unit reach. `pile.pos` is the
     // pile's identity for the pickup AABB, nearbyLootRecords and the
     // save-rewind re-mint, so both arms write it.
-    const g = pile.isFixed
-      ? [pile.pos[0], pile.pos[1] - size.h / 2, pile.pos[2]]
-      : floorLanding(collider, [pile.pos[0], pile.pos[1] + 0.2, pile.pos[2]]);
-    pile.pos = g;
-    // Bottom-anchored shader: the base IS the ground point (the +h/2
-    // center-anchor holdover floated piles - C11 audit 08-17).
-    pile.batch = renderer.createBillboardBatch(RANDOM_TREASURE_ARCHIVE, pile.record, size, [[g[0], g[1], g[2]]]);
+    placeDungeonLoot(renderer, collider, pile, size, floorLanding);
     // FA1 slice 2: the SAME rule decides, and the data answers. DFU
     // gives every billboard the one AnimateBillboard loop and lets
     // frameCount settle it - a single-frame treasure pile arms nothing
@@ -6180,7 +6178,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
       renderer.destroyBillboardBatch(p.batch);
       p.batch = null;
     } else if (p.items.length && !p.batch && p.half) {
-      p.batch = renderer.createBillboardBatch(RANDOM_TREASURE_ARCHIVE, p.record, { w: p.half[0] * 2, h: p.half[1] * 2 }, [[p.pos[0], p.pos[1], p.pos[2]]]);
+      p.batch = markTreasurePile(renderer.createBillboardBatch(RANDOM_TREASURE_ARCHIVE, p.record, { w: p.half[0] * 2, h: p.half[1] * 2 }, [p.pos]), p.pos, p.decorYaw);
       billboardBatches.push(p.batch);
     }
   }
@@ -10827,7 +10825,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
       // once, by whichever of the two reaches it first, and every
       // warming entry is dead before the room is.
       hitEffects.clear();
-      for (const b of billboardBatches) renderer.destroyBatch(b);
+      for (const b of closeDungeonPropPreviews(billboardBatches)) renderer.destroyBatch(b);
       if (staticBatch) { renderer.destroyMesh(staticBatch); staticBatch = null; }   // PERF5
       // AUDIT 17e F29 / EVERY ALLOCATION HAS AN OWNER: a foe's LIVE
       // billboard batch is NOT in billboardBatches, so every dungeon

@@ -32,6 +32,7 @@ import { billboardSize } from '../world/rmbFlats.js';
 import { preloadTextureRecord } from '../systems/textureReplacement.js';   // LAMP-KEEPER: a re-materialised person's art, decoded before it is drawn
 import { LAMP_ARCHIVE, LAMP_CLASSIC } from '../systems/lampKeeper.js';   // LAMP-KEEPER II: a keeper standing as the lamp, on purpose
 import { isChairModel } from '../world/chairSeat.js';   // SIT1: the seats a player sits on
+import { mountTorchBatch } from '../world/torchMount.js';
 import { Collider } from '../player/collider.js';
 import { isHouseContainerModel } from '../systems/containers.js';
 import { isShopShelfModel } from '../systems/shopStock.js';   // E2
@@ -816,7 +817,7 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
     if (!t || record >= t.recordCount) continue;
     uploadRecord(archive, record);
     const size = billboardSize(t, record);
-    const batch = renderer.createBillboardBatch(archive, record, size, centers);
+    const batch = mountTorchBatch(renderer.createBillboardBatch(archive, record, size, centers), centers, collider, { only: ['interior'] });
     armFlatAnim(batch, t, archive, record, flatAnims, uploadRecordFrame);
     billboardBatches.push(batch);
     if (isCoverFlat(archive, record, size)) collider.cover.add('tact1:flats', centers.map((c) => coverProxy(c, size)));   // TACT1 (a furnishable room's own pieces, which can be taken out, are not)

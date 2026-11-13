@@ -7,12 +7,17 @@ export const worldPixelActive=r=>active.has(r);
 
 export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1){
  if(active.has(r)||!r.gl||r._spriteDepth>0||r._panelSaved)return false;
- const rows=worldPixelRows(kind);
+ const rows=worldPixelRows(kind)/(mesh?.pixelBlockScale??1);
  if(!rows)return false;
  const vp=r.gl.getParameter(r.gl.VIEWPORT);
- if(blockPixels(vp[3],rows)<=1)return false;
+ if(blockPixels(vp[3],rows)<=1&&!mesh?.pixelFootprint)return false;
  const b=mesh?.bounds;
- const corners=b?boxCorners({minX:b[0]-b[3],maxX:b[0]+b[3],minY:b[1]-b[3],maxY:b[1]+b[3],minZ:b[2]-b[3],maxZ:b[2]+b[3]},(x,y,z)=>transformPoint(m,x,y,z)):null;
+ const footprint=mesh?.pixelFootprint;
+ const corners=footprint?boxCorners({
+  minX:footprint.bounds.center[0]-footprint.bounds.extent[0],maxX:footprint.bounds.center[0]+footprint.bounds.extent[0],
+  minY:footprint.bounds.center[1]-footprint.bounds.extent[1],maxY:footprint.bounds.center[1]+footprint.bounds.extent[1],
+  minZ:footprint.bounds.center[2]-footprint.bounds.extent[2],maxZ:footprint.bounds.center[2]+footprint.bounds.extent[2],
+ },(x,y,z)=>transformPoint(m,x,y,z)):b?boxCorners({minX:b[0]-b[3],maxX:b[0]+b[3],minY:b[1]-b[3],maxY:b[1]+b[3],minZ:b[2]-b[3],maxZ:b[2]+b[3]},(x,y,z)=>transformPoint(m,x,y,z)):null;
  const projection=r._proj;
  active.add(r);
  // Target allocation binds 2D textures on the active unit; never let it replace snow masks or world data.
@@ -23,7 +28,7 @@ export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1){
    r._use(r.program);r.gl.uniformMatrix4fv(r.uProj,false,r._proj);
    r._tFrameStamp=-1;
    draw();
-  },opacity);
+  },opacity,footprint);
  }finally{
   active.delete(r);r._tFrameStamp=-1;r._forgetTextureShadows?.();
   r._use(r.program);r.gl.uniformMatrix4fv(r.uProj,false,projection);
