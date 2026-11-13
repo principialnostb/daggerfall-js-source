@@ -52,6 +52,7 @@ import { FEEL, tremble } from '../player/climb/climbFeel.js';
 import { PARKOUR_GRIP_LOW, PARKOUR_HANG_DROP, PARKOUR_LIP_FOLLOW } from '../player/parkour.js';
 import { POSE, gait, shimmyGait, wallFrame } from '../player/climb/climbPose.js';
 import { decodePng } from '../systems/textureReplacement.js';
+import { playerPictureRgba, playerPictureStamp, playerPicturesGeneration } from '../systems/replacements/playerPictures.js'; // the Replacements pane's paintings
 import { toScreenOrder } from '../formats/color32Order.js';
 import { APP_ROOT } from '../systems/appRoot.js';
 import { wrapAngle } from '../world/mat4.js'; // the one home for an angle into (-PI, PI] (audit24's ratchet)
@@ -64,9 +65,9 @@ const NATIVE_W = 320;
 const NATIVE_H = 200;
 const DEG = Math.PI / 180;
 
-/** The two paintings, their own pixels (the drawn boxes keep these aspects). */
-export const GRIP_ART = Object.freeze({ file: 'art/climb-grip.png', w: 105, h: 152 });
-export const REACH_ART = Object.freeze({ file: 'art/climb-reach.png', w: 183, h: 114 });
+/** The two paintings, their own pixels (the drawn boxes keep these aspects), and the name a player's own is kept by. */
+export const GRIP_ART = Object.freeze({ file: 'art/climb-grip.png', w: 105, h: 152, picture: 'climb-grip' });
+export const REACH_ART = Object.freeze({ file: 'art/climb-reach.png', w: 183, h: 114, picture: 'climb-reach' });
 
 /** The layout and the motion, in design pixels, seconds and degrees. */
 export const HANDS = Object.freeze({
@@ -655,21 +656,32 @@ export function createClimbHands({ renderer, fetchBytes = null, decode = decodeP
   const law = new ClimbHands();
   /** @type {Map<string, any>} */
   const tex = new Map();
+  /** @type {Map<string, any>} the texture each painting last drew with, standing while a changed one loads */
+  const shown = new Map();
+  // the player's own painting (the Replacements pane) first; a change loads the art again
   const load = (art) => {
-    if (tex.has(art.file) || !renderer) return tex.get(art.file) ?? null;
-    tex.set(art.file, null);
+    const key = `${art.file}#${playerPicturesGeneration()}`;
+    if (tex.has(key) || !renderer) return tex.get(key) ?? shown.get(art.file) ?? null;
+    tex.set(key, null);
     (async () => {
-      const bytes = fetchBytes
-        ? await fetchBytes(art.file)
-        : await (async () => {
-            const r = await fetch(climbArtUrl(art.file));
-            if (!r.ok) throw new Error(`${art.file}: ${r.status}`);
-            return new Uint8Array(await r.arrayBuffer());
-          })();
-      const img = await decode(bytes);
-      if (img?.width) tex.set(art.file, renderer.uploadTexture('img', `climbhands:${art.file}`, toScreenOrder(img))); // a PNG's rows are top-first: a screen quad wants them so (HT3)
+      const own = await playerPictureRgba(art.picture, { decode });
+      const bytes = own
+        ? null
+        : fetchBytes
+          ? await fetchBytes(art.file)
+          : await (async () => {
+              const r = await fetch(climbArtUrl(art.file));
+              if (!r.ok) throw new Error(`${art.file}: ${r.status}`);
+              return new Uint8Array(await r.arrayBuffer());
+            })();
+      const img = own ?? (await decode(bytes));
+      const textureKey = own ? `climbhands:${art.picture}#${playerPictureStamp(art.picture)}` : `climbhands:${art.file}`;
+      if (img?.width) {
+        tex.set(key, renderer.uploadTexture('img', textureKey, toScreenOrder(img))); // a PNG's rows are top-first: a screen quad wants them so (HT3)
+        shown.set(art.file, tex.get(key));
+      }
     })().catch((e) => console.warn('[climb hands] texture load failed', art.file, e));
-    return null;
+    return shown.get(art.file) ?? null;
   };
   return {
     law,

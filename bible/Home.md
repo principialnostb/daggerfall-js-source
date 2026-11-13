@@ -145,7 +145,6 @@ HTML pages at the repo root register in `vite.config.js` `rollupOptions.input`. 
 
 Generated from the FLAGGED and INTERIM sites in `src/` by `node tools/regenOpenFlags.mjs`. Do not edit by hand.
 
-- `src/combat/fpsSpellCasting.js` - * FLAGGED: TextureReplacement.TryImportCifRci (:179) - the loose-file
 - `src/net/professionLaw.js` - *  metal's, and a twig's picture is neither's (unverified without the player's data - FLAGGED to Mac's eye). */
 - `src/player/mwView.js` - FLAGGED: Eye Of The Beholder has no sitting art - on that lane the driver's sprite stands on the bench's footboard, still (bible/06-Systems/Wagons.md WAGONS3).
 - `src/player/seatPose.js` - FLAGGED (Tavern-Cards.md section 12, CARDS2c): the seat poses the Morrowind body alone - Eye Of The Beholder has no sitting art, so a sprite body (a peer's walker, their paperdoll) stands at its seat facing the table.

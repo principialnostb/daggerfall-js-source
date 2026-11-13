@@ -32,6 +32,7 @@
 // record costs that face (warned once), never the session.
 
 import { CifRciFile } from '../../formats/cifRciFile.js';
+import { ownOrModCifRecord, ownOrModGeneration } from '../../systems/replacements/ownOrMod.js'; // the player's face, then a mod's
 import { GENDERS } from '../../characters/nameHelper.js';
 import { RACES, raceArt } from '../../systems/races.js';
 import { bitmapToColor32, toScreenOrder } from '../../formats/color32Order.js';
@@ -237,6 +238,7 @@ let _faces = []; // FaceDetails[] - the serializable truth
 let _panels = []; // parallel to _faces: { special, img: {tex,w,h}|null }
 const _files = new Map(); // file -> Promise<CifRciFile>
 const _textures = new Map(); // `${file}#${record}` -> {tex,w,h}
+let _texturesGen = null; // the player's pictures and the mods the faces were drawn under
 let _warned = false;
 let _headStamp = 0; // PORTRAIT3D: the data's stamp the panels were resolved under
 // QUEST-SHELF-FACES: whether a quest is set aside (machine.js shelveQuest), by its uid - the quest bridge hands it.
@@ -265,6 +267,10 @@ function _loadFile(file) {
 /** RefreshFaces (:198-273) - rebuild the panel list from the faces
  *  list and make sure every face's texture is loading. */
 function refreshFaces() {
+  if (_texturesGen !== ownOrModGeneration()) {
+    _textures.clear(); // a face changed on the Replacements pane, or the mods did: each is drawn again
+    _texturesGen = ownOrModGeneration();
+  }
   if (!_deps) {
     _panels = _faces.map(() => null);
     return;
@@ -280,12 +286,15 @@ function refreshFaces() {
       });
     if (!panel.img) {
       _loadFile(file)
-        .then((cif) => {
+        .then(async (cif) => {
           const key = `${file}#${record}`;
+          const over = await ownOrModCifRecord(file, record, _deps.palette, cif); // drawn in the classic face's box
           if (!_textures.has(key)) {
             const bmp = cif.getDFBitmap(record, 0);
             _textures.set(key, {
-              tex: _deps.renderer.uploadTexture('cif', key, bitmapToColor32(bmp, _deps.palette)),
+              tex: over
+                ? _deps.renderer.uploadTexture('img', `${key}#over${ownOrModGeneration()}`, toScreenOrder(over))
+                : _deps.renderer.uploadTexture('cif', key, bitmapToColor32(bmp, _deps.palette)),
               w: bmp.width,
               h: bmp.height,
             });

@@ -53,7 +53,7 @@
 // (listTopicTellMeAbout / Person / Thing and the Work question);
 // each stays a consumed no-op on a host with no engine mounted.
 
-import { hasDfmodCifRci, dfmodCifRciImage, dfmodGeneration } from '../../systems/dfmodTextures.js';   // DFMOD1: an attached mod's talk portraits
+import { ownOrModCifRecord, ownOrModGeneration } from '../../systems/replacements/ownOrMod.js';   // DFMOD1: the player's talk portraits (the Replacements pane), then an attached mod's
 import { loadImg, nativeMetrics, drawImg, drawImgCrop, drawRect, shadowText, pointToNative, DEFAULT_TEXT_COLOR, DEFAULT_SHADOW_COLOR } from './nativePanel.js';   // AUDIT 63 F5: DaggerfallDefaultShadowColor, the unmarked row's shadow
 import { CifRciFile } from '../../formats/cifRciFile.js';
 import { bitmapToColor32, toScreenOrder } from '../../formats/color32Order.js';   // DFMOD1: toScreenOrder - a mod picture is top-down, a screen quad's own order
@@ -342,6 +342,7 @@ export const PORTRAIT_RECT = Object.freeze([119, 65, 64, 64]);
 let _portraitDeps = null;
 let _portrait = null;            // { tex, w, h } once the record has landed
 let _portraitKey = null;         // `${file}#${record}` - what _portrait holds or is loading
+let _portraitGen = null;         // the player's pictures and the mods the portraits were drawn under
 let _portraitWarned = false;
 const _portraitFiles = new Map();   // file -> Promise<CifRciFile>
 const _portraitTex = new Map();     // key -> { tex, w, h }
@@ -368,18 +369,22 @@ function _loadPortraitFile(file) {
 export function setNpcPortrait(archive, recordId, { picture = null } = {}) {
   const file = PORTRAIT_ARCHIVE[archive] ?? (HEADS_FILE.test(String(archive)) ? String(archive) : PORTRAIT_ARCHIVE.CommonFaces);
   const key = `${file}#${recordId}`;
+  if (_portraitGen !== ownOrModGeneration()) {
+    _portraitTex.clear();   // a portrait changed on the Replacements pane, or the mods did: each is drawn again
+    _portraitGen = ownOrModGeneration();
+  }
   _portraitKey = key;
   _portrait = _portraitTex.get(key) ?? null;
   const session = ++_portraitSession;
   if (picture && _portraitDeps) setHeadPortrait(session, key, picture);   // PORTRAIT3D: the head over the record, once it lands
   if (_portrait || !_portraitDeps) return;
-  // DFMOD1: an attached mod's portrait of the record (DREAM's TFAC00I0.RCI_<n>-0) first - drawn into the same 64x64
-  // rect at its own resolution; the classic record when no mod carries it or it will not decode
-  const modPic = hasDfmodCifRci(file, recordId, 0) ? dfmodCifRciImage(file, recordId, 0).catch(() => null) : Promise.resolve(null);
+  // DFMOD1: the player's portrait of the record, then an attached mod's (DREAM's TFAC00I0.RCI_<n>-0) - drawn into the
+  // same 64x64 rect at its own resolution; the classic record when neither carries it or it will not decode
+  const modPic = Promise.resolve(ownOrModCifRecord(file, recordId, _portraitDeps.palette)).catch(() => null);
   modPic.then((pic) => {
     if (!pic || _portraitTex.has(key)) return false;
     const c32 = toScreenOrder(pic);
-    _portraitTex.set(key, { tex: _portraitDeps.renderer.uploadTexture('cif', `${key}#dfmod${dfmodGeneration()}`, c32), w: pic.width, h: pic.height, rgba: c32.colors });
+    _portraitTex.set(key, { tex: _portraitDeps.renderer.uploadTexture('cif', `${key}#over${ownOrModGeneration()}`, c32), w: pic.width, h: pic.height, rgba: c32.colors });
     return true;
   }).then((modded) => (modded || _portraitTex.has(key) ? null : _loadPortraitFile(file))).then((cif) => {
     if (cif && !_portraitTex.has(key)) {

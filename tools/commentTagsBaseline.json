@@ -308,7 +308,7 @@
  "src/combat/formulas.js": 107,
  "src/combat/fpArm.js": 850,
  "src/combat/fpsSpellCasting.js": 20,
- "src/combat/fpsWeapon.js": 32,
+ "src/combat/fpsWeapon.js": 31,
  "src/combat/friendlyFire.js": 3,
  "src/combat/gun/gunFeel.js": 15,
  "src/combat/gun/gunFlash.js": 2,

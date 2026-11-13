@@ -61,7 +61,7 @@ import { loadBackPicture } from './eotbHolsterFlail.js';   // FLAIL-BACK: a flai
 import { withoutShield, loadShieldPicture } from './layeredShield.js';   // LAYERED-SHIELD: the body's marks are read without the shield it carries
 import { playerEntity } from '../../characters/playerEntity.js';   // WORN-ARMOUR: whose armour
 import { drawnEquipTable } from '../../systems/capeShown.js';   // WORN-ARMOUR: what they wear; CAPE-TOGGLE: as it is drawn
-import { horseLookCode, horseLookOfCode, lookSuffix } from '../../systems/horse/horseCoats.js';   // COATS1: the ridden horse's look
+import { horseLookCode, horseLookOfCode, lookSuffix, wearsMountLook } from '../../systems/horse/horseCoats.js';   // COATS1: the ridden horse's look
 import { getMeleeWeaponAnimTime } from '../../characters/weaponStates.js';   // [IL] GetMeleeAnimTickTime reads FormulaHelper's own
 import { setPlayerTorchOffsetOverride, setPlayerWaistLightOverride } from '../../systems/playerTorch.js';   // [IL] TorchOffset writes PlayerTorch's position; HT-WAIST: and the lantern at the waist lights from where it hangs
 import {
@@ -450,14 +450,18 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
   }
 
   const cacheKey = (s) => `${s.archive}:${s.rec}`;
-  async function pixels(key) {
-    let p = decoded.get(key);
+  /** A horse that wears a mount look, bought with Aurum, is dyed over the game's own picture, never the player's. */
+  const gameArt = (s) => !!s?.horse && wearsMountLook(s.horse);
+  const slotOf = (s) => (gameArt(s) ? `${s.key}#game` : s.key);
+  async function pixels(key, own = true) {
+    const slot = own ? key : `${key}#game`;
+    let p = decoded.get(slot);
     if (!p) {
       const url = urlFor(key);
       if (!url) return null;
-      p = decode(url);
-      decoded.set(key, p);
-      p.then((img) => { if (decoded.get(key) === p) decoded.set(key, img); }, () => { if (decoded.get(key) === p) decoded.delete(key); });   // AUDIT FB1022d D4: let go in flight, gone
+      p = decode(url, { own });
+      decoded.set(slot, p);
+      p.then((img) => { if (decoded.get(slot) === p) decoded.set(slot, img); }, () => { if (decoded.get(slot) === p) decoded.delete(slot); });   // AUDIT FB1022d D4: let go in flight, gone
     }
     return p;
   }
@@ -469,12 +473,12 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
     // peer's outfit or horse look can be mine too) is uploaded again
     if (have && !(have instanceof Promise) && renderer.textures?.has && !renderer.textures.has(cacheKey(s).replace(':', '_'))) { tex.delete(cacheKey(s)); have = undefined; }
     // AUDIT: a frame drawn before its weapon's picture came is decoded again (the picture is asked for again)
-    if (have && !(have instanceof Promise) && have.retryAt != null && clock() >= have.retryAt) { tex.delete(cacheKey(s)); decoded.delete(s.key); evictHeld(renderer, cacheKey(s).replace(':', '_')); have = undefined; }
+    if (have && !(have instanceof Promise) && have.retryAt != null && clock() >= have.retryAt) { tex.delete(cacheKey(s)); decoded.delete(slotOf(s)); evictHeld(renderer, cacheKey(s).replace(':', '_')); have = undefined; }
     if (have && !(have instanceof Promise)) return have;
     if (have !== undefined) return null;                // in flight, or failed
     if (!urlFor(s.key)) { tex.set(cacheKey(s), null); return null; }
     const p = (async () => {
-      const img = await pixels(s.key);
+      const img = await pixels(s.key, !gameArt(s));
       const riders = s.horse ? await ridersReady() : null;   // AUDIT-STOREFRONT: the rider the dye spares
       if (tex.get(cacheKey(s)) !== p) return null;   // COATS1: let go while in flight (a look left behind) - never uploaded
       if (!img) throw new Error(`${s.key}: no art`);

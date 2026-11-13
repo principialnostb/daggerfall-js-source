@@ -87,5 +87,16 @@
  "rated bout (Arena)": "ranglistás összecsapás",
  "Try again (button)": "Próbáld újra",
  "the sprout (a new account's glyph)": "a hajtás",
- "{date} at a sentence end (a Hungarian date already ends in a period)": "no period after it: „vége: {date}” / „(vége: {date})”"
+ "{date} at a sentence end (a Hungarian date already ends in a period)": "no period after it: „vége: {date}” / „(vége: {date})”",
+ "Replacements (System pane: your own pictures)": "Cserék",
+ "replacement (your own picture for one of the game's)": "csere",
+ "picture (a texture or sprite)": "kép",
+ "Overhaul (one overhaul; the pane is Overhauls)": "Átdolgozás",
+ "Rejected: (a refused file)": "Elutasítva:",
+ "Choose… (file button)": "Kiválasztás…",
+ "Clear (button)": "Törlés",
+ "Filter (a list's box)": "Szűrés",
+ "Skin card (profile window)": "Megjelenés kártya",
+ "Layered Gearing (mod name, never changes)": "Layered Gearing",
+ "NPCs": "NJK-k"
 }

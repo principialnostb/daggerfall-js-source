@@ -68,8 +68,10 @@
 //
 // Not a DFU member: Daggerfall Unity has no parties. Ledger A row (ONLINE).
 import { CifRciFile } from '../formats/cifRciFile.js';
+import { ownOrModCifRecord } from '../systems/replacements/ownOrMod.js'; // the player's face, then a mod's
+import { resampleRgba } from '../formats/resample.js';
 import { raceArt, FACES_PER_RACE } from '../systems/races.js';
-import { bitmapToColor32 } from '../formats/color32Order.js'; // the same indexed-to-RGBA door every classic screen reads
+import { bitmapToColor32, toScreenOrder } from '../formats/color32Order.js'; // the same indexed-to-RGBA door every classic screen reads
 import { isTouchDevice } from './touch/touch.js';
 import { PARTY_GREEN_CSS, lastOnlineText } from '../net/social.js'; // one home for the green - "should turn green"
 import { PARTY_MAX } from '../net/wire.js'; // PARTY8: the seat count in the title
@@ -357,16 +359,16 @@ export function createFaceLoader({ fetchBytes, palette } = {}) {
     // AUDIT LEGACY III P17: a townsperson's own face - the talk window's CommonFaces record, the one the census gave them
     // for life (COMMON_FACES_FILE: ui/native/nativeTalk.js PORTRAIT_ARCHIVE.CommonFaces, pinned equal - never imported, so the
     // party HUD stays light)
-    if (Number.isInteger(pose?.common) && pose.common >= 0) {
-      const cif = await load(COMMON_FACES_FILE);
-      const bmp = cif.getDFBitmap(pose.common, 0);
-      return bmp ? bitmapToColor32(bmp, palette) : null;
-    }
+    const common = Number.isInteger(pose?.common) && pose.common >= 0;
     const art = raceArt(pose?.race ?? 'Breton', pose?.gender === 'female' ? 'female' : 'male');
-    const record = Math.max(0, Math.min(FACES_PER_RACE - 1, (pose?.face ?? 0) | 0));
-    const cif = await load(art.heads);
+    const file = common ? COMMON_FACES_FILE : art.heads;
+    const record = common ? pose.common : Math.max(0, Math.min(FACES_PER_RACE - 1, (pose?.face ?? 0) | 0));
+    const cif = await load(file);
     const bmp = cif.getDFBitmap(record, 0);
-    return bmp ? bitmapToColor32(bmp, palette) : null;
+    if (!bmp) return null;
+    // the player's face (the Replacements pane), then a mod's, at the classic face's size; else the classic face
+    const over = await ownOrModCifRecord(file, record, palette, cif).catch(() => null);
+    return over?.width ? toScreenOrder(resampleRgba(over, bmp.width, bmp.height)) : bitmapToColor32(bmp, palette);
   };
 }
 

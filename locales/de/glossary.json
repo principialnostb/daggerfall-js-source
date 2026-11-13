@@ -335,5 +335,12 @@
  "logo (a guild's uploaded picture)": "Logo",
  "under review (a logo)": "wird geprüft",
  "Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire (sail patterns)": "Schlicht, Pfähle, Balken, Geviert, Sparren, Kreuz, Bord, Schrägkreuz",
- "Guild / Wealth / Identity (guild window groups)": "Gilde / Vermögen / Identität"
+ "Guild / Wealth / Identity (guild window groups)": "Gilde / Vermögen / Identität",
+ "Replacements (the pane)": "Ersetzungen",
+ "replacement (the player's own picture)": "Ersatz",
+ "picture (a texture or sprite)": "Bild",
+ "overhaul (a mod's change)": "Überarbeitung",
+ "NPCs": "NSCs",
+ "Skin card (the profile's card)": "Skin-Karte",
+ "Rejected: (a refusal)": "Abgelehnt:"
 }

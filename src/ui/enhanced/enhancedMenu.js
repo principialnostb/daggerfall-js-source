@@ -103,6 +103,7 @@ import { questTracker, followOn, trackButton } from '../quest/questTracker.js'; 
 import { closeOnOutsideTap } from './enhancedOverlays.js';   // OT1: a tap on the scrim resumes
 import { drawTutorialsPane, releaseTutorialsPane } from '../tutorialsPane.js';   // TUT1: the Tutorials tab and section - every tutorial page, to read again
 import { drawShotsPane, releaseShotsPane } from '../shotsPane.js';   // LOAD1: the Screenshots pane - the gallery the PrintScreen key keeps
+import { drawReplacementsPane, releaseReplacementsPane } from '../replacementsPane.js';
 import { TEST_PRESETS, TEST_RIDE, TEST_SEA, TEST_LOOT } from '../../systems/testRoom.js';   // TR3: the one home the pane shows; TSR4: the ride; LR3: the loot ladder
 import { mwRaceId } from '../../formats/morrowind/mwNpc.js';
 import { EQUIP_SLOTS, equipTableOf } from '../../systems/equip.js';
@@ -291,7 +292,7 @@ import { maxRoundsRemaining } from '../hud/hudActiveSpells.js';   // BUFF-END: a
 // by it. Empty at FT0; the Enhanced category of Settings and the Mods
 // section keep their rows until each one's slice moves it here
 // (bible/10-UI/Features-Arc.md).
-const SECTIONS_BOOT = ['Online', 'Continue', 'New Game', 'Load Game', 'Test Room', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About'];   // UI-CALM: Online first, Offline's four under it (drawDoors, the rail's own word)   // TUT1: the tutorials, to read before the game (ui/tutorialsPane.js)   // ORG2: Features is Settings' tabs now   // LOAD1: the gallery (ui/shotsPane.js)   // OVH1: the three looks   // FT16: Controls is a Settings CATEGORY, not a rail door   // FT14: Mods is gone - every mod is a tile on Features, and what the pane carried besides stands under them   // ONLINE1: the shared world's door
+const SECTIONS_BOOT = ['Online', 'Continue', 'New Game', 'Load Game', 'Test Room', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About'];   // UI-CALM: Online first, Offline's four under it (drawDoors, the rail's own word)   // TUT1: the tutorials, to read before the game (ui/tutorialsPane.js)   // ORG2: Features is Settings' tabs now   // LOAD1: the gallery (ui/shotsPane.js)   // OVH1: the three looks   // FT16: Controls is a Settings CATEGORY, not a rail door   // FT14: Mods is gone - every mod is a tile on Features, and what the pane carried besides stands under them   // ONLINE1: the shared world's door
 // FD1 (Mac, 2026-09-11): the CLASSIC skin opens on this same door. Its
 // three game doors collapse into BEGIN, which leads into the classic
 // start sequence - the title, the film, Daggerfall's own start window -
@@ -300,7 +301,7 @@ const SECTIONS_BOOT = ['Online', 'Continue', 'New Game', 'Load Game', 'Test Room
 // SO1: ENHANCED left the rail for a category of Settings (settingsMap).
 // ONLINE1: ONLINE joins it - Mac: "if using classic, you'd see the
 // other user's paperdoll" - the same pane, the same save brought in.
-const SECTIONS_CLASSIC = ['Begin', 'Online', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About'];   // TUT1   // ORG2   // LOAD1: the key keeps its shots under either skin   // OVH1   // FT14; FT16: Controls is a Settings category
+const SECTIONS_CLASSIC = ['Begin', 'Online', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About'];   // TUT1   // ORG2   // LOAD1: the key keeps its shots under either skin   // OVH1   // FT14; FT16: Controls is a Settings category
 
 // U51: the same rail with the boot-only questions swapped for the
 // in-game ones. Continue and New Game answer "which game", which is
@@ -313,14 +314,14 @@ const SECTIONS_CLASSIC = ['Begin', 'Online', 'Settings', 'Overhauls', 'Tutorials
 // mode's doors), and the pane says so in words. A rail that drops the
 // row instead teaches the player the door was never there - the same
 // argument the Mods section is built on.
-const SECTIONS_PAUSE = ['Resume', 'Save Game', 'Load Game', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About', 'Exit'];   // TUT1: a landing's shell (the window's own door is its Tutorials tab)   // ORG2   // LOAD1   // OVH1   // FT14; FT16: Controls is a Settings category
+const SECTIONS_PAUSE = ['Resume', 'Save Game', 'Load Game', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About', 'Exit'];   // TUT1: a landing's shell (the window's own door is its Tutorials tab)   // ORG2   // LOAD1   // OVH1   // FT14; FT16: Controls is a Settings category
 
 const idOf = (label) => label.toLowerCase().split(' ')[0];
 
 /** UI-CALM: the doors behind Offline on the enhanced front door, in order - the games this device keeps. */
 export const HOME_OFFLINE = Object.freeze(['Continue', 'New Game', 'Load Game', 'Test Room']);
 /** UI-CALM: the two small doors under the two questions - the settings a player may want before either. */
-export const HOME_LINKS = Object.freeze(['Settings', 'Overhauls']);
+export const HOME_LINKS = Object.freeze(['Settings', 'Overhauls', 'Replacements']);
 /** UI-CALM: whether a section is one of Offline's (its Escape lands back on the offline doors). */
 export const offlineSection = (id) => HOME_OFFLINE.some((l) => idOf(l) === id);
 
@@ -335,6 +336,7 @@ const RAIL_TEXT = Object.freeze({
   settings: () => t('menu.rail.settings', 'Settings'),
   features: () => t('menu.rail.features', 'Features'),
   overhauls: () => t('menu.rail.overhauls', 'Overhauls'),
+  replacements: () => t('menu.rail.replacements', 'Replacements'),
   tutorials: () => t('menu.rail.tutorials', 'Tutorials'),
   screenshots: () => t('menu.rail.screenshots', 'Screenshots'),
   about: () => t('menu.rail.about', 'About'),
@@ -5077,6 +5079,7 @@ export const SYSTEM_PANES = Object.freeze([
   ['resume', 'Resume'], ['save', 'Save Game'], ['load', 'Load Game'],
   ['settings', 'Settings'],   // FT16: Controls is a category INSIDE it
   ['overhauls', 'Overhauls'],   // OVH1
+  ['replacements', 'Replacements'],
   ['screenshots', 'Screenshots'],   // LOAD1: the gallery, mid-game too
   ['about', 'About'], ['exit', 'Exit'],   // FT14: no Mods pane
 ]);
@@ -5112,6 +5115,7 @@ function pauseSystem(body) {
     ({
       save: paneSave, load: paneLoad,
       overhauls: paneOverhauls,   // OVH1
+      replacements: (detail) => drawReplacementsPane(detail, { ask: askCard }),
       screenshots: drawShotsPane,   // LOAD1
       about: paneAbout, exit: paneExit,
     })[sysSec](detail);
@@ -6335,6 +6339,7 @@ function renderInto() {
         test: paneTest,
         save: paneSave, exit: paneExit,
         overhauls: paneOverhauls,   // OVH1
+        replacements: (paneBody) => { paneBody.classList.add('wide'); drawReplacementsPane(paneBody, { ask: askCard }); },   // the title screen's door too, as Overhauls
         screenshots: drawShotsPane,   // LOAD1
         tutorials: drawTutorialsPane,   // TUT1
         about: paneAbout, begin: paneBegin,   // FD1: the classic rail's door; SO1: Enhanced is a Settings category now
@@ -6681,6 +6686,7 @@ export function mountEnhancedMenu(host, {
       // the DOCUMENT and would outlive this screen exactly as the one
       // above would.
       discardControlsStaging();
+      releaseReplacementsPane();   // the Replacements pane's previews, Play and its listener
       // MEM-AUDIT (2026-10-23): and what still watched the last screen - the foot's observer (its reserve keeps the home's
       // whole tree, the sky's canvas with it) and the account card's paint and focus listener
       footObs?.disconnect?.(); footObs = null;

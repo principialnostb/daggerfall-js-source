@@ -463,5 +463,11 @@
  "War Table": "Военный стол",
  "Weapon Rack": "Оружейная стойка",
  "Guild Brazier": "Жаровня гильдии",
- "sail patterns: Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire": "Однотонный, Столбы, Пояса, Четверочастный, Стропило, Крест, Кайма, Андреевский крест"
+ "sail patterns: Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire": "Однотонный, Столбы, Пояса, Четверочастный, Стропило, Крест, Кайма, Андреевский крест",
+ "Replacements (the pane) / replacement (the player's own picture)": "Замены / замена",
+ "picture (a game texture or sprite)": "изображение",
+ "Rejected: (a refused file)": "Отклонено:",
+ "NPCs (Replacements tab)": "Люди",
+ "Skin card (the profile card where the body look is chosen)": "карточка облика",
+ "Layered Gearing (mod name, kept as is)": "Layered Gearing"
 }

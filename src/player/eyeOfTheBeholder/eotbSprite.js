@@ -30,8 +30,9 @@ import { layeredSprite, isLayeredKey, decodeLayered } from './layeredArmor.js'; 
 import { classSkinOf, classRecord, classFrame, classRecordScale } from '../classSkins.js';   // SKIN2: Daggerfall's classes, past the mod's sixteen
 import { toColor32, toColor32OrderInPlace } from '../../formats/color32Order.js';   // EOTB-FLIP: the ONE row-order door a PNG crosses on its way to a world billboard
 import { horseLookCode, horseLookOfCode, lookSuffix, recolorHorse } from '../../systems/horse/horseCoats.js';   // COATS1: the mount's look
-import { decodePng } from '../../systems/textureReplacement.js';   // EOTB-FLIP: the one PNG decoder the world's other PNG billboards take
+import { decodePng, hasPlayerReplacement, playerReplacementBox, textureReplacementBytes } from '../../systems/textureReplacement.js';   // EOTB-FLIP: the one PNG decoder the world's other PNG billboards take
 import { decodeServedPng } from '../../systems/vanillaEnhanced/vanillaEnhancedPack.js';   // FIRST-VISIT: and its decode workers
+import { resampleRgba } from '../../formats/resample.js';
 import spriteInfo from '../../../vendor/eye-of-the-beholder/spriteInfo.json' with { type: 'json' };
 
 const IN_BROWSER = typeof window !== 'undefined';
@@ -47,6 +48,10 @@ const URLS = IN_BROWSER
 const BY_KEY = Object.fromEntries(
   Object.entries(URLS).map(([p, u]) => [p.split('/').pop().replace(/\.png$/, ''), u]),
 );
+/** Every body sprite's key the build carries: what the Replacements pane lists on its Player tab. */
+export const eotbSpriteKeys = () => Object.keys(BY_KEY);
+/** A sprite's key by its built URL, which the decode asks the player's replacements by. */
+const KEY_BY_URL = new Map(Object.entries(BY_KEY).map(([key, url]) => [url, key]));
 // NAMED `eotbSpriteUrl`, not `spriteUrl`: `systems/handheldTorches.js`
 // already exports a `spriteUrl` and it answers a different question
 // (which torch sprite, out of the mod's own sheet). audit24's
@@ -256,9 +261,24 @@ export function worldOrderLayered(image) {
  * row-order converter - never a canvas of its own. A decode that fails answers a rejection. FIRST-VISIT: decodeServedPng
  * fetches and decodes.
  */
-export async function decodeSprite(url) {
+export async function decodeSprite(url, { own = true } = {}) {
   if (isLayeredKey(url)) return worldOrderLayered(await decodeLayered(url, decodePng, { picture: decodeServedPng }));   // WORN-ARMOUR: composed from its strip
-  return worldOrderColors(await decodeServedPng(url), { owned: true });   // PERF-PEERS5: the decode is this door's alone - turned in its own bytes
+  // `own: false` - a horse that wears a mount look bought with Aurum - takes the game's picture, never the player's
+  return worldOrderColors((own ? await replacedSprite(url) : null) ?? (await decodeServedPng(url)), { owned: true });   // PERF-PEERS5: the decode is this door's alone - turned in its own bytes
+}
+/** The picture the player chose on the Replacements pane for a sprite's frame, top row first, or null. The body is
+ *  sized and anchored by its picture's pixels, so a bigger picture is box-filtered down to the original's size. */
+async function replacedSprite(url) {
+  const match = /^(\d+)_(\d+)-(\d+)$/.exec(KEY_BY_URL.get(url) ?? '');
+  if (!match) return null;
+  const [archive, record, frame] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  if (!hasPlayerReplacement(archive, record, frame)) return null;
+  const bytes = await textureReplacementBytes(archive, record, frame);
+  const picture = bytes ? await decodePng(bytes).catch(() => null) : null;
+  const box = playerReplacementBox(archive, record, frame);
+  if (!picture || !box || (picture.width === box.width && picture.height === box.height)) return picture;
+  const fitted = resampleRgba(picture, box.width, box.height);
+  return { width: fitted.width, height: fitted.height, data: new Uint8Array(fitted.data.buffer, fitted.data.byteOffset, fitted.data.byteLength) };
 }
 
 /**

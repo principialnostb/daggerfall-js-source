@@ -50,6 +50,7 @@ const NAMED = {
   'src/systems/quest/person.js': 5,
   'src/systems/quest/place.js': 4,
   'src/systems/quest/questMacros.js': 9,   // BAY-LEFT-B: %lp past the Bay, its province's name as shown (GetLocalizedRegionName)
+  'src/systems/replacements/replacementCatalog.js': 4,   // the Replacements pane's lists: an item's, an enemy's (and a mod's redraw of one) and an artifact's name as shown
   'src/systems/starfall/starCoven.js': 4,   // STAR5: a master's name, in the player's language
   'src/systems/starfall/starfallCovens.js': 1,   // STAR2: a coven's witches by their faction, in the player's language
   'src/systems/talk/talk.js': 1,

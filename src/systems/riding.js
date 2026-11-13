@@ -34,9 +34,11 @@
 // keeps DFU's every arm: the fast clop off the edge, 1.2 pitch, 0.125 s.
 
 import { CfaFile } from '../formats/cfaFile.js';
+import { ownOrModCifRecord, ownOrModGeneration } from './replacements/ownOrMod.js'; // the player's frames, then a mod's
+import { toScreenOrder } from '../formats/color32Order.js';
 import { frameToColor32 } from '../combat/fpsWeapon.js'; // TR2: the same index-to-RGBA the weapon art uses
 import { TRANSPORT_MODES, isHorseRide } from './transport.js';
-import { recolorHorse, horseLookCode, horseLookOfCode, lookSuffix } from './horse/horseCoats.js'; // COATS1: the horse's look, dyed as it uploads
+import { recolorHorse, horseLookCode, horseLookOfCode, lookSuffix, wearsMountLook } from './horse/horseCoats.js'; // COATS1: the horse's look, dyed as it uploads
 
 /** :148-155. */
 export const HORSE_TEXTURE = 'MRED00I0.CFA';
@@ -89,13 +91,18 @@ export async function loadRidingArt(getBytes, palette, renderer, mode, look = 0)
   const { width, height } = cfa.getSize(0);
   const frames = [],
     records = [];
+  const own = !wearsMountLook(c); // a mount look bought with Aurum dyes the game's horse, never the player's
   for (let f = 0; f < cfa.getFrameCount(0); f++) {
-    const c32 = recolorHorse(frameToColor32(cfa.getDFBitmap(0, f), palette, null), c, {
-      bottomFirst: false,
-      legs: false,
-      tack: false,
-    });
-    records.push(`ride:${fileName}:${f}${lookSuffix(c)}`);
+    // the player's frame (the Replacements pane) or a mod's, drawn as painted into the classic frame's box
+    const over = await ownOrModCifRecord(fileName, 0, palette, null, f, { own }).catch(() => null);
+    const c32 = over
+      ? toScreenOrder(over)
+      : recolorHorse(frameToColor32(cfa.getDFBitmap(0, f), palette, null), c, {
+          bottomFirst: false,
+          legs: false,
+          tack: false,
+        });
+    records.push(over ? `ride:${fileName}:${f}#over${ownOrModGeneration()}` : `ride:${fileName}:${f}${lookSuffix(c)}`);
     frames.push(renderer.uploadTexture('img', records[f], c32));
   }
   return { fileName, width, height, frames, look: c, records };

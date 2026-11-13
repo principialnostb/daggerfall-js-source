@@ -18,6 +18,7 @@
 import { contentBox } from './gunSheet.js';
 import { PISTOLET_FEEL } from './gunFeel.js';
 import { decodePng } from '../../systems/textureReplacement.js';
+import { playerStrip, playerPictureStamp } from '../../systems/replacements/playerPictures.js'; // the Replacements pane's strip
 import { toScreenOrder } from '../../formats/color32Order.js'; // FIELD-GUN3: a screen quad's PNG keeps its rows
 import { WEAPON_TYPES, getWeaponAnims } from '../fpsWeapon.js';
 import { APP_ROOT } from '../../systems/appRoot.js'; // AUDIT-THUNDERLOCK F7: the site root, not the document's
@@ -189,21 +190,26 @@ export async function loadPistoletArt(
   { fetch: fetchStrip = null, decode = decodePng, magic = false, gilded = false } = {},
 ) {
   const file = `art/${PISTOL_STRIP.file}`;
-  const bytes = fetchStrip
+  // the player's own strip (the Replacements pane), at the strip's own size: the frames are measured in its cells
+  const own = await playerStrip('pistol-frames', PISTOL_STRIP, decode);
+  const bytes = own
+    ? null
+    : fetchStrip
     ? await fetchStrip(file)
     : await (async () => {
         const r = await fetch(stripUrl(file));
         if (!r.ok) throw new Error(`${file}: ${r.status}`);
         return new Uint8Array(await r.arrayBuffer());
       })();
-  const strip = await decode(bytes);
+  const strip = own ?? (await decode(bytes));
   if (!strip?.width) return null;
   const { union, anchor, frames: cropped, muzzle } = bledFrames(strip, { gilded, magic }) ?? {};
   if (!union) return null;
   const scale = PISTOLET_FEEL.scale; // design pixels per art pixel - NATIVE, times the owner's size
   const type = magic ? WEAPON_TYPES.Pistolet_Magic : WEAPON_TYPES.Pistolet;
   const look = gilded ? ':gilded' : magic ? ':magic' : '';
-  const textures = cropped.map((rgba, i) => renderer.uploadTexture('img', `pistolet${look}:${i}`, toScreenOrder(rgba)));
+  const ownKey = own ? `#${playerPictureStamp('pistol-frames')}` : '';
+  const textures = cropped.map((rgba, i) => renderer.uploadTexture('img', `pistolet${look}${ownKey}:${i}`, toScreenOrder(rgba)));
   const anchorW = anchor.w * scale,
     anchorH = anchor.h * scale;
   return {

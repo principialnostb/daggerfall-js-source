@@ -443,5 +443,12 @@
  "Fleet": "Flotta",
  "decor tool": "strumento d’arredo",
  "Sure? (confirm button)": "Sicuro?",
- "Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire (sail patterns)": "Pieno, Palato, Fasciato, Inquartato, Scaglione, Croce, Bordura, Decusse"
+ "Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire (sail patterns)": "Pieno, Palato, Fasciato, Inquartato, Scaglione, Croce, Bordura, Decusse",
+ "Replacements (the pane)": "Sostituzioni",
+ "replacement (the player's own picture)": "sostituzione",
+ "picture (a texture or sprite)": "immagine",
+ "overhaul (a mod's change)": "rifacimento",
+ "NPCs": "NPC (not PNG: the pane also names PNG files)",
+ "Skin card (the profile's card)": "scheda Skin",
+ "Rejected: (a refusal)": "Rifiutato:"
 }

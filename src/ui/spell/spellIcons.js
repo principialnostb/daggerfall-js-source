@@ -27,6 +27,11 @@
 // destination rect, so one upload serves every icon.
 
 import { loadImg, drawImgCrop } from '../native/nativePanel.js';
+import { ImgFile } from '../../formats/imgFile.js';
+import { bitmapToColor32 } from '../../formats/color32Order.js';
+import { playerPicturesGeneration } from '../../systems/replacements/playerPictures.js';
+import { playerSpellIcons, composeIconSheet, overhaulIconSheet, overhaulIconKey, SPELL_ICON_FILE } from '../../systems/replacements/spellIconSheet.js';
+import { packImgUrl } from '../../systems/uiPack.js';
 // ONE HOME: SpellIconCollection.SpellIconCount is already declared in
 // systems/spell/spellMaker.js, where S1's SetIcon wrap reads it. This is
 // the same DFU member, so it is imported and re-exported rather than
@@ -48,18 +53,40 @@ export const ICON_H = 16;
 export const MASK_SHEET = Object.freeze({ w: 40, h: 80 });
 
 let _art = null;
-/** Both sheets, uploaded once. Missing art leaves the collection
- *  empty rather than throwing - a window without icons still draws
- *  its list, which is how the HUD's own art gate behaves. */
+let _artKey = null;
+/** What the sheets are uploaded again for: the player's own icons (the Replacements pane) or an overhaul's changing. */
+const artKey = () => `${playerPicturesGeneration()}:${overhaulIconKey()}`;
+/** Both sheets, uploaded once - and again when the player's icons or an overhaul's change. Missing art leaves the
+ *  collection empty rather than throwing - a window without icons still draws its list, which is how the HUD's own
+ *  art gate behaves. */
 export async function preloadSpellIcons(deps) {
-  if (_art) return _art;
-  const [icons, mask] = await Promise.all([loadImg(deps, 'ICON00I0.IMG'), loadImg(deps, 'MASK04I0.IMG')]);
-  _art = { icons, mask };
+  const key = artKey();
+  if (_art && _artKey === key) return _art;
+  const [icons, mask] = await Promise.all([loadImg(deps, SPELL_ICON_FILE), loadImg(deps, 'MASK04I0.IMG')]);
+  _art = { icons: await iconSheet(deps, icons, key), mask };
+  _artKey = key;
   return _art;
+}
+/** The icon sheet the game draws: the worn pack's as loadImg uploaded it, else an attached mod's, with the player's own
+ *  icons laid over either. A bigger texture keeps the same cells (drawImgCrop reads its rects as fractions). */
+async function iconSheet({ renderer, fetchBytes, palette }, icons, key) {
+  if (!renderer) return icons;
+  const own = await playerSpellIcons(SPELL_ICON_COUNT).catch(() => new Map());
+  if (!own.size && packImgUrl(SPELL_ICON_FILE)) return icons;
+  const overhaul = await overhaulIconSheet();
+  if (!own.size && !overhaul) return icons;
+  let base = overhaul;
+  if (!base) {
+    const sheet = new ImgFile();
+    sheet.load(await fetchBytes(SPELL_ICON_FILE), SPELL_ICON_FILE, palette);
+    base = bitmapToColor32(sheet.getDFBitmap(), palette);
+  }
+  return { ...icons, tex: renderer.uploadTexture('img', `${SPELL_ICON_FILE}#${key}`, composeIconSheet(base, own)) };
 }
 export const spellIconsLoaded = () => !!_art;
 export function _setSpellIconsForTests(art) {
   _art = art;
+  _artKey = artKey();
 }
 
 /** The square dimension of one icon, derived from the atlas width

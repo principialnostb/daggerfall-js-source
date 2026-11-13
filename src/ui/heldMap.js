@@ -232,6 +232,7 @@ import { STAR_CARD_TEXT } from '../systems/starfall/starWords.js';   // STAR6: i
 import { readFissureMarksIn, fissureMarksKey, FISSURE_BRASS_CSS, fissureLegendText } from './fissureMapMark.js';   // STOREFRONT: the season's Brass Fissures
 import { capturePointer } from './pointerCapture.js';   // RPT1026-CLIENT: a pad's synthetic pointer is refused a capture, never thrown
 import { buttonLabel } from './teleportPopUp.js';   // a caller's own words on the teleport box's buttons
+import { playerPictureUrl, HELD_MAP_PICTURE } from '../systems/replacements/playerPictures.js';
 
 export const HELD_MAP_URL = new URL('art/held-map.png', APP_ROOT ?? globalThis.document?.baseURI ?? 'https://invalid.invalid/').href;
 // The painting is asked for as this module loads. Asked for at the first open, it queued behind the boot's game files,
@@ -3761,7 +3762,7 @@ export class HeldMapWindow {
     this._artWait = 0;
     sprite.onload = () => { this._paintSheet(sprite, sheet); this._keyHands(sprite, hands); this._artIn = true; };
     sprite.onerror = () => { this._artIn = true; };
-    sprite.src = HELD_MAP_URL;
+    sprite.src = playerPictureUrl(HELD_MAP_PICTURE) ?? HELD_MAP_URL;   // the player's own painting (the Replacements pane)
 
     const top = el('div', 'hmtop');
     const label = el('div', 'hmlabel', '');

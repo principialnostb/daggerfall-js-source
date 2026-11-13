@@ -51,7 +51,7 @@ test('AUDIT-DW F2: a weapon atlas\'s custom frames are asked TOGETHER - every as
   assert.equal(asked.at(-1), 'WEAPON10.CIF_0-0', 'MetalTypes.None adds nothing (bare hands)');
   assert.deepEqual(bare, [[null]]);
   const fp = rd('src/combat/fpsWeapon.js');
-  assert.match(fp, /const customs = await customFrames\(askName, metal, cif, customImage\);/, 'the loader takes the batch');
+  assert.match(fp, /const customs = await customFrames\(askName, metal, cif, own \? playerWeaponFrame : customImage\);/, 'the loader takes the batch');
   assert.ok(!/const custom = await customWeaponImage\(name\);/.test(fp), 'and no frame is awaited on its own');
   assert.match(fp, /await Promise\.all\(asks\);/);
 });
@@ -153,7 +153,7 @@ test('AUDIT-DW F4 (named, not changed): DFU keeps the first template\'s custom f
   const rig = rd('src/combat/weapon/weaponRig.js');
   // PIN MOVED (WEAPON-GLOW1, bible/05-Combat/Weapon-Glow.md): the name the atlas is asked by is the PLAIN set's while the
   // weapon's element shows - still the asked name, so the key still carries it
-  assert.match(rig, /const key = `\$\{type\}:\$\{item\?\.material \?\? 0\}:\$\{thunderlock \? \(gilded \? 'gilded' : ''\) : atlasFileName\(item, WEAPON_FILE\[type\] \?\? '', undefined, plain \? false : undefined\)\}`;/);
+  assert.match(rig, /const key = `\$\{type\}:\$\{item\?\.material \?\? 0\}:\$\{thunderlock \? \(gilded \? 'gilded' : ''\) : atlasFileName\(item, WEAPON_FILE\[type\] \?\? '', undefined, plain \? false : undefined\)\}:\$\{playerPicturesGeneration\(\)\}`;/, 'and the player\'s own pictures, so a change on the Replacements pane loads the art again');
   assert.match(rig, /WHICH IS WHAT DFU DOES \(AUDIT-DW\n\s+\/\/ F4, a named departure\): FPSWeapon reloads its atlas only when\n\s+\/\/ WeaponType or MetalType change \(FPSWeapon\.cs:138\)/, 'the departure is named where the key is');
 });
 

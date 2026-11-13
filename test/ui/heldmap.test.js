@@ -2102,7 +2102,8 @@ test('AUDIT-MAP B1: every way out remembers an open panel\'s toggles - the Close
 
 test('AUDIT-MAP B2/B4: the sprite\'s handler is set before its source, the display face landing repaints once, the middle button\'s autoscroll is shut where the browser reads it', () => {
   const src = read('src/ui/heldMap.js');
-  assert.ok(src.indexOf('sprite.onload = () => this._keyHands(sprite, hands);') < src.indexOf('sprite.src = HELD_MAP_URL;'), 'onload before src - a cached picture cannot land first');
+  const source = src.indexOf('sprite.src = playerPictureUrl(HELD_MAP_PICTURE) ?? HELD_MAP_URL;');
+  assert.ok(source > 0 && src.lastIndexOf('sprite.onload = ', source) > source - 600, 'onload before src - a cached picture cannot land first');
   assert.match(src, /\(fonts\?\.load\?\.\("14px 'Cormorant'"\) \?\? fonts\?\.ready\)\?\.then\?\.\(landed\);/, 'the face is ASKED for (a canvas font never triggers a load), and the sheet repainted when it lands');
   // MAP-FIELD2: the measure cache went with the names - nothing else on
   // the sheet measures text - so the face's landing drops the kept layer

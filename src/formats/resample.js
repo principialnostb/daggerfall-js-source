@@ -15,6 +15,21 @@ export function mipFitSize(width, height, maxSize = Infinity) {
   return [w, h];
 }
 
+/** A picture (`{ width, height, colors }` or `{ data }`) shrunk in its proportions until neither side passes `limit` - a
+ *  GPU's MAX_TEXTURE_SIZE - or the picture itself where it fits. A replacement of any size is taken; this keeps a
+ *  device from refusing it. */
+export function fitWithin(picture, limit) {
+  if (!(limit > 0) || !picture?.width || (picture.width <= limit && picture.height <= limit)) return picture;
+  const scale = limit / Math.max(picture.width, picture.height);
+  const pixels = picture.colors ?? picture.data;
+  const bytes = new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength);
+  const width = Math.min(limit, Math.max(1, Math.round(picture.width * scale)));
+  const height = Math.min(limit, Math.max(1, Math.round(picture.height * scale)));
+  const fitted = resampleRgba({ width: picture.width, height: picture.height, data: bytes }, width, height);
+  const { data: _source, ...rest } = picture;
+  return { ...rest, width: fitted.width, height: fitted.height, colors: fitted.data };
+}
+
 /** Box-filter an RGBA picture to w x h (alpha-weighted, so a sprite's clear edge does not bleed dark). */
 export function resampleRgba(img, w, h) {
   w = Math.max(1, Math.round(w));

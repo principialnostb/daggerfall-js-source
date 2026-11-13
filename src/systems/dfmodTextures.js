@@ -58,6 +58,7 @@ import {
   decodePng,
   PRELOAD_CONCURRENCY,
   studioRecordsOf,
+  playerRecordsOf,
   preloadTextureRecord,
   textureTierEpoch,
 } from './textureReplacement.js';
@@ -303,6 +304,7 @@ let _open = new Map(); // store key -> Promise<bundle client | null>
 let _openErrors = new Map(); // DFMOD2: store key -> why it would not open (the packs card says so)
 let _img = new Map(); // 'SCBG04I0.IMG' -> { key, name }
 let _cifRci = new Map(); // 'FACES.CIF_14-0' -> { key, name }
+let _cifRciFiles = new Set(); // 'FACES.CIF': every file a mod carries a frame of
 let _load = null;
 let _loadBlob = null; // DFMOD2: the stored Blob, for a by-range open
 let _opener = poolOpen;
@@ -562,6 +564,7 @@ function install() {
   const table = {};
   _img = new Map();
   _cifRci = new Map();
+  _cifRciFiles = new Set();
   _prio = [];
   // AUDIT VE R1: the walk this install puts on the doors - each mod switched on, with its content. The same walk again (a
   // switch pressed twice, a registration that reads the same) keeps every picture built from it: the ground's tile
@@ -615,8 +618,9 @@ function install() {
       }
       // FACE-RECT (issue #639): and its xml's <rect> - PaperDollRenderer.DrawTexture(head) runs OverridePaperdollItemRect
       // too (item null, MakeName's CIF arm), so a replaced face is drawn into the rect its sidecar gives, not the classic box
-      if (/\.(CIF|RCI)_\d+-\d+(_[A-Z]+)?$/.test(up) && !_cifRci.has(up))
+      if (/\.(CIF|RCI|CFA)_\d+-\d+(_[A-Z]+)?$/.test(up) && !_cifRci.has(up))
         _cifRci.set(up, { key, name, rect: rects.get(name) ?? rects.get(up) ?? null }); // DFMOD2: with a metal suffix too (a handheld weapon's frames)
+      if (/\.(CIF|RCI|CFA)_\d+-\d+(_[A-Z]+)?$/.test(up)) _cifRciFiles.add(up.replace(/_\d+-\d+(_[A-Z]+)?$/, ''));
     }
     _prio.push({ key, names, arrays, looseGround: new Set(index.looseGround ?? []) }); // ALIKR1: the archives a loose pack's ground decides (groundSource)
   }
@@ -773,6 +777,8 @@ const cached = (id, hit, opts) => {
   return _imgCache.get(id);
 };
 export const hasDfmodImg = (name) => _img.has(String(name).toUpperCase());
+/** A mod switched on carries a frame of this CIF or RCI: any record, frame or metal (the Replacements pane's blue). */
+export const hasDfmodCifRciFile = (file) => _cifRciFiles.has(String(file).toUpperCase());
 export const hasDfmodCifRci = (file, record, frame = 0) =>
   _cifRci.has(`${String(file).toUpperCase()}_${record}-${frame}`);
 /** An attached mod's picture of a whole IMG (`SCBG04I0.IMG`), top-down RGBA, or null. */
@@ -905,6 +911,8 @@ const classicLayer = (tex, r) => tex.getColor32(tex.getDFBitmap(r, 0), 0);
 export function dfmodGroundLayers(archive, tex, { decode = decodePng } = {}) {
   const n = tex?.recordCount ?? 0;
   const studio = n ? studioRecordsOf(archive).filter((r) => r < n) : []; // STUDIO1: the studio's records, worn with the gate shut too
+  // The player's own replaced tiles are laid over the set as the studio's are, and outrank them (the record's door answers the player's first)
+  for (const record of n ? playerRecordsOf(archive) : []) if (record < n && !studio.includes(record)) studio.push(record);
   if (!n || (!textureReplacementEnabled() && !studio.length)) return Promise.resolve(null);
   const id = `${Number(archive)}:${n}:${looseTextureGeneration()}${studio.length ? `:${textureTierEpoch()}` : ''}`;
   const hit = _groundCache.get(id);

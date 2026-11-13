@@ -138,13 +138,13 @@ test('the two rails differ only where the question does', () => {
   // ORG2 (Mac: "Graphic settings needs its own tab, etc. I really need you to go all in"): FEATURES LEFT THE RAIL as
   // Controls did - its rows are the Settings screen's tabs, one door for every option, on both rails still.
   // TUT1: Tutorials joins it - the book a player reads before the game is the one they reread mid-game.
-  const shared = ['Load Game', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About'];   // FT14: no Mods door; FT16: no Controls door; ORG2: no Features door
+  const shared = ['Load Game', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About'];   // FT14: no Mods door; FT16: no Controls door; ORG2: no Features door
   assert.ok(!boot.includes('Controls') && !pause.includes('Controls'),
     'Controls is a Settings category now - a second door to one subject is the thing FT16 closed');
   assert.ok(!boot.includes('Features') && !pause.includes('Features'), 'and Features is Settings\' tabs (ORG2)');
   for (const s2 of shared) {
     assert.ok(boot.includes(s2), `${s2} must stay on the front door`);
-    assert.ok(pause.includes(s2), `${s2} must reach the pause door too`);
+    assert.ok(pause.includes(s2), `${s2} must reach the pause door too`);   // Replacements too: one's own pictures, at either door
   }
   // ENHANCED IS BOOT-ONLY, and that is the question it answers rather
   // than an omission: "how much of this is still Daggerfall" is
@@ -164,7 +164,7 @@ test('the two rails differ only where the question does', () => {
   assert.ok(!boot.includes('Enhanced') && !pause.includes('Enhanced'), 'Enhanced is a settings category, not a rail entry (SO1)');
   // FD1: the classic rail is the shared set behind one door
   const classic = list('SECTIONS_CLASSIC');
-  assert.deepEqual(classic, ['Begin', 'Online', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About'], 'TUT1: and the tutorials; ONLINE1: the classic player goes online too; FT0/ORG2: and reaches every feature and mod through Settings; FT16: and Controls is inside Settings; LOAD1: and the key\'s shots');
+  assert.deepEqual(classic, ['Begin', 'Online', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About'], 'TUT1: and the tutorials; ONLINE1: the classic player goes online too; FT0/ORG2: and reaches every feature and mod through Settings; FT16: and Controls is inside Settings; LOAD1: and the key\'s shots');
   assert.deepEqual(pause.filter((x) => !shared.includes(x)), ['Resume', 'Save Game', 'Exit']);
   // SETTINGS IS THE POINT. U49's own record says settings were
   // reachable only at boot; a pause rail without them would have left

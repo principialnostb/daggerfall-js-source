@@ -464,5 +464,14 @@
  "logo (a guild's uploaded picture)": "logo",
  "under review (a logo)": "venter på godkendelse",
  "Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire (sail patterns)": "Glat, Pæle, Bjælker, Kvadreret, Sparre, Kors, Bort, Skråkors",
- "Guild / Wealth / Identity (guild window groups)": "Laug / Formue / Identitet"
+ "Guild / Wealth / Identity (guild window groups)": "Laug / Formue / Identitet",
+ "Replacements (System pane)": "Erstatninger",
+ "replacement (a player's own picture)": "erstatning",
+ "picture (a texture or sprite)": "billede",
+ "Overhaul (one)": "omarbejdning",
+ "Rejected: (a refused file)": "Afvist:",
+ "Skin card (heading stays Skin)": "Skin-kortet",
+ "Layered Gearing (mod name - never changes)": "Layered Gearing",
+ "Werewolf / Wereboar form": "Varulveform / Varvildsvineform",
+ "Town guard": "Byvagt"
 }

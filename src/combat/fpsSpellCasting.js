@@ -37,6 +37,9 @@ import { CifRciFile } from '../formats/cifRciFile.js';
 import { frameToColor32 } from './fpsWeapon.js'; // the ONE indexed-bitmap bake
 import { weaponOffsetHeight } from '../ui/hud/hudLarge.js';
 import { validCastRate } from '../systems/castSpeed.js'; // CAST-SPEED: the rate a cast runs at
+import { toScreenOrder } from '../formats/color32Order.js';
+import { cifPictureName, playerPictureRgba, playerPictureStamp, playerCifCopy, playerFileStamp } from '../systems/replacements/playerPictures.js';
+import { dfmodCifRciImage, dfmodGeneration } from '../systems/dfmodTextures.js';
 
 /** nativeScreenWidth / nativeScreenHeight (:44-45). NOT 320x200: the
  *  hands are laid out against a 300-wide surface, which is why they
@@ -134,11 +137,9 @@ export function magicAnimFilename(element) {
  * weapons" (:174) - hence GetColor32(record, 0, ...) and one texture
  * per record, where the weapon loader walks a frame list.
  *
- * FLAGGED: TextureReplacement.TryImportCifRci (:179) - the loose-file
- * CIF override a texture mod supplies - is not consulted, exactly as
- * combat/fpsWeapon.js does not consult it for WEAPON*.CIF. The port's
- * replacement registry (systems/textureReplacement.js) covers archive
- * textures only, so there is no CIF door to knock on yet.
+ * TextureReplacement.TryImportCifRci (:179) is answered by the player's
+ * own pictures and copy of the file (the Replacements pane), then by an
+ * attached mod's record. Each is drawn in the classic record's box.
  *
  * @returns {Promise<{element:number, records:{width:number,height:number,tex:*}[]}>}
  */
@@ -151,16 +152,24 @@ export async function loadSpellCastArt(getBytes, palette, renderer, element) {
   if (!cif.load(await getBytes(fileName), fileName, palette)) {
     throw new Error(`Could not load spell anims file ${fileName}`);
   }
+  const own = await playerCifCopy(fileName, palette, cif);
+  const names = Array.from({ length: cif.recordCount }, (_, r) => cifPictureName(fileName, r, 0));
+  const pictures = await Promise.all(names.map((name) => playerPictureRgba(name)));
+  const mods = await Promise.all(names.map((_, r) => (own || pictures[r] ? null : dfmodCifRciImage(fileName, r, 0).catch(() => null))));
   const records = [];
   for (let r = 0; r < cif.recordCount; r++) {
     const size = cif.getSize(r);
     // No dye: a spell has no material. This is GetWeaponTexture2D's
     // steel arm, which is the branch that skips ChangeDye entirely.
-    const c32 = frameToColor32(cif.getDFBitmap(r, 0), palette, null);
+    const picture = pictures[r] ?? mods[r];
+    const c32 = picture ? toScreenOrder(picture) : frameToColor32((own ?? cif).getDFBitmap(r, 0), palette, null);
+    let key = `fpsc:${fileName}${own ? `#${playerFileStamp(fileName)}` : ''}:${r}`;
+    if (pictures[r]) key = `fpsc:${names[r]}#${playerPictureStamp(names[r])}`;
+    else if (mods[r]) key = `fpsc:${names[r]}#mod${dfmodGeneration()}`;
     records.push({
       width: size.width,
       height: size.height,
-      tex: renderer.uploadTexture('img', `fpsc:${fileName}:${r}`, c32, { clamp: true }), // HAND-SEAM: one quad, never tiled - no wrap onto the far edge (render/renderer.js textureParams)
+      tex: renderer.uploadTexture('img', key, c32, { clamp: true }), // HAND-SEAM: one quad, never tiled - no wrap onto the far edge (render/renderer.js textureParams)
     });
   }
   return { element, records };

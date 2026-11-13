@@ -93,5 +93,11 @@
  "guest (account)": "ゲスト",
  "By chance (Collections chip: a random roll)": "運次第",
  "the sprout (the new account's glyph)": "新芽の徽章",
- "Offered by {giver} (a questline's giver, last in the sentence)": "依頼人：{giver}"
+ "Offered by {giver} (a questline's giver, last in the sentence)": "依頼人：{giver}",
+ "Replacement (the Replacements pane: your own PNG in place of a game picture)": "差し替え",
+ "picture (a texture or sprite)": "画像",
+ "Overhaul (a mod that changed a picture)": "オーバーホール",
+ "Skin card (profile)": "スキンカード",
+ "Rejected: (a refused file)": "使用不可：",
+ "Werewolf form / Wereboar form": "人狼の姿 / 猪人の姿"
 }
