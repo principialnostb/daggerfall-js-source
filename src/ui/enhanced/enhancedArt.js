@@ -45,11 +45,11 @@ async function overhaulSheetCanvas(name) {
   if (name !== SPELL_ICON_FILE) return null;
   const sheet = await overhaulIconSheet();
   if (!sheet?.width) return null;
-  const cv = document.createElement('canvas');
-  cv.width = sheet.width;
-  cv.height = sheet.height;
-  cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(sheet.data.buffer, sheet.data.byteOffset, sheet.data.byteLength), sheet.width, sheet.height), 0, 0);
-  return Object.assign(cv, { unit: sheet.width / (SPELL_ICONS_PER_ROW * SPELL_ICON_CELL) });
+  const canvas = document.createElement('canvas');
+  canvas.width = sheet.width;
+  canvas.height = sheet.height;
+  canvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(sheet.data.buffer, sheet.data.byteOffset, sheet.data.byteLength), sheet.width, sheet.height), 0, 0);
+  return Object.assign(canvas, { unit: sheet.width / (SPELL_ICONS_PER_ROW * SPELL_ICON_CELL) });
 }
 /** A sheet's cache key: the spell icons' follows the overhaul that draws them. */
 const sheetKey = (name) => (name === SPELL_ICON_FILE ? `${name}#${overhaulIconKey()}` : name);

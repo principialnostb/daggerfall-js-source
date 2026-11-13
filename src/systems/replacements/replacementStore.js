@@ -22,7 +22,7 @@ export const REPLACEMENT_STORE = 'pictures';
  */
 
 /** A TEXTURE picture's store key: DFU's name unpadded, `233_5-0`, and a metal's dye, `233_5-0_Daedric`. */
-export const replacementKey = (archive, record, frame = 0, dye = null) =>
+export const textureReplacementKey = (archive, record, frame = 0, dye = null) =>
   `${Number(archive)}_${Number(record)}-${Number(frame)}${dye ? `_${dye}` : ''}`;
 /** The store's key for a picture the game asks by name: `name:` and the name (`name:WEAPON04.CIF_0-0_Daedric`). */
 export const pictureReplacementKey = (name) => `name:${canonicalPictureName(name)}`;
@@ -33,7 +33,7 @@ export function keyOfPicture(picture) {
   if (picture.key) return picture.key;
   if (picture.kind === 'picture') return pictureReplacementKey(picture.name);
   if (picture.kind === 'file') return fileReplacementKey(picture.file);
-  return replacementKey(picture.archive, picture.record, picture.frame, picture.dye ?? null);
+  return textureReplacementKey(picture.archive, picture.record, picture.frame, picture.dye ?? null);
 }
 
 /** A backend held in memory: the tests', and the fallback when IndexedDB will not open. */

@@ -73,7 +73,7 @@ export const PAINTED_SETS = Object.freeze([
   {
     id: 'gate',
     archive: 38101,
-    title: () => t('menu.repl.painted.gate', 'The Oblivion Gate'),
+    title: () => t('menu.repl.painted.gate', "Dagon's Breach: the gate"),
     paint: async () => {
       const gate = await import('../../world/gate/gateArt.js');
       return [...gate.gateArt(), ...gate.archArt(), ...gate.riteArt()];
@@ -82,7 +82,7 @@ export const PAINTED_SETS = Object.freeze([
   {
     id: 'court',
     archive: 38111,
-    title: () => t('menu.repl.painted.court', "The Oblivion Gate's court"),
+    title: () => t('menu.repl.painted.court', "Dagon's Breach: the Burning Court"),
     paint: async () => (await import('../../world/gate/gateArt.js')).courtArt(),
   },
   ...EG_BAND_ARCHIVES.map((archive, band) => ({
@@ -177,10 +177,10 @@ export function glowFrom(own, emission) {
   const lit = emission.colors ?? emission.data;
   const out = new Uint8ClampedArray(own.width * own.height * 4);
   for (let y = 0; y < own.height; y++) {
-    const ey = Math.min(emission.height - 1, Math.floor((y * emission.height) / own.height));
+    const emissionRow = Math.min(emission.height - 1, Math.floor((y * emission.height) / own.height));
     for (let x = 0; x < own.width; x++) {
-      const ex = Math.min(emission.width - 1, Math.floor((x * emission.width) / own.width));
-      const e = (ey * emission.width + ex) * 4;
+      const emissionColumn = Math.min(emission.width - 1, Math.floor((x * emission.width) / own.width));
+      const e = (emissionRow * emission.width + emissionColumn) * 4;
       if (!(lit[e] || lit[e + 1] || lit[e + 2])) continue;
       const i = (y * own.width + x) * 4;
       out[i] = own.colors[i];

@@ -10,7 +10,7 @@
 import { CLOUD_SHADOW_GLSL, cloudFarOf } from './cloudShadow.js';   // EE5 / VC4: the cloud shadow's reader - VC6c's one home, shared with the air pass's shafts; OW-HORIZON: and the ground past its square
 import { BAYER_GLSL, DISSOLVE_GLSL } from './orderedDither.js';   // SHIP-FADE: the mesh shader's dissolve over the port's one bayer4
 import { pixelFadeShare } from './pixelFade.js';   // MID-RING: a just-built pixel's tint, eased out (a leaf)
-import { fitWithin } from '../formats/resample.js';   // a picture past the device's texture limit, shrunk to fit
+import { fitToTextureLimit } from '../formats/resample.js';   // a picture past the device's texture limit, shrunk to fit
 import { LPT_FS_HEAD, LPT_FS_KEEP, LPT_FS_TEXEL } from './lowPolyTreesGlsl.js';   // LPT1: a low-poly tree's fragment half, both lanes' billboard shaders
 import { LPT_IMPOSTOR_LIGHT } from '../world/lowPolyTrees.js';   // FLORA-GROUND: the sky's light a tree's faces take (a leaf: no imports of its own)
 import { FOG_GLSL } from './fogGlsl.js';
@@ -5641,7 +5641,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     }
     color32 = paintedUpload(this, archive, record, opts) ?? color32;   // a picture the port paints: the player's own in its place
     const gl = this.gl;
-    color32 = fitWithin(color32, this.textureLimit());   // a picture past what this device takes (a player's own, a mod's) is shrunk, never refused
+    color32 = fitToTextureLimit(color32, this.textureLimit());   // a picture past what this device takes (a player's own, a mod's) is shrunk, never refused
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     this._tex0Bound = null;   // PERF-TEX3: this path owns unit 0 - the shadow may not speak for it

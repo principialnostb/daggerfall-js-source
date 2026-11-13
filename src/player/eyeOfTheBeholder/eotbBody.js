@@ -451,8 +451,8 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
 
   const cacheKey = (s) => `${s.archive}:${s.rec}`;
   /** A horse that wears a mount look, bought with Aurum, is dyed over the game's own picture, never the player's. */
-  const gameArt = (s) => !!s?.horse && wearsMountLook(s.horse);
-  const slotOf = (s) => (gameArt(s) ? `${s.key}#game` : s.key);
+  const gameArt = (sprite) => !!sprite?.horse && wearsMountLook(sprite.horse);
+  const slotOf = (sprite) => (gameArt(sprite) ? `${sprite.key}#game` : sprite.key);
   async function pixels(key, own = true) {
     const slot = own ? key : `${key}#game`;
     let p = decoded.get(slot);

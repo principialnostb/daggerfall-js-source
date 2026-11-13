@@ -153,9 +153,9 @@ export async function loadSpellCastArt(getBytes, palette, renderer, element) {
     throw new Error(`Could not load spell anims file ${fileName}`);
   }
   const own = await playerCifCopy(fileName, palette, cif);
-  const names = Array.from({ length: cif.recordCount }, (_, r) => cifPictureName(fileName, r, 0));
+  const names = Array.from({ length: cif.recordCount }, (_, record) => cifPictureName(fileName, record, 0));
   const pictures = await Promise.all(names.map((name) => playerPictureRgba(name)));
-  const mods = await Promise.all(names.map((_, r) => (own || pictures[r] ? null : dfmodCifRciImage(fileName, r, 0).catch(() => null))));
+  const mods = await Promise.all(names.map((_, record) => (own || pictures[record] ? null : dfmodCifRciImage(fileName, record, 0).catch(() => null))));
   const records = [];
   for (let r = 0; r < cif.recordCount; r++) {
     const size = cif.getSize(r);

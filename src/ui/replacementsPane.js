@@ -16,7 +16,7 @@ import {
   namesOverhauled,
   itemOriginal,
   itemNotes,
-  METALS,
+  REPLACEMENT_METALS,
   textureDyeOf,
   sheetPictures,
   sheetOriginal,
@@ -29,7 +29,7 @@ import {
   clearReplacements,
   clearAllReplacements,
   onReplacementsChange,
-  replacementKey,
+  textureReplacementKey,
   pictureReplacementKey,
   fileReplacementKey,
 } from '../systems/replacements/replacementStore.js';
@@ -627,7 +627,7 @@ function metalRow(viewers) {
     node.value = value;
     return node;
   };
-  select.append(option('', t('menu.repl.allMetals', 'All metals')), ...METALS.map((metal) => option(metal, metalLabel(metal))));
+  select.append(option('', t('menu.repl.allMetals', 'All metals')), ...REPLACEMENT_METALS.map((metal) => option(metal, metalLabel(metal))));
   select.value = paneState.metal ?? '';
   select.onchange = () => {
     paneState.metal = select.value || null;
@@ -666,7 +666,7 @@ function mainSource(item, section) {
     file: null,
     copyOf: null,
     caption: () => null,
-    keyOf: (picture) => replacementKey(picture.archive, picture.record, picture.frame, textureDyeOf(metal())),
+    keyOf: (picture) => textureReplacementKey(picture.archive, picture.record, picture.frame, textureDyeOf(metal())),
     fileNameOf: (picture) => pictureFileName({ ...picture, dye: textureDyeOf(metal()) }),
     read: (picture) => itemOriginal(item, picture, metal()),
     descriptor: (picture) => ({ archive: picture.archive, record: picture.record, frame: picture.frame, dye: textureDyeOf(metal()) }),

@@ -120,7 +120,7 @@ accepted. The browser must also decode it.
 **Big pictures.** A picture is kept at any size up to what any device holds (`MAX_PICTURE_SIDE`, 16,384 pixels a
 side, and `MAX_PICTURE_PIXELS`, 512 MB once read). The renderer shrinks every texture past what the device takes, in
 its proportions, as it uploads it (`src/render/renderer.js` `uploadTexture`, `textureLimit`: the device's
-MAX_TEXTURE_SIZE; `src/formats/resample.js` `fitWithin`). A player's own picture, a mod's and a pack's alike.
+MAX_TEXTURE_SIZE; `src/formats/resample.js` `fitToTextureLimit`). A player's own picture, a mod's and a pack's alike.
 
 **A bigger picture** is drawn at its original's size with more detail. The store keeps the size it is drawn at
 (`drawWidth`, `drawHeight`, `drawnSize`), and the texture door hands it on as the picture's `box`, which a mod-only
@@ -162,7 +162,7 @@ down to the original's size.
   a set an archive: the studio's eight (`src/systems/studioArt/studioSlots.js` `STUDIO_SETS`: the wagons, the
   galleon, the carrack, the large boat, the towns' hangings, the yards, the port, the LeFay monument) and the port's
   own fifteen (`src/systems/replacements/paintedArt.js` `PAINTED_SETS`: Starfall's stars, the Brass Fissures, the
-  guild halls' materials, the Abyss and its remnants, the Oblivion Gate and its court, the Elite Breach's four bands,
+  guild halls' materials, the Abyss and its remnants, Dagon's Breach and its Burning Court, the Elite Breach's four bands,
   the Sky-Ketch, the figureheads, blood and the Ghostfence). Each preview is painted when asked.
 
 The originals are read from the player's own TEXTURE, CIF, RCI, CFA and IMG files

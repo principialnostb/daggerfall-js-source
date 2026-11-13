@@ -18,7 +18,7 @@ export function mipFitSize(width, height, maxSize = Infinity) {
 /** A picture (`{ width, height, colors }` or `{ data }`) shrunk in its proportions until neither side passes `limit` - a
  *  GPU's MAX_TEXTURE_SIZE - or the picture itself where it fits. A replacement of any size is taken; this keeps a
  *  device from refusing it. */
-export function fitWithin(picture, limit) {
+export function fitToTextureLimit(picture, limit) {
   if (!(limit > 0) || !picture?.width || (picture.width <= limit && picture.height <= limit)) return picture;
   const scale = limit / Math.max(picture.width, picture.height);
   const pixels = picture.colors ?? picture.data;

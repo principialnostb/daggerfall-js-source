@@ -302,7 +302,7 @@ function nameApart(items) {
 // ---- Metals and first-person sheets -------------------------------------------------------------------------------
 
 /** The metals a weapon's or armour's pictures are drawn in, by their English identity (MATERIAL_NAMES). */
-export const METALS = MATERIAL_NAMES;
+export const REPLACEMENT_METALS = MATERIAL_NAMES;
 /** A metal's dye for a TEXTURE picture's name: DFU's DyeColors name, none for Silver (its dye is Unchanged, and a
  *  silver item asks by the bare name - TextureReplacement.GetName). */
 export const textureDyeOf = (metal) => (metal ? dyeToken(DYE_COLORS[metal]) || null : null);

@@ -3,11 +3,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { pngSize, acceptedSizes, replacementRefusal, followsOriginal, drawnSize, PNG_SIGNATURE, SHAPE_ALLOWANCE } from '../../src/systems/replacements/replacementRules.js';
-import { fitWithin } from '../../src/formats/resample.js';
+import { fitToTextureLimit } from '../../src/formats/resample.js';
 import { readFileSync } from 'node:fs';
 import {
   memoryReplacementBackend, setReplacementBackend, saveReplacement, clearReplacement, listReplacements,
-  replacementKey, onReplacementsChange,
+  textureReplacementKey, onReplacementsChange,
 } from '../../src/systems/replacements/replacementStore.js';
 import {
   setPlayerReplacements, hasPlayerReplacement, playerRecordsOf, hasTextureReplacement, textureReplacementBytes,
@@ -94,20 +94,20 @@ test('replacements: a file is refused when it is not a PNG, out of shape or smal
 
 test('replacements: a picture past the device\'s texture limit is shrunk in its proportions as it loads, never refused', () => {
   const big = { width: 3080, height: 2042, colors: new Uint8ClampedArray(3080 * 2042 * 4).fill(90), box: { width: 65, height: 67 } };
-  const fitted = fitWithin(big, 2048);
+  const fitted = fitToTextureLimit(big, 2048);
   assert.deepEqual([fitted.width, fitted.height], [2048, 1358], 'its longer side at the limit, its shape kept');
   assert.equal(fitted.colors.length, 2048 * 1358 * 4);
   assert.equal(fitted.colors[0], 90, 'its colours kept');
   assert.deepEqual(fitted.box, { width: 65, height: 67 }, 'and the box it is drawn into');
   const small = { width: 64, height: 64, colors: new Uint8ClampedArray(64 * 64 * 4) };
-  assert.equal(fitWithin(small, 2048), small, 'a picture that fits is itself');
-  const tall = fitWithin({ width: 10, height: 5000, data: new Uint8Array(10 * 5000 * 4) }, 4096);
+  assert.equal(fitToTextureLimit(small, 2048), small, 'a picture that fits is itself');
+  const tall = fitToTextureLimit({ width: 10, height: 5000, data: new Uint8Array(10 * 5000 * 4) }, 4096);
   assert.deepEqual([tall.width, tall.height], [8, 4096], 'a decode\'s `data` too, the longer side either way');
 });
 
 test('replacements: every texture the renderer uploads is fitted to the device first', () => {
   const renderer = readFileSync(new URL('../../src/render/renderer.js', import.meta.url), 'utf8');
-  assert.match(renderer, /color32 = fitWithin\(color32, this\.textureLimit\(\)\);/);
+  assert.match(renderer, /color32 = fitToTextureLimit\(color32, this\.textureLimit\(\)\);/);
   assert.match(renderer, /this\.gl\.getParameter\(this\.gl\.MAX_TEXTURE_SIZE\)/, 'the limit is the device\'s own');
 });
 
@@ -188,7 +188,7 @@ test('replacements: the store keeps a picture, registers it, tells its listeners
   try {
     const blob = new Blob([pngHeader(8, 8)], { type: 'image/png' });
     const kept = await saveReplacement({ archive: 255, record: 1, frame: 2, width: 8, height: 8, fileName: 'rat.png', blob });
-    assert.equal(kept.key, replacementKey(255, 1, 2));
+    assert.equal(kept.key, textureReplacementKey(255, 1, 2));
     assert.equal(kept.key, '255_1-2');
     assert.equal((await listReplacements()).length, 1);
     assert.equal(hasPlayerReplacement(255, 1, 2), true, 'registered with the texture door');

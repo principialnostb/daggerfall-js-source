@@ -16,7 +16,7 @@ const NO_DATA = !ARENA2 || !existsSync(ARENA2) ? 'no ARENA2 (ARENA2_PATH)' : fal
 if (!NO_DATA) {
   // the game's files as the browser fetches them, from the player's ARENA2
   globalThis.fetch = async (url) => {
-    const path = join(ARENA2, String(url).replace('./arena2/', ''));
+    const path = join(ARENA2, String(url).split('/').pop());
     if (!existsSync(path)) return { ok: false, status: 404 };
     const bytes = readFileSync(path);
     return { ok: true, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
