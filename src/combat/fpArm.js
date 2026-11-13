@@ -114,6 +114,7 @@ import { showNudity } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show N
 import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm switch, read where the worn set is composed
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
+import { ddsAtMost } from '../formats/morrowind/mwDdsFile.js';
 
 // Robert's Bodies Based Gauntlets (Pherim): use its finger/hand geometry as a temporary
 // first-person donor for all gauntlets, while retaining the equipped model's texture path.
@@ -561,6 +562,23 @@ function findLoaded(archives, path) {
  *  answer with the warning image and its reason, exactly as it always
  *  has. Without a generation there is no memo to fill, and
  *  collectArmTextures decodes as before. */
+/** The largest texture a pixelated or distant body samples. A body's own memo key carries it (textureGen), so a capped
+ *  body and a full one never share a picture. */
+export const CHAR_TEXTURE_MAX = 1024;
+const TEXTURE_CAP = /#tex(\d+)$/;
+/** The texture memo's generation for a body capped at `max` (null or 0: the full file). */
+export const textureGen = (gen, max) => (gen !== null && max > 0 ? `${gen}#tex${max}` : gen);
+const textureCapOf = (gen) => Number((typeof gen === 'string' && TEXTURE_CAP.exec(gen)?.[1]) || 0);
+/** A texture's bytes as its body reads them: a DDS cut to the generation's cap, anything else as it is. */
+const cappedTexture = (path, bytes, gen) => {
+  const max = textureCapOf(gen);
+  return max > 0 && /\.dds$/i.test(path) ? ddsAtMost(bytes, max) : bytes;
+};
+/** A garment's colour is its picture's average: a 256 level measures it as the 2048 one does, at a sixtieth of the decode. */
+const CLOTH_COLOUR_TEXTURE_MAX = 256;
+const colourBytes = (path, bytes) => (/\.dds$/i.test(path) ? ddsAtMost(bytes, CLOTH_COLOUR_TEXTURE_MAX) : bytes);
+/** The rig's texture generation: the build's, with the body's cap. */
+const texGenOf = (token, gen) => token?.catalog?.texGen ?? gen;
 export async function preloadArmTextures(pieces, archives, gen = null, urgent = false) {   // LOAD-STALL 3: `urgent` - the player's rig, ahead of the NPCs' in the pool
   const paths = [];
   const want = [];   // MW-TEXTHREAD: [file, path] - the memo is keyed by the file the piece names
@@ -582,7 +600,7 @@ export async function preloadArmTextures(pieces, archives, gen = null, urgent = 
     const arc = archives.find((a) => a.has(path));
     if (!arc || (typeof arc.loaded === 'function' && !arc.loaded(path))) return;   // collectArmTextures says why
     let image;
-    try { image = await decodeTextureOffThread(path, arc.get(path), { urgent }); } catch (err) {
+    try { image = await decodeTextureOffThread(path, cappedTexture(path, arc.get(path), gen), { urgent }); } catch (err) {
       // AUDIT MW-TEXTHREAD F4: THE DECODER'S REFUSAL IS KEPT TOO. The
       // decoder is pure, so the same bytes refuse again on any thread;
       // left unkept, collectArmTextures decoded the whole file a second
@@ -1709,7 +1727,7 @@ function clothingColourOf(rec, parts, archives, gen) {
     if (tarc) {
       // MW-TEXTHREAD: level 0 alone - the measure reads no other, and the chain below it is a third again of the
       // decode (MW-LOAD's face-match finding, the same measure)
-      rgb = garmentColourOf(decodeTextureImage(tpath, tarc.get(tpath).slice(), { levels: 1 }).mips[0]);
+      rgb = garmentColourOf(decodeTextureImage(tpath, colourBytes(tpath, tarc.get(tpath)).slice(), { levels: 1 }).mips[0]);
     }
   } catch (err) {
     // MW-LOAD: a measure that ran ahead of its bytes is NOT a null to
@@ -1747,7 +1765,7 @@ async function preloadClothingColour(rec, parts, archives, gen, urgent = false) 
   const tarc = archives.find((a) => a.has(tpath));
   if (!tarc || (typeof tarc.loaded === 'function' && !tarc.loaded(tpath))) return;
   let rgb;
-  try { rgb = garmentColourOf((await decodeTextureOffThread(tpath, tarc.get(tpath), { levels: 1, urgent })).mips[0]); }
+  try { rgb = garmentColourOf((await decodeTextureOffThread(tpath, colourBytes(tpath, tarc.get(tpath)), { levels: 1, urgent })).mips[0]); }
   catch (err) { if (!err?.decoderError) return; rgb = null; }
   if (!CLOT_COLOUR_CACHE.has(key)) CLOT_COLOUR_CACHE.set(key, rgb);
 }
@@ -2693,7 +2711,7 @@ export function bareHeadRows(rows, worn, pieces, werewolf = false) {
  * person and the card names the reason the wheel cannot leave it.
  */
 async function buildTpBody({
-  race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn, archives, parts, allWeapons, find, gen = null,
+  race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn, archives, parts, allWeapons, find, gen = null, texGen = gen,
   appearanceHeadId = null, appearanceHairId = null,
   torch = false, allLights = [],   // MW-D51
   sheathing = true, ammoCount = null,   // WS1: the holster, and the quiver's count (null: a full quiver when there is ammunition)
@@ -3144,8 +3162,8 @@ async function buildTpBody({
     // MW-LOAD: covers collectArmTextures' synchronous reads - rule 36's
     // ladder over the names the assembled pieces carry, which are only
     // knowable now that the NIFs are parsed.
-    await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen, urgent);   // MAC-Q: and the flame's
-    const textures = collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen);
+    await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, texGen, urgent);   // MAC-Q: and the flame's
+    const textures = collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, texGen);
     if (werewolf) await preskinTextures(arm.pieces, textures, skin);   // SHADOW-FANG (AUDIT D2): the skin, here and not in the frame
 
     const sourcePaths = tpAnimSources(skeletonPath, exists, { werewolf });   // WEREWOLF1: the wolf's .kf alone
@@ -3417,8 +3435,9 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
     const modelBytes = nifBytes(arc, modelPath);
     const arm = await assembleCreature({ modelBytes, parseNif: parseNifOnce });   // MWNPC3: one parse a mesh, every body
     if (!arm.ok) return { ok: false, stage: arm.stage || 'assembly', error: arm.error, notes: arm.notes || [] };
-    await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen);
-    const textures = collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen);
+    const texGen = textureGen(gen, CHAR_TEXTURE_MAX);   // a creature is always another's body
+    await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, texGen);
+    const textures = collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, texGen);
     const bipedal = (rec.flags & CREA_FLAG.Bipedal) !== 0;
     const sourcePaths = creatureAnimSources(modelPath, exists, { bipedal });
     if (!sourcePaths.length) return { ok: false, stage: 'clip', error: `no animation file - ${animSourceName(modelPath)} is not in your archives`, notes: arm.notes };
@@ -3776,6 +3795,7 @@ export async function buildFpArm({
   npcHint = null,   // MWNPC17: stable NPC seed/tier used by deterministic animation variant selection
   ownHeads = false,   // MW-HEADS2 (the owner: "only the player Britons should recieve the new heads, not npcs"): a player's body - the local player's (weaponRig.js armBuildOptsOf) and a peer's (net/peer/peerBodies.js playerBuildOpts) - wears the port's own heads; every other the data's
   urgent = false,   // LOAD-STALL 3: the player's rig (createFpArm's playerAppearance) - its pictures ahead of the NPCs' in the pool
+  textureMax = null,   // the body's largest texture (CHAR_TEXTURE_MAX), null for the full files
   offWeapon = null,   // TWO-HANDS AUDIT 2: a pair's left-hand weapon, bound in the build on both rigs - the rig's own rebuilds hand the one it holds (setOffWeapon records it)
 } = {}) {
   if (creature) return buildCreatureBody({ creature, flies, deps });   // MWNPC9
@@ -4293,18 +4313,19 @@ export async function buildFpArm({
     // here - preloadArmTextures covers every read collectArmTextures
     // makes, walking rule 36's ladder with `has` alone.
     // MAC-Q: the particle systems' textures ride the same catalog as the pieces'
-    if (arm.ok) await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen, urgent);
-    const textures = arm.ok ? collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen) : new Map();
+    const texGen = textureGen(gen, textureMax);
+    if (arm.ok) await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, texGen, urgent);
+    const textures = arm.ok ? collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, texGen) : new Map();
     if (arm.ok && werewolf) await preskinTextures(arm.pieces, textures, skin);   // SHADOW-FANG (AUDIT D2): the skin, here and not in the frame
     stage('textures');
     // MW-D38: THE CATALOG the item icons resolve against - the same
     // archives and records this build used, kept on the result so an
     // icon never re-walks an esm.
-    const catalog = { archives, parts, armors, clothes, weapons: allWeapons, gen };
+    const catalog = { archives, parts, armors, clothes, weapons: allWeapons, gen, texGen };
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, texGen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // Make a third-person refusal explicit: a successful first-person arm build does
     // not mean the player body assembled. This is especially important for cloak
@@ -4355,8 +4376,8 @@ export async function buildFpArm({
         const res = resolveOffWeaponParts({ weapon: offWeapon, allWeapons, find, skeletonBytes: r.skeletonBytes, has: archiveHas(archives), hasBone: (n) => r.arm.skeleton.byName.has(String(n).toLowerCase()) });
         bindPartsInto(r.arm, res.parts);
         const fresh = r.arm.pieces.filter((p) => p.slot === 'offweapon');
-        await preloadArmTextures(fresh, archives, gen, urgent);
-        for (const [file, tex] of collectArmTextures(fresh, archives, gen)) if (!r.textures.has(file)) r.textures.set(file, tex);
+        await preloadArmTextures(fresh, archives, texGen, urgent);
+        for (const [file, tex] of collectArmTextures(fresh, archives, texGen)) if (!r.textures.has(file)) r.textures.set(file, tex);
         offBound[key] = res;
       }
       if (third?.ok && offBound.third) {
@@ -4738,7 +4759,7 @@ export function collectArmTextures(pieces, archives, gen = null) {
       // .dds probe misses (resourcehelpers.cpp:112-114), and feeding
       // that to decodeDds turned a texture the archives DO carry into
       // the magenta warning.
-      const entry = { ok: true, path, image: tintBetterBodiesFemaleSkin(decodeTextureImage(path, arc.get(path).slice()), file) };
+      const entry = { ok: true, path, image: tintBetterBodiesFemaleSkin(decodeTextureImage(path, cappedTexture(path, arc.get(path), gen).slice()), file) };
       out.set(file, entry);
       if (gen !== null) TEXTURE_CACHE.set(`${gen}:${file}`, entry);
     } catch (err) {
@@ -5649,7 +5670,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const gen = token?.catalog?.gen ?? null;
     if (gen === null || tries >= TEXTURE_HEAL_TRIES) return 0;
     const views = () => [token, thirdBuilt && thirdBuilt.ok ? thirdBuilt : null].filter((v) => v && v.textures && v.arm);
-    const missingOf = (v) => new Set([...v.textures].filter(([file, e]) => e && !e.ok && !TEXTURE_CACHE.has(`${gen}:${file}`)).map(([file]) => file));
+    const missingOf = (v) => new Set([...v.textures].filter(([file, e]) => e && !e.ok && !TEXTURE_CACHE.has(`${texGenOf(token, gen)}:${file}`)).map(([file]) => file));
     if (!views().some((v) => missingOf(v).size)) return 0;
     await new Promise((r) => setTimeout(r, TEXTURE_HEAL_MS * (tries + 1)));
     if (built !== token) return 0;
@@ -5660,9 +5681,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const missing = missingOf(v);
       if (!missing.size) continue;
       const pieces = [...v.arm.pieces, ...(v.arm.effects ?? [])].filter((p) => missing.has(p.material?.textureFile));
-      await preloadArmTextures(pieces, archives, gen, playerAppearance);
+      await preloadArmTextures(pieces, archives, texGenOf(token, gen), playerAppearance);
       if (built !== token) return healed;
-      for (const [file, e] of collectArmTextures(pieces, archives, gen)) if (e.ok) { v.textures.set(file, e); healed++; }
+      for (const [file, e] of collectArmTextures(pieces, archives, texGenOf(token, gen))) if (e.ok) { v.textures.set(file, e); healed++; }
     }
     if (healed) {
       releaseMesh(); packed = null; releaseThirdMesh(); thirdPacked = null;
@@ -7170,6 +7191,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // rig being replaced go with it (the build's opts carry theirs).
       // LOAD-STALL 3: the player's own bodies (the live one, the editor's preview) decode ahead of the NPCs'
       if (playerAppearance && opts && !opts.urgent) opts = { ...opts, urgent: true };
+      // Another's body never fills the screen, and the player's is drawn in coarse blocks when both its dials are on:
+      // neither samples a texture past CHAR_TEXTURE_MAX. A player in HD keeps the full files.
+      if (opts && opts.textureMax === undefined) {
+        const pixelated = charPixelRows('fp') > 0 && charPixelRows('player') > 0;
+        opts = { ...opts, textureMax: !playerAppearance || pixelated ? CHAR_TEXTURE_MAX : null };
+      }
       if (busy) { pendingBuild = opts; return { ok: false, stage: 'build', error: 'already building - queued behind it', queued: true }; }
       busy = true;
       buildingOpts = opts ?? null;   // MW-EARLY
@@ -7603,8 +7630,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // are open; what the arm already decoded stays.
           const fresh = arm.pieces.filter((p) => p.slot === 'weapon' || p.slot === 'arrow');
           // MW-LOAD: covers collectArmTextures' reads for the new pieces.
-          await preloadArmTextures(fresh, archives, gen, playerAppearance);   // LOAD-STALL 3: the player's swap goes first
-          for (const [file, tex] of collectArmTextures(fresh, archives, gen)) {
+          await preloadArmTextures(fresh, archives, texGenOf(token, gen), playerAppearance);   // LOAD-STALL 3: the player's swap goes first
+          for (const [file, tex] of collectArmTextures(fresh, archives, texGenOf(token, gen))) {
             if (!token.textures.has(file)) token.textures.set(file, tex);
           }
           span('textures');
@@ -7637,8 +7664,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
             t.notes = [...(t.notes || []).filter((n) => !/^holster[ :@]/.test(n)), ...tHolster.notes, ...tFit.notes];
             const tFresh = t.arm.pieces.filter((p) => swapped.has(p.slot));
             // MW-LOAD: same cover for the third-person rig's new pieces.
-            await preloadArmTextures(tFresh, archives, gen, playerAppearance);
-            for (const [file, tex] of collectArmTextures(tFresh, archives, gen)) {
+            await preloadArmTextures(tFresh, archives, texGenOf(token, gen), playerAppearance);
+            for (const [file, tex] of collectArmTextures(tFresh, archives, texGenOf(token, gen))) {
               if (!t.textures.has(file)) t.textures.set(file, tex);
             }
             t.mwType = tResolved.mwType;
@@ -8032,8 +8059,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
             r.arm.pieces = r.arm.pieces.filter((p) => p.slot !== 'offweapon');
             bindPartsInto(r.arm, parts);
             const fresh = r.arm.pieces.filter((p) => p.slot === 'offweapon');
-            await preloadArmTextures(fresh, archives, gen, playerAppearance);   // LOAD-STALL 3: the player's swap goes first
-            for (const [file, tex] of collectArmTextures(fresh, archives, gen)) if (!r.textures.has(file)) r.textures.set(file, tex);
+            await preloadArmTextures(fresh, archives, texGenOf(token, gen), playerAppearance);   // LOAD-STALL 3: the player's swap goes first
+            for (const [file, tex] of collectArmTextures(fresh, archives, texGenOf(token, gen))) if (!r.textures.has(file)) r.textures.set(file, tex);
             r.pieces = armPieceRows(r.arm.pieces).length;
           }
           token.offWeapon = res.info;
@@ -8124,8 +8151,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
             rigBuilt.arm.effects = (rigBuilt.arm.effects ?? []).filter((e) => e.slot !== 'torch');   // MAC-Q: the old flame goes with the old torch
             bindPartsInto(rigBuilt.arm, resolved.parts);
             const fresh = [...rigBuilt.arm.pieces.filter((p) => p.slot === 'torch'), ...rigBuilt.arm.effects.filter((e) => e.slot === 'torch')];
-            await preloadArmTextures(fresh, archives, gen, playerAppearance);   // LOAD-STALL 3: the player's swap goes first
-            for (const [file, tex] of collectArmTextures(fresh, archives, gen)) {
+            await preloadArmTextures(fresh, archives, texGenOf(token, gen), playerAppearance);   // LOAD-STALL 3: the player's swap goes first
+            for (const [file, tex] of collectArmTextures(fresh, archives, texGenOf(token, gen))) {
               if (!rigBuilt.textures.has(file)) rigBuilt.textures.set(file, tex);
             }
             rigBuilt.torch = resolved.torchInfo;
@@ -8197,8 +8224,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
           bindPartsInto(tRig.arm, resolved.parts);
           tRig.hipHang = hangHipLight(tRig.arm);
           const fresh = [...tRig.arm.pieces.filter((p) => p.slot === HIP_LIGHT_SLOT), ...tRig.arm.effects.filter((e) => e.slot === HIP_LIGHT_SLOT)];
-          await preloadArmTextures(fresh, archives, gen, playerAppearance);   // LOAD-STALL 3: the player's swap goes first
-          for (const [file, tex] of collectArmTextures(fresh, archives, gen)) {
+          await preloadArmTextures(fresh, archives, texGenOf(token, gen), playerAppearance);   // LOAD-STALL 3: the player's swap goes first
+          for (const [file, tex] of collectArmTextures(fresh, archives, texGenOf(token, gen))) {
             if (!tRig.textures.has(file)) tRig.textures.set(file, tex);
           }
           tRig.hipLight = tRig.hipHang ? resolved.hipInfo : null;
@@ -9206,7 +9233,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             if (!arc || (typeof arc.loaded === 'function' && !arc.loaded(path))) continue;
             pieces.push(...flattenNif(parseNif(arc.get(path).slice())));   // the icon's own read (renderGroundMesh's preload)
           }
-          await preloadArmTextures(pieces, archives, gen);
+          await preloadArmTextures(pieces, archives, texGenOf(token, gen));
           warmed++;
         } catch { /* the swap reads it again and says why */ }
         await new Promise((r) => setTimeout(r, 0));

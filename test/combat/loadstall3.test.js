@@ -64,8 +64,8 @@ test('LOAD-STALL 3: the body queue starts nothing while the player\'s rig is bus
 test('LOAD-STALL 3: the player\'s rig marks its own builds and swaps urgent and registers the hold (mutants: the flag dropped; the probe unregistered)', () => {
   const src = readFileSync('src/combat/fpArm.js', 'utf8');
   assert.match(src, /if \(playerAppearance && opts && !opts\.urgent\) opts = \{ \.\.\.opts, urgent: true \};/);
-  assert.match(src, /decodeTextureOffThread\(path, arc\.get\(path\), \{ urgent \}\)/);
-  assert.equal((src.match(/preloadArmTextures\(t?[fF]resh, archives, gen, playerAppearance\)/g) ?? []).length, 5, 'every swap of the rig');
+  assert.match(src, /decodeTextureOffThread\(path, cappedTexture\(path, arc\.get\(path\), gen\), \{ urgent \}\)/);
+  assert.equal((src.match(/preloadArmTextures\(t?[fF]resh, archives, texGenOf\(token, gen\), playerAppearance\)/g) ?? []).length, 5, 'every swap of the rig');
   assert.match(src, /setPlayerBusyProbe\(\(\) => fpArm\.rigBusy\(\)\);/);
 });
 

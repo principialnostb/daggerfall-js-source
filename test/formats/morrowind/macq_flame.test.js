@@ -441,7 +441,7 @@ test('MAC-Q: the arm and the renderer - the seams, read', () => {
   assert.match(arm, /if \(eff\.slot === 'torch'\) return !torchVisible\(\);/, 'the flame hides with the torch (MW-D51’s carried-left rule)');
   assert.match(arm, /for \(const e of m\.effects \|\| \[\]\) renderer\.releaseParticleEffect\(e\);/, 'and is released with the mesh');
   assert.match(arm, /rigBuilt\.arm\.effects = \(rigBuilt\.arm\.effects \?\? \[\]\)\.filter\(\(e\) => e\.slot !== 'torch'\);/, 'a re-lit torch replaces its flame');
-  assert.match(arm, /collectArmTextures\(\[\.\.\.arm\.pieces, \.\.\.\(arm\.effects \?\? \[\]\)\], archives, gen\)/, 'the flame’s texture rides the catalog');
+  assert.match(arm, /collectArmTextures\(\[\.\.\.arm\.pieces, \.\.\.\(arm\.effects \?\? \[\]\)\], archives, (?:gen|texGen)\)/, 'the flame’s texture rides the catalog');
   const rend = read('src/render/renderer.js');
   assert.match(rend, /if \(mesh\.effects && mesh\.effects\.length\) this\._drawParticleEffects\(mesh, modelMatrix\);/, 'drawn after the ranges, in the same pass');
   assert.match(rend, /gl\.blendFunc\(gl\[nifBlendMode\(e\.srcBlend\)\], gl\[nifBlendMode\(e\.dstBlend\)\]\)/, 'with the file’s own blend function');

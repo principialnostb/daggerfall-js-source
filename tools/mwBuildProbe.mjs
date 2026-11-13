@@ -116,6 +116,37 @@ if (args.includes('--weapons')) {
   await server.close();
   process.exit(0);
 }
+// --npcs: a street's or a dungeon's bodies, built one after another as the page's build queue builds them (each its own
+// rig, as PeerBodies stands one), then each laid down dead - the build, its longest freeze, and the death's pose
+if (args.includes('--npcs')) {
+  const NPCS = [
+    ['nord', false, [piece(102), piece(104), piece(108)], 120], ['redguard', false, [piece(102)], 122],
+    ['breton', true, [], 113], ['dark elf', false, [piece(102), piece(104), piece(108), piece(103)], 127],
+    ['high elf', true, [piece(102), piece(104)], 120], ['wood elf', false, [], 129],
+    ['nord', true, [piece(102), piece(104), piece(108)], 121], ['redguard', false, [piece(102), piece(104), piece(108), piece(105), piece(106), piece(107)], 122],
+  ];
+  const quiet = () => { console.log = (...a) => { if (process.env.PROBE_VERBOSE) original(...a); }; };
+  let total = 0;
+  for (const [i, [r, f, armor, w]] of NPCS.entries()) {
+    const rig = fpArm.createFpArm({});
+    quiet();
+    const stop = freezeMeter();
+    const t0 = performance.now();
+    const res = await rig.build({ race: r, female: f, armor, weapon: { templateIndex: w, material: 0 }, hasAmmo: false, reachSweep: false, deps });
+    const wall = Math.round(performance.now() - t0);
+    const fz = stop();
+    const third = res.ok && rig.canThirdPerson() && rig.setViewMode('third');
+    const d0 = performance.now();
+    rig.die?.(0, { startPoint: 1 });
+    const die = Math.round(performance.now() - d0);
+    console.log = original;
+    total += wall;
+    console.log(`npc#${i} ${`${r}${f ? ' F' : ''}`.padEnd(12)} pieces=${armor.length} ok=${res.ok} third=${!!third} wall=${wall}ms worst-freeze=${fz}ms die=${die}ms${res.ok ? '' : ` ${res.stage}: ${res.error}`}`);
+  }
+  console.log(`npcs total ${total}ms`);
+  await server.close();
+  process.exit(0);
+}
 for (let r = 0; r < repeat; r++) {
   for (const [label, armor] of SETS) {
     let line = '';

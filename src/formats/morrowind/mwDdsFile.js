@@ -21,6 +21,56 @@ const FOURCC_DXT1 = 0x31545844;
 const FOURCC_DXT3 = 0x33545844;
 const FOURCC_DXT5 = 0x35545844;
 
+/** The bytes one level of `w` x `h` takes, or -1 for a layout this file does not cut. */
+function levelBytes(pfFlags, fourCC, rgbBitCount, w, h) {
+  if (pfFlags & DDPF_FOURCC) {
+    if (fourCC !== FOURCC_DXT1 && fourCC !== FOURCC_DXT3 && fourCC !== FOURCC_DXT5) return -1;
+    return Math.max(1, (w + 3) >> 2) * Math.max(1, (h + 3) >> 2) * (fourCC === FOURCC_DXT1 ? 8 : 16);
+  }
+  if (pfFlags & DDPF_RGB) return w * h * (rgbBitCount >> 3);
+  return -1;
+}
+
+/**
+ * The same DDS file starting at its first mip level no wider or taller than `maxSize`: the header rewritten, the larger
+ * levels left out. A texture shown through a pixelated body never samples its 2048 or 4096 level, and decoding and
+ * uploading it cost four to sixteen times the 1024 one. Answers `bytes` itself when nothing would be cut: no mip
+ * chain, already small enough, or a layout it does not know (DX10).
+ * @param {Uint8Array} bytes @param {number} maxSize
+ * @returns {Uint8Array}
+ */
+export function ddsAtMost(bytes, maxSize) {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength < 128 || !(maxSize > 0)) return bytes;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (view.getUint32(0, true) !== DDS_MAGIC || view.getUint32(4, true) !== 124) return bytes;
+  let h = view.getUint32(12, true);
+  let w = view.getUint32(16, true);
+  const count = Math.max(1, view.getUint32(28, true));
+  const pfFlags = view.getUint32(80, true);
+  const fourCC = view.getUint32(84, true);
+  const rgbBitCount = view.getUint32(88, true);
+  let off = 128;
+  let level = 0;
+  while (level < count - 1 && Math.max(w, h) > maxSize) {
+    const size = levelBytes(pfFlags, fourCC, rgbBitCount, w, h);
+    if (size < 0 || off + size >= bytes.byteLength) return bytes;
+    off += size;
+    w = Math.max(1, w >> 1);
+    h = Math.max(1, h >> 1);
+    level++;
+  }
+  if (level === 0) return bytes;
+  const out = new Uint8Array(128 + bytes.byteLength - off);
+  out.set(bytes.subarray(0, 128), 0);
+  out.set(bytes.subarray(off), 128);
+  const head = new DataView(out.buffer);
+  head.setUint32(12, h, true);
+  head.setUint32(16, w, true);
+  head.setUint32(28, count - level, true);
+  head.setUint32(20, levelBytes(pfFlags, fourCC, rgbBitCount, w, h), true);
+  return out;
+}
+
 /** Expand a 5.6.5 color to [r,g,b] 0..255 (bit-replicated like GPUs do). */
 function unpack565(c) {
   const r = (c >> 11) & 0x1f;
