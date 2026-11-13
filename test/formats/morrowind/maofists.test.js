@@ -33,6 +33,12 @@ test('MAO female library inherits shared groups before applying sparse overrides
   assert.deepEqual(animationOverhaulEntries({base,femaleOverride:female}),[base]);
   assert.deepEqual(animationOverhaulEntries({female:true,base}),[base]);
   assert.deepEqual(animationOverhaulEntries({female:true,femaleOverride:female}),[female]);
+  // SHIELD-WALK-UPRIGHT: under a shield the woman keeps her own file alone - the archive's upright strafe arm holds it
+  assert.deepEqual(animationOverhaulEntries({female:true,shield:true,base,femaleOverride:female}),[female]);
+  assert.deepEqual(animationOverhaulEntries({shield:true,base,femaleOverride:female}),[base]);
+  const held = selectAnimationFamily({family:'all',animationOverhaul:true,movementOnly:true,bareOnly:true}, base);
+  assert.ok(held.familyGroups.includes('runleft') && !held.familyGroups.some((g)=>/(1h|hh)$/.test(g)), 'a man under a shield: the armed groups stay with the archive');
+  assert.ok(!held.familyKeys.some((k)=>/1h:|hh:/.test(k.text)));
 });
 
 test('MAO fist source admits the entire fist family and excludes other weapon choreography', {skip:!available}, () => {

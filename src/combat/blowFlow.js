@@ -28,7 +28,12 @@ import { clamp01, smooth } from '../characters/bodyMotion/bodyKit.js';
 export const BLOW_FLOW = Object.freeze({ hold: 0.55, thrustHold: 0.35, exit: 0.5, chain: 0.12, entry: 0.14, wait: 2 });
 /** The window a blow holds where it struck: a thrust's the shorter - a jab's arm out straight comes back sooner than a
  *  cut ended low (Mac: "check the window after the one- and two-handers' thrusts"). */
-export const holdFor = (attackType) => (attackType === 'thrust' ? BLOW_FLOW.thrustHold : BLOW_FLOW.hold);
+/** FIST-SNAP (the owner, 2026-11-12: the fists' blows "go so sluggishly"; read in the lab: of a punch's 93 frames the body
+ *  stood still 40 - the fist hung out for the series' window, 0.55 s, then crawled home at a quarter of its pace). A
+ *  punch is thrown and taken back: its sections quicker than a weapon's, its fist out `hold` seconds, its recovery
+ *  never under `settle` of its start. How OFTEN it is thrown stays the swing law's (characters/weaponStates.js). */
+export const FIST_PACE = Object.freeze({ wind: 1.7, release: 2.9, recover: 2.4, settle: 0.6, hold: 0.05, exit: 0.17, entry: 0.08 });
+export const holdFor = (attackType, fists = false) => (fists ? FIST_PACE.hold : attackType === 'thrust' ? BLOW_FLOW.thrustHold : BLOW_FLOW.hold);
 
 /** SERIES-FLOW (Mac: "held or tapped, the blows should run as one series - the window only when the player stops"):
  *  Daggerfall's machine lets the next blow begin only at its strike's end - a second at Speed 50, 1.6 s for the fists'
@@ -57,8 +62,9 @@ export const PACE = Object.freeze({ wind: 1.35, release: 2.2, recover: 1.4, sett
  *  the next blow - so the arm is still moving when the machine lets the next blow go. */
 export function recoverRate(plan, p, series) {
   const q = Math.min(1, Math.max(0, Number.isFinite(p) ? p : 1));
-  const top = PACE.recover * (plan?.sf > 0 ? plan.sf : 1);
-  const lone = top * (1 - (1 - PACE.settle) * q);
+  const pace = plan?.fists ? FIST_PACE : PACE;   // FIST-SNAP
+  const top = pace.recover * (plan?.sf > 0 ? plan.sf : 1);
+  const lone = top * (1 - (1 - pace.settle) * q);
   // SERIES-PACE (the owner's game, 2026-11-04: a series' follow-through fell to 0.17x, each blow slower than the last):
   // a series' follow-through is never slower than a lone blow's at the same point - an arm done early waits in the stance
   // BLOW-STYLE 'Прежний' (`plan.flow`): the series flows at the machine's pace, never under BLOW_STYLE.floor of a lone blow
@@ -85,11 +91,11 @@ export const paceFactor = (step) => Math.min(CALM.rateMax, Math.max(CALM.rateMin
 
 /** MW-PACE2/3: the player's blow's plan (`lead`: the arm leads it) - the wind-up's `wind` file seconds at windRate,
  *  the release's `release` at relRate (MW-PACE3), landing at `hitAt`; the follow-through's speed is recoverRate's. */
-export function calmBlowPlan(blow, wind, release) {
-  const sf = paceFactor(blow?.step);
-  const windRate = PACE.wind * sf, relRate = PACE.release * sf;
+export function calmBlowPlan(blow, wind, release, fists = false) {
+  const sf = paceFactor(blow?.step), pace = fists ? FIST_PACE : PACE;   // FIST-SNAP
+  const windRate = pace.wind * sf, relRate = pace.release * sf;
   const w = Number.isFinite(wind) && wind > 0 ? wind : 0, r = Number.isFinite(release) && release > 0 ? release : 0;
-  return { seconds: blow?.seconds ?? 0, hitAt: w / windRate + r / relRate, clock: 0, rate: windRate, windRate, relRate, sf, seriesBase: 0, lead: true };
+  return { seconds: blow?.seconds ?? 0, hitAt: w / windRate + r / relRate, clock: 0, rate: windRate, windRate, relRate, sf, seriesBase: 0, lead: true, fists: !!fists };
 }
 
 /** A pose's kind for the blend: a blow (its serial - the sections of one blow are one kind) or anything else. */
@@ -107,11 +113,11 @@ export const sectionGap = (prev, next) => (prev && next && Number.isFinite(prev.
 
 /** How long to blend a change of pose from `from` to `to` (poseKindOf's), or null for the view's own default; `prev` and
  *  `next` the clip states, for a seam inside one blow (SECTION_SEAM). */
-export function blowBlendSeconds(from, to, prev = null, next = null) {
+export function blowBlendSeconds(from, to, prev = null, next = null, fists = false) {
   const fromBlow = String(from ?? '').startsWith('blow:'), toBlow = String(to ?? '').startsWith('blow:');
   if (fromBlow && toBlow) return from !== to ? BLOW_FLOW.chain : sectionGap(prev, next) > SECTION_SEAM.tolerance ? SECTION_SEAM.seconds : 0;
-  if (fromBlow) return BLOW_FLOW.exit;
-  if (toBlow) return BLOW_FLOW.entry;
+  if (fromBlow) return fists ? FIST_PACE.exit : BLOW_FLOW.exit;   // FIST-SNAP: the fist is taken back, not let down
+  if (toBlow) return fists ? FIST_PACE.entry : BLOW_FLOW.entry;
   return null;   // any other change: the view's own
 }
 /** BLOW-STYLE (the owner, 2026-11-05: the old series was smoother, but some blows crawled): the Animations tab's choice

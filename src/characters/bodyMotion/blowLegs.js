@@ -87,6 +87,41 @@ export const SWORD_BLOW_KEYS = Object.freeze({
  * frame's jump); the layer comes on over `in` and goes over `out` (a body set moving gives its legs to the stride). A
  * body heavier by `heavy` (bodyWeight.js's 0..1) strikes deeper by that share. `still` m/s: under it the body stands.
  */
+/** FIST-LEGS (the owner, 2026-11-12: the fists' blows "bland", their legs "as the others'"): a punch's keys - the hips
+ *  load deeper and drive further than a blade's, the body's weight being all a fist has; a straight punch (thrust)
+ *  steps in furthest, a hook (slash) turns the hips most, an overhand (chop) drops and leans. The drops are shallower
+ *  than a blade's: the hand-to-hand clips crouch of themselves, and the two together laid the trunk flat (seen in the lab). */
+export const FIST_BLOW_KEYS = Object.freeze({
+  chop: Object.freeze({ wind: { back: 0.045, drop: 0.02, yaw: -0.16, pitch: -0.07, side: 0.03 }, hit: { fwd: 0.1, drop: 0.05, yaw: 0.2, pitch: 0.13, side: 0.02 }, step: 0.2 }),
+  slash: Object.freeze({ wind: { back: 0.04, drop: 0.025, yaw: -0.32, pitch: -0.03, side: 0.045 }, hit: { fwd: 0.075, drop: 0.045, yaw: 0.42, pitch: 0.08, side: 0.035 }, step: 0.12 }),
+  thrust: Object.freeze({ wind: { back: 0.055, drop: 0.02, yaw: -0.2, pitch: -0.04, side: 0.03 }, hit: { fwd: 0.14, drop: 0.04, yaw: 0.24, pitch: 0.1, side: 0.025 }, step: 0.28 }),
+});
+/** PUNCH-CHAIN (the owner, 2026-11-12: the punches' "speed, their expression and the trunk's work, agreed well with the
+ *  legs"; read in the lab frame by frame: no wind-up - the fist crept forward through it and the trunk turned 13
+ *  degrees; the hips' drive peaked 5 frames AFTER the hit). A punch runs up the body: the hips first, the trunk after
+ *  them, the fist last. `lead`: the share of the wind-up after which the hips already drive (to `early` of the way by
+ *  its end) and the lead foot steps. FIST_TRUNK: the turn laid on the trunk over the clip's own (radians, a right
+ *  hand's; leanTrunk's sense) - cocked back and upright winding up, thrown in and over the lead leg at the hit. */
+export const PUNCH_CHAIN = Object.freeze({ lead: 0.6, early: 0.5 });
+/** PUNCH-READY (the owner, 2026-11-13: the fists "look tolerable, but worse than everything else"; read in the lab: in a
+ *  held series the body stood in its guard 27 frames between punches, nothing moving). A punch thrown, the trunk does
+ *  not come back to square: for `seconds` it stands cocked for the next - `yaw` back on the striking side, `pitch`
+ *  upright - taken up over `tau`; the next punch winds up from there, and with none it lets go as the legs do. */
+export const PUNCH_READY = Object.freeze({ seconds: 0.6, yaw: -0.2, pitch: -0.04, tau: 0.1 });
+export const FIST_TRUNK = Object.freeze({
+  chop: Object.freeze({ wind: { yaw: -0.3, pitch: -0.1 }, hit: { yaw: 0.22, pitch: 0.2 } }),
+  slash: Object.freeze({ wind: { yaw: -0.42, pitch: -0.02 }, hit: { yaw: 0.36, pitch: 0.08 } }),
+  thrust: Object.freeze({ wind: { yaw: -0.3, pitch: -0.05 }, hit: { yaw: 0.28, pitch: 0.14 } }),
+});
+/** A punch's hips: blowPhase's, the drive begun inside the wind-up (PUNCH_CHAIN). */
+export function punchPhase(section, progress) {
+  const ph = blowPhase(section, progress);
+  if (!ph) return ph;
+  const p = clamp01(progress), C = PUNCH_CHAIN;
+  if (section === 'windup') return { load: smooth(p / C.lead), drive: C.early * smooth((p - C.lead) / (1 - C.lead)), recover: 0 };
+  if (section === 'release') return { ...ph, drive: C.early + (1 - C.early) * ph.drive };
+  return ph;
+}
 export const BLOW_LEGS_TIME = Object.freeze({ hold: 0.25, home: 0.55, step: 0.16, lift: 0.06, tau: 0.035, release: 0.25, leave: 0.45, in: 0.06, out: 0.12, heavy: 0.4, still: 0.3, after: 0.4, rest: 0.5 });
 /* LEGS-RELEASE (the owner's video, 2026-11-04, 60.45 -> 60.48 s: the legs jumped as a series stopped): with no blow to
  * follow the hips rose out of the lunge at `tau`, one frame, the knees snapping straight - they let go over `release`. */
@@ -113,8 +148,8 @@ export function blowPhase(section, progress) {
 /** The pose the blow asks now (shares of the leg, radians), and whether its lead foot wants to be forward (true), home
  *  (false) or left where it stands (null - a wind-up does not step). */
 export function blowLegsPose(blow, heavy = 0) {
-  const keys = (blow?.sword ? SWORD_BLOW_KEYS : BLOW_LEGS)[blow?.type];
-  const ph = keys ? blowPhase(blow.section, blow.progress) : null;
+  const keys = (blow?.fists ? FIST_BLOW_KEYS : blow?.sword ? SWORD_BLOW_KEYS : BLOW_LEGS)[blow?.type];
+  const ph = keys ? (blow.fists ? punchPhase : blowPhase)(blow.section, blow.progress) : null;   // PUNCH-CHAIN: a punch's hips lead
   if (!keys || !ph) return null;
   const k = (0.75 + 0.25 * clamp01(Number(blow.strength ?? 1))) * (1 + BLOW_LEGS_TIME.heavy * clamp01(heavy));
   const mirror = (blow.reversed ? -1 : 1) * (blow.hand === 'L' ? -1 : 1);
@@ -124,10 +159,14 @@ export function blowLegsPose(blow, heavy = 0) {
   // LEG-DRIVE: the weight toward the back foot loading, the lead foot striking - the back foot the right for a right hand's
   // blow (x +), the left for a left hand's
   const back = blow.hand === 'L' ? -1 : 1, side = mix(w.side ?? 0, -(h.side ?? 0)) * back;
-  const forward = !(keys.step > 0) ? false : blow.section === 'windup' ? null : blow.section === 'release' || clamp01(blow.progress) < BLOW_LEGS_TIME.home;
+  const forward = !(keys.step > 0) ? false : blow.section === 'windup' ? (blow.fists && ph.drive > 0.05 ? true : null) : blow.section === 'release' || clamp01(blow.progress) < BLOW_LEGS_TIME.home;
   // STRIKE-MOVE: the drive's own envelope (0 loading, 1 at the hit, back to 0 recovered) - a moving blow's lean and dip ride it
   const drive = ph.drive * (1 - ph.recover);
-  return { fwd, drop, yaw, pitch, side, drive, step: keys.step * k, lead: blow.hand === 'L' ? 'R' : 'L', forward };
+  // PUNCH-CHAIN: the trunk's own turn, a beat behind the hips - on the blow's plain phases
+  const tk = blow.fists ? FIST_TRUNK[blow.type] : null, tp = tk ? blowPhase(blow.section, blow.progress) : null;
+  const tmix = (a, b) => ((1 - tp.drive) * a * tp.load + tp.drive * b) * (1 - tp.recover) * k;
+  const trunk = tk && tp ? { yaw: tmix(tk.wind.yaw, tk.hit.yaw) * mirror, pitch: tmix(tk.wind.pitch, tk.hit.pitch) } : null;
+  return { fwd, drop, yaw, pitch, side, drive, step: keys.step * k, lead: blow.hand === 'L' ? 'R' : 'L', forward, trunk };
 }
 
 /** One foot's steps: planted at `off` (rig units from its anchor), or on its way from `from` to `to` - lifted, never
@@ -201,6 +240,7 @@ export function createBlowLegs() {
   // BLOW-TRUNK: the share of a blow's turn the hips do not take moving (all of it at a run) - laid on the spine above
   // them, so a blow swings as wide walking and running as standing and the stride's legs are left alone
   let trunk = { yaw: 0, pitch: 0 };
+  let fistSince = Infinity, fistSide = 1;   // PUNCH-READY: seconds since the last punch, and its side
   // LEG-DRIVE: a lead foot stepped out stays out through a series (the blow's own follow-through sent it home, and the
   // next blow's drive out again - forward, back, forward); it goes home once the blows stop, the layer held on for it
   let stepped = false;
@@ -224,21 +264,26 @@ export function createBlowLegs() {
       still = word && Number(word.speed) > BLOW_LEGS_TIME.still ? 0 : still + Math.max(0, dt);
       const grounded = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating;
       const standing = grounded && still >= BLOW_LEGS_TIME.after;
-      // Hand-to-hand clips already drive the whole body, including changes of
-      // lead foot. Pinning them to a weapon lunge's anchors twists the thighs
-      // against their authored hips and stretches the body/clothes at the groin.
-      // Keep the locomotion history above live for a later weapon change.
-      if (carryClassOf(word ?? {}) === 'fists') { clearLegs(); trunk = { yaw: 0, pitch: 0 }; return 0; }
+      // FIST-LEGS: the fists strike on these legs too - their clip's own held at the stance (fistLegs.js)
+      const fists = carryClassOf(word ?? {}) === 'fists';
       // A fading standing blow can survive the start of locomotion. Its old foot
       // anchors must not survive with it: a new blow would pull the stride back
       // toward that stance as the layer's weight rises again.
       if (!standing) { anchor = null; settle = null; stepped = false; fromMove = true; feet.L.reset(); feet.R.reset(); }
       // RUNNING-BLOW-LEGS: running is a motor mode, not the 5.5..7 m/s speed band. Never re-solve
       // a running stride toward the attack's feet or pole, including any tail left by a walking blow.
-      const struck = on && grounded && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand }, heavy) : null;
+      const struck = on && grounded && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand, fists }, heavy) : null;
       const trunkTau = struck ? BLOW_LEGS_TIME.tau : BLOW_LEGS_TIME.release;   // LEGS-RELEASE: the trunk lets go as the hips do
       const gain = movingStrikeGain(word, standing);
-      const toTrunk = (yaw, pitch) => { trunk = { yaw: ease(trunk.yaw, yaw * gain.yaw, trunkTau, dt), pitch: ease(trunk.pitch, pitch * gain.pitch, trunkTau, dt) }; };
+      // PUNCH-CHAIN: a punch's trunk is its own keys', standing and moving
+      if (fists) {
+        if (word.blow) { fistSince = 0; fistSide = (word.blow.reversed ? -1 : 1) * (word.blow.hand === 'L' ? -1 : 1); } else fistSince += Math.max(0, dt);
+        const ready = !struck && on && grounded && fistSince < PUNCH_READY.seconds;   // PUNCH-READY
+        const to = struck?.trunk ?? (ready ? { yaw: PUNCH_READY.yaw * fistSide, pitch: PUNCH_READY.pitch } : { yaw: 0, pitch: 0 });
+        const tau = struck ? trunkTau : ready ? PUNCH_READY.tau : BLOW_LEGS_TIME.release;
+        trunk = { yaw: ease(trunk.yaw, to.yaw, tau, dt), pitch: ease(trunk.pitch, to.pitch, tau, dt) };
+      }
+      const toTrunk = (yaw, pitch) => { trunk = fists ? trunk : { yaw: ease(trunk.yaw, yaw * gain.yaw, trunkTau, dt), pitch: ease(trunk.pitch, pitch * gain.pitch, trunkTau, dt) }; };
       if (grounded && word.running && !standing) { clearLegs(); toTrunk(struck?.yaw ?? 0, struck?.pitch ?? 0); return 0; }
       const asked = standing ? struck : null;
       // BLOW-MOVE: struck moving (or in the stop's first `after` seconds) - a share of the hips over the stride's own feet

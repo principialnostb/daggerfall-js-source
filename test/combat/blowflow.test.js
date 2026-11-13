@@ -97,6 +97,7 @@ test('BLOW-FLOW: the blends - one blow\'s sections never, a blow cut by the next
   assert.equal(blowBlendSeconds('blow:7', 'blow:7'), 0, 'wind-up, release, follow-through: one clip');
   assert.equal(blowBlendSeconds('blow:7', 'blow:8'), BLOW_FLOW.chain, 'the next blow cuts this one');
   assert.equal(blowBlendSeconds('blow:7', 'pose'), BLOW_FLOW.exit, 'back to the stance');
+  assert.ok(blowBlendSeconds('blow:7', 'pose', null, null, true) < BLOW_FLOW.exit / 2, 'FIST-SNAP: a fist is taken back, not let down');
   // (Mac's recording: at once, the wind-up's first frame threw the blade across the picture in a frame)
   assert.equal(blowBlendSeconds('pose', 'blow:8'), BLOW_FLOW.entry, 'out of the stance: briefly, in both views');
   assert.ok(BLOW_FLOW.entry > 0.1 && BLOW_FLOW.entry < BLOW_FLOW.exit, 'quick enough to keep the blow\'s bite');
@@ -210,7 +211,7 @@ test('SNEAK-STANCE: crouched, the drawn stance\'s own crouch where a pack carrie
   // and a stance's crouch is a crouch: the idle's base is the sneak's
   assert.equal(idleBaseFor({ sneaking: true, hasGroup: has(reanim), type: T.LongBladeOneHand }), FP_IDLE_SNEAK);
   assert.equal(idleBaseFor({ sneaking: true, hasGroup: has(reanim), type: T.None }), FP_IDLE_BASE);
-  assert.match(rd('src/combat/fpArm.js'), /const compose = \(\) => \(base === FP_IDLE_SNEAK \? \{ group: sneakIdleGroup\(type, hasGroup\) \} : composeStanceGroup\(base, type, hasGroup\)\);/);
+  assert.match(rd('src/combat/fpArm.js'), /const compose = \(\) => \(base === FP_IDLE_SNEAK \? \{ group: sneakIdleGroup\(type, hasGroup\) \} : composeStanceGroup\(base, fistStanceType\(type, [^\n]*?\), hasGroup\)\);/);
 });
 
 test('BLOW-RETURN: after a blow the carry takes the weapon back over BLOW_FLOW.exit - never the frame the blow ends', async () => {
@@ -281,7 +282,7 @@ test('SECTION-SEAM: a seam inside one blow - its follow-through keyed past its h
   assert.equal(blowBlendSeconds('blow:7', 'blow:8', release, follow), BLOW_FLOW.chain, 'a next blow is the chain\'s');
   assert.ok(SECTION_SEAM.seconds < BLOW_FLOW.entry, 'shorter than a blow\'s entry: the release keeps its snap');
   const src = rd('src/combat/fpArm.js');
-  assert.match(src, /blowBlendSeconds\(thirdPoseKind, kindNow, thirdPoseState, state\)/);
+  assert.match(src, /blowBlendSeconds\(thirdPoseKind, kindNow, thirdPoseState, state, /);
   assert.match(src, /blowBlendSeconds\(fpBlend\.kind, fKind, fpBlend\.state, state\)/);
 });
 

@@ -85,10 +85,8 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
     // SHIELD-RUN-AS-WALK (the owner, 2026-11-05: the run's shield - how it is held, how the arm sways - as the walk's,
     // worked out): straight, the strafe's arm of that gait, live, from the very clip a strafe of it plays; to the side,
     // the strafe's own arm
-    // SHIELD-WALK-NEUTRAL (2026-11-07, the owner: walking forward the strafe's raised shield covers the character; "let it
-    // rise not so high - a little higher than the neutral position, as the reference"): walking forward, the stance idle's
-    // own arm (idle1h, the neutral shield), on its breath - raised a little by characters/bodyMotion/shieldSet.js
-    if (b === 'walkforward') return { kind: 'stance', base: 'idle', stance: 'drawn', still: false, sway: 1, w: 1 };
+    // SHIELD-WALK-UPRIGHT (the owner, 2026-11-12: the strafe's raised, upright shield in every direction "is a very
+    // good base"): walking forward takes the strafe's held arm again, as backing and running do
     return heldShield(b, strafeOf);
   }
   if (mode === 'guard') {

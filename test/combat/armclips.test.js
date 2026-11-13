@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createLeftArmLayer, leftArmPlan, mirrorMask, ARM_HOLD, ARM_FADE } from '../../src/combat/leftArmLayer.js';
-import { armedUpperPlan } from '../../src/combat/guardLocomotion.js';
+import { armedUpperPlan, fistStanceType, FIST_GUARD } from '../../src/combat/guardLocomotion.js';
 import { pickAnimSource, composeMovementGroup, composeStanceGroup, MW_WEAPON_TYPE as T } from '../../src/formats/morrowind/mwFirstPerson.js';
 import { resetClip } from '../../src/formats/morrowind/mwAnim.js';
 
@@ -17,9 +17,13 @@ test('ARM-REST: standing, the free hand beside a sword is the plain idle\'s arm 
 test('FISTS-ARMS: bare hands use ordinary walk/run arms and release them for a punch; beside a shield the right is a free hand under the armed trunk, standing the plain idle\'s (mutant: the carry\'s rows)', () => {
   const at = (o) => armedUpperPlan({ on: true, ...o });
   for (const base of ['walkforward', 'walkback', 'walkleft', 'walkright', 'runforward', 'runback', 'runleft', 'runright']) {
-    assert.equal(at({ type: T.HandToHand, base, moving: true }), null, 'the primary movement clip owns the arms');
+    assert.equal(at({ type: T.HandToHand, base, moving: true }), FIST_GUARD, 'FIST-GUARD: moving, the guard stays up');
   }
-  assert.equal(at({ type: T.HandToHand, moving: false }), null, 'standing, the hand-to-hand idle is the body\'s own');
+  assert.equal(at({ type: T.HandToHand, moving: false }), FIST_GUARD, 'FIST-STANCE: standing on the two-hander\'s legs, the guard laid over them');
+  assert.equal(fistStanceType(T.HandToHand, true), T.LongBladeTwoHand);
+  assert.equal(fistStanceType(T.HandToHand, false), T.HandToHand, 'the first person keeps its own clip');
+  assert.equal(fistStanceType(T.LongBladeOneHand, true), T.LongBladeOneHand);
+  assert.equal(FIST_GUARD.type, T.HandToHand);
   assert.deepEqual(at({ type: T.HandToHand, shield: true, base: 'walkforward', moving: true }),
     { kind: 'movement', base: 'walkforward', stance: 'drawn', type: T.LongBladeOneHand, still: false, rigOrder: true, sway: 0, hold: ARM_HOLD.upper, freeSide: 'R' });
   assert.deepEqual(at({ type: T.HandToHand, shield: true, moving: false }), { kind: 'stance', base: 'idle', stance: 'bare', still: false, side: 'R', sway: 1, w: ARM_HOLD.restRight });
@@ -63,11 +67,11 @@ test('ARM-REST / ARM-FADE: standing the arm runs on its clip\'s own clock (a bre
 });
 
 
-test('bare hands use the ordinary primary clip in every movement direction', async () => {
+test('FIST-GUARD: bare hands walk and run on the ordinary legs in every direction, their upper body the stance guard - standing and punching, the clip of the frame', async () => {
   const { guardMovementGroup } = await import('../../src/combat/guardLocomotion.js');
   for (const base of ['walkforward', 'walkback', 'walkleft', 'walkright', 'runforward', 'runback', 'runleft', 'runright']) {
     assert.equal(guardMovementGroup(base, T.HandToHand, () => true, true).group, base);
-    assert.equal(armedUpperPlan({ on: true, type: T.HandToHand, base, moving: true }), null);
+    assert.equal(armedUpperPlan({ on: true, type: T.HandToHand, base, moving: true }), FIST_GUARD);
     assert.equal(armedUpperPlan({ on: true, type: T.HandToHand, base, moving: true, attacking: true }), null);
   }
 });

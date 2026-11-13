@@ -14,16 +14,23 @@ const DEG = Math.PI / 180;
 
 /** Degrees per gait; `ease` seconds it takes up and lets go. Tunable live through globalThis.__shieldSet ({ walk, run }). */
 export const SHIELD_SET = Object.freeze({
-  walk: Object.freeze({ lift: 15, abduct: 0, yaw: 0, roll: 0 }),
+  walk: Object.freeze({ lift: 0, abduct: 0, yaw: 0, roll: 0 }),   // SHIELD-WALK-UPRIGHT: the strafe's arm needs no lift
   run: Object.freeze({ lift: -15, abduct: 8, yaw: 0, roll: 0 }),
   ease: 0.2,
 });
+
+/** SHIELD-LIFE (the owner, 2026-11-12: the upright shield is "a frame", wanted "livelier": stops, small movements). Degrees
+ *  laid on the held arm: `kick` the dip at a start and the carry at a stop per unit the pace changes, on a spring of
+ *  `hz` and `damp`; `bob` with each footfall; `lean` out toward a strafe; `turn` into a turn per radian a second, at
+ *  most `turnMax`. Tunable live through globalThis.__shieldSet.life. */
+export const SHIELD_LIFE = Object.freeze({ kick: 1.6, hz: 2.2, damp: 0.45, max: 9, bob: 1.6, lean: 3, turn: 2.5, turnMax: 6, ease: 0.15 });
+const lifeOf = () => ({ ...SHIELD_LIFE, ...(globalThis.__shieldSet?.life ?? {}) });
 
 const KEYS = ['lift', 'abduct', 'yaw', 'roll'];
 const setOf = (name) => ({ ...SHIELD_SET[name], ...(globalThis.__shieldSet?.[name] ?? {}) });
 
 export function createShieldSet() {
-  let walk = 0, run = 0;
+  let walk = 0, run = 0, held = 0, pace = 0, spring = 0, vel = 0, bob = 0, lean = 0, turn = 0;
   return {
     /** One frame: `on` the shield carried (no blow), `gait` the body layer's gait state (gait.js). */
     step(dt, on, gait) {
@@ -34,12 +41,24 @@ export function createShieldSet() {
       const d = Math.max(0, dt);
       walk = ease(walk, wantWalk, SHIELD_SET.ease, d); if (Math.abs(walk - wantWalk) < 1e-3) walk = wantWalk;
       run = ease(run, wantRun, SHIELD_SET.ease, d); if (Math.abs(run - wantRun) < 1e-3) run = wantRun;
+      // SHIELD-LIFE: the pace's change kicks a damped spring; the stride bobs it; a strafe and a turn lean it
+      const L = lifeOf(), now = clamp01(gait?.move ?? 0) * (1 + r), k = 2 * Math.PI * L.hz;
+      held = ease(held, on ? 1 : 0, L.ease, d); if (!on && held < 1e-3) { held = 0; spring = 0; vel = 0; }
+      if (d > 0) {
+        vel += (-k * k * spring - 2 * L.damp * k * vel) * d - L.kick * (now - pace) * k;
+        spring = Math.max(-L.max, Math.min(L.max, spring + vel * d));
+      }
+      pace = now;
+      bob = L.bob * clamp01(gait?.move ?? 0) * Math.sin(4 * Math.PI * (gait?.phase ?? 0));
+      lean = ease(lean, L.lean * clamp01(gait?.move ?? 0) * (dir[0] / len), L.ease, d);
+      turn = ease(turn, Math.max(-L.turnMax, Math.min(L.turnMax, L.turn * (gait?.yawRate ?? 0))), L.ease, d);
     },
     /** The set laid on the left arm of `pose`; answers the shares laid. */
     apply(skeleton, pose, rootRef, skelMats) {
-      if (!(walk > 1e-3 || run > 1e-3)) return null;
+      if (!(walk > 1e-3 || run > 1e-3 || held > 1e-3)) return null;
       const W = setOf('walk'), R = setOf('run');
       const P = Object.fromEntries(KEYS.map((k) => [k, W[k] * walk + R[k] * run]));
+      P.lift += (spring + bob) * held; P.abduct += Math.abs(lean) * held; P.yaw += (turn - lean) * held;   // SHIELD-LIFE
       const body = bodyOf(skeleton, rootRef, skelMats);
       const b = body?.bones?.L;
       if (!b) return null;
@@ -57,6 +76,8 @@ export function createShieldSet() {
       }
       return { walk, run };
     },
-    reset() { walk = 0; run = 0; },
+    reset() { walk = 0; run = 0; held = 0; pace = 0; spring = 0; vel = 0; bob = 0; lean = 0; turn = 0; },
+    /** SHIELD-LIFE's degrees this frame. */
+    life: () => ({ held, spring, bob, lean, turn }),
   };
 }

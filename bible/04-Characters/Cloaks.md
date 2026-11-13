@@ -40,6 +40,30 @@ The first divergence is the correction point. Preserve authored vertex positions
 - [ ] Confirm missing skin bindings and unavailable physics are diagnostic-only failures, not silent model substitutions.
 - [ ] Run the focused cloak tests and inspect in-game screenshots before declaring the placement correct.
 
+## CLOAK-CONTACT and SHIELD-SEAT (2026-11-12)
+
+The owner, 2026-11-12: the animated cloak "stands very far from the back", gear slung on it "does not press
+it", and it costs frames. Read offline on the steel body (1949 cloth points): the live contact pass refitted the
+cloak to the whole body every frame, 14.4 ms, beside the cloth's own 2.2; standing still the cloth drifted 3.5 units
+off its fit and stayed there; the stowed shield stood 9.3 units behind the cloak.
+
+- The cloth now meets ten capsules on the live bones, in its own bind space
+  (src/formats/morrowind/mwCloakColliders.js:"export function cloakColliders(arm, piece) {"). A capsule is never wider
+  than the fitted cloth leaves room for at rest. The per-frame refit is gone.
+- Each free point goes a share of its way home to the fitted shape every frame
+  (src/formats/morrowind/mwCloakPhysics.js:"const MEMORY = Object.freeze([0.1, 0.035]);").
+- An animated cloak is fitted to four poses; a still one keeps the blows' and deep stances' too
+  (src/formats/morrowind/mwCloakFit.js:"export const CLOAK_STILL_POSES = Object.freeze([...CLOAK_FIT_POSES,").
+- The stowed shield sits where half its points clear the cloak, and may be drawn in to it
+  (src/formats/morrowind/mwCloakFit.js:"export const SHIELD_SEAT = 0.5;"). It is no longer re-tied to the cloak every
+  pose; the cloth under it is pressed in, four units at most. Its footprint is taken five times a second.
+
+Read after: 1.1 ms a frame; 0.45 units off the fit standing; nothing through the cloak in any pose of the sweep; the
+shield 1.7 units off the cloak. Seen in the lab on the woman in steel, standing and running. Open: slung weapons
+(a greatsword, a bow) still stand clear at every point; the man, other shields and the Simply mesh are not yet seen.
+All four hosts share fpArm. The port's own; OpenMW's pack swaps pre-bent meshes.
+Test: test/formats/morrowind/cloakcontact.test.js.
+
 ## Current known limitation
 
 The solver pins vertices by their current maximum Z range, not by an explicit shoulder seam or skin-weight boundary. That is a heuristic for secondary motion and may need to be replaced with a topology/skin-informed pin set if the classic mesh's upper edge visibly stretches. This limitation affects cloth motion; it must not be addressed by altering the base cloak placement.

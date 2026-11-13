@@ -5,15 +5,22 @@
 
 // Deliberately visible secondary motion in Morrowind's authored world units.
 // The old 1.6-unit envelope and 0.28-unit step made the hem look nearly rigid.
+import { pushOutOfCapsules } from './mwCloakColliders.js';   // CLOAK-CONTACT
+
 const MAX_OFFSET = 5.0;
 const MAX_STEP = 0.72;
 const DAMPING = 0.972;
 const GRAVITY = 22;
-const ITERATIONS = 7;
+const ITERATIONS = 5;   // CLOAK-CONTACT: 7 cost a third more of the frame and held no tighter
 const STIFFNESS = 0.68;
+// CLOAK-CONTACT: the share of its way back to the fitted shape a vertex goes each sixtieth of a second, at the collar
+// and at the hem. Measured without it: standing still the cloth drifted 3.5 units off its fit and stayed there.
+const MEMORY = Object.freeze([0.1, 0.035]);
 // Morrowind is Z-up; negative Y is behind the actor. Keep shield-covered
 // cloth slightly off the fitted body so a static cloak layer can sit there.
 const STOWED_SHIELD_CLOAK_CLEARANCE = 0.38;
+// SHIELD-SEAT: the most a seated shield presses the cloth under it toward the body, in units - past it the rim cuts the cloth
+const SHIELD_PRESS_LIMIT = 4;
 
 const distance3 = (p, a, b) => Math.hypot(
   p[a * 3] - p[b * 3],
@@ -158,10 +165,10 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     // Morrowind's back direction is -Y, so the cloth must remain on the
     // +Y/body side of the shield surface. Convert the posed-space penetration
     // into a bind-space offset, while preserving a minimum body/cloth gap.
-    const posedClearance = Math.max(
+    const posedClearance = Math.min(SHIELD_PRESS_LIMIT, Math.max(
       STOWED_SHIELD_CLOAK_CLEARANCE,
       shieldSurfaceY - posedCloth[o + 1] + STOWED_SHIELD_CLOAK_CLEARANCE,
-    );
+    ));
     state.shieldClearance[v] = posedClearance;
     pos[o + 1] = prev[o + 1] = base[o + 1] + posedClearance;
     pos[o + 2] = prev[o + 2] = base[o + 2];
@@ -295,7 +302,8 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     const length = Math.hypot(dx, dy, dz);
     if (length > maxStep) { const scale = maxStep / length; dx *= scale; dy *= scale; dz *= scale; }
     prev[o] = x; prev[o + 1] = y; prev[o + 2] = z;
-    pos[o] = x + dx; pos[o + 1] = y + dy; pos[o + 2] = z + dz;
+    const home = Math.min(1, (MEMORY[0] + (MEMORY[1] - MEMORY[0]) * hemWeight) * step * 60);
+    pos[o] = x + dx + (base[o] - x) * home; pos[o + 1] = y + dy + (base[o + 1] - y) * home; pos[o + 2] = z + dz + (base[o + 2] - z) * home;
   }
 
   for (let iteration = 0; iteration < ITERATIONS; iteration++) {
@@ -349,6 +357,9 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
       pos[o + 2] = base[o + 2] + dz * scale;
     }
   }
+
+  // CLOAK-CONTACT: last, past the envelope's clamp - a leg stepping back takes the hem as far as it goes
+  if (typeof motion === 'object' && motion !== null) pushOutOfCapsules(state, motion.colliders, fixed);
 
   positions.set(pos);
   if (state.normals && piece.batch.normals === state.normals) rebuildNormals(positions, indices, state.normals, state.baseNormals);

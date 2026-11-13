@@ -29,7 +29,26 @@
     else realCancel(id);
   };
   let frames = 0, lastMs = 0;
+  // LAB2: THE DICE. Math.random is the wall's own until a scenario seeds it; from then every draw is mulberry32's, so
+  // a scenario replayed from its seed rolls the same combat, the same idle variants and the same foe.
+  const realRandom = Math.random;
+  let dice = 0, draws = 0;
+  const roll = () => {
+    draws++;
+    let t = (dice = (dice + 0x6D2B79F5) | 0);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
   window.__pg = {
+    /** The dice seeded with `n` (a whole number), or handed back to the wall with null. Answers the draws so far. */
+    seed(n) {
+      const was = draws;
+      if (n == null) { Math.random = realRandom; return was; }
+      dice = n | 0; draws = 0; Math.random = roll;
+      return was;
+    },
+    draws: () => draws,
     manual: () => manual,
     now,
     frames: () => frames,

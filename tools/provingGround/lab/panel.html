@@ -2,19 +2,90 @@
 <html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DFO · Animation Lab</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#10151b;color:#dce3ec;font:14px system-ui}header{padding:18px 24px;border-bottom:1px solid #303b49;display:flex;gap:20px;align-items:center}h1{font-size:19px;margin:0}small,.muted{color:#9aaabd}main{display:grid;grid-template-columns:minmax(480px,1fr) 390px;gap:18px;padding:18px}section{background:#19212b;border:1px solid #303b49;border-radius:8px;padding:14px;margin-bottom:14px}h2{font-size:14px;margin:0 0 12px;color:#b0c5da}button,select,input,textarea{font:inherit;color:inherit;background:#253242;border:1px solid #42546b;border-radius:5px;padding:8px}button{cursor:pointer}button:hover{background:#364b62}button:disabled{opacity:.45;cursor:wait}.row{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}select,textarea,input{width:100%}textarea{font:12px monospace;min-height:230px;resize:vertical}.screen{width:100%;min-height:300px;object-fit:contain;background:#080c10;image-rendering:pixelated}pre{font:12px monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto}#message{padding:9px 24px;min-height:36px;color:#b9d5f0}#findings button{display:block;width:100%;text-align:left;margin:5px 0}#clock{font:20px monospace;color:#8fd9c3}.warning{color:#e5c38d}label{display:block;margin-top:10px}a{color:#8ec5ff}@media(max-width:950px){main{grid-template-columns:1fr}}
-.screen{max-height:64vh}header{flex-wrap:wrap}
+*{box-sizing:border-box}
+body{margin:0;background:#10151b;color:#dce3ec;font:13px system-ui}
+header{padding:10px 18px;border-bottom:1px solid #303b49;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font-size:17px;margin:0}h2{font-size:13px;margin:0 0 8px;color:#b0c5da}h3{font-size:12px;margin:12px 0 6px;color:#9aaabd;text-transform:uppercase;letter-spacing:.04em}
+small,.muted{color:#9aaabd}
+main{display:grid;grid-template-columns:minmax(520px,1fr) 470px;gap:12px;padding:12px}
+section{background:#19212b;border:1px solid #303b49;border-radius:8px;padding:10px;margin-bottom:10px}
+button,select,input,textarea{font:inherit;color:inherit;background:#253242;border:1px solid #42546b;border-radius:5px;padding:5px 8px}
+button{cursor:pointer}button:hover{background:#364b62}button:disabled{opacity:.45;cursor:wait}
+button.on{background:#2f5d7a;border-color:#6fb0d8}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;align-items:center}
+select,textarea{width:100%}textarea{font:12px monospace;min-height:150px;resize:vertical}
+.screen{width:100%;max-height:58vh;min-height:260px;object-fit:contain;background:#080c10;image-rendering:pixelated;display:block}
+pre{font:11px monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;margin:0}
+#message{padding:6px 18px;min-height:28px;color:#b9d5f0}
+#clock{font:17px monospace;color:#8fd9c3}
+.warning{color:#e5c38d}.bad{color:#ff9c8a}.good{color:#8fd9a8}
+table{border-collapse:collapse;width:100%;font-size:12px}td,th{padding:2px 6px;border-bottom:1px solid #263140;text-align:right;white-space:nowrap}
+td:first-child,th:first-child{text-align:left}th{color:#9aaabd;font-weight:500}
+.scroll{max-height:300px;overflow:auto}
+.tabs{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.pane{display:none}.pane.on{display:block}
+#timeline{width:100%;height:132px;display:block;background:#0c1116;border-radius:5px;cursor:crosshair}
+#strip{display:flex;gap:6px;overflow-x:auto;padding:6px 0}
+#strip figure{margin:0;flex:0 0 auto;cursor:pointer;text-align:center}
+#strip img{height:84px;display:block;image-rendering:pixelated;border:1px solid #42546b;border-radius:4px}
+#strip figcaption{font-size:10px;color:#9aaabd}
+.finding{display:block;width:100%;text-align:left;margin:3px 0;padding:4px 8px}
+.slider{display:grid;grid-template-columns:92px 1fr 62px;gap:6px;align-items:center;margin:3px 0}
+.slider input[type=range]{padding:0;width:100%}.slider input[type=number]{width:62px;padding:3px}
+.chip{display:inline-block;padding:1px 7px;border-radius:9px;background:#253242;margin:2px;font-size:11px}
+label.inline{display:inline-flex;gap:4px;align-items:center;margin-right:8px}
+@media(max-width:1100px){main{grid-template-columns:1fr}}
 </style>
-<header><h1>DFO / Animation Lab</h1><small>Игровой runtime · фиксированный шаг 1/60 с</small><span id="clock">Кадр 0</span></header>
+<header><h1>DFO / Animation Lab</h1><small>Игра как есть · шаг 1/60 с · посев случайности</small><span id="clock">Кадр 0</span><button id="reload" title="Перечитать код лаборатории с диска, не перезапуская игру. Текущий прогон и правки сбрасываются.">⟳ Обновить лабораторию</button></header>
 <div id="message" role="status">Подключение…</div>
-<main><div><section><img class="screen" id="screen" alt="Снимок игрового кадра"><div class="row"><button id="one">+1 кадр</button><button id="thirty">+30 кадров</button><button id="play">Проиграть</button><button id="stop">Пауза</button><button id="back">Сзади</button><button id="side">Сбоку</button><button id="front">Спереди</button></div><p class="muted">Пауза останавливает подачу шагов. Отдельная игровая вкладка использует тот же персонаж и мир.</p></section>
-<section><h2>Отметить проблему в текущем кадре</h2><input id="note" placeholder="Например: при ударе правое плечо резко проворачивается"><div class="row"><button id="mark">Сохранить отметку и кадр</button><button id="export">Экспорт случая JSON</button></div><div id="marks"></div></section>
-<section><h2>Сигналы автоматического анализа</h2><p class="muted">Скачки костей — повод проверить кадр. Быстрое правильное движение тоже может дать сигнал. Пересечения поверхностей пока не измеряются.</p><div id="findings"></div></section></div>
-<aside><section><h2>Следующий сценарий</h2><select id="cases"></select><div class="row"><button id="load">Создать сцену</button><button id="apply">Применить JSON</button><button id="import">Импорт JSON</button><input type="file" id="file" accept=".json" hidden></div><textarea id="spec" spellcheck="false" aria-label="Сценарий JSON"></textarea><p class="warning">Сброс возвращает игрока и пересоздаёт противника. Состояние мира, AI и физики целиком пока не восстанавливается.</p></section>
-<section><h2>Фактическое состояние и источники</h2><pre id="state"></pre></section><section><h2>События и ошибки</h2><pre id="events"></pre></section></aside></main>
+<main><div>
+<section><img class="screen" id="screen" alt="Кадр игры">
+<div class="row"><button id="rewind" title="В начало сценария">⏮</button><button id="one">+1</button><button id="ten">+10</button><button id="play">▶ Играть</button><button id="stop">⏸ Пауза</button><button id="finish">До конца</button>
+<span class="muted">Камера:</span><button id="back">Сзади</button><button id="side">Сбоку</button><button id="front">Спереди</button><button id="views" title="Четыре снимка этого же кадра с разных сторон">4 ракурса</button></div>
+<canvas id="timeline"></canvas><div class="muted" id="hover">Шкала: движение, фазы удара, сигналы. Щелчок — перейти к кадру (сценарий проигрывается заново до него).</div>
+<div id="strip"></div></section>
+<section><h2>Отметить проблему в этом кадре</h2><div class="row"><input id="note" style="flex:1" placeholder="Например: при ударе правое плечо резко проворачивается"><button id="mark">Отметить</button><button id="export">Экспорт JSON</button></div><div id="marks"></div></section>
+</div>
+<aside>
+<div class="tabs" id="tabs"></div>
+<section class="pane on" data-pane="scene"><h2>Сценарий</h2>
+<label>Тело<select id="body"><option value="female">женское (тёмная эльфийка)</option><option value="male">мужское (норд)</option><option value="">как сейчас в игре</option></select></label>
+<label>Комплект (снимает всё и надевает ровно его)<select id="loadout"></select></label>
+<label>Движение<select id="cases"></select></label>
+<div class="row"><label class="inline">Посев <input id="seed" type="number" value="1" min="0" style="width:80px"></label><label class="inline" title="Замер сеток каждые N кадров; 0 — не мерить">Сетка каждые <input id="geoEvery" type="number" value="0" min="0" max="600" style="width:64px"></label></div>
+<div class="row"><button id="load">Создать сцену</button><button id="loadRun">Создать и проиграть</button><button id="import">Импорт JSON</button><input type="file" id="file" accept=".json" hidden></div>
+<textarea id="spec" spellcheck="false" aria-label="Сценарий JSON"></textarea>
+<p class="warning">Сцена ставит игрока на место и сеет случайность заново. Мир, ИИ и физика целиком не восстанавливаются — «Проверка повтора» на вкладке «Сигналы» покажет, насколько расходятся два прогона.</p>
+<h3>Состояние рига</h3><pre id="state"></pre><h3>События</h3><pre id="events"></pre></section>
+
+<section class="pane" data-pane="signals"><h2>Сигналы прогона</h2><div id="coverage"></div>
+<div class="scroll"><table id="summary"></table></div>
+<div class="row"><button id="baseSave">Сохранить как эталон</button><button id="baseCheck">Сравнить с эталоном</button><button id="repeat" title="Проиграть сценарий дважды и сравнить кости">Проверка повтора</button></div>
+<div id="compare" class="scroll"></div>
+<h3>Кадры, на которые стоит посмотреть</h3><p class="muted">Сигнал — повод открыть кадр, а не приговор движению.</p><div id="findings" class="scroll"></div></section>
+
+<section class="pane" data-pane="fighter"><h2>Боец</h2>
+<h3>Удары этого прогона</h3><div class="scroll"><table id="blows"></table></div>
+<h3>Стойка и ход</h3><div class="scroll"><table id="stance"></table></div>
+<h3>Один ли это боец: матрица</h3><p class="muted">Каждый комплект проходит одни и те же движения; его «подпись» сравнивается с эталонным бойцом. Расстояние 0 — как эталон, больше 1 — за допуском.</p>
+<div id="matrixPick" class="row"></div><div class="row"><label class="inline">Эталон <select id="reference" style="width:170px"></select></label><button id="matrix">Прогнать матрицу</button><button id="matrixStop">Стоп</button></div>
+<div id="matrixOut" class="scroll"></div></section>
+
+<section class="pane" data-pane="mesh"><h2>Сетка и посадка</h2><p class="muted">Растяжение рёбер относительно авторской формы и прохождение одного слоя сквозь другой: тело сквозь ткань или латы, оружие и щит внутри тела.</p>
+<div class="row"><button id="geometry">Измерить этот кадр</button></div><div class="scroll"><table id="pieces"></table></div><h3>Пересечения</h3><div id="pokes"></div></section>
+
+<section class="pane" data-pane="edit"><h2>Правка позы и посадки</h2><p class="muted">Слой правок лежит поверх всех анимаций. Условие «когда» включает его только в нужной стойке. Готовый слой экспортируется в JSON — по нему агент переносит правку в код.</p>
+<div class="row"><select id="layer" style="flex:1"></select><button id="layerAdd">+ слой</button><button id="layerDel">Удалить</button></div>
+<div class="row"><input id="layerName" placeholder="Название слоя" style="flex:1"><label class="inline"><input type="checkbox" id="layerOn" checked>включён</label></div>
+<div class="row"><span class="muted">Когда:</span><select id="whenCls" style="width:120px"></select><select id="whenGait" style="width:110px"></select><select id="whenAttack" style="width:120px"></select></div>
+<h3>Кость</h3><div class="row"><select id="bone" style="flex:1"></select><button id="boneDel">Сбросить кость</button></div><div id="boneSliders"></div><div id="boneList"></div>
+<h3>Предмет</h3><div class="row"><select id="slot" style="flex:1"></select><button id="slotDel">Сбросить предмет</button></div><div id="slotSliders"></div><div id="slotList"></div>
+<div class="row"><button id="tweakClear">Убрать все правки</button><button id="tweakExport">Экспорт правок</button><button id="tweakImport">Импорт правок</button><input type="file" id="tweakFile" accept=".json" hidden></div></section>
+</aside></main>
 <script type="module">
 const $ = (id) => document.getElementById(id);
-let suite = [], current = null, playing = false, busy = false;
+const h = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids.flat().filter((k) => k != null)); return e; };
+let library = [], loadouts = {}, current = null, playing = false, busy = false, rig = null, layers = [], matrixOn = false, shown = null;
 const message = (text) => { $('message').textContent = text; };
 async function command(command, args = {}) {
   const response = await fetch('/__lab/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command, args }) });
@@ -22,64 +93,265 @@ async function command(command, args = {}) {
   if (!result.ok) throw new Error(result.error);
   return result.value;
 }
+async function act(fn, done = 'Готово') {
+  if (busy) return;
+  busy = true;
+  document.querySelectorAll('button:not(#stop):not(#matrixStop)').forEach((b) => { b.disabled = true; });
+  try { await fn(); message(done); } catch (error) { playing = false; matrixOn = false; message(`Ошибка: ${error.message}`); }
+  finally { busy = false; document.querySelectorAll('button').forEach((b) => { b.disabled = false; }); }
+}
+
+// ---- tabs ----------------------------------------------------------------------------------------------------------
+const TABS = [['scene', 'Сценарий'], ['signals', 'Сигналы'], ['fighter', 'Боец'], ['mesh', 'Сетка'], ['edit', 'Правка']];
+for (const [id, name] of TABS) $('tabs').append(h('button', { textContent: name, id: `tab-${id}`, className: id === 'scene' ? 'on' : '', onclick: () => {
+  document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.dataset.pane === id));
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.id === `tab-${id}`));
+  if (id === 'edit') loadRig();
+} }));
+
+// ---- the run on the screen ------------------------------------------------------------------------------------------
+const KIND = { pop: ['Скачок кости', '#ff8a70'], 'foot-slide': ['Стопа едет', '#ffd166'], 'foot-sink': ['Стопа под землёй', '#e0a030'], 'limb-in-trunk': ['Рука или оружие в корпусе', '#c792ea'], 'mesh-stretch': ['Сетка растянута', '#5ec4ff'],
+  'mesh-crush': ['Сетка смята', '#5ec4ff'], 'mesh-poke': ['Слой сквозь слой', '#7be0b0'], 'held-inside': ['Оружие внутри тела', '#7be0b0'], 'missing-bones': ['Нет костей', '#888'], 'invalid-position': ['Кость без места', '#888'] };
+const METRIC = { frames: 'Кадров', pops: 'Скачков костей', popWorstCm: 'Худший скачок, см', footSlideCm: 'Скольжение стопы, см за кадр', footWorstPlantCm: 'Худший увод стопы, см', footSinkFrames: 'Стопа под землёй, кадров', footSinkWorstCm: 'Глубина стопы под землёй, см',
+  limbInTrunkFrames: 'Конечность в корпусе, кадров', limbInTrunkWorstCm: 'Глубина в корпусе, см', handAccelP95: 'Рывки кистей, м/с²', footAccelP95: 'Рывки стоп, м/с²', headAccelP95: 'Рывки головы, м/с²', pelvisAccelP95: 'Рывки таза, м/с²',
+  blows: 'Ударов', blowSharpness: 'Резкость удара (пик/среднее)', blowWindUpFrames: 'Замах, кадров', blowStrikeFrames: 'Удар, кадров', blowRecoveryFrames: 'Возврат, кадров', blowStillFrames: 'Замерший удар, кадров',
+  blowHitOffsetFrames: 'Попадание мимо пика, кадров', blowHipTravelCm: 'Ход таза в ударе, см', blowTwistRangeDeg: 'Скрутка корпуса, °', blowLeanRangeDeg: 'Наклон корпуса в ударе, °', blowLeadStepCm: 'Шаг ведущей ноги, см',
+  meshSamples: 'Замеров сетки', meshWorstStretch: 'Худшее растяжение сетки', meshPokeWorstCm: 'Худшее пересечение, см', frameMsP95: 'Кадр, мс (95%)' };
+const describe = (f) => `${f.always ? 'Постоянно: ' : ''}${KIND[f.kind]?.[0] ?? f.kind} · кадр ${f.frame}${f.count > 1 ? `–${f.until}` : ''} · ${f.bone ?? ''}${f.cm != null ? ` · ${f.cm} см` : ''}${f.ratio != null ? ` · ×${f.ratio}` : ''}${f.cause ? ` · ${f.cause}` : ''}`;
+const seek = (frame) => act(async () => show(await command('seek', { frame })), `Кадр ${frame}`);
+
 function show(value, forceImage = true) {
   const previous = current;
   current = value;
-  $('clock').textContent = `${value.run?.scenario.name ?? ''} · Кадр ${value.frame}`;
-  $('state').textContent = JSON.stringify(value.current, null, 2);
+  const run = value.run;
+  $('clock').textContent = `${run?.scenario.name ?? ''} · кадр ${value.frame}${run ? ` / ${run.total}` : ''}`;
+  $('state').textContent = JSON.stringify(value.current, (k, v) => (k === 'b' || k === 'groups' || k === 'sourcePaths' ? undefined : v), 1);
   $('events').textContent = value.events.map((e) => `${e.frame} ${e.kind}: ${e.detail}`).join('\n');
-  if (value.run) {
-    if (forceImage || previous?.frame !== value.frame || previous?.run?.id !== value.run.id || previous?.run?.marks.length !== value.run.marks.length) $('screen').src = `/__lab/image?t=${Date.now()}`;
-    $('marks').replaceChildren(...value.run.marks.map((mark) => { const p = document.createElement('p'); p.textContent = `${mark.frame}: ${mark.note}`; return p; }));
-    $('findings').replaceChildren(...value.run.analysis.findings.slice(0, 60).map((finding) => {
-      const button = document.createElement('button'); button.textContent = `Кадр ${finding.frame} · ${finding.kind} · ${finding.bone ?? ''}`;
-      button.title = 'Повторить входную последовательность до этого кадра (не восстановление мира)';
-      button.onclick = () => act(async () => { show(await command('load', { scenario: current.run.scenario })); show(await command('advance', { frames: finding.frame })); });
-      return button;
-    }));
-    if (value.run.analysis.status === 'unmeasured') $('findings').textContent = 'Кости ещё не измерены. Это не успешная проверка.';
-    else if (!value.run.analysis.findings.length) $('findings').textContent = 'В записанных кадрах сигналов нет. Качество движения и геометрия требуют отдельной проверки.';
-    for (const warning of value.run.coverage) { const p = document.createElement('p'); p.className = 'warning'; p.textContent = warning; $('findings').prepend(p); }
-  }
+  if (!run) return;
+  if (!shown && (forceImage || previous?.frame !== value.frame || previous?.run?.id !== run.id)) $('screen').src = `/__lab/image?t=${Date.now()}`;
+  $('marks').replaceChildren(...run.marks.map((mark) => h('p', { textContent: `${mark.frame}: ${mark.note}` })));
+  $('coverage').replaceChildren(...run.coverage.map((w) => h('p', { className: 'warning', textContent: w })));
+  $('summary').replaceChildren(...Object.entries(run.summary).filter(([, v]) => v != null).map(([k, v]) => h('tr', {}, h('td', { textContent: METRIC[k] ?? k }), h('td', { textContent: v }))));
+  $('findings').replaceChildren(...(run.findings.length ? run.findings.slice(0, 120).map((f) => h('button', { className: 'finding', textContent: describe(f), onclick: () => seek(f.frame) }))
+    : [h('p', { className: 'muted', textContent: run.analysis.status === 'unmeasured' ? 'Кости ещё не измерены. Это не успешная проверка.' : 'Сигналов нет. Качество движения всё равно оценивает глаз.' })]));
+  const B = [['from', 'Кадр'], ['type', 'Тип'], ['frames', 'Длит.'], ['windUpFrames', 'Замах'], ['strikeFrames', 'Удар'], ['recoveryFrames', 'Возврат'], ['sharpness', 'Резкость'], ['peakMps', 'Пик м/с'], ['hitOffsetFrames', 'Попад.−пик'], ['hipTravelCm', 'Таз см'], ['twistRangeDeg', 'Скрутка°'], ['leadStepCm', 'Шаг см'], ['stillFrames', 'Замер']];
+  $('blows').replaceChildren(h('tr', {}, B.map(([, n]) => h('th', { textContent: n }))), ...run.blows.map((b) => h('tr', { style: 'cursor:pointer', onclick: () => seek(b.peakFrame) }, B.map(([k]) => h('td', { textContent: b[k] ?? '—' })))));
+  drawTimeline(); drawStrip();
 }
-async function act(fn) {
-  if (busy) return;
-  busy = true;
-  document.querySelectorAll('button:not(#stop)').forEach((b) => { b.disabled = true; });
-  try { await fn(); message('Готово'); } catch (error) { playing = false; message(error.message); }
-  finally { busy = false; document.querySelectorAll('button').forEach((b) => { b.disabled = false; }); }
+async function loadReport() {
+  if (!current?.run) return;
+  const r = await command('report');
+  const keys = ['frames', 'pelvisM', 'kneeDeg', 'leanForeDeg', 'stanceWidthCm', 'stanceDepthCm', 'pelvisBobCm', 'headBobCm', 'handSpreadCm', 'handRUpCm', 'handLUpCm'];
+  const names = ['Кадров', 'Таз, м', 'Колени°', 'Наклон°', 'Ширина см', 'Глубина см', 'Качание таза', 'Качание головы', 'Кисти врозь', 'Правая выс.', 'Левая выс.'];
+  $('stance').replaceChildren(h('tr', {}, h('th', { textContent: 'Стойка / ход' }), names.map((n) => h('th', { textContent: n }))),
+    ...Object.entries(r.stance).map(([key, row]) => h('tr', {}, h('td', { textContent: key }), keys.map((k) => h('td', { textContent: row[k] ?? '—' })))));
 }
-const advance = (frames) => act(async () => show(await command('advance', { frames })));
-$('one').onclick = () => advance(1); $('thirty').onclick = () => advance(30);
-$('load').onclick = () => act(async () => show(await command('load', { scenario: JSON.parse($('spec').value) })));
-$('apply').onclick = $('load').onclick;
-$('cases').onchange = () => { $('spec').value = JSON.stringify(suite[Number($('cases').value)], null, 2); };
-$('stop').onclick = () => { playing = false; message('Пауза после текущей группы кадров'); };
-$('play').onclick = async () => {
-  if (busy || playing) return;
-  playing = true;
-  while (playing) { await advance(6); if (!current?.run || current.run.complete) playing = false; }
+
+// ---- the timeline ----------------------------------------------------------------------------------------------------
+const hue = (word) => { let x = 0; for (const c of String(word)) x = (x * 31 + c.charCodeAt(0)) % 360; return `hsl(${x} 45% 42%)`; };
+const UPPER = { AttackWindUp: '#d9b44a', AttackRelease: '#e2543f', AttackEnd: '#c8793a', Equipping: '#4a7bd9', Unequipping: '#4a7bd9', Casting: '#9b6ad9', WeaponEquipped: '#2c3a4a' };
+function drawTimeline() {
+  const c = $('timeline'), run = current?.run;
+  const W = c.width = c.clientWidth * devicePixelRatio, H = c.height = c.clientHeight * devicePixelRatio, g = c.getContext('2d');
+  g.clearRect(0, 0, W, H);
+  if (!run) return;
+  const T = Math.max(1, run.total), x = (f) => (f / T) * W, row = H / 6;
+  const lane = (spans, y, colour) => { for (const s of spans) { g.fillStyle = colour(s.v); g.fillRect(x(s.from - 1), y + 2, Math.max(1, x(s.to) - x(s.from - 1)), row - 4); } };
+  lane(run.lanes.label, 0, () => '#1d2733'); lane(run.lanes.movement, row, hue); lane(run.lanes.upper, row * 2, (v) => UPPER[v] ?? '#555'); lane(run.lanes.carry, row * 3, hue);
+  g.font = `${11 * devicePixelRatio}px system-ui`; g.fillStyle = '#c9d6e4';
+  for (const [spans, y] of [[run.lanes.label, 0], [run.lanes.movement, row], [run.lanes.carry, row * 3]]) for (const s of spans) if (x(s.to) - x(s.from) > 50 * devicePixelRatio) g.fillText(String(s.v).slice(0, 22), x(s.from - 1) + 4, y + row * 0.68);
+  for (const f of run.findings.filter((x) => !x.always)) { g.fillStyle = KIND[f.kind]?.[1] ?? '#fff'; g.fillRect(x(f.frame - 1), row * 4 + 2, Math.max(2, x(f.until) - x(f.frame - 1)), row - 4); }
+  for (const s of run.shots) if (s.tag) { g.fillStyle = s.tag.startsWith('blow-hit') ? '#e2543f' : s.tag.startsWith('mark') ? '#fff' : '#6fb0d8'; g.fillRect(x(s.frame) - 1, row * 5 + 2, 2 * devicePixelRatio, row - 4); }
+  g.fillStyle = '#8fd9c3'; g.fillRect(x(current.frame) - 1, 0, 2 * devicePixelRatio, H);
+}
+const frameAt = (ev) => { const r = $('timeline').getBoundingClientRect(); return Math.max(0, Math.round(((ev.clientX - r.left) / r.width) * (current?.run?.total ?? 0))); };
+$('timeline').onmousemove = (ev) => {
+  const run = current?.run; if (!run) return;
+  const f = frameAt(ev), at = (spans) => spans.find((s) => s.from <= f && f <= s.to)?.v ?? '—';
+  const here = run.findings.filter((x) => x.frame <= f && f <= x.until).map((x) => KIND[x.kind]?.[0] ?? x.kind);
+  $('hover').textContent = `Кадр ${f} · ${at(run.lanes.label)} · движение: ${at(run.lanes.movement)} · верх: ${at(run.lanes.upper)} · хват: ${at(run.lanes.carry)}${here.length ? ` · ${here.join(', ')}` : ''}`;
 };
-for (const [id, yaw] of [['back', 0], ['side', Math.PI / 2], ['front', Math.PI]]) $(id).onclick = () => act(async () => show(await command('orbit', { yaw })));
+$('timeline').onclick = (ev) => { if (current?.run) seek(frameAt(ev)); };
+const TAG = { 'blow-start': 'начало удара', 'blow-hit': 'попадание', 'blow-end': 'конец удара', 'view-back': 'сзади', 'view-side': 'сбоку', 'view-front': 'спереди', 'view-quarter': '¾' };
+function drawStrip() {
+  const shots = current.run.shots.filter((s) => s.tag).slice(-40);
+  $('strip').replaceChildren(...shots.map((s) => h('figure', { onclick: () => { shown = s.file; $('screen').src = `/__lab/shot/${encodeURIComponent(s.file)}`; message(`Снимок кадра ${s.frame}. Любой шаг вернёт живой кадр.`); } },
+    h('img', { src: `/__lab/shot/${encodeURIComponent(s.file)}`, loading: 'lazy' }), h('figcaption', { textContent: `${s.frame} · ${TAG[s.tag] ?? s.tag}` }))));
+}
+
+// ---- transport -------------------------------------------------------------------------------------------------------
+const advance = (frames) => act(async () => { shown = null; show(await command('advance', { frames })); });
+$('one').onclick = () => advance(1); $('ten').onclick = () => advance(10);
+$('rewind').onclick = () => seek(0);
+$('stop').onclick = () => { playing = false; message('Пауза после текущей группы кадров'); };
+async function playOut() { playing = true; while (playing) { await advance(6); if (!current?.run || current.run.complete) playing = false; } }
+$('play').onclick = () => { if (!busy && !playing) playOut(); };
+$('finish').onclick = () => act(async () => { shown = null; show(await command('run')); await loadReport(); });
+for (const [id, yaw] of [['back', 0], ['side', Math.PI / 2], ['front', Math.PI]]) $(id).onclick = () => act(async () => { shown = null; show(await command('orbit', { yaw, pitch: -0.08 })); });
+$('views').onclick = () => act(async () => { const v = await command('views'); show(await command('status')); message(v.note); }, '');
 $('mark').onclick = () => act(async () => show(await command('mark', { note: $('note').value })));
-$('export').onclick = () => act(async () => {
-  const data = await command('export');
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-  const link = document.createElement('a'); link.href = url; link.download = `${data.id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-});
+const download = (data, name) => { const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); h('a', { href: url, download: name }).click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+$('export').onclick = () => act(async () => { const data = await command('export'); download(data, `${data.id}.json`); });
+
+// ---- the scenario ----------------------------------------------------------------------------------------------------
+function composeSpec() {
+  const base = library[Number($('cases').value)]; if (!base) return;
+  const spec = { ...base }, seed = Number($('seed').value) || 1, every = Number($('geoEvery').value) || 0;
+  if ($('body').value) spec.body = $('body').value;
+  if ($('loadout').value) spec.loadout = $('loadout').value;
+  if (seed !== 1) spec.seed = seed;
+  if (every) spec.geometry = every;
+  $('spec').value = JSON.stringify(spec, null, 2);
+}
+for (const id of ['cases', 'body', 'loadout', 'seed', 'geoEvery']) $(id).onchange = composeSpec;
+const loadSpec = async () => { shown = null; show(await command('load', { scenario: JSON.parse($('spec').value) })); };
+$('load').onclick = () => act(loadSpec, 'Сцена создана');
+$('loadRun').onclick = () => act(async () => { await loadSpec(); show(await command('run')); await loadReport(); }, 'Прогон записан');
 $('import').onclick = () => $('file').click();
 $('file').onchange = () => act(async () => { const data = JSON.parse(await $('file').files[0].text()); $('spec').value = JSON.stringify(data.scenario ?? data, null, 2); });
-await act(async () => {
-  suite = await command('suite');
-  for (const [i, spec] of suite.entries()) { const option = document.createElement('option'); option.value = i; option.textContent = spec.name; $('cases').append(option); }
-  $('cases').onchange(); show(await command('status'));
+
+// ---- signals: baseline, repeat ---------------------------------------------------------------------------------------
+const VERDICT = { better: ['лучше', 'good'], worse: ['хуже', 'bad'], changed: ['изменилось', 'warning'], same: ['так же', 'muted'], unmeasured: ['не измерено', 'muted'] };
+const compareTable = (c) => h('table', {}, h('tr', {}, ['Показатель', 'Было', 'Стало', 'Итог'].map((n) => h('th', { textContent: n }))),
+  ...c.rows.filter((r) => r.verdict !== 'same').map((r) => h('tr', {}, h('td', { textContent: METRIC[r.metric] ?? r.metric }), h('td', { textContent: r.before ?? '—' }), h('td', { textContent: r.after ?? '—' }), h('td', { className: VERDICT[r.verdict][1], textContent: VERDICT[r.verdict][0] }))));
+$('baseSave').onclick = () => act(async () => { const r = await command('baseline', { save: true }); $('compare').replaceChildren(h('p', { className: 'good', textContent: `Эталон сохранён: ${r.saved}` })); });
+$('baseCheck').onclick = () => act(async () => {
+  const r = await command('baseline', {});
+  if (r.status !== 'measured') { $('compare').replaceChildren(h('p', { className: 'warning', textContent: 'Эталона для этого сценария ещё нет.' })); return; }
+  $('compare').replaceChildren(h('p', { textContent: `Эталон от ${r.baseline.created} (${String(r.baseline.revision).slice(0, 8)}). Хуже: ${r.worse.length}, лучше: ${r.better.length}. Кости расходятся с кадра ${r.divergence.firstFrame ?? '—'}, до ${r.divergence.worstMm} мм.` }), compareTable(r));
 });
+$('repeat').onclick = () => act(async () => {
+  const r = await command('repeat'); show(await command('status'));
+  $('compare').replaceChildren(h('p', { className: r.repeats ? 'good' : 'warning', textContent: r.repeats ? `Два прогона совпали кость в кость (${r.frames} кадров).` : `Прогоны расходятся с кадра ${r.firstFrame}: до ${r.worstMm} мм (${r.worstBone}, кадр ${r.worstFrame}). Сравнения «до/после» читать с этой поправкой.` }));
+});
+
+// ---- the fighter: the matrix -----------------------------------------------------------------------------------------
+$('matrixStop').onclick = () => { matrixOn = false; };
+$('matrix').onclick = () => act(async () => {
+  const picked = [...document.querySelectorAll('#matrixPick input:checked')].map((i) => i.value), reference = $('reference').value;
+  const plan = await command('plan', { loadouts: [...new Set([reference, ...picked])], seed: Number($('seed').value) || 1, geometry: Number($('geoEvery').value) || 0, body: $('body').value || null });
+  const ids = {}; matrixOn = true;
+  for (const [i, spec] of plan.entries()) {
+    if (!matrixOn) break;
+    message(`Матрица: ${i + 1} из ${plan.length} · ${spec.name}`);
+    show(await command('load', { scenario: spec }));
+    const done = await command('run'); show(done);
+    (ids[spec.loadout] ??= []).push(done.run.id);
+  }
+  const rows = [];
+  for (const loadout of Object.keys(ids)) { const r = await command('signature', { runs: ids[loadout], reference: ids[reference] }); rows.push([loadout, r]); }
+  $('matrixOut').replaceChildren(h('table', {}, h('tr', {}, ['Комплект', 'Расстояние', 'Измерено', 'За допуском'].map((n) => h('th', { textContent: n }))),
+    ...rows.map(([loadout, r]) => h('tr', {}, h('td', { textContent: loadout + (loadout === reference ? ' (эталон)' : '') }), h('td', { className: r.coherence.distance > 1 ? 'bad' : r.coherence.distance > 0.5 ? 'warning' : 'good', textContent: r.coherence.distance ?? '—' }),
+      h('td', { textContent: `${r.coherence.measured}/${r.coherence.of}` }), h('td', { style: 'white-space:normal;text-align:left', textContent: r.coherence.apart.join(', ') || '—' })))));
+  matrixOn = false;
+}, 'Матрица пройдена');
+
+// ---- the meshes ------------------------------------------------------------------------------------------------------
+const LAYER = ['тело', 'ткань', 'латы', 'в руках'];
+$('geometry').onclick = () => act(async () => {
+  const g = await command('geometry');
+  if (g.status !== 'measured') { $('pieces').replaceChildren(h('tr', {}, h('td', { className: 'warning', textContent: `Не измерено: ${g.why}` }))); return; }
+  $('pieces').replaceChildren(h('tr', {}, ['Предмет', 'Слой', 'Вершин', 'Растяж.', 'Сжатие', 'Рёбер за порогом', 'У кости'].map((n) => h('th', { textContent: n }))),
+    ...g.pieces.sort((a, b) => (b.maxStretch ?? 0) - (a.maxStretch ?? 0)).map((p) => h('tr', {}, h('td', { textContent: p.slot }), h('td', { textContent: LAYER[p.layer] }), h('td', { textContent: p.vertices }),
+      h('td', { className: p.maxStretch > 1.8 ? 'bad' : '', textContent: p.maxStretch ?? '—' }), h('td', { textContent: p.minStretch ?? '—' }), h('td', { textContent: p.stretched != null ? p.stretched + p.crushed : '—' }), h('td', { textContent: p.worstBone ?? '—' }))));
+  $('pokes').replaceChildren(...(g.pokes.length ? g.pokes.map((p) => h('p', { className: 'warning', textContent: `${p.kind === 'held-inside' ? 'Внутри' : 'Сквозь'}: ${p.inner} → ${p.outer} · ${p.vertices} вершин · до ${p.cm} см` })) : [h('p', { className: 'muted', textContent: 'Пересечений слоёв в этом кадре не найдено.' })]));
+  show(await command('status'), false);
+}, 'Сетка измерена');
+
+// ---- the edit --------------------------------------------------------------------------------------------------------
+let pushTimer = null;
+const layerNow = () => layers[Number($('layer').value)] ?? null;
+const pushTweak = () => { clearTimeout(pushTimer); pushTimer = setTimeout(async () => { try { await command('tweak', { layers }); shown = null; $('screen').src = `/__lab/image?t=${Date.now()}`; message('Правка применена'); } catch (e) { message(`Ошибка: ${e.message}`); } }, 180); };
+function sliders(host, target, rows) {
+  host.replaceChildren(...rows.map(([label, key, i, lo, hi, stepBy]) => {
+    const get = () => (i == null ? target[key] : target[key][i]);
+    const range = h('input', { type: 'range', min: lo, max: hi, step: stepBy, value: get() }), box = h('input', { type: 'number', min: lo, max: hi, step: stepBy, value: get() });
+    const set = (v) => { const n = Math.max(lo, Math.min(hi, Number(v) || 0)); if (i == null) target[key] = n; else target[key][i] = n; range.value = n; box.value = n; pushTweak(); renderLists(); };
+    range.oninput = () => set(range.value); box.onchange = () => set(box.value);
+    return h('div', { className: 'slider' }, h('span', { textContent: label }), range, box);
+  }));
+}
+const ROT = [['Наклон вперёд °', 'rot', 0, -60, 60, 0.5], ['Наклон вправо °', 'rot', 1, -60, 60, 0.5], ['Поворот влево °', 'rot', 2, -90, 90, 0.5]];
+const MOVE = [['Вправо, см', 'move', 0, -20, 20, 0.1], ['Вверх, см', 'move', 1, -20, 20, 0.1], ['Вперёд, см', 'move', 2, -20, 20, 0.1]];
+function renderLists() {
+  const l = layerNow();
+  const line = (name, t) => `${name}: поворот ${t.rot.join(' / ')}° · сдвиг ${t.move.join(' / ')} см${t.scale !== 1 ? ` · ×${t.scale}` : ''}`;
+  $('boneList').replaceChildren(...Object.entries(l?.bones ?? {}).map(([n, t]) => h('span', { className: 'chip', textContent: line(n, t) })));
+  $('slotList').replaceChildren(...Object.entries(l?.pieces ?? {}).map(([n, t]) => h('span', { className: 'chip', textContent: line(n, t) })));
+}
+function renderEdit() {
+  const keep = $('layer').value;
+  $('layer').replaceChildren(...layers.map((l, i) => h('option', { value: i, textContent: `${l.name}${l.on === false ? ' (выкл.)' : ''}` })));
+  if (keep && layers[Number(keep)]) $('layer').value = keep;
+  const l = layerNow();
+  $('layerName').value = l?.name ?? ''; $('layerOn').checked = l?.on !== false;
+  $('whenCls').value = l?.when?.cls ?? ''; $('whenGait').value = l?.when?.gait ?? ''; $('whenAttack').value = l?.when?.attack == null ? '' : String(l.when.attack);
+  if (!l) { $('boneSliders').replaceChildren(); $('slotSliders').replaceChildren(); renderLists(); return; }
+  const bone = $('bone').value, slot = $('slot').value;
+  if (bone) sliders($('boneSliders'), (l.bones[bone] ??= { rot: [0, 0, 0], move: [0, 0, 0], scale: 1 }), [...ROT, ...MOVE]);
+  if (slot) sliders($('slotSliders'), (l.pieces[slot] ??= { rot: [0, 0, 0], move: [0, 0, 0], scale: 1, about: null }), [...ROT, ...MOVE, ['Размер', 'scale', null, 0.7, 1.4, 0.005]]);
+  renderLists();
+}
+const prune = () => { for (const l of layers) for (const group of [l.bones, l.pieces]) for (const [k, t] of Object.entries(group)) if (![...t.rot, ...t.move].some(Boolean) && (t.scale ?? 1) === 1) delete group[k]; };
+async function loadRig() {
+  try {
+    rig = await command('rig'); layers = (await command('tweak')).layers.map(({ weight, ...l }) => l);
+    if (rig.status !== 'measured') { message(`Риг не найден: ${rig.why}. Создайте сцену и шагните кадр.`); return; }
+    const pick = ['bip01 spine', 'bip01 spine1', 'bip01 spine2', 'bip01 pelvis', 'bip01 neck', 'bip01 head'];
+    const names = [...new Set([...pick, ...rig.bones.map((b) => b.toLowerCase()).sort()])].filter((b) => rig.bones.some((x) => x.toLowerCase() === b));
+    $('bone').replaceChildren(h('option', { value: '', textContent: '— кость —' }), ...names.map((b) => h('option', { value: b, textContent: b })));
+    $('slot').replaceChildren(h('option', { value: '', textContent: '— предмет —' }), ...rig.slots.map((s) => h('option', { value: s.slot, textContent: `${s.slot} · ${LAYER[s.layer]} · на ${s.rides ?? '?'}` })));
+    renderEdit();
+  } catch (e) { message(`Ошибка: ${e.message}`); }
+}
+$('whenCls').replaceChildren(...[['', 'любой хват'], ['fists', 'кулаки'], ['one', 'одноручное'], ['two', 'двуручное'], ['wide', 'древко'], ['spear', 'копьё'], ['dual', 'два оружия'], ['free', 'без стойки']].map(([v, n]) => h('option', { value: v, textContent: n })));
+$('whenGait').replaceChildren(...[['', 'любой ход'], ['stand', 'стоя'], ['walk', 'шаг'], ['run', 'бег'], ['sneak', 'крадётся'], ['air', 'в воздухе']].map(([v, n]) => h('option', { value: v, textContent: n })));
+$('whenAttack').replaceChildren(...[['', 'всегда'], ['true', 'только в ударе'], ['false', 'только вне удара']].map(([v, n]) => h('option', { value: v, textContent: n })));
+$('layerAdd').onclick = () => { layers.push({ name: `слой ${layers.length + 1}`, on: true, when: null, bones: {}, pieces: {} }); renderEdit(); $('layer').value = layers.length - 1; renderEdit(); };
+$('layerDel').onclick = () => { layers.splice(Number($('layer').value), 1); renderEdit(); pushTweak(); };
+$('layer').onchange = renderEdit; $('bone').onchange = () => { if (!layers.length) $('layerAdd').onclick(); prune(); renderEdit(); }; $('slot').onchange = () => { if (!layers.length) $('layerAdd').onclick(); prune(); renderEdit(); };
+$('layerName').onchange = () => { const l = layerNow(); if (l) { l.name = $('layerName').value; renderEdit(); pushTweak(); } };
+$('layerOn').onchange = () => { const l = layerNow(); if (l) { l.on = $('layerOn').checked; renderEdit(); pushTweak(); } };
+for (const id of ['whenCls', 'whenGait', 'whenAttack']) $(id).onchange = () => {
+  const l = layerNow(); if (!l) return;
+  const when = {}; if ($('whenCls').value) when.cls = $('whenCls').value; if ($('whenGait').value) when.gait = $('whenGait').value; if ($('whenAttack').value) when.attack = $('whenAttack').value === 'true';
+  l.when = Object.keys(when).length ? when : null; pushTweak();
+};
+$('boneDel').onclick = () => { const l = layerNow(); if (l && $('bone').value) { delete l.bones[$('bone').value]; $('bone').value = ''; renderEdit(); pushTweak(); } };
+$('slotDel').onclick = () => { const l = layerNow(); if (l && $('slot').value) { delete l.pieces[$('slot').value]; $('slot').value = ''; renderEdit(); pushTweak(); } };
+$('tweakClear').onclick = () => { layers = []; renderEdit(); pushTweak(); };
+$('tweakExport').onclick = () => { prune(); download({ kind: 'dfo-lab-tweak', version: 1, rig: rig?.built ?? null, frame: current?.frame ?? null, scenario: current?.run?.scenario ?? null, layers }, 'lab-tweak.json'); };
+$('tweakImport').onclick = () => $('tweakFile').click();
+$('tweakFile').onchange = async () => { try { const data = JSON.parse(await $('tweakFile').files[0].text()); layers = data.layers ?? data; renderEdit(); pushTweak(); } catch (e) { message(`Ошибка: ${e.message}`); } };
+
+// ---- boot ------------------------------------------------------------------------------------------------------------
+async function init() {
+  library = await command('library');
+  const info = await command('loadouts'); loadouts = info.loadouts;
+  $('cases').replaceChildren(...library.map((spec, i) => h('option', { value: i, textContent: spec.name })));
+  $('loadout').replaceChildren(h('option', { value: '', textContent: '— как сейчас одет —' }), ...Object.keys(loadouts).map((k) => h('option', { value: k, textContent: `${k} · ${loadouts[k].join(', ') || 'ничего'}` })));
+  $('reference').replaceChildren(...Object.keys(loadouts).map((k) => h('option', { value: k, textContent: k, selected: k === info.reference })));
+  $('matrixPick').replaceChildren(...Object.keys(loadouts).map((k) => h('label', { className: 'inline' }, h('input', { type: 'checkbox', value: k, checked: /-armour$/.test(k) }), k)));
+  composeSpec(); show(await command('status'));
+}
+// The game takes minutes to boot: its own loading picture and word stand in until the lab answers.
+for (;;) {
+  try { await init(); message('Готово'); break; } catch (error) {
+    let boot = null;
+    try { boot = await (await fetch('/__lab/boot')).json(); } catch { /* the server itself is not up yet */ }
+    message(`Игра загружается… ${boot?.page?.title ?? ''} · файлов в очереди: ${boot?.pending?.length ?? '?'} (${error.message})`);
+    if (boot?.page) $('screen').src = `/__lab/boot-image?t=${Date.now()}`;
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+  }
+}
+$('reload').onclick = () => act(async () => { await command('reload'); current = null; shown = null; await init(); }, 'Лаборатория перечитана с диска; игра не перезапускалась');
 // Agent changes become visible without advancing the game or overwriting an editor draft.
 let polling = false;
 setInterval(async () => {
-  if (busy || playing || polling) return;
+  if (busy || playing || polling || matrixOn) return;
   polling = true;
   try { show(await command('status'), false); } catch (error) { message(error.message); }
   finally { polling = false; }
-}, 1500);
+}, 2000);
+addEventListener('resize', drawTimeline);
 </script></html>

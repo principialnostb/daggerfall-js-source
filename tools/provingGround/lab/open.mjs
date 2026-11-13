@@ -3,16 +3,24 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 export async function openLab({ page, context, lab, base, out }) {
-  await page.addScriptTag({ type: 'module', content: readFileSync(fileURLToPath(new URL('../kit.js', import.meta.url)), 'utf8') });
-  await page.waitForFunction(() => !!window.__pgKit);
+  // the page's kits as they stand on disk - laid in at the start, and again on a reload (server.mjs)
+  const inject = async () => {
+    await page.evaluate(() => { delete window.__pgKit; delete window.__labKit; });
+    for (const file of ['../kit.js', './labKit.js']) await page.addScriptTag({ type: 'module', content: readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8') });
+    await page.waitForFunction(() => !!window.__pgKit && !!window.__labKit);
+  };
+  await inject();
   const kit = (fn, ...args) => page.evaluate(([name, values]) => window.__pgKit[name](...values), [fn, args]);
   const step = (n) => page.evaluate((count) => window.__pg.step(count), n);
+  const body = (fn, ...args) => page.evaluate(([name, values]) => window.__labKit[name](...values), [fn, args]);
+  // LAB2: a frame drawn with the clock all but still - the camera swung or an edit shown, the motion not advanced
+  const still = () => page.evaluate(() => window.__pg.step(1, 0.01));
   if (await page.evaluate(() => (document.body?.innerText ?? '').includes('CLICK OR PRESS A KEY'))) {
     await page.keyboard.press('Enter'); await step(1);
   }
   await kit('third'); await step(30); await kit('setHome');
   const revision = execFileSync('git', ['-c', 'safe.directory=*', 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-  const driver = lab.attach({ page, step, kit, out, revision });
+  lab.attach({ page, step, kit, lab: body, still, out, revision, reinject: inject });
   const panel = await context.newPage();
   await panel.goto(`${base}/__lab/`);
   console.log(`Animation Lab: ${base}/__lab/`);
@@ -23,5 +31,5 @@ export async function openLab({ page, context, lab, base, out }) {
       process.once('SIGINT', stop); process.once('SIGTERM', stop);
       panel.once('close', stop);
     });
-  } finally { await driver.close(); }
+  } finally { await lab.close(); }
 }

@@ -171,6 +171,7 @@ export { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import FACE_TABLE from '../mwFaceTable.json' with { type: 'json' };
 import { GRAPH_ROOT, ACCUM_ROOT_NAMES, blendPoseMaps } from './mwSkin.js';
+import { editPose, fitPieces } from './mwPoseLab.js';   // POSE-LAB: the Animation Lab's seam, off in the game
 import { CUFF_FIT, fitCuffsToHand, handStart, trimToCuff, wristFrame } from './mwCuffFit.js';   // CUFF-FIT: the worn cuff sat on the donor hand
 import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
@@ -2996,6 +2997,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // RIFLE-STANCE: a held long gun's hands (combat/gun/rifleStance.js applyRifleStance) - `hold` solves them on THIS frame's
   // body, after the clip and the climb's slot (never both: a gun is not held on the stone or a seat), before any piece
   assembly.holdFit = hold ? hold(skeleton, pose, GRAPH_ROOT, fns.skelMats) : null;
+  editPose(assembly, pose);   // POSE-LAB: a tool's edit over every layer's pose - nothing unless a tool is attached
   const mats = fns.skelMats(skeleton, pose, GRAPH_ROOT);
   // MWNPC1: `skin: false` - THE GPU SKIN'S POSE. The skeleton is posed and
   // its matrices kept exactly as below, and the pieces are NOT: the vertex
@@ -3025,6 +3027,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
       if (p.normals && p.sourceNormals) placeNormalsAtBone(p.sourceNormals, placed, p.mirrored, p.normals);   // MW-SMOOTH
     }
   }
+  fitPieces(pieces);   // POSE-LAB: a tool's fit of a piece, the CPU skin's half
   if (geometryMorph) {
     // BODY-SHAPE: measured once after skinning every body piece - the skeleton's landmarks and the box in one frame
     const bodyPieces = pieces.filter((p) => p.kind === 'skinned' && isMorphedBodySlot(p.slot) && p.positions?.length);

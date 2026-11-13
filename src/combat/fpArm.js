@@ -408,8 +408,9 @@ import { diffuseAt, emissiveAt } from '../formats/morrowind/mwNifMesh.js';   // 
 import { fpLightingOn } from './fpsWeapon.js';   // MAC-P: the first-person lighting switch, shared with the classic sprite it stands in for
 import { createParticleSystem, packParticleQuads, particleDrawState, affineOfTransform, affineMul, affineApply, affineScale } from '../formats/morrowind/mwParticles.js';   // MAC-Q: the torch's flame, and any other particle system a part carries
 import { boneSourcesFor, resolveHolsterParts, holsterPartPaths, holsterHidden, HOLSTER_SLOTS } from '../systems/weaponSheathing.js';   // WS1
-import { fitCloakOver, fitStowedGear, followCloak, posePiecePositions, HIP_PITCH_LIMIT, CLOAK_PUSH_LIMIT, SLUNG_MOVE_LIMIT } from '../formats/morrowind/mwCloakFit.js';   // MW-CLOAK1: the cloak over what the body wears, stowed gear against it; AUDIT MW-CLOAK: and going with it
+import { fitCloakOver, fitStowedGear, followCloak, posePiecePositions, CLOAK_STILL_POSES, HIP_PITCH_LIMIT, CLOAK_PUSH_LIMIT, SLUNG_MOVE_LIMIT } from '../formats/morrowind/mwCloakFit.js';   // MW-CLOAK1: the cloak over what the body wears, stowed gear against it; AUDIT MW-CLOAK: and going with it
 import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact, releaseCloakShieldContact } from '../formats/morrowind/mwCloakPhysics.js';
+import { cloakColliders, cloakGearDue } from '../formats/morrowind/mwCloakColliders.js';   // CLOAK-CONTACT
 import { isCloakSlot, ownCloakFor, isOutfitSlot, isSimplyCloakModel } from '../characters/ownModels/ownClothingModels.js';   // MW-CLOAK1; AUDIT MW-CLOAK: and its picture; AUDIT MW-FOLK1: an outfit's add, by its label
 import { injectSkeletonNodes } from '../formats/morrowind/mwSkin.js';   // WS1: the dry injection the holster's bone probe runs
 // MAP3: THE HELD SHEET - the pose deltas over the idle, the paper piece
@@ -425,7 +426,7 @@ import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // 
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
-import { guardMovementGroup, armedUpperPlan } from './guardLocomotion.js';   // SHIELD-RUN-LEGS: the stance's legs, the armed upper body
+import { guardMovementGroup, armedUpperPlan, fistStanceType } from './guardLocomotion.js';   // SHIELD-RUN-LEGS: the stance's legs, the armed upper body
 import { createLowerBodyLayer, lowerBodyBones, upperBodyBones, withMirrorLocomotion } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
 import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace, carriesBlend } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
@@ -2260,9 +2261,9 @@ export function fitThirdPersonCloak(arm, underSlots) {
   // rather than asking cloth collision to squeeze the cloak into the body/shield gap.
   // The hand-held shield remains excluded by its distinct `shield` slot.
   const isGear = (p) => HOLSTER_SLOTS.includes(p.slot) || /^shield-back\b/i.test(p.slot ?? '');
-  const isFollowGear = (p) => isGear(p) && !isHipSheath(p);
+  const isFollowGear = (p) => isGear(p) && !isHipSheath(p) && !/^shield-back\b/i.test(p.slot ?? '');   // SHIELD-SEAT: the seated shield presses the cloth, it is not held clear of it
   const covered = (slot) => underSlots.has(slot) && slot !== 'tail' && !/^shield\b/.test(slot);
-  const cloak = underSlots && !arm.pieces.some((p) => isWolfCloakSlot(p.slot)) ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot) }) : null;
+  const cloak = underSlots && !arm.pieces.some((p) => isWolfCloakSlot(p.slot)) ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot), poses: simplyCloakMode() ? undefined : CLOAK_STILL_POSES }) : null;
   // Give the back-mounted shield a real air gap from the torso, not just the
   // cloak's one-unit clearance. fitStowedGear moves rigid slung pieces along -Y
   // until they clear the cloak; the larger clearance is isolated to this call
@@ -2275,46 +2276,6 @@ export function fitThirdPersonCloak(arm, underSlots) {
     : `holster @ ${r.bone}: no pitch within ${HIP_PITCH_LIMIT} degrees keeps it in front of the cloak - it hangs as it was`));
   if (cloak?.deep) notes.push(`cloak: something under it stands more than ${CLOAK_PUSH_LIMIT} units through it (${cloak.deep} points) - left through, not chased`);
   return { cloak, gear, follow, notes };
-}
-
-/**
- * Keep the classic Vanilla Animated cloak behind the body in the live pose.
- * The static fit already covers a useful pose envelope; this short, one-pose
- * contact pass catches the gaps between those samples without changing the
- * animation or running a second cloth solver.
- */
-function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
-  const underSlots = piece.clothPhysicsUnderSlots;
-  const state = piece.clothPhysics;
-  if (!underSlots || !state || !pose || !arm.mats || !piece.batch?.positions) return false;
-  const fit = fitCloakOver(arm, {
-    isCloak: (p) => isCloakSlot(p.slot),
-    isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\b/.test(p.slot),
-    poses: [pose],
-    passes: 1,
-    // Sample triangle interiors in the live pose too. Edge-only sampling misses
-    // contacts through the middle of broad trouser/thigh triangles (the remaining
-    // right-leg clip); use a coarser interior lattice than the static fit to bound
-    // per-frame work while still testing the actual current pose.
-    sampleStep: 1.5,
-    includeTriangleInteriors: true,
-    // Re-skin the corrected bind vertices immediately. The live renderer packs
-    // piece.positions, not batch.positions; leaving this false silently keeps
-    // uploading the intersecting pre-correction pose for the current frame.
-    updatePosed: true,
-  });
-  const positions = piece.batch.positions;
-  if (!fit?.pushed || positions.length !== state.pos.length) return false;
-  // Keep the solver's corrected position and shift its previous position by
-  // the same amount, preserving velocity instead of injecting a collision kick.
-  for (let i = 0; i < positions.length; i++) {
-    const correction = positions[i] - state.pos[i];
-    state.pos[i] = positions[i];
-    state.prev[i] += correction;
-  }
-  state.normals = piece.batch.normals ?? null;
-  piece.sourceGen = ((piece.sourceGen | 0) + 1) >>> 0;
-  return true;
 }
 
 /** MW-D50: the archives' DIRECTORY - "is this path in any attached
@@ -6017,7 +5978,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // its weapon suffix. The sneak idle takes no loop dice; SNEAK-STANCE: and
     // it is the drawn stance's own crouch where a pack carries one (sneakIdleGroup).
     const base = idleBaseFor({ sneaking, inJump: !!jumpState, hasGroup, type });   // SNEAK-STANCE: the crouch of the drawn stance
-    const compose = () => (base === FP_IDLE_SNEAK ? { group: sneakIdleGroup(type, hasGroup) } : composeStanceGroup(base, type, hasGroup));
+    const compose = () => (base === FP_IDLE_SNEAK ? { group: sneakIdleGroup(type, hasGroup) } : composeStanceGroup(base, fistStanceType(type, viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0), hasGroup));   // FIST-STANCE
     if (!force && idleState && idleState.playing) {
       // Only the GROUP can have gone stale; a playing idle of the right
       // group is left exactly where it is.
@@ -6432,7 +6393,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  where the guard holds the shield (combat/shieldGuard.js); poseAssembly's `hold` slot, or null. */
   const shieldBash = () => (modGroupEnabled('animations') && blowBash && actionState && attackingNow() && !climbHands && !held
     // (the shield comes home over the recovery - BLOW-FLOW - home by its follow-through's end or the window's, not in a frame)
-    ? shieldBashHold(UPPER_BODY_NAME[upper], upper === UPPER_BODY.AttackEnd && blowPlan?.lead ? Math.min(1, Math.max(recoverHeld / holdFor(attackType), clipCompletion(actionState))) : clipCompletion(actionState), viewMode) : null);
+    ? shieldBashHold(UPPER_BODY_NAME[upper], upper === UPPER_BODY.AttackEnd && blowPlan?.lead ? Math.min(1, Math.max(recoverHeld / holdFor(attackType, blowPlan?.fists), clipCompletion(actionState))) : clipCompletion(actionState), viewMode) : null);
   /** LEFT-ARM: who holds the left arm this frame (combat/leftArmLayer.js leftArmModeOf). */
   const leftArmMode = () => leftArmModeOf({ view: viewMode, type: animWeaponType(built?.mwType, sheathed, spellReady), shield: carriesShield(rig()),
     dual: handsMode === 'dual', free: !!built?.ok && !sheathed && !spellStance() && !climbHands && !held && !torchVisible() });
@@ -6898,7 +6859,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const toHit = wind + release;
     if (!(toHit > 0)) return null;
     // MW-PACE3: the player's own blow, led by its arm, plays each section at its own speed (combat/blowFlow.js calmBlowPlan)
-    if (blow.lead) return { ...calmBlowPlan(blow, wind, release), flow: flowStyle(modSetting('morrowind-animation', 'BlowStyle')) };   // BLOW-STYLE
+    if (blow.lead) return { ...calmBlowPlan(blow, wind, release, animWeaponType(built?.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand && !carriesShield(rig())), flow: flowStyle(modSetting('morrowind-animation', 'BlowStyle')) };   // BLOW-STYLE
     return { seconds: blow.seconds, hitAt: blow.hitAt, clock: 0, rate: blowRate(toHit, blow.hitAt) };
   }
 
@@ -6917,7 +6878,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     if (recovering) recoverHeld += dt;
     bashExit = Math.max(0, bashExit - dt);   // BASH-EXIT: the return to the stance after a bash (mirrorFor)
     // BLOW-FLOW: a series ended - the recovery gives way to the stance at the window's end, wherever it is (the exit blend)
-    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType))) return;
+    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType, blowPlan?.fists))) return;
     switch (upper) {
       case UPPER_BODY.Equipping:
         actionState = null; actionSource = null;
@@ -6969,7 +6930,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       case UPPER_BODY.AttackEnd:
         // the follow-through done (or the window spent, above), the stance takes the arm back - blended (blowBlendSeconds);
         // SERIES-FLOW: while the series goes on, the arm waits for the next blow instead (BLOW_FLOW.wait at most)
-        if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait) break;
+        if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait && !blowPlan?.fists) break;   // PUNCH-READY: a fist waits for the next punch in its guard, cocked - not frozen in its follow-through
         endAttack();
         break;
       case UPPER_BODY.Casting:
@@ -8650,7 +8611,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
             // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
             // never (one clip), a blow cut by the next briefly, the return to the stance slowly
-            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state);   // SECTION-SEAM
+            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state, animWeaponType(built?.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand && !carriesShield(rig()));   // SECTION-SEAM; FIST-SNAP
             if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, modSetting('morrowind-animation', 'MotionDoctrine') !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
               thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
               thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
@@ -8734,6 +8695,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
               attack: cloakAttack,
               attackProgress: cloakAttackProgress,
               attackGroup: cloakAttackGroup,
+              colliders: cloakColliders(t.arm, piece),   // CLOAK-CONTACT
             });
             if (stepped) {
               // Keep the first sample and then one sample every 60 successful frames. A
@@ -8779,13 +8741,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
               }
             }
           }
-          // Vanilla Animated alone gets live body-contact correction. The
-          // authored Simply mesh and its own animation path remain untouched.
-          if (vanillaAnimatedCloaksEnabled() && t.arm.pose && t.arm.mats) {
-            for (const piece of t.arm.pieces) {
-              if (piece.clothPhysicsFallbackMesh) correctVanillaAnimatedCloakContacts(t.arm, piece, t.arm.pose);
-            }
-          }
           // Resolve the animated cloak against rigid gear worn over the back. Include
           // every holster/scabbard/quiver whose attachment bone descends from Spine1,
           // plus the back-mounted shield. Their bones remain authoritative; only the
@@ -8814,7 +8769,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             });
             const rigidGear = [...(shieldBack ? [shieldBack] : []), ...backSheaths];
             const clothPieces = t.arm.pieces.filter((piece) => piece.clothPhysics && isCloakSlot(piece.slot));
-            if (rigidGear.length && clothPieces.length) {
+            if (rigidGear.length && clothPieces.length && cloakGearDue(t.arm, dt)) {
               const requests = [
                 ...rigidGear.map((piece) => ({ piece })),
                 ...clothPieces.map((piece) => ({ piece, batch: { ...piece.batch, positions: piece.clothPhysics.pos } })),

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';
 import { buildSkeleton, skeletonSpaceMatrices, GRAPH_ROOT } from '../../../src/formats/morrowind/mwSkin.js';
-import { blowPhase, blowLegsPose, createBlowLegs, settleOffsets, BLOW_LEGS, BLOW_LEGS_TIME, BLOW_SETTLE, BLOW_PIVOT, BLOW_MOVE, TRAILING_FOOT } from '../../../src/characters/bodyMotion/blowLegs.js';
+import { blowPhase, blowLegsPose, createBlowLegs, settleOffsets, BLOW_LEGS, BLOW_LEGS_TIME, BLOW_SETTLE, BLOW_PIVOT, BLOW_MOVE, TRAILING_FOOT, FIST_BLOW_KEYS, punchPhase, PUNCH_CHAIN, FIST_TRUNK, PUNCH_READY } from '../../../src/characters/bodyMotion/blowLegs.js';
 import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
 import { solveBody } from '../../../src/characters/bodyMotion/bodySolve.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
@@ -77,27 +77,27 @@ function strike(type, opts = {}) {
 }
 const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
-test('fist clips retain their authored legs through a series, including after a weapon strike', () => {
-  const sk = buildSkeleton(parseNif(retailSkeleton())), body = bodyOf(sk, GRAPH_ROOT, sm);
+test('FIST-LEGS: the fists strike on the blow legs as a blade does - the feet anchored, the hips driven by a punch\'s own keys, deeper than a blade\'s; PUNCH-CHAIN: the hips lead the trunk, the wind-up cocks it back', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
   for (const hand of [{ mwType: T.HandToHand }, { mwType: T.None }, { mwType: T.LongBladeOneHand, hands: 'fists' }]) {
     const legs = createBlowLegs();
-    for (let i = 0; i < 45; i++) {
-      legs.step(1 / 60, true, { on: true, grounded: true, speed: 0, shown: true, mwType: T.LongBladeOneHand, blow: blow('chop', 'release', 1) });
+    for (let i = 0; i < 60; i++) {
+      legs.step(1 / 60, true, { on: true, grounded: true, speed: 0, shown: true, ...hand, blow: blow('chop', 'release', 1) });
       legs.apply(sk, new Map(), GRAPH_ROOT, sm);
     }
-    assert.equal(legs.status().anchored, true, 'a weapon strike established foot anchors');
-    for (let i = 0; i < 90; i++) {
-      const clip = stridePose(sk, body, 0.15 * Math.sin(i / 10)), pose = new Map(clip);
-      const section = ['windup', 'release', 'follow'][Math.floor(i / 30)];
-      legs.step(1 / 60, true, { on: true, grounded: true, shown: true, speed: 0, ...hand, blow: blow('chop', section, i % 30 / 30) });
-      legs.apply(sk, pose, GRAPH_ROOT, sm);
-      assert.deepEqual(pose, clip, 'the authored fist pose is not overwritten by the weapon lunge');
-      assert.equal(legs.status().anchored, false);
-      assert.deepEqual(legs.trunkTurn(), { yaw: 0, pitch: 0 });
-    }
+    assert.equal(legs.status().anchored, true, 'a punch anchors the feet');
+    assert.ok(legs.trunkTurn().yaw > 0.15 && legs.trunkTurn().pitch > 0.12, 'PUNCH-CHAIN: at the hit the trunk is thrown in and over the lead leg');
   }
+  const fist = blowLegsPose({ ...blow('thrust', 'release', 1), fists: true }), blade = blowLegsPose(blow('thrust', 'release', 1));
+  assert.ok(Math.abs(fist.fwd - FIST_BLOW_KEYS.thrust.hit.fwd) < 1e-9 && fist.fwd > blade.fwd && fist.pitch > blade.pitch, 'a straight punch drives further and leans more');
+  assert.ok(blowLegsPose({ ...blow('slash', 'release', 1), fists: true }).yaw > blowLegsPose(blow('slash', 'release', 1)).yaw, 'a hook turns the hips more');
+  const late = blowLegsPose({ ...blow('thrust', 'windup', 0.95), fists: true }), edge = blowLegsPose(blow('thrust', 'windup', 0.95));
+  assert.ok(late.drive > 0.3 && edge.drive === 0 && late.forward === true && edge.forward === null, 'the hips drive and the foot steps before the fist leaves');
+  assert.ok(late.trunk.yaw < -0.15, 'while the trunk is still cocked back');
+  assert.equal(edge.trunk, null, 'a blade has no trunk keys of its own');
+  assert.deepEqual(punchPhase('follow', 1), { load: 1, drive: 1, recover: 1 });
+  assert.ok(PUNCH_CHAIN.lead > 0.4 && FIST_TRUNK.slash.hit.yaw > FIST_TRUNK.thrust.hit.yaw);
 });
-
 test('a standing series followed by a short walk and another strike cannot reuse the standing foot anchors', () => {
   const sk = buildSkeleton(parseNif(retailSkeleton()));
   const body = bodyOf(sk, GRAPH_ROOT, sm), legs = createBlowLegs();
@@ -434,4 +434,20 @@ test('FEET-HOME: past the blows, feet anchored wide go back to the clip\'s stanc
   const end = tail[tail.length - 1];
   assert.equal(end.w, 0, 'the layer let the legs go');
   for (const s of ['L', 'R']) assert.ok(d(end[s], ft(s)) < 0.5, `the ${s} foot on the clip's stance`);
+});
+
+test('PUNCH-READY: a punch thrown, the trunk stands cocked for the next on the striking side, then lets go; a blade never does', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const fist = { on: true, grounded: true, speed: 0, shown: true, mwType: T.HandToHand }, run = (legs, word, n) => { for (let i = 0; i < n; i++) { legs.step(1 / 60, true, word); legs.apply(sk, new Map(), GRAPH_ROOT, sm); } };
+  const legs = createBlowLegs();
+  run(legs, { ...fist, blow: blow('thrust', 'release', 1) }, 40);
+  assert.ok(legs.trunkTurn().yaw > 0.15, 'thrown in at the hit');
+  run(legs, { ...fist, blow: null }, 20);
+  assert.ok(legs.trunkTurn().yaw < PUNCH_READY.yaw * 0.7 && legs.trunkTurn().yaw >= PUNCH_READY.yaw - 1e-6, `cocked ${legs.trunkTurn().yaw.toFixed(3)} a third of a second on`);
+  run(legs, { ...fist, blow: null }, 120);
+  assert.ok(Math.abs(legs.trunkTurn().yaw) < 0.01, 'let go with no next punch');
+  const blade = createBlowLegs();
+  run(blade, { ...fist, mwType: T.LongBladeOneHand, blow: blow('thrust', 'release', 1) }, 40);
+  run(blade, { ...fist, mwType: T.LongBladeOneHand, blow: null }, 20);
+  assert.ok(blade.trunkTurn().yaw >= -1e-6, 'a blade is not cocked');
 });

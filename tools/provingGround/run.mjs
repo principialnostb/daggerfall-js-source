@@ -53,7 +53,11 @@ async function main() {
   mkdirSync(OUT, { recursive: true });
   process.env.ARENA2_PATH = ARENA2;
   const lab = command === 'lab' ? (await import('./lab/server.mjs')).createLabPlugin() : null;
-  const server = await createServer({ root: ROOT, configFile: join(ROOT, 'vite.config.js'), logLevel: 'error', plugins: lab ? [lab.plugin] : [], server: { port: PORT, strictPort: true, hmr: false } });
+  // LAB2: the ground serves the game alone. A second checkout or a data folder inside the root (a worktree, .dream-*)
+  // is neither scanned for entries nor watched - one such copy cost the boot minutes and the server gigabytes.
+  const aside = ['**/.proving-ground/**', '**/.claude/**', '**/.dream-*/**', '**/.git/**', '**/ARENA2/**', '**/Morrowind models/**', '**/Mods/**', '**/dist/**'];
+  const server = await createServer({ root: ROOT, configFile: join(ROOT, 'vite.config.js'), logLevel: 'error', plugins: lab ? [lab.plugin] : [],
+    optimizeDeps: { entries: ['play/index.html'] }, server: { port: PORT, strictPort: true, hmr: false, watch: { ignored: aside } } });
   await server.listen();
   const base = `http://localhost:${PORT}`;
   const context = await chromium.launchPersistentContext(PROFILE, {
@@ -67,7 +71,7 @@ async function main() {
   const page = wire(context.pages()[0] ?? await context.newPage());
   lab?.watch(page);
   try {
-    await ensureMorrowind(page, base);
+    await ensureMorrowind(page, base, lab ? '/__lab/blank' : '/');
     const lane = opt('lane', 'fork');
     await context.addInitScript({ content: readFileSync(join(ROOT, 'tools', 'provingGround', 'clock.js'), 'utf8') });
     await context.addInitScript(({ seed }) => {
@@ -105,8 +109,8 @@ async function load(page, url, tries = 4) {
   }
 }
 
-async function ensureMorrowind(page, base) {
-  await load(page, `${base}/`);
+async function ensureMorrowind(page, base, door = '/') {
+  await load(page, `${base}${door}`);
   await page.waitForTimeout(3000);
   const stored = await page.evaluate(async () => (await import('/src/scenes/dataSource.js')).storedMorrowindNames());
   if (stored?.length) { console.log(`Morrowind data: ${stored.length} files stored`); return; }

@@ -1,5 +1,114 @@
 # Motion Doctrine - one formula for how bodies move and fight (MOTION-DOCTRINE, 2026-10-27)
 
+## GUARD-STAND - one stand for every stance weapon (2026-11-12)
+
+The owner, 2026-11-12: the two-hander's legs and blows are "the most successful"; a one-hander, a shield with a free
+hand, two weapons and the fists are "doubtful", and stops are "wooden". The Animation Lab (`Proving-Ground.md`, LAB2)
+read why on the woman's body in steel: the two-hander stands as it walks (pelvis 99 cm, walking 95-99), while a
+one-hander, a shield and the fists stood up to 104-105 cm at every stop and sank 8 cm at every start. Their archive
+idles (`idle1h`, `idlehh`) stand on nearly straight legs; `idle2c` does not.
+
+A drawn stance weapon now stands at the two-hander's height: the hips lowered, the ankles where the clip put them,
+the knees yielding (src/characters/bodyMotion/guardStand.js:"export function createGuardStand(config = GUARD_STAND) {").
+It only ever lowers, eases over 0.22 s, and lies in the stride's slot before the body motion and BLOW-LEGS
+(src/characters/bodyMotion/travelStride.js:"const stand = createGuardStand();"). The arms, the clips and every
+blow are untouched: a rule's place is the legs and the weight (section 4). DFU draws no body; OpenMW plays the idle as
+authored, so this is the port's own presentation. The four hosts pose through the shared modules; none is wired.
+
+Measured, 28 runs before and after: all four stand at 99.0 cm; the stop's rise fell from 8-9 cm to under 1. The
+distance from the reference fighter fell from 0.87 to 0.65 (fists), 0.82 to 0.54 (sword) and 0.81 to 0.52 (sword and
+shield). The two-hander's numbers did not move, nor any run's leaps, slides or sinks. Still apart, and not this
+slice's: a punch moves the hips 0 cm against the two-hander's 8.8 and leans the trunk 10 degrees against 54 (FISTS
+keep their clip's drive, by the 2026-11-09 repair - the owner's to reopen); a one-hander's wind-up is 14% of its blow
+against 34%. `test/characters/bodyMotion/guardstand.test.js` holds the level, the still ankles and the ease on real
+clips. The owner's eye in the game is still owed.
+
+### STAND-LIFE - the lowered stand breathes (2026-11-12)
+
+The owner, 2026-11-12, of the fists after GUARD-STAND: "the stand became very wooden and strange". The lab read it:
+standing four seconds, the hips and the chest of the fists and of a one-hander moved 0 cm, the two-hander's 0.5.
+The archive's `idlehh` and `idle1h` barely move the hips, and GUARD-STAND pinned what little there was.
+
+The lowered hips now breathe 0.8 of a hundredth of a leg every 3.1 s and shift from foot to foot every 5.3 s, the
+ankles where they were (src/characters/bodyMotion/guardStand.js:"export const STAND_LIFE = Object.freeze({ breath: 0.008, breathS: 3.1, sway: 0.014, swayS: 5.3 });").
+Read after: the hips travel 2.1 cm across and 0.8 up with the fists, 2.5 and 0.8 with a sword; the feet stay; no pop.
+The two-hander is left alone. `globalThis.__standLife` tunes it live. The port's own; all four hosts share it.
+Test: test/characters/bodyMotion/guardstand.test.js. The fists' guard pose itself is untouched: open.
+
+### The fists as one fighter - FIST-STANCE, FIST-LEGS, FIST-GUARD, FIST-SNAP, PUNCH-CHAIN (2026-11-12)
+
+The owner, 2026-11-12, of the fists: the legs "about as the others' are", "we take out the lowering of the
+hands - a fighting stance is a fighting stance", and the blows "more expressive" - they were "bland". The
+lab read each on the woman in steel, against the two-hander.
+
+- **Stance.** The owner, later that day: "can you not repeat the legs of the two-hander's and the one-hander's
+  stance?" The fists now STAND on the two-hander's own stance clip, whole
+  (src/combat/guardLocomotion.js:"export const fistStanceType = (type, on = false) => (on && type === MW_WEAPON_TYPE.HandToHand ? MW_WEAPON_TYPE.LongBladeTwoHand : type);"),
+  the hand-to-hand guard laid over it from the lower spine up. Read after: the feet 29 and 42 cm apart and the hips
+  99 cm up with the fists as with the claymore, to the centimetre. The third person's; the first person keeps its clip.
+- **Legs.** A standing punch moved the hips 1.2 cm (a two-hander's blow 8.8) and slid a foot 90 cm over the ground:
+  the hand-to-hand clips walk their own legs, and the repair of 2026-11-09 had taken the fists out of BLOW-LEGS
+  because its anchors twisted their thighs. While a standing punch plays, the lower body is held at the stance
+  (src/characters/bodyMotion/fistLegs.js:"export function createFistLegs(config = FIST_LEGS) {"), and BLOW-LEGS takes
+  the fists as a blade, on a punch's own keys
+  (src/characters/bodyMotion/blowLegs.js:"export const FIST_BLOW_KEYS = Object.freeze({").
+- **Guard.** Moving, the fists played the ordinary walk whole, its arms at the sides. The legs keep those clips; the
+  upper body is the stance's guard, standing and moving
+  (src/combat/guardLocomotion.js:"return !moving || walking ? FIST_GUARD : null;").
+- **Snap.** Of a punch's 93 frames the body stood still 40: the fist hung out 0.55 s, then crawled home. A punch's
+  sections play quicker, its fist is out 0.05 s, its recovery never under 0.6 of its start
+  (src/combat/blowFlow.js:"export const FIST_PACE = Object.freeze({ wind: 1.7, release: 2.9, recover: 2.4, settle: 0.6, hold: 0.05, exit: 0.17, entry: 0.08 });").
+
+- **Chain.** The owner, last: the punches' "speed, their expression and the trunk's work, agreed well with the
+  legs". Read frame by frame: no wind-up (the trunk turned 13 degrees, the fist crept forward), the hips' drive
+  peaked 5 frames after the hit, and the fist was still out 15 frames on. A punch now runs up the body: the hips
+  drive and the lead foot steps inside the wind-up, the trunk - cocked back, then thrown in over the lead leg - a
+  beat behind them (src/characters/bodyMotion/blowLegs.js:"export function punchPhase(section, progress) {"),
+  and the fist is taken back over 0.17 s, not let down over 0.5. Read after: the wind-up turns the trunk 31 degrees
+  back, the hit 53 in (lean 23), the foot is 17 cm out at the hit for 8, the fist home 10 frames after; no pop.
+
+- **Between punches.** The owner, 2026-11-13: "tolerable, but worse than everything else". Read in a held series:
+  the punch thrown, the body FROZE in its follow-through - every speed 0 - for 35 frames and more, waiting on the
+  swing clock (SERIES-FLOW's wait, made for a blade's long follow-through). A fist does not wait there: it goes
+  home to its guard (src/combat/fpArm.js:"if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait && !blowPlan?.fists) break;"),
+  the trunk cocked for the next punch
+  (src/characters/bodyMotion/blowLegs.js:"export const PUNCH_READY = Object.freeze({ seconds: 0.6, yaw: -0.2, pitch: -0.04, tau: 0.1 });"),
+  and standing in the guard the knees give and the weight shifts
+  (src/characters/bodyMotion/guardStand.js:"export const FIST_BOUNCE = Object.freeze({ breath: 0.014, breathS: 0.72, sway: 0.016, swayS: 2.3, quiet: 0.12 });").
+  Read after: still frames a blow 2 for 27; the fist in its guard 20 frames after the hit; the hips 1.8 cm up and down
+  standing, the feet still. Open: the guard then waits some 50 frames for the clock - bounced, but a wait.
+
+HOW OFTEN a punch is thrown is untouched: the swing law's and the balance's (characters/weaponStates.js). The
+fists behind a shield keep the weapon's pace and their own carriage. Withdrawn the same day: PUNCH-WEIGHT and
+FIST-FEET, a hip drive and a stepping foot of the fists' own - the owner asked for the others' legs instead.
+All four hosts share fpArm. The port's own; OpenMW plays the clips as they are.
+Test: test/characters/bodyMotion/fistlegs.test.js, blowlegs.test.js, test/combat/fistsnap.test.js, armclips.test.js.
+
+## SHIELD-WALK-UPRIGHT - the woman's shield stands again (2026-11-12)
+
+The owner, 2026-11-12: the shield "was set almost vertical, its bottom parallel to the floor", from the walk to the
+side, and it changed "when we moved the build". The Animation Lab found why. Unifying the female sources (the fists'
+MAO family) let a woman inherit MAO's shared library, and with it MAO's `walkleft1h` arm, which tilts the shield 45
+degrees. Before, she had her own sparse file alone and the archive's strafe arm held the shield upright.
+
+Under a shield a woman keeps her own file alone again
+(src/formats/morrowind/mwWalkAnimationAssets.js:"if (female && shield && femaleOverride) return [femaleOverride];").
+Walking forward takes the strafe's held arm again, as backing and running do; SHIELD-WALK-NEUTRAL's idle arm and
+its 15 degree lift are withdrawn (src/characters/bodyMotion/shieldSet.js:"walk: Object.freeze({ lift: 0, abduct: 0, yaw: 0, roll: 0 }),").
+A man under a shield keeps MAO's bare groups and leaves the armed ones (`1h`, `hh`) to the archive
+(src/formats/morrowind/mwWalkAnimationAssets.js:"const bare = (name) => isMovementAnimationGroup(name) && !/(?:1h|hh)$/i.test(String(name ?? '').trim());").
+The fists, the two-hander and a bare one-hander are untouched.
+Hosts: the exterior, the dungeon, the interior and the Test Room share fpArm. DFU draws no arm; the port's own.
+Test: test/formats/morrowind/maofists.test.js, test/combat/shieldwalk.test.js.
+
+SHIELD-LIFE (the owner, 2026-11-12: "livelier", "stops and small movements"): the held arm is turned a few degrees
+more about its shoulder - a damped spring dips the shield at a start and carries it at a stop, each footfall bobs
+it 1.6 degrees, a strafe leans it 3, a turn turns it up to 6
+(src/characters/bodyMotion/shieldSet.js:"export const SHIELD_LIFE = Object.freeze({ kick: 1.6, hz: 2.2, damp: 0.45, max: 9, bob: 1.6, lean: 3, turn: 2.5, turnMax: 6, ease: 0.15 });").
+A correction over the clip's arm, never a row of angles in its place; `globalThis.__shieldSet.life` tunes it live.
+Read in the lab: no pop in any direction; the hand rides 12 cm under the chest walking and 27 standing. The look is
+the owner's eye to judge: open. Test: test/characters/bodyMotion/shieldlife.test.js.
+
 ## One fighter across weapon changes (2026-11-10)
 
 The owner confirmed that Dev's deformation repairs are visible, then distinguished surface correctness from motion

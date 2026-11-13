@@ -1,0 +1,9 @@
+{
+  "kind": "dfo-lab-tweak",
+  "version": 1,
+  "note": "A start for the owner's eye, 2026-11-12: the shield stood upright (A), and raised by the forearm (B, off). Import it in the lab's Edit tab and move the sliders.",
+  "layers": [
+    { "name": "A: щит вертикально", "on": true, "when": null, "bones": { "shield bone": { "rot": [0, 40, 0] } }, "pieces": {} },
+    { "name": "B: щит выше (предплечье)", "on": false, "when": null, "bones": { "bip01 l forearm": { "rot": [-30, 0, 0] } }, "pieces": {} }
+  ]
+}

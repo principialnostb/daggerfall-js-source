@@ -135,6 +135,71 @@ The panel was rendered against that live API: 47 choices, the actual captured ga
 errors. Six lab contract tests pass, as do lint and types. The baseline's 15 bible-gate failures remain; wider source
 pins also fail, including CRLF-sensitive checks and the pre-existing fpArm host ceiling. This is not a green release.
 
+### Animation Lab 2 (LAB2, 2026-11-11)
+
+The owner, 2026-11-10: "manual diagnosis loses in the long run"; he wants the lab to diagnose and to let him correct a
+pose himself - "change a tilt, how a thing sits" - because the hard part is not the model but how a worn piece deforms
+and where a motion breaks. LAB2 builds that on LAB1's ground: one start for every run, readings with frames, the
+body's meshes, and an edit laid over the game's pose. DFU draws no skinned body; the reference stays OpenMW's clips and
+our own presentation (Port-Doctrine, Rebuilt on our stack). No pose, timing or combat law of the game changes.
+
+**One start, so two runs can be compared.** A scenario names its body (`body`: female or male, the rig rebuilt), its
+`loadout` (twelve: fists, sword, shield, two-hander by bare, clothes, armour - every slot taken off first) and its
+`seed`. Before a frame is kept the driver rests the fighter (a tired body walks slower), waits out the draw, stands
+the stance through to its idle clip's loop point and seeds the dice for every frame (`tools/provingGround/clock.js`
+`seed`). A scripted swing is the drag's own direction (`Controls/WeaponSwingMode` 0; `swingMode: 2` asks for the
+rolled one). The game reads a drag only under a pointer lock, which the ground refuses, so the page is told the canvas
+holds the pointer while the system's cursor stays free. `repeat` plays a scenario twice and says where they part.
+
+**The readings** (`tools/provingGround/lab/measure.mjs`), each with its frames: a leap told from a fast motion by
+the frames beside it, with what changed under it; a planted foot's drift over the world; a limb inside the trunk; each
+blow by the game's own phases and hit time beside the hand's speed - wind-up, strike and recovery frames, sharpness
+(peak over mean), the hit's distance from the peak, the hips' travel, the trunk's twist, the lead foot's step; the
+stance by carry and gait. `signature` folds a fighter's runs into the numbers one fighter keeps across weapons, and
+`coherence` reads a loadout against the reference fighter (`twohand-armour`, Motion-Doctrine "One fighter") in
+tolerances. `baseline` keeps a run as accepted and reads the next against it, metric by metric.
+
+**The body's meshes** (`tools/provingGround/lab/labKit.js` `geometry`), read where the pose put them: each skinned
+piece's edges against their authored lengths, and one layer through another by the nearest point of the shell's
+triangles. A vertex nearest the shell's border, one with a second surface at its back and one whose bone the shell
+does not ride are not findings; only pieces the game draws are read. A joint always stretches its skin, so a piece
+is held to its own run's median. The game draws a pose one frame after it makes it: the lab reads bones and meshes off
+the pose just made and draws one still frame before each picture, so words, bones and picture are one frame.
+
+**The edit seam** is the one change in the game's code: a tool sets `globalThis.__mwPoseAssemblyEdit`, the game never
+does (src/formats/morrowind/mwPoseLab.js:"export function editPose(assembly, pose) {"). It runs after every layer and
+before the matrices; a piece's `labFit` is laid over its placement on both skins
+(src/formats/morrowind/mwPoseLab.js:"export function fitPieces(pieces) {",
+src/formats/morrowind/mwGpuSkin.js:"function fitEntries(layout, pal) {"). The lab's layers turn a bone in the body's
+axes (forward lean, side lean, turn), move it, and move, turn or size a worn piece about the bone it rides; `when`
+holds a layer to a carry, a gait or a blow. A layer is exported as JSON for an agent to port into code - the lab
+never writes it into the game. `world.js`, `exterior.js`, `worldModes.js` and `dungeonContext.js` pose their
+bodies through this one function and need no wiring; the lab still drives the exterior alone (LAB1's flag stands).
+
+**To run it.** `node tools/provingGround/run.mjs lab --lane fork`, then `http://localhost:5310/__lab/`. The panel has
+a timeline of states and signals, a blow's start, hit and end as pictures, four views of one frame, and tabs for the
+signals, the fighter, the meshes and the edit. Agents use `node tools/provingGround/lab/client.mjs`: `play
+<scenario>@<loadout> --body female`, `report`, `geometry`, `views`, `repeat`, `baseline save|check`, `matrix`,
+`tweak <layers.json>`, `diagnose`. `reload` takes the lab's code from disk with the game left running. A second
+checkout inside the root (a worktree) is neither scanned nor watched by the ground's server.
+
+**Limits are part of the result.** A run repeats where the world does not answer back; a foe's AI and a fight are not
+a checkpoint. A layer-through-layer finding is a candidate with a place, not a proven hole. The foot's reading takes
+the look's heading for the body's. A still frame moves the clock by a hundredth of a millisecond. An edit is not fed
+back into the motion layers' own memory. The lab drives the player's body only: no peer, no NPC, no creature. Its fighter
+has no needs (hunger, thirst, the cold) and no encumbrance: both move the live Speed a walk is paced by, and a run
+under them is not one fighter.
+
+**Live validation, the owner's Windows data, 2026-11-11.** A standing chop with the claymore on the woman's armoured body read 24 frames of wind-up, 7 of strike and 26 of recovery, the game's hit on the frame of the hand's peak; played twice it repeated to 0.1 mm over 150 frames, and a blow walking forward to 0.1 mm over 165. Four views of one frame held the body to 0.5 mm. A layer (the trunk 18 degrees forward, the helm 6 cm up and 1.15 its size) stood in the game's own picture.
+
+**The first matrix** (fists, sword, sword and shield against the two-hander, all in steel, seven scenarios each: 28 runs, none uncovered) read 0.87, 0.82 and 0.81 tolerances from the reference. The fists stand 5 cm higher on knees bent 28 degrees against 41, and move the hips 0.8 cm in a blow against 6.7. The one-handers' walk bobs the pelvis 10.5 cm against 4.5, and their wind-up is 14% of a blow against 34%. The tolerances (`measure.mjs` `SHARED`) are a first guess for the owner's eye to set.
+
+**Found on the way, not mended here.** Roleplay Realism's encumbrance takes its penalty from the live Speed its own last penalty lowered (src/systems/roleplayRealism/rrInstall.js:"liveSpeed: liveStat(entity, 'speed'),"): one worn set walks at Speed 45 and 11 by turns, a fold each, so the lab switches the module off for a run. At the permanent Speed 54 the two-hander's stance walk outruns its legs - a planted foot slides 2.4 cm a frame - and a foot stands up to 6.5 cm under the ground. The steel pauldrons stretch 3.8 times their authored edge with the arms raised. The same 60 test files give 673 passes and 56 failures with the seam and without it.
+
+`test/tooling/provingGroundLab2.test.js` holds the readings to synthetic runs with known faults, the dice to their
+seed, the driver's order (worn, then seeded, then watched), a blow's pictures, the baselines' names, and the seam: off
+it changes nothing, on it lands a bone's edit and a piece's fit alike on the CPU skin and the palette.
+
 1. **The original's character is kept.** The vanilla lane is the yardstick for silhouette and tempo; the rebuild may
    be smoother and more responsive, never more "AAA" (Motion-Doctrine section 1: mechanisms from the modern school,
    character from the stylised one). A change that reads foreign beside vanilla is reverted.

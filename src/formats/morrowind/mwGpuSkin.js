@@ -65,6 +65,7 @@
 
 import { skinPost, affineMulInto } from './mwSkin.js';
 import { hangAffine } from './mwFirstPerson.js';
+import { poseLabOn, fitOver } from './mwPoseLab.js';   // POSE-LAB: the Animation Lab's seam, off in the game
 import { SKIN_PAL_ROW } from '../../render/skinPalette.js';   // the palette's shape, one home
 
 export { SKIN_PAL_ROW };
@@ -412,8 +413,19 @@ export function writeSkinPalette(layout, assembly, pal = layout.palette) {
       putEntry(pal, r.entry, p.hang ? hangAffine(at, p.hang) : at);
     }
   }
+  if (poseLabOn()) fitEntries(layout, pal);
   if (assembly.cpuSkinned === false) assembly.bounds = skinBoxes(layout, pal);
   return pal;
+}
+
+/** POSE-LAB: THE PALETTE'S HALF of a tool's fit - a fitted piece's own entry (a skinned piece's post, a rigid one's
+ *  placement) with the fit laid over it, as mwPoseLab.js fitPieces moves the CPU skin's vertices. */
+function fitEntries(layout, pal) {
+  for (const r of layout.rows) {
+    if (!r.piece.labFit) continue;
+    const e = r.kind === 'skinned' ? r.post : r.entry;
+    putEntry(pal, e, fitOver(r.piece.labFit, getEntry(pal, e, _bone)));
+  }
 }
 
 // ---- the boxes (rule 42) -------------------------------------------------

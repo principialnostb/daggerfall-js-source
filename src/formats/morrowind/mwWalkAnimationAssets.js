@@ -142,7 +142,7 @@ export async function loadWalkAnimationAssets({ female = false, shield = false }
   // MAO-SOURCE (2026-10-30, the owner compared Vanilla and MAO in the game): the pack's movement is the standard - its run
   // and its walks in a stance; the plain walk, the stance and the blows stay as they were. No setting: the choice is made.
   const overhaul = { variant: 'overhaul', family: 'all', movementOnly: true };
-  const overhaulEntries = animationOverhaulEntries({ female, base: overhaulMale, femaleOverride: overhaulFemale });
+  const overhaulEntries = animationOverhaulEntries({ female, shield, base: overhaulMale, femaleOverride: overhaulFemale });
   const selected = [], fistSources = [];
   if (!simplyCandidates.some(({ entry }) => entry) && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
@@ -153,7 +153,7 @@ export async function loadWalkAnimationAssets({ female = false, shield = false }
     for (const entry of overhaulEntries) {
       const data = await bytes(entry);
       if (!data) continue;
-      selected.push({ name: entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true, movementOnly: overhaul.movementOnly });
+      selected.push({ name: entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true, movementOnly: overhaul.movementOnly, bareOnly: !!shield });
       if (fistAnimationSourceEnabled({ shield, choice: modSetting('morrowind-animation', 'ThirdPersonFistsSource') })) fistSources.push({ name: entry.path, bytes: data, variant: 'overhaul-fists', family: 'fists', animationFamily: 'fists' });
     }
     for (const { entry, variant, family } of simplyCandidates) {
@@ -647,7 +647,11 @@ export function runVariantForActor({
 }
 /** MAO's female file is a sparse override, not a replacement for the shared library.
  * Later sources win per group, as in tpAnimSources / OpenMW NpcAnimation. */
-export function animationOverhaulEntries({ female = false, base = null, femaleOverride = null } = {}) {
+export function animationOverhaulEntries({ female = false, shield = false, base = null, femaleOverride = null } = {}) {
+  // SHIELD-WALK-UPRIGHT (the owner, 2026-11-12: the woman's shield stood upright "before we moved the build"): inheriting
+  // the shared library gave her MAO's walkleft1h arm, which tilts the shield 45 degrees. Under a shield she keeps her own
+  // file alone, so the archive's upright strafe arm holds it, as it did.
+  if (female && shield && femaleOverride) return [femaleOverride];
   return [base, female ? femaleOverride : null].filter(Boolean);
 }
 
@@ -659,12 +663,14 @@ export function isFistAnimationGroup(name) {
 /** Keep source admission in one place for the runtime and diagnostic comparisons. */
 export function selectAnimationFamily(asset, report) {
   const isOverhaul = asset.family === 'all' || asset.animationOverhaul === true;
-  const accepts = asset.family === 'fists' ? isFistAnimationGroup : asset.movementOnly ? isMovementAnimationGroup
+  // SHIELD-WALK-UPRIGHT: under a shield the armed movement groups stay the archive's - its strafe arm holds the shield upright
+  const bare = (name) => isMovementAnimationGroup(name) && !/(?:1h|hh)$/i.test(String(name ?? '').trim());
+  const accepts = asset.family === 'fists' ? isFistAnimationGroup : asset.movementOnly ? (asset.bareOnly ? bare : isMovementAnimationGroup)
     : asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;
   const full = isOverhaul && !asset.movementOnly;
   const familyGroups = full ? report.groups : report.groups.filter(accepts);
   const acceptsKey = asset.movementOnly ? isMovementAnimationKey : asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
-  const familyKeys = full ? report.keys : asset.family === 'fists' ? normalizeAnimationGroupKeys(report.keys, familyGroups) : report.keys.filter(acceptsKey);
+  const familyKeys = full ? report.keys : asset.family === 'fists' || (asset.movementOnly && asset.bareOnly) ? normalizeAnimationGroupKeys(report.keys, familyGroups) : report.keys.filter(acceptsKey);
   return { isOverhaul, familyKeys, familyGroups };
 }
 
