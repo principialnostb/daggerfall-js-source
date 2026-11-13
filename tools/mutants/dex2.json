@@ -42,7 +42,7 @@
   {
     "name": "DEX2-a-frame-emission-map-dropped",
     "file": "src/scenes/dataPipeline.js",
-    "old": "    const lit = swapFrame ? decodedTexture(archive, record, frame, 'Emission') : null;",
+    "old": "    const lit = !swapFrame ? null : own ? (hasTextureReplacement(archive, record, frame, 'Emission') ? color32 : null) : decodedTexture(archive, record, frame, 'Emission');",
     "new": "    const lit = null;",
     "why": "a mod frame's emission map never uploaded",
     "tests": [
