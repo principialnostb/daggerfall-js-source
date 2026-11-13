@@ -1,5 +1,5 @@
 import { itemAppearanceKey } from '../../systems/item/itemAppearanceKey.js';
-import { pixelatedPreviewUrl, previewPixelKey, previewImageRendering } from './previewPixelation.js';
+import { pixelatedPreviewUrl, previewPixelKey, itemPreviewImageRendering } from './previewPixelation.js';
 import { ownCloakFor } from '../../characters/ownModels/ownClothingModels.js';
 import { CLOTHING_NAME } from '../../formats/morrowind/mwItemMap.js';
 import { appearanceFigure } from './appearanceFigure.js';
@@ -94,7 +94,7 @@ export function modelLookRow({ item, fpArm, ownLooks = null, onChange, catalog =
       button.setAttribute('aria-label', look.label); button.setAttribute('aria-pressed', String(on));
       button.setAttribute('data-model-look', look.key);
       const name = make('span', 'look-name', look.label);
-      const show = (src) => { if (!src) return; const image = make('img', ''); image.style?.setProperty('image-rendering', previewImageRendering()); image.alt = look.label; pixelatedPreviewUrl(src).then((url) => { image.src = url; }); name.remove(); button.replaceChildren(image); };
+      const show = (src) => { if (!src) return; const image = make('img', ''); image.style?.setProperty('image-rendering', itemPreviewImageRendering()); image.alt = look.label; pixelatedPreviewUrl(src).then((url) => { image.src = url; }); name.remove(); button.replaceChildren(image); };
       button.append(name);
       if (look.picture) show(look.picture);
       else if (look.records?.length && catalog) {

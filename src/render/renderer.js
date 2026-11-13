@@ -1,6 +1,7 @@
 // @ts-check
 import { rememberCampfireBatch, releaseCampfireBatch, drawCampfireBillboards } from './campfireBillboards.js';
 import { drawTreasurePiles, releaseTreasurePile } from './treasurePiles.js';
+import { drawGroundLoot, releaseLootModel } from './groundLootModels.js';
 // WebGL2 renderer for world geometry. Presentation layer - ours, not DFU's
 // (Port-Doctrine). Semantics it must honor from the data side:
 //   - UVs can be negative or > 1 (DFU relies on REPEAT wrapping).
@@ -7452,6 +7453,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     if (!batch) return;
     releaseCampfireBatch(batch);
     releaseTreasurePile(this, batch);
+    releaseLootModel(this, batch);
     batch._dead = true;   // EL2: a shadow record from the last frame may still hold it
     batch._place = null;   // PERF-EXT1: the placement grid is the batch's, and goes with it
     if (batch._arena) this._bbArenaFree(batch);   // PERF-ARENA: its range back to its arena - the arena's VAO is not the batch's to delete
@@ -8770,6 +8772,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   drawBillboards(batches, camRight, camUp) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
     batches = drawTreasurePiles(this, drawCampfireBillboards(this, batches));
+    batches = drawGroundLoot(this, batches);
     const gl = this.gl;
     // PERF-ARENA: the still flats share their arena's VAO, so consecutive flats skip the bind on the shadow's word - and
     // a pass that bound an array of its own behind the shadow's back (a foreign pass that forgot markForeignPass) would

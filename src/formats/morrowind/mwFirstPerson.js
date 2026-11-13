@@ -1,3 +1,4 @@
+import { enhancedAxeRecord } from '../../characters/ownModels/enhancedBattleaxe.js';
 import { bindElbowSkin } from '../../characters/bodyMotion/elbowSkin.js';
 import { preserveOwnedPose } from './mwPoseContinuity.js';
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
@@ -1543,7 +1544,7 @@ export function pickWeaponRecord(records, type, material = null, { has = null, s
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   if (!sorted.length) return null;
   // MODEL-LOOKS (systems/modelLooks.js): the player's chosen record of this type, when its mesh is there
-  if (pick) { const chosen = sorted.find((r) => r.id === pick && (!has || has(`meshes/${r.model}`))); if (chosen) return chosen; }
+  if (pick) { const chosen = sorted.find((r) => r.id === pick && (!has || has(`meshes/${r.model}`))); if (chosen) return enhancedAxeRecord(chosen); }
   // MW-D50 (Mac: on a Morrowind bow "the arrow is never shown being
   // ready"): A RECORD WHOSE MESH THE ARCHIVES CARRY. The records come
   // from EVERY .esm attached and the meshes from whichever .bsa files
@@ -1565,9 +1566,9 @@ export function pickWeaponRecord(records, type, material = null, { has = null, s
   const chain = material ? DF_TO_MW_MATERIAL[material] : null;
   for (const want of (Array.isArray(chain) ? chain : chain ? [chain] : [])) {
     const matches = ofType.filter((r) => r.id.includes(want));
-    if (matches.length) return (shape && matches.find((r) => r.id.replace(/[^a-z]/g, '').endsWith(shape))) || matches[0];
+    if (matches.length) return enhancedAxeRecord((shape && matches.find((r) => r.id.replace(/[^a-z]/g, '').endsWith(shape))) || matches[0]);
   }
-  return ofType[0];
+  return enhancedAxeRecord(ofType[0]);
 }
 
 /** The report the reverted arc never printed: for one race, which

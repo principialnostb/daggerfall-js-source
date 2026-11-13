@@ -36,7 +36,7 @@ test('marked dungeon piles replace only their own sprites and share a GPU lease'
   const a = markTreasurePile({ ...sprite, origin: [10, 0, 0] }, [1, 2, 3]);
   const b = markTreasurePile({ ...sprite }, [4, 5, 6]);
   const unknown = markTreasurePile({ ...sprite, record: 1 }, [0, 0, 0]);
-  assert.deepEqual(drawTreasurePiles(renderer, [sprite, a, b, unknown]), [sprite, unknown]);
+  assert.deepEqual(drawTreasurePiles(renderer, [sprite, a, b, unknown], false, true), [sprite, unknown]);
   assert.equal(meshes.length, 1);
   assert.equal(drawn[0][0], drawn[1][0]);
   assert.deepEqual(Array.from(drawn[0][1].slice(12, 15)), [11, 2, 3]);
@@ -44,15 +44,15 @@ test('marked dungeon piles replace only their own sprites and share a GPU lease'
   const chain = markDungeonProp({ ...sprite, archive: 211, record: 4 }, [[0, 0, 0]]);
   try {
     setPref('enhancedTreasurePiles', false);
-    assert.deepEqual(drawTreasurePiles(renderer, [a, b, chain]), [a, b]);
+    assert.deepEqual(drawTreasurePiles(renderer, [a, b, chain], true, false), [a, b]);
     assert.equal(drawn.length, 3);
     setPref('enhancedTreasurePiles', true);
-    assert.deepEqual(drawTreasurePiles(renderer, [a]), []);
+    assert.deepEqual(drawTreasurePiles(renderer, [a], false, true), []);
     assert.equal(drawn[3][0], drawn[0][0]);
     const propsPrior = getPref('enhancedDungeonProps');
     try {
       setPref('enhancedDungeonProps', false);
-      assert.deepEqual(drawTreasurePiles(renderer, [a, chain]), [chain]);
+      assert.deepEqual(drawTreasurePiles(renderer, [a, chain], false, true), [chain]);
       assert.equal(drawn[4][0], drawn[0][0]);
     } finally {
       setPref('enhancedDungeonProps', propsPrior);
@@ -87,7 +87,7 @@ test('single dungeon chains replace both records and share a mesh across grouped
   const first = markDungeonProp({ archive: 211, record: 4, size: { w: .325, h: 1.95 }, vao: {} }, [[1, 2, 3], [4, 5, 6]]);
   const second = markDungeonProp({ ...first, archive: 100, record: 5 }, [[7, 8, 9]]);
   const double = markDungeonProp({ ...first, record: 6 }, [[0, 0, 0]]);
-  assert.deepEqual(drawTreasurePiles(renderer, [first, second, double]), []);
+  assert.deepEqual(drawTreasurePiles(renderer, [first, second, double], true), []);
   assert.equal(draws.length, 4);
   assert.ok(draws.slice(0, 3).every(([mesh]) => mesh === draws[0][0]));
   assert.ok(draws[3][0].indices.length > draws[0][0].indices.length);

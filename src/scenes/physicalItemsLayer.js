@@ -44,6 +44,7 @@ import { RAY_DISTANCE } from '../player/activate.js';
 import { itemIconColor32, itemIconKey } from '../ui/item/itemIconColor32.js';
 import { inventoryItemImage } from '../systems/item/itemTemplates.js';
 import { toColor32 } from '../formats/color32Order.js';
+import { markGroundLoot, setLootModel } from '../render/groundLootModels.js';
 import { takeOneItem, quickLootSpend, tookItemText, QUICK_LOOT_REFUSED } from '../systems/quickLoot.js';
 import { isMap, USE_TEXT } from '../systems/useItem.js';
 import { isSummoned, takeOneInto } from '../systems/inventory.js';
@@ -77,6 +78,7 @@ const fpArmOnce = () => (_fpArmLoading ??= import('../combat/fpArm.js').then((m)
 const defaultMw = {
   stamp: () => { if (!_fpArm) { fpArmOnce(); return null; } return _fpArm.mountPictureStamp(); },
   picture: (item) => fpArmOnce().then((a) => a?.mountPicture(item, { px: PI_MW_PX }) ?? null),
+  model: (item) => fpArmOnce().then((a) => a?.groundLootModel(item) ?? null),
 };
 
 /**
@@ -112,7 +114,7 @@ export const heldTextureCount = (renderer, record) => _held.get(renderer)?.get(r
  * through modSettings, again when they change); `iconOf(item, identity)` the pack's picture (color32) and `mw`
  * `{ stamp(), picture(item) }` the Morrowind one - both injectable for the pins; `rolls` the scatter's dice; `now()`.
  * @param {{ renderer?: any, enabled?: () => any, settings?: (() => any)|null, iconOf?: (item: any, identity: any) => any,
- *   mw?: { stamp: () => any, picture: (item: any) => any }, rolls?: () => number, now?: () => number }} [deps]
+ *   mw?: { stamp: () => any, picture: (item: any) => any, model?: (item: any) => any }, rolls?: () => number, now?: () => number }} [deps]
  */
 export function createPhysicalItems({
   renderer, enabled = () => modSetting(PHYSICAL_ITEMS_VENDOR, 'Enabled'), settings = null,
@@ -183,7 +185,7 @@ export function createPhysicalItems({
       p.asking = false;
       if (got) {
         p.tries = mwMissed ? p.tries : 0;
-        if (got !== p.pic) { p.pic = got; dress(p); }
+        if (got !== p.pic || p.modelStamp !== stamp) { p.pic = got; dress(p); }
         // AUDIT PI1 R9: a Morrowind picture that would not come while a build stands is asked again (the classic one
         // stands meanwhile) - a lazy archive's first miss is not the item's for good
         if (mwMissed && p.tries < PI_RETRY_MAX) p.retryAt = now() + PI_RETRY_MS * 2 ** p.tries++;
@@ -219,16 +221,25 @@ export function createPhysicalItems({
       p.batch = renderer?.createBillboardBatch?.(PI_ICON_ARCHIVE, pic.record, size, [[0, 0, 0]]) ?? null;
     } catch { p.batch = null; }
     if (!p.batch) return;
+    p.modelStamp = _stamp;
     p.batch.noShadow = true;   // F2: a thing lying on the ground is no standing card for the sun
     p.batch.origin = [...p.body.pos];
+    markGroundLoot(p.batch, { width: pic.vw, height: pic.vh, colors: pic.colors }, pic.record, (p.id * 137.5) % 360, p.item);
     setBatchGlint(p.batch, rarityRim(p.item));
     presentItem(p.item, true);
+    if (_stamp != null && mw.model) {
+      const batch = p.batch, stamp = _stamp;
+      Promise.resolve().then(() => mw.model(p.item)).then((model) => {
+        if (p.dead || p.batch !== batch || _stamp !== stamp) model?.release();
+        else setLootModel(batch, model);
+      }).catch(() => {});
+    }
   }
 
   // ---- the proxies -------------------------------------------------------------------------------------------------
   function mint(item, pos, vel, backing) {
     const H = worldHeight(item, settingsNow());
-    const p = { id: ++_nextId, item, backing, body: makeBody(pos, vel, [H / 2, H / 2], H), pic: null, ask: null, asking: false, batch: null, size: null, held: null, dead: false, floorY: pos[1], tries: 0, retryAt: 0 };
+    const p = { id: ++_nextId, item, backing, body: makeBody(pos, vel, [H / 2, H / 2], H), pic: null, ask: null, asking: false, batch: null, size: null, held: null, dead: false, floorY: pos[1], tries: 0, retryAt: 0, modelStamp: null };
     proxies.set(p.id, p);
     askPicture(p);
     return p;
@@ -464,7 +475,7 @@ export function createPhysicalItems({
       _targets.length = 0;
       for (const p of proxies.values()) {
         if (!p.batch || !p.size) continue;
-        const [x, y, z] = p.body.pos, hw = Math.max(PI_BOX_MIN_HALF, p.body.half[0], p.body.half[1]), h = Math.max(PI_BOX_MIN_H, p.size.h);
+        const [x, y, z] = p.body.pos, hw = Math.max(PI_BOX_MIN_HALF, Math.hypot(p.size.w, p.size.h) / 2), h = Math.max(PI_BOX_MIN_H, p.size.h);
         _targets.push({ key: `${PI_KEY_PREFIX}${p.id}`, aabb: { min: [x - hw, y, z - hw], max: [x + hw, y + h, z + hw] }, distance: RAY_DISTANCE, reach: PI_REACH });
       }
       return _targets;

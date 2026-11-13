@@ -110,7 +110,7 @@ function forearmTurn(m, side, zero = null) {
 /** The elbow's bend (degrees): the forearm off the upper arm's line. */
 const elbowOf = (m, s) => { const u = pt(m, `bip01 ${s} upperarm`), f = pt(m, `bip01 ${s} forearm`), h = pt(m, `bip01 ${s} hand`); const a = norm(sub(f, u)), b = norm(sub(h, f)); return Math.acos(Math.min(1, Math.max(-1, dot(a, b)))) / RAD; };
 
-test('DUAL-RUN THE PAIR\'S RUN, NOT STIFF: both hands behind the hips with the blades trailing behind (Mac\'s "running with them behind you"), the arms pumping - each hand 15 units and more fore and aft over a stride, one forward as the other goes back - the elbows bent 15 degrees and more and bending with the stride, and each forearm turned no more than 75 degrees off its elbow\'s hinge (they stood locked straight, swinging 8.5 units, the forearms turned 128 - past the 85 to 90 AUDIT CARRY-7 holds every run\'s to) (mutants: DUAL-RUN-the-old-row, DUAL-RUN-the-shoulder-square, DUAL-RUN-the-arms-held, DUAL-RUN-the-elbow-still)', () => {
+test('DUAL-RUN / PAIR-RUN-FORE THE PAIR\'S RUN, NOT STIFF: both hands before the hips with the blades forward (the owner, 2026-11-13: arms back with the wrists turned "looks doubtful" - Mac\'s run behind withdrawn), the arms pumping - each hand 15 units and more fore and aft over a stride, one forward as the other goes back - the elbows bent 15 degrees and more and bending with the stride, and each forearm turned no more than 75 degrees off its elbow\'s hinge (they stood locked straight, swinging 8.5 units, the forearms turned 128 - past the 85 to 90 AUDIT CARRY-7 holds every run\'s to) (mutants: DUAL-RUN-the-old-row, DUAL-RUN-the-shoulder-square, DUAL-RUN-the-arms-held, DUAL-RUN-the-elbow-still)', () => {
   let zero = null;
   play({}, 1, (m) => { zero = { R: forearmTurn(m, 'R'), L: forearmTurn(m, 'L') }; });
   for (const [speed, running] of RUNS) {
@@ -129,8 +129,8 @@ test('DUAL-RUN THE PAIR\'S RUN, NOT STIFF: both hands behind the hips with the b
       apart.push((pt(m, 'bip01 r hand')[1] - pel[1]) - (pt(m, 'bip01 l hand')[1] - pel[1]));
     });
     const at = `${speed} m/s`;
-    assert.ok(behind > 4, `${at}: a hand came within ${behind.toFixed(1)} units of the hips' front`);
-    assert.ok(trail < -0.5, `${at}: a blade pointed ${trail.toFixed(2)} along the facing - not trailing behind`);
+    assert.ok(behind < -8, `${at}: the hands came only ${(-behind).toFixed(1)} units before the hips`);
+    assert.ok(trail > 0.6, `${at}: a blade pointed ${trail.toFixed(2)} along the facing - not forward`);
     for (const side of ['R', 'L']) {
       assert.ok(range(fa[side]) > 15, `${at}: the ${side} hand swung ${range(fa[side]).toFixed(1)} units fore and aft`);
       assert.ok(Math.min(...bend[side]) > 15 && range(bend[side]) > 2, `${at}: the ${side} elbow bent ${Math.min(...bend[side]).toFixed(1)} to ${Math.max(...bend[side]).toFixed(1)} degrees`);

@@ -1,6 +1,6 @@
 import { consoleLog, gateConsoleCommand, registerCommand } from '../systems/consoleCommands.js';
 import { markClassicDungeonPreview, markDungeonProp, markTreasurePile } from '../render/treasurePiles.js';
-import { trs } from '../world/mat4.js';
+import { multiply, trs } from '../world/mat4.js';
 import { dungeonPropMesh } from './dungeonPropProfiles.js';
 import { billboardSize } from '../world/rmbFlats.js';
 import { mountTorchBatch, torchMountAt } from '../world/torchMount.js';
@@ -14,6 +14,7 @@ import { woodenCoffinLids } from '../world/dungeonWoodenCoffin.js';
 import { workshopKind } from '../world/dungeonWorkshop.js';
 import { TORTURE_TABLE_ID } from '../world/dungeonTortureTable.js';
 import { CLASSIC_PRESS_ID } from '../world/dungeonPressDetail.js';
+import { spawnDungeonLootPreview } from './dungeonLootPreview.js';
 
 const usage = 'prop_preview <archive:record|arch3d:model> [distance] [lift] | prop_preview clear';
 const command = 'prop_preview';
@@ -35,7 +36,7 @@ async function loadClassicPreview(context, id) {
   return { id, mesh: dungeonPropMesh(number, mesh), cpu, size: { w, h: w }, low, high };
 }
 
-function makePreview(context, { id, archive, record, variant, size, base, mesh, cpu, low, high }) {
+function makePreview(context, { id, archive, record, variant, size, base, mesh, cpu, low, high }, eye) {
   if (isVioletSarcophagusPreview(id)) {
     const key = 'decor-preview:' + ++context.previewSerial;
     const batch = previewVioletSarcophagus(context.renderer, base, context.collider, key, Number(id.slice(7)));
@@ -43,11 +44,12 @@ function makePreview(context, { id, archive, record, variant, size, base, mesh, 
     return batch;
   }
   if (mesh) {
-    const pose = trs(base[0] - (low[0] + high[0]) / 2, base[1] - low[1],
-      base[2] - (low[2] + high[2]) / 2, 0, 0, 0);
+    const modelId = Number(id.slice(7));
+    const yaw = workshopKind(modelId) === 'cage' ? Math.atan2(eye[0] - base[0], eye[2] - base[2]) * 180 / Math.PI : 0;
+    const pose = multiply(trs(...base, 0, yaw, 0),
+      trs(-(low[0] + high[0]) / 2, -low[1], -(low[2] + high[2]) / 2, 0, 0, 0));
     if (cpu.subMeshes) {
       const preview = {};
-      const modelId = Number(id.slice(7));
       addDungeonFurniture({ add() {} }, preview, modelId, cpu, pose);
       const [replacement] = dungeonBurialBatches(context.renderer, preview);
       if (replacement) {
@@ -88,10 +90,12 @@ function removePreviews(context, previews) {
 function spawn(args, report = consoleLog) {
   const context = current;
   if (!context?.active()) return 'Open an offline dungeon first.';
+  if (context.loot && (args[0] === 'loot' || (args[0] === 'set' && args[1] === 'Дроп'))) return spawnDungeonLootPreview(context, false, report);
   if (args[0] === 'clear') {
     context.revision++;
     removePreviews(context, context.previews);
     removePreviews(context, context.set);
+    if (context.loot) spawnDungeonLootPreview(context, true);
     return 'Decor previews cleared.';
   }
   const group = args[0] === 'set' ? decorPreviewGroups.find(([name]) => name === args[1]) : null;
@@ -124,7 +128,7 @@ function spawn(args, report = consoleLog) {
       if (!stillActive()) return;
       const staged = [];
       try {
-        for (const placement of placements) staged.push(makePreview(context, placement));
+        for (const placement of placements) staged.push(makePreview(context, placement, eye));
       } catch (error) {
         removePreviews(context, staged);
         throw error;
@@ -149,7 +153,7 @@ function spawn(args, report = consoleLog) {
       : loadClassicPreview(context, idArg);
     void loaded.then(prop => {
       if (current !== context || !context.active() || revision !== context.revision) return;
-      const batch = makePreview(context, { ...prop, base });
+      const batch = makePreview(context, { ...prop, base }, eye);
       context.batches.push(batch);
       context.previews.push(batch);
       report('Preview placed: ' + idArg + '.');
@@ -180,9 +184,9 @@ function spawn(args, report = consoleLog) {
 export function createDungeonPropPreviews(options) {
   const batches = dungeonBurialBatches(options.renderer, options.collider);
   current?.unbind?.();
-  current = { ...options, batches, previews: [], set: [], setRequest: 0, revision: 0, previewSerial: 0, previewColliders: new Map(),
+  current = { ...options, batches, previews: [], set: [], lootPreviews: [], setRequest: 0, revision: 0, previewSerial: 0, previewColliders: new Map(),
     loadClassicPreview: id => loadClassicPreview(options, id),
-    unbind: import.meta.env?.DEV ? bindDungeonPropPanel(options.active, decorPreviewGroups, spawn, options.renderer.gl?.canvas) : null };
+    unbind: import.meta.env?.DEV ? bindDungeonPropPanel(options.active, [...decorPreviewGroups, ['Дроп', [['loot', 'Весь тестовый лут']]]], spawn, options.renderer.gl?.canvas) : null };
   registerCommand(command, 'Preview static 3D decor in an offline dungeon.', usage, args => spawn(args));
   gateConsoleCommand(command, () => !!current?.active());
   return batches;
@@ -190,6 +194,7 @@ export function createDungeonPropPreviews(options) {
 
 export function closeDungeonPropPreviews(batches) {
   if (current?.batches === batches) {
+    if (current.loot) spawnDungeonLootPreview(current, true);
     for (const key of current.previewColliders.values()) current.collider.removeBucket?.(key);
     const unbind = current.unbind;
     current = null;

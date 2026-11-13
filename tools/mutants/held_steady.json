@@ -83,8 +83,8 @@
   {
     "name": "DUAL-RUN-the-old-row",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "    run: { R: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2 }), L: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2, mirror: true }) },",
-    "new": "    run: { R: row(-47, 21, 7, 0, 0.1, { blade: dir(0.3, -0.93, 0.21), edge: dir(0.28, -0.12, -0.95) }), L: row(-47, 21, 7, 0, 0.1, { blade: dir(0.3, -0.93, 0.21), edge: dir(0.28, -0.12, -0.95), mirror: true }) },",
+    "old": "    run: { R: row(5, 24, 6, 22, 0.3, { blade: dir(0.3, 0.9, -0.3), edge: dir(-0.33, -0.2, -0.92), gaitElbow: 0.15 }), L: row(5, 24, 6, 22, 0.3, { blade: dir(0.3, 0.9, -0.3), edge: dir(-0.33, -0.2, -0.92), gaitElbow: 0.15, mirror: true }) },",
+    "new": "    run: { R: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2 }), L: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2, mirror: true }) },",
     "tests": [
       "test/characters/bodyMotion/bodymotion_steady.test.js"
     ]
@@ -92,8 +92,8 @@
   {
     "name": "DUAL-RUN-the-shoulder-square",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "    run: { R: row(-42, 10, 8, -60, 0.4,",
-    "new": "    run: { R: row(-42, 10, 8, 0, 0.4,",
+    "old": "    run: { R: row(5, 24, 6, 22, 0.3,",
+    "new": "    run: { R: row(5, 24, 6, 60, 0.3,",
     "tests": [
       "test/characters/bodyMotion/bodymotion_steady.test.js"
     ]
@@ -101,8 +101,8 @@
   {
     "name": "DUAL-RUN-the-arms-held",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "    run: { R: row(-42, 10, 8, -60, 0.4,",
-    "new": "    run: { R: row(-42, 10, 8, -60, 0.1,",
+    "old": "    run: { R: row(5, 24, 6, 22, 0.3,",
+    "new": "    run: { R: row(5, 24, 6, 22, 0.05,",
     "tests": [
       "test/characters/bodyMotion/bodymotion_steady.test.js"
     ]
@@ -110,8 +110,8 @@
   {
     "name": "DUAL-RUN-the-elbow-still",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2 }), L:",
-    "new": "edge: dir(0.3, -0.14, -0.94) }), L:",
+    "old": "edge: dir(-0.33, -0.2, -0.92), gaitElbow: 0.15 }), L:",
+    "new": "edge: dir(-0.33, -0.2, -0.92) }), L:",
     "tests": [
       "test/characters/bodyMotion/bodymotion_steady.test.js"
     ]

@@ -127,6 +127,13 @@ export const BLOW_STYLE = Object.freeze({ floor: 0.6 });
 export const flowStyle = (choice) => Number(choice) === 0;
 /** The blend's weight at `elapsed` of `seconds` - eased, so the arm leaves its blow and arrives at the stance slowly. */
 export const blendWeightAt = (elapsed, seconds) => (seconds > 0 ? smooth(clamp01(elapsed / seconds)) : 1);
+/** STOP-EASE (the owner, 2026-11-13: the legs "stick in one position" after a stop): a stop blends from a frozen
+ *  stride, and a linear blend slowed the legs from 10 cm a frame to 1.3, then halted them at once. Out of a gait the
+ *  blend leaves the stride fast and settles slowly: 1 - (1 - p)^power. */
+export const STOP_EASE = Object.freeze({ power: 3 });
+const GAIT = /^(?:walk|run|sneak|swim)/i;
+export const stopsMoving = (from, to) => GAIT.test(String(from?.group ?? '')) && !GAIT.test(String(to?.group ?? ''));
+export const stopWeightAt = (elapsed, seconds) => (seconds > 0 ? 1 - (1 - clamp01(elapsed / seconds)) ** STOP_EASE.power : 1);
 
 /** Each of `n` in turn, per key - the next never the last while another is there. */
 export function createVariantCycle() {

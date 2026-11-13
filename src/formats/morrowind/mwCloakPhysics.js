@@ -5,7 +5,8 @@
 
 // Deliberately visible secondary motion in Morrowind's authored world units.
 // The old 1.6-unit envelope and 0.28-unit step made the hem look nearly rigid.
-import { pushOutOfCapsules } from './mwCloakColliders.js';   // CLOAK-CONTACT
+import { meetCloakBody } from './mwCloakColliders.js';   // CLOAK-CONTACT, CLOAK-BODY
+import { SHIELD_PRESS } from './mwCloakFit.js';
 
 const MAX_OFFSET = 5.0;
 const MAX_STEP = 0.72;
@@ -14,13 +15,14 @@ const GRAVITY = 22;
 const ITERATIONS = 5;   // CLOAK-CONTACT: 7 cost a third more of the frame and held no tighter
 const STIFFNESS = 0.68;
 // CLOAK-CONTACT: the share of its way back to the fitted shape a vertex goes each sixtieth of a second, at the collar
-// and at the hem. Measured without it: standing still the cloth drifted 3.5 units off its fit and stayed there.
-const MEMORY = Object.freeze([0.1, 0.035]);
+// and at the hem. Measured without it: standing still the cloth drifted 3.5 units off its fit and stayed there. CLOAK-BODY:
+// the hem's was 0.035, and its walk swing fell from 10.2 units to 8.6; at 0.015 it swings 10.0 and stands 0.5 off.
+const MEMORY = Object.freeze([0.1, 0.015]);
 // Morrowind is Z-up; negative Y is behind the actor. Keep shield-covered
 // cloth slightly off the fitted body so a static cloak layer can sit there.
 const STOWED_SHIELD_CLOAK_CLEARANCE = 0.38;
-// SHIELD-SEAT: the most a seated shield presses the cloth under it toward the body, in units - past it the rim cuts the cloth
-const SHIELD_PRESS_LIMIT = 4;
+// SHIELD-SEAT: the most a seated shield presses the cloth under it toward the body, in units (the seat holds to it)
+const SHIELD_PRESS_LIMIT = SHIELD_PRESS;
 
 const distance3 = (p, a, b) => Math.hypot(
   p[a * 3] - p[b * 3],
@@ -91,7 +93,7 @@ export function createCloakPhysics(piece) {
  * the vanilla secondary motion. Inputs are posed only for the footprint test;
  * state positions remain in the simulation's local coordinate space.
  */
-export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, shieldIndices) {
+export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, shieldIndices, posedBase = null) {
   const state = piece?.clothPhysics;
   const surfaces = Array.isArray(shieldPositions) && shieldPositions.length
     && shieldPositions[0]?.positions && shieldPositions[0]?.indices
@@ -120,9 +122,12 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   state.shieldPinned.fill(0);
   state.shieldClearance.fill(0);
   let held = 0;
+  // SHIELD-SINK: the footprint and the press are read off the fitted cloth, posed - read off the pressed cloth, a press
+  // undid itself every other footprint (2.38, 0.38, 2.00, 0.38 units a fifth of a second apart)
+  const from = posedBase?.length === posedCloth.length ? posedBase : posedCloth;
   for (let v = 0; v < posedCloth.length / 3; v++) {
     const o = v * 3;
-    const x = posedCloth[o], z = posedCloth[o + 2];
+    const x = from[o], z = from[o + 2];
     let shieldSurfaceY = -Infinity;
     for (const surface of surfaces) {
       const gearPositions = surface.positions;
@@ -167,7 +172,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     // into a bind-space offset, while preserving a minimum body/cloth gap.
     const posedClearance = Math.min(SHIELD_PRESS_LIMIT, Math.max(
       STOWED_SHIELD_CLOAK_CLEARANCE,
-      shieldSurfaceY - posedCloth[o + 1] + STOWED_SHIELD_CLOAK_CLEARANCE,
+      shieldSurfaceY - from[o + 1] + STOWED_SHIELD_CLOAK_CLEARANCE,
     ));
     state.shieldClearance[v] = posedClearance;
     pos[o + 1] = prev[o + 1] = base[o + 1] + posedClearance;
@@ -358,8 +363,8 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     }
   }
 
-  // CLOAK-CONTACT: last, past the envelope's clamp - a leg stepping back takes the hem as far as it goes
-  if (typeof motion === 'object' && motion !== null) pushOutOfCapsules(state, motion.colliders, fixed);
+  // CLOAK-BODY: last, past the envelope's clamp - a leg stepping back takes the hem as far as it goes
+  if (typeof motion === 'object' && motion !== null) meetCloakBody(state, motion.colliders, fixed);
 
   positions.set(pos);
   if (state.normals && piece.batch.normals === state.normals) rebuildNormals(positions, indices, state.normals, state.baseNormals);

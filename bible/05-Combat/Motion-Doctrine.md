@@ -84,6 +84,24 @@ FIST-FEET, a hip drive and a stepping foot of the fists' own - the owner asked f
 All four hosts share fpArm. The port's own; OpenMW plays the clips as they are.
 Test: test/characters/bodyMotion/fistlegs.test.js, blowlegs.test.js, test/combat/fistsnap.test.js, armclips.test.js.
 
+## PUNCH-AIM, STOP-EASE, DUAL-RUN (2026-11-13)
+
+The owner, 2026-11-13: the hands strike "anywhere, not aimed"; the legs "stick in one position" after a stop; running
+with two one-handers the arms go back and the wrists turn. Read in the lab on the woman in steel.
+
+- **Aim.** At the hit the hook's fist stood 45 cm past the centre line, the hips and trunk turned 45 degrees over the
+  clip's own; the overhand's 30 cm under the head. The hit's turn and lean are now small, the wind-up's cock kept
+  (src/characters/bodyMotion/blowLegs.js:"export const FIST_TRUNK = Object.freeze({"). Read after: the hook 10-12 cm
+  off the line and 14 cm further out, every punch 133-136 cm up, under the chin.
+- **Stop.** A stop blends from a frozen stride: linear, the legs fell from 10 cm a frame to 1.3, slid, and halted at
+  once 15 frames on. Out of a gait the blend now leaves fast and settles
+  (src/combat/blowFlow.js:"export const STOP_EASE = Object.freeze({ power: 3 });"). The largest change of the legs'
+  speed fell 1.63 to 0.75 cm a frame walking, 6.9 to 4.5 running. Every carry stops on it.
+- **Pair run.** Both hands stood 30-45 cm behind the chest: the carry's run row for a pair, Mac's DUAL-RUN of
+  2026-10-20, swept the arms back and turned the shoulders out 60 degrees. A running pair now holds its walk's carry,
+  the blades forward, still pumping (src/characters/bodyMotion/carry.js:"PAIR-RUN-FORE";
+  Body-Motion.md). The lab gained a `dual` loadout. None of the three is verified in the game by the owner.
+
 ## SHIELD-WALK-UPRIGHT - the woman's shield stands again (2026-11-12)
 
 The owner, 2026-11-12: the shield "was set almost vertical, its bottom parallel to the floor", from the walk to the

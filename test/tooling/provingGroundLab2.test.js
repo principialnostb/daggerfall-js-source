@@ -136,7 +136,7 @@ test('LAB2 limbs and meshes: an elbow inside the trunk is found; a piece is held
 });
 
 test('LAB2 scenarios: loadouts are worn whole by name, drills and the matrix are bounded scenarios, a hold belongs to a swing', () => {
-  assert.equal(Object.keys(LOADOUTS).length, 16);   // four carries by four dresses - the cloak over steel since 2026-11-12
+  assert.equal(Object.keys(LOADOUTS).length, 20);   // five carries by four dresses - the cloak over steel since 2026-11-12, the pair since 2026-11-13
   assert.ok(Object.hasOwn(LOADOUTS, REFERENCE_LOADOUT));
   assert.deepEqual(LOADOUTS['shield-bare'], ['Longsword', 'Kite Shield']);
   const drills = generateDrills(), all = library();

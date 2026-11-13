@@ -54,7 +54,7 @@ function mintedFields() {
   const at = r.indexOf('createBillboardBatch(archive, record, size, centers');
   assert.ok(at > 0, 'the factory is where this pin thinks');
   const mint = r.slice(at);
-  const lit = mint.slice(mint.indexOf('return {'), mint.indexOf('\n  }'));
+  const lit = mint.slice(mint.search(/return (?:rememberCampfireBatch\()?\{/), mint.indexOf('\n  }'));
   return new Set(lit.slice(lit.indexOf('{') + 1, lit.lastIndexOf('}'))
     .split(/,(?![^[\]]*\])/).map((part) => /^\s*(\w+)/.exec(part)?.[1]).filter(Boolean));
 }

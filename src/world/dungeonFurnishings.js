@@ -162,26 +162,90 @@ function weaponStand(b, swords) {
 }
 
 function ironCabinet(b) {
-  const panels = [[-.31, -.08], [-.25, -.24], [0, -.31], [.25, -.24], [.31, -.08]];
-  for (let i = 1; i < panels.length; i++) {
-    const [x, z] = panels[i - 1], [u, v] = panels[i];
-    b.quad(IRON, [x, .02, z], [u, .02, v], [u, .99, v], [x, .99, z],
-      [[0, 0], [1, 0], [1, 2], [0, 2]], [0, 0, -1]);
-    b.quad(DARK, [x, .02, z + .015], [u, .02, v + .015], [u, .99, v + .015], [x, .99, z + .015],
-      [[0, 0], [1, 0], [1, 2], [0, 2]], [0, 0, 1]);
-  }
-  for (const sign of [-1, 1]) {
-    const from = [.30 * sign, .5, -.10], to = [.09 * sign, .5, .23];
-    const length = Math.hypot(to[0] - from[0], to[2] - from[2]);
-    const across = [(to[0] - from[0]) / length, 0, (to[2] - from[2]) / length];
-    const normal = [-across[2], 0, across[0]];
-    box(b, DARK, [(from[0] + to[0]) / 2, .50, (from[2] + to[2]) / 2],
-      [length / 2, .48, .032], { axes: [across, [0, 1, 0], normal] });
-    for (let i = 0; i < 7; i++) {
-      const root = [to[0] + sign * .024, .14 + i * .12, to[2] - .05];
-      prism(b, IRON, root, [root[0] - sign * .066, root[1], root[2] - .035], .021, .001, 4);
+  box(b, DARK, [0, .027, -.10], [.44, .027, .34]);
+  box(b, IRON, [0, .067, -.10], [.39, .013, .29]);
+
+  // Both halves share the same outline at the seam. Separate inner and
+  // outer surfaces give the casting a visible thickness from every view.
+  const profile = [
+    [.08, .22, .13], [.13, .25, .18], [.31, .26, .19],
+    [.53, .31, .23], [.67, .37, .25], [.74, .35, .23],
+    [.80, .23, .18], [.84, .17, .15], [.92, .16, .15],
+    [.97, .125, .12], [1, .085, .07],
+  ];
+  const seam = -.035, hingeX = .34;
+  const swing = Math.PI * 2 / 3, c = Math.cos(swing), s = Math.sin(swing);
+  const body = (x, y, z) => [x, y, seam - z];
+  const door = (x, y, z) => [hingeX + (x - hingeX) * c + z * s, y,
+    seam - (x - hingeX) * s + z * c];
+
+  function shell(place, depthScale) {
+    const segments = 12;
+    const ring = ([y, width, depth], i, inner) => {
+      const a = i * Math.PI / segments;
+      return place((width - inner) * Math.cos(a), y, (depth * depthScale - inner) * Math.sin(a));
+    };
+    const skin = (material, thickness, side) => {
+      for (let j = 1; j < profile.length; j++) for (let i = 0; i < segments; i++) {
+        const p = ring(profile[j - 1], i, thickness), q = ring(profile[j - 1], i + 1, thickness);
+        const r = ring(profile[j], i + 1, thickness), t = ring(profile[j], i, thickness);
+        const a = (i + .5) * Math.PI / segments, y = profile[j][0];
+        const center = place(0, y, 0), toward = place(Math.cos(a), y, Math.sin(a));
+        const facing = toward.map((n, k) => (n - center[k]) * side);
+        const u = i / segments, v = (i + 1) / segments;
+        b.quad(material, p, q, r, t, [[u, profile[j - 1][0]], [v, profile[j - 1][0]],
+          [v, y], [u, y]], facing);
+      }
+    };
+    skin(IRON, 0, 1);
+    skin(DARK, .028, -1);
+    for (const i of [0, segments]) {
+      for (let j = 1; j < profile.length; j++) {
+        const a = profile[j - 1], d = profile[j];
+        const p = ring(a, i, 0), q = ring(d, i, 0);
+        b.quad(IRON, p, q, ring(d, i, .028), ring(a, i, .028),
+          [[0, a[0]], [0, d[0]], [.12, d[0]], [.12, a[0]]], null);
+        prism(b, DARK, p, q, .012, .012, 6);
+      }
+    }
+    for (const [row, sign] of [[profile[0], -1], [profile.at(-1), 1]]) {
+      b.poly(IRON, Array.from({ length: segments + 1 }, (_, i) => ring(row, i, 0)),
+        Array.from({ length: segments + 1 }, (_, i) => [i / segments, Math.sin(i * Math.PI / segments)]),
+        [0, sign, 0]);
     }
   }
+  shell(body, 1);
+  shell(door, .53);
+
+  for (const y of [.28, .62, .73]) {
+    const axle = [hingeX, y, seam];
+    prism(b, DARK, [axle[0], y - .029, seam], [axle[0], y + .029, seam], .032, .032, 8);
+    prism(b, IRON, body(.27, y, .025), axle, .023, .023, 6);
+    prism(b, IRON, axle, door(.25, y, .012), .019, .019, 6);
+  }
+  for (const [y, spread] of [[.23, .11], [.43, .14], [.63, .18]]) {
+    for (const x of [-spread, 0, spread]) {
+      prism(b, IRON, door(x, y, .055), door(x, y + .012, -.07), .021, .002, 5);
+    }
+  }
+
+  const axes = [[c, 0, -s], [0, 1, 0], [s, 0, c]];
+  // Curved reinforcing straps follow the casting instead of bridging it.
+  for (const [y, width, depth] of [profile[2], profile[5], profile[8]]) {
+    const onSkin = (angle, lift) => door(width * Math.cos(angle), y, depth * .53 * Math.sin(angle) + lift);
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 12, next = (i + 1) * Math.PI / 12;
+      const low = onSkin(a, .006), high = onSkin(next, .006);
+      const edge = (p, offset) => [p[0], p[1] + offset, p[2]];
+      b.quad(DARK, edge(low, -.011), edge(high, -.011), edge(high, .011), edge(low, .011),
+        [[0, 0], [1, 0], [1, .25], [0, .25]], [s, 0, c]);
+    }
+    for (const angle of [Math.PI * .22, Math.PI * .5, Math.PI * .78]) {
+      prism(b, IRON, onSkin(angle, .007), onSkin(angle, .019), .012, .008, 7);
+    }
+  }
+  box(b, DARK, door(-.29, .65, .065), [.049, .022, .014], { axes });
+  prism(b, IRON, door(-.33, .65, .080), door(-.25, .65, .080), .012, .012, 7);
 }
 
 function hornedSkull(b) {
@@ -232,14 +296,17 @@ function build(b, id) {
         [.97, .39, IRON], [.97, .34, DARK], [.74, .25, IRON], [.60, 0, DARK]]);
       break;
     case '204:6':
-      prism(b, 7, [-.41, .35, 0], [.42, .35, 0], .32, .32, 12, { capRec: DARK });
-      box(b, 7, [0, .046, .27], [.41, .027, .17], { tile: [2, 1] });
-      for (let i = 0; i < 25; i++) {
+      prism(b, 7, [-.41, .27, 0], [.42, .25, 0], .25, .23, 16, { capRec: CLOTH });
+      box(b, 7, [0, .032, .24], [.41, .018, .16], { tile: [3, 2] });
+      for (const x of [-.29, .29]) {
+        prism(b, ROPE, [x - .017, .258, 0], [x + .017, .258, 0], .248, .248, 16, { caps: false });
+      }
+      for (const x of [-.413, .423]) for (let i = 0; i < 34; i++) {
         const p = n => {
-          const r = .022 + n * .011;
-          return [-.414, .35 + r * Math.cos(n * .55), r * Math.sin(n * .55)];
+          const r = .015 + n * .0061;
+          return [x, .26 + r * Math.cos(n * .54), r * Math.sin(n * .54)];
         };
-        prism(b, 5, p(i), p(i + 1), .009, .009, 4);
+        prism(b, 7, p(i), p(i + 1), .007, .007, 4);
       }
       break;
     case '205:0':
@@ -337,8 +404,12 @@ function build(b, id) {
         prism(b, IRON, head, [-.45, .33, -.12], .055, .006, 5);
         prism(b, IRON, head, [-.13, .78, .16], .051, .005, 5);
       } else {
-        prism(b, IRON, head, [-.32, .47, .08], .046, .040, 6);
-        box(b, IRON, [-.36, .37, .11], [.047, .105, .16]);
+        prism(b, DARK, head, [-.32, .47, .08], .047, .033, 7);
+        const spineA = [-.33, .46, -.015], spineB = [-.33, .46, .18];
+        const edgeA = [-.43, .28, -.085], edgeB = [-.43, .28, .25];
+        b.quad(DARK, spineA, spineB, edgeB, edgeA, [[0, 0], [1, 0], [1, 1], [0, 1]], null);
+        b.quad(IRON, edgeA, edgeB, spineB, spineA, [[0, 1], [1, 1], [1, 0], [0, 0]], null);
+        prism(b, IRON, edgeA, edgeB, .012, .012, 5);
       }
       break;
     }

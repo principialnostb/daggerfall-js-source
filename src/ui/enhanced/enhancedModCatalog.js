@@ -1,4 +1,6 @@
 import { emcText } from './emcLanguage.js';
+import { morrowindDataCount } from '../../scenes/dataSource.js';
+import { enhancedBattleaxeAvailable } from '../../characters/ownModels/enhancedBattleaxe.js';
 import { textureIntro } from './texturePresentation.js';
 import { animatedCloaksRequirement, extraAppearanceRequirements } from '../../systems/extraAppearance.js';
 import { setPaperdollCustomization } from '../../systems/helmetPaperdollLooks.js';
@@ -18,11 +20,6 @@ const node=(tag,cls,text)=>{
   }else if(text)n.textContent=emcText(text);
   return n;
 };
-function visualChanges(...items) {
-  const list = node('ul', 'meta');
-  list.append(...items.map(item => node('li', null, item)));
-  return list;
-}
 // Optional enhancements are informative; missing enhancements never lock customization.
 function boosts(items){
   const box=node('aside','emc-boosts');
@@ -108,29 +105,12 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
     custom.append(node('h3',null,'Кастомизация paperdoll'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Меняет 2D-облик предметов на карточке персонажа в инвентаре: лицо, броню в пределах её материала, одежду — любую того же типа: верх, полное облачение, низ, обувь, плащ (с учётом поднятого или опущенного капюшона), оружие и щиты в пределах их класса. Облик видите только вы: мир и другие игроки видят прежний. Работает с Paperdoll Enhanced и без него. Выберите предмет в инвентаре — вкладка «2D».'),boosts([[attachedDfmods().some((m)=>/paperdoll.*enhanced/i.test(m.title)&&m.enabled),'Paperdoll Enhanced','Перерисовывает 2D-облики в высоком разрешении (женские персонажи)']]),button(getPref('paperdollCustomization')!==false?'Отключить кастомизацию':'Включить кастомизацию',()=>{setPaperdollCustomization(getPref('paperdollCustomization')===false);invalidatePaperDoll();render();}));
     inventory.append(custom);
     const models=node('div','card');
-    models.append(node('h3',null,'Кастомизация 3D'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Меняет 3D-модель предметов на вашем персонаже: броню — на любую модель Morrowind её весового класса, одежду и оружие — на модели того же типа, плюс дополнительные облики ниже, если они подключены. Облик видите только вы: другие игроки видят прежнюю модель. Выберите предмет в инвентаре — вкладка «3D».'),boosts([[modGroupReady('bodies')&&modGroupEnabled('bodies'),'Тела и руки','Better Bodies и Better Hands: броня и одежда сидят на улучшенных телах'],[[['armor','extraArmorLooks'],['weapon','extraWeaponLooks'],['cloak','extraCloakLooks']].some(([k,pref])=>getPref(pref)!==false&&!extraAppearanceRequirements(k).length),'Дополнительные облики','Комплекты ниже добавляют варианты во вкладку 3D']]),button(getPref('modelCustomization')===true?'Отключить кастомизацию 3D':'Включить кастомизацию 3D',async()=>{setPref('modelCustomization',getPref('modelCustomization')!==true);noteModPresentationChanged();await rebuild();render();}));
+    models.append(node('h3',null,'Кастомизация 3D'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Меняет 3D-модель предметов на вашем персонаже: броню — на любую модель Morrowind её весового класса, одежду и оружие — на модели того же типа, плюс дополнительные облики из раздела «Предметы и снаряжение», если они подключены. Облик видите только вы: другие игроки видят прежнюю модель. Выберите предмет в инвентаре — вкладка «3D».'),boosts([[modGroupReady('bodies')&&modGroupEnabled('bodies'),'Тела и руки','Better Bodies и Better Hands: броня и одежда сидят на улучшенных телах'],[[['armor','extraArmorLooks'],['weapon','extraWeaponLooks'],['cloak','extraCloakLooks']].some(([k,pref])=>getPref(pref)!==false&&!extraAppearanceRequirements(k).length),'Дополнительные облики','Комплекты снаряжения добавляют варианты во вкладку 3D']]),button(getPref('modelCustomization')===true?'Отключить кастомизацию 3D':'Включить кастомизацию 3D',async()=>{setPref('modelCustomization',getPref('modelCustomization')!==true);noteModPresentationChanged();await rebuild();render();}));
     inventory.append(models);
     const animation=button(modGroupEnabled('cloak-animation')?'Анимация плащей: включена':'Анимация плащей: выключена',async()=>{setModGroupEnabled('cloak-animation',!modGroupEnabled('cloak-animation'));await rebuild();render();});
     animation.disabled=!!animatedCloaksRequirement();
     models.append(animation,node('p','meta','Анимация стандартного плаща: требуется кастомизация 3D. Замена тела не требуется.'));
     models.append(requirements([[getPref('modelCustomization')===true,'Кастомизация 3D']]));
-    for(const [key,title,contents] of [
-      ['extraArmorLooks','Комплекты брони из TESO 5','Сейчас доступна железная броня.'],
-      ['extraWeaponLooks','Комплекты оружия из TESO 5','Сейчас доступна двуручная стальная секира.'],
-      ['extraCloakLooks','Дополнительный внешний вид плащей','Волчьи шкуры: коричневая, белая и чёрная. Требуется анимация плащей.'],
-    ]){
-      const row=node('div','emc-extra');
-      const toggle=button(getPref(key)!==false?'Отключить':'Включить',async()=>{setPref(key,getPref(key)===false);noteModPresentationChanged();await rebuild();render();});
-      const kind={extraArmorLooks:'armor',extraWeaponLooks:'weapon',extraCloakLooks:'cloak'}[key];
-      const missing=extraAppearanceRequirements(kind);
-      toggle.disabled=missing.length>0;
-      row.append(node('h4',null,title),node('p','meta',contents),toggle);
-      if(kind==='armor' || kind==='weapon')row.append(node('p','meta emc-source-note','Требуется указать путь к файлам игры Skyrim SE.'));
-      row.append(requirements([[getPref('modelCustomization')===true,'Кастомизация 3D'],[modGroupReady('bodies'),'Тела и руки — Better Bodies / Better Hands'],...(kind==='cloak'?[[!animatedCloaksRequirement() && modGroupEnabled('cloak-animation'),'Анимация плащей']]:[])]));
-      models.append(row);
-    }
-
-
     if(!twoD)for(const anchor of paper.querySelectorAll('a')){anchor.removeAttribute('href');anchor.setAttribute('aria-disabled','true');}
 
   } else if(section==='environment'){
@@ -140,18 +120,11 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
       toggle.disabled=extraAppearanceRequirements(kind).length>0;
       return toggle;
     };
-    const sets=node('section','card emc-equipment');
-    sets.append(node('h3',null,'Комплекты снаряжения из TES 5'),node('p','meta','Автор: BLOODBATH'));
-    for(const [key,kind,contents] of [
-      ['extraArmorLooks','armor','Железная броня'],
-      ['extraWeaponLooks','weapon','Двуручная стальная секира'],
-    ]){
-      const row=node('div','emc-equipment-row');
-      row.append(node('span','meta',contents),toggleLook(key,kind));
-      sets.append(row);
-    }
-    sets.append(equipmentRequirements(),node('p','meta emc-source-note','Требуется указать путь к файлам игры Skyrim SE.'));
-    page.append(sets);
+    const morrowindRequirement = () => requirements([[morrowindDataCount() > 0, emcText('3D-ассеты Morrowind подключены')]]);
+    const decorToggle = (key) => button(getPref(key) !== false ? 'Отключить' : 'Включить', () => {
+      setPref(key, getPref(key) === false);
+      render();
+    });
     const cloaks=node('section','card');
     cloaks.append(node('h3',null,'Дополнительный внешний вид плащей'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Волчьи шкуры: коричневая, белая и чёрная.'),toggleLook('extraCloakLooks','cloak'),equipmentRequirements(),requirements([[!animatedCloaksRequirement() && modGroupEnabled('cloak-animation'),'Анимация плащей']]));
     page.append(cloaks);
@@ -161,33 +134,38 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
     axes.append(node('h3',null,'Улучшенные секиры'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Двуручные War Axe: длинные рукояти, исходные материалы и широкий хват.'),axeToggle,equipmentRequirements(),requirements([[enhancedBattleaxeAvailable(),'Ресурсы улучшенных двуручных секир подключены']]));
     page.append(axes);
     const camp=node('div','card');
-    camp.append(node('h3',null,'Объёмные источники света'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Костры, свечи и жаровни с анимированным пламенем, настенные факелы с креплениями, напольные факелы, люстры и подвесные фонари на цепях.'),button(getPref('enhancedCampfire')!==false?'Отключить':'Включить',()=>{setPref('enhancedCampfire',getPref('enhancedCampfire')===false);render();}));
-    camp.append(node('p','meta','Включение и отключение применяется после перезапуска игры.'));
+    camp.append(node('h3',null,'Объёмные источники света'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Заменяет поддерживаемые источники света объёмными моделями. У горящих источников видно анимированное пламя.'),button(getPref('enhancedCampfire')!==false?'Отключить':'Включить',()=>{setPref('enhancedCampfire',getPref('enhancedCampfire')===false);render();}));
+    camp.append(morrowindRequirement(), node('p','meta','Включение и отключение применяется после перезапуска игры.'));
     page.append(camp);
     const treasure = node('section', 'card');
     treasure.append(
       node('h3', null, 'Объёмный лут'),
       node('p', 'meta', 'Автор: BLOODBATH'),
-      visualChanges(
-        'Объёмные мешки, монеты и оружие читаются по силуэту.',
-        'Открытые сундуки показывают крышку, фурнитуру и декоративное содержимое.',
-        'Лут подгоняется к доступной поверхности стола, плиты или гроба.',
-      ),
+      node('p', 'meta', 'Заменяет поддерживаемые кучи сокровищ в подземельях объёмными моделями.'),
+      morrowindRequirement(),
       button(getPref('enhancedTreasurePiles') !== false ? 'Отключить' : 'Включить', () => {
         setPref('enhancedTreasurePiles', getPref('enhancedTreasurePiles') === false);
         render();
       }),
     );
     page.append(treasure);
+    const drops = node('section', 'card');
+    drops.append(
+      node('h3', null, '3D-модели выпавших предметов'),
+      node('p', 'meta', 'Автор: BLOODBATH'),
+      node('p', 'meta', 'Выпавшие и брошенные вещи видны в мире как 3D-предметы. Для вещей без подходящей модели используется завязанный мешочек.'),
+      node('p', 'meta', 'Выпадение отдельных вещей настраивается в Physical Items (demifiend000).'),
+      morrowindRequirement(),
+      decorToggle('enhancedGroundLoot'),
+    );
+    page.append(drops);
     const props = node('section', 'card');
     props.append(
       node('h3', null, 'Улучшенные предметы декора'),
-      visualChanges(
-        'Толстые борта, крышки и объёмные останки в погребениях.',
-        'Читаемые доски и фурнитура у мебели и сундуков.',
-        'Объёмные прутья, крепления и подвесы у клеток и устройств.',
-      ),
-      node('p', 'meta', 'Новые корпуса и размещение лута применяются при повторном входе в подземелье.'),
+      node('p', 'meta', 'Автор: BLOODBATH'),
+      node('p', 'meta', 'Обновляет декор подземелий. Требуются 3D-ассеты Morrowind.'),
+      morrowindRequirement(),
+      node('p', 'meta', 'Чтобы увидеть все изменения, войдите в подземелье заново.'),
       button(getPref('enhancedDungeonProps') !== false ? 'Отключить' : 'Включить', () => {
         setPref('enhancedDungeonProps', getPref('enhancedDungeonProps') === false);
         render();

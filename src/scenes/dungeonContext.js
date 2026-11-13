@@ -248,7 +248,7 @@ import {
   RANDOM_TREASURE_MARKER_RECORD, DUNGEON_LOOT_KEYS, shownSpellName,   // L10N3e: a spell's name as shown
 } from '../systems/loot/loot.js';
 import { peerHanded, notCarried } from '../systems/peerWord.js';   // SS3: a bound piece in the room's containers, or on a body, never lands; HACKED-GOLD: nor a letter of credit (systems/peerWord.js)
-import { floorLanding, closestDoorTo, dungeonVoidRescue } from '../player/enterExit.js';   // DE1: TransitionDungeonInterior orients away from the door it came through; VOID-DUNGEON: the failsafe's record
+import { corpseFloorLanding, floorLanding, closestDoorTo, dungeonVoidRescue } from '../player/enterExit.js';   // DE1: TransitionDungeonInterior orients away from the door it came through; VOID-DUNGEON: the failsafe's record
 import { trs, multiply, identity, UP_Y } from '../world/mat4.js';
 import { StaticBatchBuilder, keyResolver, SHADOW_CELL_SIZE } from '../render/staticBatch.js';   // PERF5: the level's static models as one mesh; LA-AUDIT A1: with its shadow cells
 import { mountTorchBatch } from '../world/torchMount.js'; import { markDungeonProp, markTreasurePile } from '../render/treasurePiles.js';
@@ -4047,7 +4047,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
   }
 
   const flatAnims = new FlatAnimator();   // FA1
-  const billboardBatches = createDungeonPropPreviews({ ...deps, collider, active: () => !_ctxDead && !isOnlinePage() && opts.selfId?.() == null });
+  const billboardBatches = createDungeonPropPreviews({ ...deps, collider, loot: droppedLoot, lootFeet: () => lastPlayerFeet, active: () => !_ctxDead && !isOnlinePage() && opts.selfId?.() == null });
   // AUDIT 24 (wave 39): the blood pool registers into the SAME
   // persistent draw list the missile impact uses (:1395/:1404), so a
   // splash appears and disappears the way an impact flash does.
@@ -4353,7 +4353,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
     const ct = corpseTextureOf(f);   // AUDIT DEX A1: and a female mobile's own corpse where its row names one (EnemyDeath.cs:86-93)
     // C12: a flyer dies mid-air - the corpse lands on the floor
     // below (AlignBillboardToGround semantics for every corpse).
-    const p = floorLanding(collider, [f.ai.feet[0], f.ai.feet[1] + 0.1, f.ai.feet[2]]);
+    const p = corpseFloorLanding(collider, f.ai.feet);
     f.corpsePos = p;   // AUDIT 32 H3: where the body lies - its loot's box and Hunting's body read it (corpseAt), never the air it died in
     corpsePrefabs.mint(f, ct);   // DEX5: a mod's prefab for this picture takes the body's place - before the art warms, so the kill's first frame already finds no loot
     if (!ct) return;

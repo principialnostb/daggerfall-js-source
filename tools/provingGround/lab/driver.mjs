@@ -64,7 +64,7 @@ export function createLabDriver({ page, step, kit, lab = null, still = null, out
     const made = found ? await window.__labKit.bones() : null;
     return { s: await window.__pgKit.state(), b: made ?? await window.__pgKit.bones(), bonesOf: made ? 'pose' : 'drawn', foes: await window.__pgKit.foes(),
       sources: { movement: s.movementSource, idle: s.idleSource, action: s.actionSource, jump: s.jumpSource },
-      clip: { time: s.time, group: s.posedGroup, upper: s.upperName, hit: s.hit, death: s.death },
+      clip: { time: s.time, group: s.posedGroup, upper: s.upperName, hit: s.hit, death: s.death, layers: (globalThis.__armTrace ??= { on: true }).clip ? { la: globalThis.__armTrace.clip.la, ub: globalThis.__armTrace.clip.ub, blendW: globalThis.__armTrace.clip.blendW } : null },   // DUAL-RUN: the arm layers' clips and weights
       blow: s.blow ? { clock: s.blow.clock, hitAt: s.blow.hitAt, seconds: s.blow.seconds } : null, legs: s.motion?.legs ?? null, body: found,
       skeleton: s.skeletonPath, groups: s.groups, sourcePaths: s.sources };
   });

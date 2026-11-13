@@ -37,3 +37,16 @@ test('placement eases on game time, equally at 30/60/120 fps, and releases for o
   }
   for (const m of matrices) for (let i = 0; i < 16; i++) assert.ok(Math.abs(m[i] - matrices[0][i]) < 1e-5);
 });
+
+
+test('enhanced steel axe shares the wide grip and releases it when another weapon replaces it', () => {
+  const rig = { arm: {}, weapon: { model: 'enhanced_axe_steel.nif' } };
+  stepAxePlacement(rig, true, 4);
+  assert.equal(typeof axeReadyHold(rig), 'function');
+  stepAxePlacement(rig, true, 4, true);
+  assert.equal(axeReadyHold(rig), null);
+  stepAxePlacement(rig, true, 4);
+  rig.weapon.model = 'w/w_steel_battleaxe.nif';
+  stepAxePlacement(rig, true, 4);
+  assert.equal(axeReadyHold(rig), null);
+});

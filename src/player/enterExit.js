@@ -368,6 +368,12 @@ export function exteriorLanding(playerPos, buildingDoors) {
  * (landing already at/below floor or nothing beneath) returns the
  * landing unchanged - gravity remains the fallback.
  */
+export function corpseFloorLanding(collider, feet) {
+  const start = [feet[0], feet[1] + 0.035, feet[2]];
+  const dist = collider.raycast(start, [0, -1, 0], 10);
+  return Number.isFinite(dist) ? [start[0], start[1] - dist, start[2]] : floorLanding(collider, feet);
+}
+
 export function floorLanding(collider, pos, maxDist = 10, extraHeight = 0) {
   // TL1 (Mac: "you don't remain on the ground after traveling, you
   // spawn in the air and drop"): the ARRIVAL raw is the location's

@@ -192,3 +192,23 @@ The owner requires a choice for one shirt or pair of pants to leave matching cop
 Ambiguous legacy template-wide 2D/record choices and record-wide dyes are ignored: they cannot identify the selected copy. Choose those appearances again on the intended item. Older own-model settings remain defaults; choosing an inventory appearance writes only that item's override. Picker and model-icon caches distinguish instance styles. Renderer dyes resolve the equipped instance rather than another carried copy of the same record.
 
 This extends the deliberately redesigned local appearance UI documented above, rather than changing DFU's item image readers or native inventory rules. `test/systems/itemAppearanceInstances.test.js` checks independently minted matching shirts/pants, save copies, 3D records, own styles and equipped-instance dyes.
+
+## Item thumbnail pixel scale (2026-11-10)
+
+The 3D appearance choice cards now use their own pixel scale. At the 68px display height, Light, Medium, Classic and Retro retain 36, 27, 23 and 20 raster rows. The owner requested stronger Light through Classic after reviewing the initial scale; Retro stays unchanged. The scale does not depend on viewport height; aspect ratio and HD source resolution are preserved. Baked own-model pictures and generated model thumbnails share this rule. The character fitting canvas and world character pixelation keep their existing screen-height scale.
+
+This extends the local 3D appearance departure above. DFU reference: [ItemHelper.GetItemImage](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Game/Items/ItemHelper.cs) reads item art; it has no 3D appearance picker or thumbnail pixel tiers. The separate scale keeps small items readable. `test/systems/fittingPresentation.test.js` checks all tiers, aspect ratio, larger cards and unchanged character fitting resolution. Visual tuning against the owner's models remains to be checked in game.
+
+## Clothing gender and coverage audit (2026-11-10)
+
+The editor's saved gender now takes priority over gameplay gender for the 2D display, including when the enhanced bodies group is disabled. Race and face keep their existing group gate. Cache identity includes this gender. Gameplay identity stays unchanged.
+
+Clothing display and choice filtering share `clothingKinds.js`. A missing same-name counterpart now falls back to the same coverage on the requested gender sheet. Formal Eodoric belongs to full outfits; Kimono and the two surcoats belong to tops; Eodoric belongs to sashes. Female brassiere variant 4 is sash art: it is excluded from top choices and offers no alternate shapes when worn itself. Existing hood and material limits remain.
+
+Reference: DFU ItemHelper.GetItemImage uses the native item record. Gender conversion and alternate shape choices remain our local presentation departure. Both human clothing sheets were visually inspected from local ARENA2. Tests sweep all 76 clothing templates for both display genders, verify choice coverage and rendered records, and check editor gender priority in both directions. The Paperdoll Enhanced follow-up below inspects its repainted images separately.
+
+## Paperdoll Enhanced coverage audit (2026-11-10)
+
+The local Paperdoll Enhanced bundle was opened through the Unity reader. Its 109 repainted human clothing records and 37 armour records were visually inspected. Female Eodoric (record 9) adds a full skirt: while this pack and asset injection are enabled, it belongs to full outfits. Native Eodoric remains a sash. Same-name gender conversion now also requires matching coverage. A male sash has no compatible female template under this repaint, so its picker offers no opposite-sex alternatives.
+
+The real replacement pipeline resolved 62,552 clothing choices across both display genders, all four morphologies and all native variants. It decoded 3,880 replacement images across ten dyes without an empty result. Another 3,960 image keys used validated native fallback. The pack carries female clothing archives 235-238; male archives 239-242 retain native art. These are local probes under ignored scratch, not shipped art. Tests in `test/systems/paperdollEnhancedKinds.test.js` cover the dress exclusion from tops, full-outfit inclusion, editor gender, same-kind conversion, disabling and removal. This extends the existing departure from DFU ItemHelper.GetItemImage, whose item record remains fixed.

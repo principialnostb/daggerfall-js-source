@@ -59,10 +59,11 @@ export const SAMPLE_STEP = 1;
 /** The bone a slung holster hangs under - the spine's first above the pelvis; a hip holster is under the pelvis alone. */
 export const SLUNG_UNDER = 'bip01 spine1';
 /** SHIELD-SEAT (the owner, 2026-11-12: gear on the cloak "does not press it to the back"; seen in the lab: the stowed
- *  shield stood 15-20 cm off the cloak). A shield is a wide plate over a draped sheet: held clear at its every point, its
- *  rim over the collar set the whole of it off. It sits where this share of its points clear the cloak; the cloth
- *  under the rest is pressed in by the shield (mwCloakPhysics.js resolveCloakShieldContact). */
-export const SHIELD_SEAT = 0.5;
+ *  shield stood 15-20 cm off the cloak). Over an animated cloak it is drawn in, the cloth under it pressed in
+ *  (mwCloakPhysics.js resolveCloakShieldContact): to SHIELD_BODY_GAP off the body, the cloth pressed SHIELD_PRESS at
+ *  most. SHIELD-SINK (2026-11-13): it sat where half its points cleared the cloak, and the cloth came through the rest. */
+export const SHIELD_PRESS = 4;
+export const SHIELD_BODY_GAP = 1;
 /** SHIELD-SEAT: the most a shield hung off its mount is drawn IN to the cloak, in units (the mount holds it by its grip). */
 export const SHIELD_DRAW_IN = 14;
 /**
@@ -80,8 +81,8 @@ export const CLOAK_FIT_POSES = Object.freeze([
   Object.freeze({ 'bip01 l thigh': ['z', 35], 'bip01 r thigh': ['z', -30], 'bip01 r calf': ['z', 45], 'bip01 l upperarm': ['z', 25], 'bip01 r upperarm': ['z', -25] }),
   Object.freeze({ 'bip01 spine2': ['z', -10] }),
 ]);
-/** A cloak with no cloth of its own (CLOAK-CONTACT): the poses above and the blows' and the deep stances', held at the
- *  fit - nothing meets it live. An animated cloak is fitted to CLOAK_FIT_POSES and meets the live limbs' capsules. */
+/** The poses above and the arms', the blows' and the deep stances' - what fitThirdPersonCloak fits every cloak to.
+ *  CLOAK-BODY: the animated cloak's collar is pinned, so its fit must already clear a pauldron on an arm swung back. */
 export const CLOAK_STILL_POSES = Object.freeze([...CLOAK_FIT_POSES,
   // The walk envelope swings the arms back; attacks also sweep them forward
   // across the shoulders and upper back. Fit those poses too, or the animated
@@ -606,13 +607,20 @@ function gearGroups(assembly, isGear) {
  * within HIP_PITCH_LIMIT clears it, or the move back would pass SLUNG_MOVE_LIMIT: left as it hangs) - or null when the
  * body wears no cloak.
  */
-export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLEARANCE, shieldClearance = clearance, pitchLimit = HIP_PITCH_LIMIT, slungLimit = SLUNG_PITCH_LIMIT, moveLimit = SLUNG_MOVE_LIMIT, seat = SHIELD_SEAT }) {
+export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLEARANCE, shieldClearance = clearance, pitchLimit = HIP_PITCH_LIMIT, slungLimit = SLUNG_PITCH_LIMIT, moveLimit = SLUNG_MOVE_LIMIT, pressed = false, isUnder = null }) {
   const cloaks = assembly.pieces.filter((p) => p.kind === 'skinned' && isCloak(p));
   if (!cloaks.length) return null;
   const rest = poseOf(assembly);
   const sheets = cloaks.map((c) => cloakSheet(rest.place(c), c.indices));
   const front = (x, z) => { let y = null; for (const s of sheets) { const c = s.at(x, z); if (c && (y == null || c.front > y)) y = c.front; } return y; };
   const back = (x, z) => { let y = null; for (const s of sheets) { const c = s.at(x, z); if (c && (y == null || c.back < y)) y = c.back; } return y; };
+  // SHIELD-SEAT: the body's back at rest - what a shield over pressed cloth stops short of
+  const worn = pressed && isUnder ? assembly.pieces.filter((p) => !cloaks.includes(p) && !isGear(p) && isUnder(p)) : [];
+  const bodySheet = worn.length ? (() => {
+    const pos = []; const idx = [];
+    for (const p of worn) { const o = pos.length / 3; for (const c of rest.place(p)) pos.push(c); for (const i of p.indices) idx.push(i + o); }
+    return cloakSheet(Float32Array.from(pos), Uint32Array.from(idx));
+  })() : null;
   const rows = [];
   for (const [ref, pieces] of gearGroups(assembly, isGear)) {
     // The back-mounted shield needs its own torso/cloak clearance; don't move unrelated holsters farther out.
@@ -646,10 +654,18 @@ export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLE
       // vertices ask, and the search stops at the first whose vertices already ask more than the best found: exact
       const seated = pieces.some((p) => /^shield-back\b/i.test(p.slot ?? ''));
       const needAt = (set, deg) => {
-        let need = 0; let here = false; const all = seated ? [] : null;
-        each(set, deg, (x, y, z) => { const s = back(x, z); if (s == null) return; here = true; const n = y - (s - groupClearance); if (all) all.push(n); else need = Math.max(need, n); });
-        if (all?.length) { all.sort((a, b) => a - b); need = Math.max(-SHIELD_DRAW_IN, all[Math.min(all.length - 1, Math.floor(all.length * seat))]); }   // SHIELD-SEAT
-        return here ? need : null;
+        const press = seated && pressed;
+        let need = -Infinity; let here = false;
+        each(set, deg, (x, y, z) => {
+          const s = back(x, z), b = press ? bodySheet?.at(x, z)?.back : null;
+          if (b != null) need = Math.max(need, y - (b - SHIELD_BODY_GAP));
+          if (s == null) return;
+          here = true;
+          // SHIELD-SEAT: over an animated cloak a shield presses the cloth SHIELD_PRESS at most; over a still one it clears it
+          need = Math.max(need, press ? y - (s + SHIELD_PRESS - groupClearance) : y - (s - groupClearance));
+        });
+        if (!here) return null;
+        return seated ? Math.max(-SHIELD_DRAW_IN, need) : Math.max(0, need);
       };
       const turns = [];
       for (let k = 0; k <= 2 * slungLimit; k++) {

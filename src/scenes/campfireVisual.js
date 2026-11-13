@@ -1,4 +1,4 @@
-import { getPref } from '../systems/uiPrefs.js';
+import { morrowindWorldVisualEnabled } from '../systems/dungeonDecor.js';
 // Shared camp presentation; the pool owns its lease, the renderer owns the cache.
 import { CAMPFIRE_ARCHIVE, CAMPFIRE_FRAMES, CAMPFIRE_SCALE, campfirePaint, buildCampfireBody, buildCampfireFlame } from '../world/campfireModel.js';
 import { trs, multiply } from '../world/mat4.js';
@@ -11,7 +11,7 @@ import {drawCampPixelFlame} from './campfirePixelFlame.js';
 const caches = new WeakMap();
 const flameBounds = [-.8,0,-.8,.8,1.8,.8].map(v=>v*CAMPFIRE_SCALE);
 const records = [0,1,2,3,4,5,6,7,8,9];
-export const canDrawCampfire = (r) => getPref('enhancedCampfire') !== false && !!(r?.createMesh && r?.uploadTexture && r?.drawMesh);
+export const canDrawCampfire = (r) => morrowindWorldVisualEnabled('enhancedCampfire') && !!(r?.createMesh && r?.uploadTexture && r?.drawMesh);
 export const campfirePulse = (time,seed=0) => .97+.02*Math.sin(time*5.1+seed)+.01*Math.sin(time*8.9+seed);
 
 function acquire(r) {

@@ -299,8 +299,8 @@
   {
     "name": "BODY-MOTION-pair-run-forward",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "    run: { R: row(-42, 10, 8, -60, 0.4,",
-    "new": "    run: { R: row(42, 10, 8, -60, 0.4,",
+    "old": "    run: { R: row(5, 24, 6, 22, 0.3, { blade: dir(0.3, 0.9, -0.3)",
+    "new": "    run: { R: row(-42, 24, 6, 22, 0.3, { blade: dir(0.3, -0.9, -0.3)",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]

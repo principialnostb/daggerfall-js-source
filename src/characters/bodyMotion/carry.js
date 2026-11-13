@@ -166,13 +166,13 @@ export const CARRY = Object.freeze({
   dual: Object.freeze({
     idle: { R: row(8, 23, 12, -34, 0, { blade: dir(0.24, 0.8, -0.55), edge: dir(-0.49, -0.39, -0.78) }), L: row(8, 23, 12, -34, 0, { blade: dir(0.24, 0.8, -0.55), edge: dir(-0.49, -0.39, -0.78), mirror: true }) },
     walk: { R: row(5, 24, 6, 28, 0.28, { blade: dir(0.31, 0.81, -0.51), edge: dir(-0.38, -0.38, -0.84) }), L: row(5, 24, 6, 28, 0.28, { blade: dir(0.31, 0.81, -0.51), edge: dir(-0.38, -0.38, -0.84), mirror: true }) },
-    // DUAL-RUN (2026-10-20, Mac: "super stiff"): pumping a fifth of the gait's elbow and 0.4 of its swing behind the hips,
-    // the shoulder turned out 60 so the forearm turns 66 off its hinge (locked straight and swinging a tenth, it turned 128)
-    run: { R: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2 }), L: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2, mirror: true }) },
+    // PAIR-RUN-FORE (the owner, 2026-11-13: the pair's run with the arms back and the wrists turned "looks doubtful";
+    // the lab: both hands 30-45 cm behind the chest): the walk's carry, the elbows bent and pumping - Mac's DUAL-RUN
+    // (2026-10-20, both swept behind) withdrawn
+    run: { R: row(5, 24, 6, 22, 0.3, { blade: dir(0.3, 0.9, -0.3), edge: dir(-0.33, -0.2, -0.92), gaitElbow: 0.15 }), L: row(5, 24, 6, 22, 0.3, { blade: dir(0.3, 0.9, -0.3), edge: dir(-0.33, -0.2, -0.92), gaitElbow: 0.15, mirror: true }) },
     sneak: { R: row(20, 20, 30, -44, 0.15, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.26, -0.2, -0.95) }), L: row(20, 20, 30, -44, 0.15, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.26, -0.2, -0.95), mirror: true }) },
     stand: { feet: { L: [-0.03, 0.06], R: [0.03, -0.04] }, hipYaw: -4 },
     runLean: 7,
-    via: dir(0, 0.259, 0.966),
   }),
   fists: Object.freeze({
     idle: { R: row(34, 20, 118, 12, 0, { fist: true }), L: row(48, 18, 104, 10, 0, { fist: true }) },

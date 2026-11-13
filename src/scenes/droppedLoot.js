@@ -30,6 +30,7 @@ import { RANDOM_TREASURE_ARCHIVE, RANDOM_TREASURE_ICONS } from '../systems/loot/
 import { CONTAINER_IMAGES } from '../ui/targetIconPanel.js';   // AUDIT 63 F22: InventoryContainerImages, the picture both makers hand CreateLootContainer
 import { RAY_DISTANCE, TREASURE_ACTIVATION_DISTANCE } from '../player/activate.js';   // AUDIT 65 MC-2: the ray's reach, the handler's own
 import { createPhysicalItems } from './physicalItemsLayer.js';   // PI1: Physical Items - every pool stands its own layer
+import { markGroundLoot } from '../render/groundLootModels.js';
 
 // AUDIT 17e F34 / ONE DFU MEMBER, ONE EXPORT: this file re-declared
 // randomTreasureArchive and randomTreasureIconIndices, regressing the
@@ -102,6 +103,7 @@ export function createDroppedLoot({ renderer, getTexture, uploadRecordFrame, pic
   /** LOOT-FLATS: a pile's batch reminted where the pile now lies (a recentre, a moved ground) - its animator entry follows
    *  it (the animator kept the old batch, and an animated pile stood still from its first recentre on). */
   function remintBatch(p) {
+    if (p.volume) { p.batch.origin = [...p.pos]; return; }
     const was = p.batch;
     renderer.destroyBillboardBatch(was);
     p.batch = renderer.createBillboardBatch(p.archive, p.record, p.size, [[p.pos[0], p.pos[1], p.pos[2]]]);
@@ -137,9 +139,18 @@ export function createDroppedLoot({ renderer, getTexture, uploadRecordFrame, pic
       // `#0` into the record was why these sites could not be armed at
       // slice 2 - a frame index appended to a record that already ends
       // in one reads `5#0#2`.
-      pile.batch = renderer.createBillboardBatch(pile.archive, pile.record, size, [[pile.pos[0], pile.pos[1], pile.pos[2]]]);
+      let art = null;
+      try { art = t.getColor32?.(t.getDFBitmap(pile.record, 0), 0) ?? null; } catch { /* keep the flat */ }
+      pile.volume = !!art?.colors;
+      const center = pile.volume ? [0, 0, 0] : [...pile.pos];
+      pile.batch = renderer.createBillboardBatch(pile.archive, pile.record, size, [center]);
       pile.batch.noShadow = true;   // F2: a thing lying on the ground is no standing card for the sun (shadowPass.js)
       pile.batch.frame = 0;
+      if (pile.volume) {
+        pile.batch.origin = [...pile.pos];
+        markGroundLoot(pile.batch, art, `${pile.record}#0`);
+        return;
+      }
       armFlatAnim(pile.batch, t, pile.archive, pile.record, flatAnims, uploadRecordFrame);
     }).catch(() => {});
   }
@@ -386,7 +397,9 @@ export function createDroppedLoot({ renderer, getTexture, uploadRecordFrame, pic
     const out = [];
     piles.forEach((p) => {
       if (!alive(p) || presented(p)) return;   // PI1: a presented shift-drop is pressed as its item (the layer's own target)
-      out.push({ key: `droppedLoot:${p.id}`, aabb: { min: [p.pos[0] - 0.5, p.pos[1], p.pos[2] - 0.5], max: [p.pos[0] + 0.5, p.pos[1] + 0.6, p.pos[2] + 0.5] }, distance: RAY_DISTANCE, reach: TREASURE_ACTIVATION_DISTANCE });
+      const w = p.volume ? Math.max(0.5, p.size.w / 2) : 0.5;
+      const d = p.volume ? Math.max(0.5, p.size.h / 2) : 0.5;
+      out.push({ key: `droppedLoot:${p.id}`, aabb: { min: [p.pos[0] - w, p.pos[1], p.pos[2] - d], max: [p.pos[0] + w, p.pos[1] + 0.6, p.pos[2] + d] }, distance: RAY_DISTANCE, reach: TREASURE_ACTIVATION_DISTANCE });
     });
     for (const t of physical.targets()) out.push(t);   // PI1: every item standing as itself
     return out;

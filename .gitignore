@@ -163,3 +163,10 @@ src/assets/mw/looks/skyrim_steel_battleaxe.png
 /paperdoll enhanced.*
 /AUDIT-source-code-mod.md
 /PR-description.md
+
+# Local enhanced axe, rebuilt from the player-owned Morrowind steel head.
+/src/assets/mw/meshes/enhanced_steel_battleaxe.nif
+/src/assets/mw/textures/enhanced_axe_*.dds
+/src/assets/mw/looks/enhanced_steel_battleaxe.png
+
+/src/assets/mw/meshes/enhanced_axe_*.nif

@@ -246,6 +246,14 @@ function coins(b, record, elevated, spread) {
   }
 }
 
+export function buildLootPouch(archive) {
+  const b = new MeshBench(archive);
+  sack(b, 0, 0, 0);
+  const mesh = b.finish();
+  mesh.subMeshes = mesh.subMeshes.map((sub, i) => ({ ...sub, textureArchive: archive, textureRecord: mesh.slots[i].record }));
+  return mesh;
+}
+
 export function buildTreasureModel(record) {
   const parts = variants.get(record).split(' ');
   const has = part => parts.includes(part);

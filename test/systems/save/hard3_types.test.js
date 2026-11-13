@@ -175,7 +175,7 @@ test('HARD3: the renderer\'s contract is types only, and the shapes it names are
   assert.ok(r.includes('createBillboardBatch(archive, record, size, centers'), 'the factory is where this pin thinks');
   assert.match(r, /@returns \{import\('\.\/contract\.js'\)\.BillboardBatch\}/,
     'createBillboardBatch declares the contract as its return');
-  const returned = mint.slice(mint.indexOf('return {'), mint.indexOf('\n  }'));
+  const returned = mint.slice(mint.search(/return (?:rememberCampfireBatch\()?\{/), mint.indexOf('\n  }'));
   // the NAME of a @property is what follows its type, and a type can
   // carry braces of its own ({w, h}) - so read the name off the line's
   // tail rather than trying to match the braces.

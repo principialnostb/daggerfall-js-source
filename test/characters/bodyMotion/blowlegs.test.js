@@ -86,17 +86,17 @@ test('FIST-LEGS: the fists strike on the blow legs as a blade does - the feet an
       legs.apply(sk, new Map(), GRAPH_ROOT, sm);
     }
     assert.equal(legs.status().anchored, true, 'a punch anchors the feet');
-    assert.ok(legs.trunkTurn().yaw > 0.15 && legs.trunkTurn().pitch > 0.12, 'PUNCH-CHAIN: at the hit the trunk is thrown in and over the lead leg');
+    assert.ok(legs.trunkTurn().yaw > 0.15 && legs.trunkTurn().pitch > 0.04, 'PUNCH-CHAIN: at the hit the trunk is thrown in and over the lead leg');
   }
   const fist = blowLegsPose({ ...blow('thrust', 'release', 1), fists: true }), blade = blowLegsPose(blow('thrust', 'release', 1));
-  assert.ok(Math.abs(fist.fwd - FIST_BLOW_KEYS.thrust.hit.fwd) < 1e-9 && fist.fwd > blade.fwd && fist.pitch > blade.pitch, 'a straight punch drives further and leans more');
-  assert.ok(blowLegsPose({ ...blow('slash', 'release', 1), fists: true }).yaw > blowLegsPose(blow('slash', 'release', 1)).yaw, 'a hook turns the hips more');
+  assert.ok(Math.abs(fist.fwd - FIST_BLOW_KEYS.thrust.hit.fwd) < 1e-9 && fist.fwd > blade.fwd && fist.pitch < blade.pitch, 'PUNCH-AIM: a straight punch drives further and stands taller, the fist at the chin');
+  assert.ok(blowLegsPose({ ...blow('slash', 'release', 1), fists: true }).yaw < blowLegsPose(blow('slash', 'release', 1)).yaw, 'PUNCH-AIM: a hook stops its hips on the centre line');
   const late = blowLegsPose({ ...blow('thrust', 'windup', 0.95), fists: true }), edge = blowLegsPose(blow('thrust', 'windup', 0.95));
   assert.ok(late.drive > 0.3 && edge.drive === 0 && late.forward === true && edge.forward === null, 'the hips drive and the foot steps before the fist leaves');
   assert.ok(late.trunk.yaw < -0.15, 'while the trunk is still cocked back');
   assert.equal(edge.trunk, null, 'a blade has no trunk keys of its own');
   assert.deepEqual(punchPhase('follow', 1), { load: 1, drive: 1, recover: 1 });
-  assert.ok(PUNCH_CHAIN.lead > 0.4 && FIST_TRUNK.slash.hit.yaw > FIST_TRUNK.thrust.hit.yaw);
+  assert.ok(PUNCH_CHAIN.lead > 0.4 && FIST_TRUNK.slash.hit.yaw < FIST_TRUNK.thrust.hit.yaw && FIST_TRUNK.slash.wind.yaw < FIST_TRUNK.thrust.wind.yaw, 'PUNCH-AIM: the hook cocks furthest and lands square');
 });
 test('a standing series followed by a short walk and another strike cannot reuse the standing foot anchors', () => {
   const sk = buildSkeleton(parseNif(retailSkeleton()));

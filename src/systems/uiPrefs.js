@@ -188,6 +188,7 @@ export const PREF_DEFAULTS = Object.freeze({
   morrowindThirdPersonOnly: false,
   enhancedCampfire: true,
   enhancedTreasurePiles: true,
+  enhancedGroundLoot: true,
   enhancedDungeonProps: true,
   // MW-UI-SPLIT: keep Morrowind meshes in the world/first-person rig without replacing classic UI art.
   morrowind3dInventoryIcons: true,
@@ -195,6 +196,7 @@ export const PREF_DEFAULTS = Object.freeze({
   paperdollCustomization: true,
   modelCustomization: false,
   emcLanguage: 'ru',
+  enhancedBattleaxes: false,
   extraArmorLooks: true,
   extraWeaponLooks: true,
   extraCloakLooks: true,

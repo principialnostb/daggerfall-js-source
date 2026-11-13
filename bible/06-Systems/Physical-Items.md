@@ -322,3 +322,45 @@ halves, both packs, both street pools).
 `test/systems/audit_pi1.test.js` (20) holds the audit's fixes, one test a finding group
 (`01-Overview/audits/Audit-PI1.md`). Mutants: `tools/mutants/pi1.json` (47) and
 `tools/mutants/audit_pi1.json` (52), all dead.
+## Ground loot models in Dev
+
+Physical drops render the selected equipment record's Morrowind ground mesh
+when that mesh and its textures can load. Equipment uses the NIF-to-world
+unit conversion and the object pixel pass. Gold uses individual modeled
+coins. Items without a resolved model use a closed bundle, with the item
+still identified by its pickup label. Ordinary dropped piles and boss
+spoils use the same model path. This extends
+DFU's `GameObjectHelper.CreateLootableCorpseMarker` and
+`CreateDroppedLootContainer` with visible 3D items and piles. The geometry
+is rendered through the shared billboard pass used by exterior, world,
+interiors and dungeon context. The loot targets and backing inventories
+still belong to the original scene layers. Meshes are visual and never
+register as surfaces in the scene collider.
+
+The ground-model table in `src/render/mwGroundLootRecords.js` links the
+retail Morrowind, Tribunal and Bloodmoon ground assets for arrows, bottles,
+potions, books, notes, lights, food and selected ingredients. Shared
+shapes stand for matching DFO categories where the names differ.
+Weapons, armor and clothes use the third-person body's horizontal and
+vertical scale factors, while props use the source asset's metre scale.
+
+In an offline dungeon, the development decor panel's «Дроп» section
+and `prop_preview loot` place the same unsaved loot samples on the floor.
+The set uses one material per equipment template and includes the base
+ingredient pools, religious items, currency, a potion, and both meats.
+Flowers, roses, poppies, and both meats use the tied pouch in ground loot.
+Cloaks use a flat ground pose. The preview loads the candidate meshes,
+then shows one tied pouch for all packed or unresolved samples and prints
+their names in the console.
+The preview also groups loaded items by their normalized mesh path and
+prints the item names that share each displayed model.
+
+Weapons rest on their thinnest mesh axis. Raw and cooked meat use a
+faceted cut with colors sampled from the item's art. Corpse placement prefers
+the floor directly below the death point, with the footprint as fallback
+at seams. This keeps nearby raised surfaces from winning over a valid
+center floor and follows DFU's center-ray alignment where it has a hit.
+The 3D body uses the lowest visible body geometry of its final death pose
+as support height, excluding carried items. The standing support still
+applies during the fall. This is DFO's mesh equivalent of grounding DFU's
+corpse billboard, shared by the third-person draw and its shadow.

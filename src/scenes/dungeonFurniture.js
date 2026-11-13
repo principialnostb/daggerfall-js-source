@@ -1,3 +1,4 @@
+import { dungeonDecorEnabled } from '../systems/dungeonDecor.js';
 import { multiply, transformPoint, trs } from '../world/mat4.js';
 import { markDungeonBurials, markTreasurePile } from '../render/treasurePiles.js';
 import { buildTreasureModel, hasTreasureModel, TREASURE_ART } from '../world/treasureModel.js';
@@ -54,17 +55,17 @@ function workshopPlacement(collider, id, cpu, matrix, object) {
 }
 
 export function addDungeonFurnitureMover(draws, collider, id, cpu, matrix, gpu, object) {
-  if (getPref('enhancedDungeonProps') !== false && workshopKind(id) === 'press') {
+  if (dungeonDecorEnabled() && workshopKind(id) === 'press') {
     workshopPlacement(collider, id, cpu, matrix, object);
-  } else draws.push({ gpu: getPref('enhancedDungeonProps') === false ? gpu : dungeonPropMesh(id, gpu), object });
+  } else draws.push({ gpu: !dungeonDecorEnabled() ? gpu : dungeonPropMesh(id, gpu), object });
 }
 
 export function addDungeonFurniture(builder, collider, id, cpu, matrix, remap) {
-  if (getPref('enhancedDungeonProps') !== false && workshopKind(id)) {
+  if (dungeonDecorEnabled() && workshopKind(id)) {
     workshopPlacement(collider, id, cpu, matrix, null);
     return true;
   }
-  if (getPref('enhancedDungeonProps') !== false && cpu.normals && cpu.uvs) {
+  if (dungeonDecorEnabled() && cpu.normals && cpu.uvs) {
     if (id === CLASSIC_PRESS_ID) {
       const mesh = pressMesh ??= buildDungeonPress(TREASURE_ART);
       pressPoses.add(matrix);
@@ -88,7 +89,7 @@ export function addDungeonFurniture(builder, collider, id, cpu, matrix, remap) {
     }
   }
   const floorRecord = coffinFloors.get(id);
-  const wooden = woodenCoffinLids.has(id) && getPref('enhancedDungeonProps') !== false;
+  const wooden = woodenCoffinLids.has(id) && dungeonDecorEnabled();
   let coffin;
   if (wooden) {
     if (!coffinMeshes.has(cpu)) coffinMeshes.set(cpu, buildWoodenCoffin(cpu, woodenCoffinLids.get(id), floorRecord));
@@ -99,8 +100,8 @@ export function addDungeonFurniture(builder, collider, id, cpu, matrix, remap) {
     rooms.get(collider).push(coffin);
     if (!floorRecord) return true;
   }
-  if (!floorRecord && hasDungeonPropProfile(id) && getPref('enhancedDungeonProps') !== false) return false;
-  if (!floorRecord || getPref('enhancedDungeonProps') === false) {
+  if (!floorRecord && hasDungeonPropProfile(id) && dungeonDecorEnabled()) return false;
+  if (!floorRecord || !dungeonDecorEnabled()) {
     builder.add(cpu, matrix, remap);
     return true;
   }

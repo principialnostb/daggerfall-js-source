@@ -339,3 +339,24 @@ idle breathing, draw/sheath or attack clips. Accepted placement, 22-unit grip an
 The correction lives in axeViewPlacement.js; createFpArm only passes its existing movement-state flag and does not grow.
 This is a visual tuning judgement, not a DFU combat-law change (reference remains FPSWeapon's sprite presentation).
 All four hosts keep their existing shared first-person seam. In-game owner review remains the visual acceptance.
+
+
+## Enhanced two-handed War Axes (2026-11-11)
+
+The owner required each axe's original style and a matching haft, then extended the prototype to all two-handed War Axe variants. The generic brown leather replacement is retired. The generator reads local ESM/ESP weapon records of Morrowind type 8 and resolves their meshes across local BSAs. Ten distinct models are available here, including expansion and unique models. Every model retains all original shape batches, texture paths, UVs, vertex colours, material colours, head width and topology. Only the haft's longitudinal span grows where the original is shorter than the 86.04-unit reference. Head geometry translates without stretching; existing longer axes are not shortened. Normals account for the haft deformation. Missing custom meshes remain on their original model.
+
+The resolver enhances the selected record, rather than replacing every material with the same steel mesh. Record identity, material, attack speed and gameplay data stay intact. An explicit Skyrim skin remains separate. The shared record picker supplies both preload and assembly; first-person assembly applies the existing long-axe grip offset. All four scene hosts remain unchanged. Wide ready grip and gait-angle reduction cover the generated model family; attack clips retain control. Improved models remain local ignored derivatives of the player's own files. The source paintings remain in their existing archives; no Skyrim texture or generic leather sheet is applied.
+
+Reference: [DFU FPSWeapon.GetWeaponRect](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Game/FPSWeapon.cs) positions a sprite. This continues the approved 3D presentation departure. The owner also required one-handed and two-handed axes to stay separate in appearance selection. The 2D class table now separates templates 127 and 128 from the blunt/staff family and each other. Existing incompatible saved 2D choices fail current-choice validation. The 3D picker and runtime retain the exact weapon type filter; a stale one-handed record cannot resolve for type 8.
+
+Tests in enhancedBattleaxe.test.js sweep real retail axe records, preserved geometry/material identity and both appearance filters. axeModMotion.test.js checks the shared grip across eight ReAnimation movement groups. Types and changed-file lint pass. In-world visual acceptance across all variants and attack arcs remains open. Broad bible gates and the pre-existing createFpArm ceiling failure remain outside this slice.
+
+
+### Equip/unequip adapted to the diagonal grip (2026-11-11)
+
+The owner confirmed that excluding the ready solve fixed moving sheathing, then reported the visible change from the clip's vertical grip to the diagonal ready grip. The initial exclusion is replaced with action-keyed pose adaptation. After the equip attach key, a smooth curve blends the authored action toward the ready hands; before unequip detach it blends back. Reversed-equip fallback maps its attach key into reverse playback. Missing keys use the action's full interval. This changes pose targets, not clip speed, visibility markers or camera placement.
+
+The target is sampled from the current idle or locomotion clip at its own phase, independently of the action being adapted. The same two-hand solve therefore meets the actual ready pose at the boundary, instead of turning an already finished animation on a separate timer. Moving gait rotation never samples the equip/unequip transforms. Existing shoulder anchors and arm lengths remain under the skeleton solver. The first-person host steps this module after advancing the animation clocks; its existing call moves, with no new host statements. Skyrim and enhanced axe families share the adaptation.
+
+Reference remains DFU FPSWeapon's sprite presentation; this continues the established 3D departure. The four scene hosts remain on their shared arm seam. Real ReAnimation tests check attach/detach endpoints, reverse playback, ready hand positions at rest and in all eight locomotion groups, plus the fallback when no action timeline is supplied. Nine focused tests, types and lint pass. In-game visual acceptance of the adapted trajectories remains open.
+

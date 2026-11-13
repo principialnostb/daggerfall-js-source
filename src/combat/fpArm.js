@@ -1,3 +1,4 @@
+import { loadGroundLootModel, THIRD_PERSON_HORIZONTAL_SCALE, THIRD_PERSON_HEIGHT_SCALE } from '../render/mwGroundLoot.js';
 import { itemOwnStyle } from '../systems/item/itemAppearanceKey.js';
 import { stepFittingCloth } from '../render/fittingCloth.js';
 import { figureFraming } from '../render/figureFraming.js';
@@ -432,7 +433,7 @@ import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace, carriesBlen
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
 import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
 import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE: the striking arm's hitstop
-import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, flowStyle, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
+import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, flowStyle, createVariantCycle, bashesNow, stopsMoving, stopWeightAt } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { spinePitchFactor, spineAimSlot } from './spineAim.js';   // BOW-AIM: the third-person body's ranged aim follows the look
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
 import { spellFxPlan } from '../formats/morrowind/mwSpellFx.js';   // MW-SPELLFX1: which visuals a spell wears
@@ -2263,13 +2264,13 @@ export function fitThirdPersonCloak(arm, underSlots) {
   const isGear = (p) => HOLSTER_SLOTS.includes(p.slot) || /^shield-back\b/i.test(p.slot ?? '');
   const isFollowGear = (p) => isGear(p) && !isHipSheath(p) && !/^shield-back\b/i.test(p.slot ?? '');   // SHIELD-SEAT: the seated shield presses the cloth, it is not held clear of it
   const covered = (slot) => underSlots.has(slot) && slot !== 'tail' && !/^shield\b/.test(slot);
-  const cloak = underSlots && !arm.pieces.some((p) => isWolfCloakSlot(p.slot)) ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot), poses: simplyCloakMode() ? undefined : CLOAK_STILL_POSES }) : null;
+  const cloak = underSlots && !arm.pieces.some((p) => isWolfCloakSlot(p.slot)) ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot), poses: CLOAK_STILL_POSES }) : null;   // CLOAK-BODY: the collar is pinned, so the arms' and blows' poses are fitted for the animated cloak too
   // Give the back-mounted shield a real air gap from the torso, not just the
   // cloak's one-unit clearance. fitStowedGear moves rigid slung pieces along -Y
   // until they clear the cloak; the larger clearance is isolated to this call
   // so ordinary holsters keep their existing fit.
   const hasBackShield = arm.pieces.some((p) => /^shield-back\b/i.test(p.slot ?? ''));
-  const gear = fitStowedGear(arm, { isCloak, isGear, shieldClearance: hasBackShield ? 1.5 : undefined });
+  const gear = fitStowedGear(arm, { isCloak, isGear, shieldClearance: hasBackShield ? 1.5 : undefined, pressed: vanillaAnimatedCloaksEnabled() || simplyAnimatedCloaksEnabled(), isUnder: (p) => (underSlots ? covered(p.slot) : !/^(shield\b|tail$)/.test(p.slot ?? '')) });   // SHIELD-SEAT: animated cloth is pressed under the shield, the shield stops short of the body
   const follow = followCloak(arm, { isCloak, isGear: isFollowGear });
   const notes = (gear ?? []).filter((r) => r.how === 'unresolved').map((r) => (r.slung
     ? `holster @ ${r.bone}: over the cloak it would hang more than ${SLUNG_MOVE_LIMIT} units off the back - it hangs as it was`
@@ -2564,7 +2565,7 @@ export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, 
         const bone = typed === 'Weapon Bone' || skeletonHasBone(skeletonBytes, typed)
           ? typed : 'Weapon Bone';
         const weaponBytes = nifBytes(arc, path);
-        parts.push({ slot: 'weapon', bones: [bone], bytes: weaponBytes });
+        parts.push({ slot: 'weapon', bones: [bone], bytes: weaponBytes, ...(firstPerson && rec.firstPersonAttitude ? { preTransform: rec.firstPersonAttitude } : {}) });
         weaponInfo = { id: rec.id, name: rec.name, model: rec.model, type: mwType, bone,
           // MW-D28: the record's own attack speed (character.cpp:1326).
           speed: rec.speed || 1 };
@@ -4992,6 +4993,13 @@ export function groundThirdPersonModel(model, bodyMinZ, feetY) {
   return grounded;
 }
 
+/** A finished death pose has its own support height. Standing support
+ * stays latched during the fall so the animation can play normally. */
+export function thirdPersonSupportZ(body, standingZ, death) {
+  if (death && death.time >= death.stopTime && Number.isFinite(body?.minZ)) return body.minZ;
+  return Number.isFinite(standingZ) ? standingZ : body?.minZ;
+}
+
 export function createFpArm({ playerAppearance = false } = {}) {
   let renderer = null;
   let camera = null;
@@ -5036,7 +5044,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let thirdBlendElapsed = 0;
   // BLOW-FLOW (combat/blowFlow.js): the blows' serial and kinds the views' blends read, the first person's own blend, the
   // window held after a blow, the attack windows played in turn, and a thrust behind a shield that bashes
-  let blowSerial = 0, thirdPoseKind = 'pose', thirdBlendSeconds = null, recoverHeld = 0, blowBash = false, blowHit = false, seriesWanted = false, bashExit = 0;
+  let blowSerial = 0, thirdPoseKind = 'pose', thirdBlendSeconds = null, thirdBlendStop = false, recoverHeld = 0, blowBash = false, blowHit = false, seriesWanted = false, bashExit = 0;
   const blowVariants = createVariantCycle();
   const fpBlend = { state: null, kind: 'pose', from: null, elapsed: 0, seconds: 0, at: -1 };
 
@@ -5669,8 +5677,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // the front, side, and rear instead of looking wider in only one camera angle.
   // A very small height reduction balances the broader shoulders/torso without
   // changing animation tracks, first-person arms, race records, or source NIFs.
-  const THIRD_PERSON_HORIZONTAL_SCALE = 1.22;
-  const THIRD_PERSON_HEIGHT_SCALE = 0.96;
   /** MW-D24 / MWNPC16: the third body's world model matrix at `feet` facing `yaw`, `grow` times its size about its feet
    *  (drawThird's own placement, one home for the draw and the cast). */
   function thirdModel(feet, yaw, grow = 1) {
@@ -8461,7 +8467,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
       stepPairGuard(dt);   // TWO-HANDS AUDIT: the pair's guard
       stepPairSpread(dt);   // TWO-HANDS SPREAD: the pair's arms turned out
       stepRifle(cam, dt);   // RIFLE-STANCE: the long gun's hold
-      stepAxePlacement(built, weaponInHand() && !handsTaken(built) && !cam?.seat && !cam?.saddle, dt, attackingNow(), !!movementState);
       // refreshCurrentAnims' order, and it is not arbitrary: the weapon
       // state is stepped FIRST because the idle refresh below depends on
       // it - "idle handled last as it can depend on the other states"
@@ -8615,7 +8620,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, modSetting('morrowind-animation', 'MotionDoctrine') !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
               thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
               thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
-              thirdBlendElapsed = 0; thirdBlendSeconds = seconds;
+              thirdBlendElapsed = 0; thirdBlendSeconds = seconds; thirdBlendStop = seconds == null && stopsMoving(thirdPoseState, state) && modSetting('morrowind-animation', 'MotionDoctrine') !== 0;   // STOP-EASE
             }
             thirdPoseState = state; thirdPoseSource = poseSource; thirdPoseKind = kindNow;
           }
@@ -8628,7 +8633,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             : 1;
           const easedReactionRule = hitReactionTransitionBlend(thirdBlendFromSource, poseSource, blendProgress);
           const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
-            ? (easedReactionRule?.weight ?? (thirdBlendSeconds != null ? blendWeightAt(thirdBlendElapsed, blendDuration) : blendProgress))
+            ? (easedReactionRule?.weight ?? (thirdBlendSeconds != null ? blendWeightAt(thirdBlendElapsed, blendDuration) : thirdBlendStop ? stopWeightAt(thirdBlendElapsed, blendDuration) : blendProgress))
             : 1;
           if (globalThis.__armTrace?.on) globalThis.__armTrace.clip = { g: state?.group, time: +Number(poseTime(state)).toFixed(4), win: [state?.startTime, state?.stopTime], src: poseSource?.name, blendW: +Number(thirdBlendWeight).toFixed(3), blendFrom: !!thirdBlendFrom, la: [leftArm.group?.(), +leftArm.weight().toFixed(3)], ub: [upperBody.group?.(), +upperBody.weight().toFixed(3)] };   // TEMP ARM-TRACE
           poseAssembly(t.arm, {
@@ -8772,12 +8777,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
             if (rigidGear.length && clothPieces.length && cloakGearDue(t.arm, dt)) {
               const requests = [
                 ...rigidGear.map((piece) => ({ piece })),
-                ...clothPieces.map((piece) => ({ piece, batch: { ...piece.batch, positions: piece.clothPhysics.pos } })),
+                // SHIELD-SINK: each cloth as it stands and as fitted - the press is taken from the fit, not from the last press
+                ...clothPieces.flatMap((piece) => [piece.clothPhysics.pos, piece.clothPhysics.base].map((positions) => ({ piece, batch: { ...piece.batch, positions } }))),
               ];
               const posed = posePiecePositions(t.arm, t.arm.pose, requests);
               const surfaces = rigidGear.map((piece, i) => ({ positions: posed[i], indices: piece.indices }));
               for (let i = 0; i < clothPieces.length; i++) {
-                resolveCloakShieldContact(clothPieces[i], posed[rigidGear.length + i], surfaces, null);
+                resolveCloakShieldContact(clothPieces[i], posed[rigidGear.length + 2 * i], surfaces, null, posed[rigidGear.length + 2 * i + 1]);
               }
             }
           }
@@ -8856,6 +8862,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       fpBlend.elapsed += Math.max(0, dt);
       posePartClocks(built.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
       built.thumbFist?.step(dt, animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand);   // THUMB-FIST: the fist's thumb
+      stepAxePlacement(built, weaponInHand() && !handsTaken(built) && !cam?.seat && !cam?.saddle, dt, attackingNow(), !!movementState, UPPER_BODY_NAME[upper], actionState, actionSource, movementState || idleState, movementState ? movementSource : idleSource);
       poseAssembly(built.arm, {
         tracks: fTracks,
         sampleTrack: fSampler,
@@ -9341,7 +9348,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // transform; that feedback makes the feet/pelvis bob and the legs appear to
       // twitch, especially from a low upward camera angle.
       if (!playerAppearance && body && thirdGroundMinZ == null) thirdGroundMinZ = body.minZ;
-      const supportMinZ = Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
+      const supportMinZ = thirdPersonSupportZ(body, thirdGroundMinZ, deathState);
       const groundedModel = !horse && body && Number.isFinite(supportMinZ) ? groundThirdPersonModel(model, supportMinZ, feet[1]) : model;
       const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
@@ -9439,7 +9446,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const reach = renderer.shadowReachSphere;
       const mid = Math.hypot(((minX + maxX) / 2) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE, ((minY + maxY) / 2) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE, ((minZ + maxZ) / 2) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE);
       if (reach && !renderer.shadowReachSphere(feet[0], feet[1], feet[2], Math.hypot(halfW, halfH) + mid)) return false;
-      const model = thirdModel(feet, yaw, grow);
+      const rawModel = thirdModel(feet, yaw, grow);
+      const model = deathState ? groundThirdPersonModel(rawModel, thirdPersonSupportZ(visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS), thirdGroundMinZ, deathState), feet[1]) : rawModel;
       const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       if (reach && !renderer.shadowReachSphere(center[0], center[1], center[2], Math.hypot(halfW, halfH))) return false;
       castBody(model, center, halfW, halfH, anchored);
@@ -9530,6 +9538,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
       ITEM_ICON_CACHE.set(ckey, pic);
       return pic;
     },
+
+    groundLootModel: (item, decorModel = null) => loadGroundLootModel(item, built?.ok ? built.catalog : null, renderer, {
+      iconRecordOf, loadFromArchives, flattenNif, parseNif, preloadArmTextures, texturesUnread,
+      stamp: api.mountPictureStamp, NIF_TO_PASS, packFpArm, hangRangeTextures, collectArmTextures, releaseGpu,
+    }, decorModel),
 
     /** MW-MOUNT: the stamp a displayed item's picture is good for - the
      *  build's data generation while one stands, else null. A host that

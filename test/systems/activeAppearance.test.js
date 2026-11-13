@@ -21,11 +21,14 @@ test('body group controls portrait and paperdoll identity while preserving the s
   let finish;const pending=currentAppearanceResult(()=>new Promise(resolve=>{finish=resolve;}),{});
   setModGroupEnabled('bodies',false);
   assert.equal(activeAppearanceIdentity(),null);
-  assert.deepEqual(paperDollDisplayIdentity(entity),entity);
+  assert.deepEqual(paperDollDisplayIdentity(entity),{...entity,gender:'female'});
   assert.notEqual(appearanceDisplayKey(),enabledKey);
   assert.notEqual(playerHeadKey(entity),portraitKey);
   finish({pixels:'old editor face'});assert.equal(await pending,null);
   assert.deepEqual(getAppearanceIdentity(),saved);
+  setAppearanceIdentity({...saved,female:false});
+  assert.equal(paperDollDisplayIdentity({...entity,gender:'female'}).gender,'male');
+  setAppearanceIdentity(saved);
   setModGroupEnabled('bodies',true);
   assert.equal(appearanceDisplayKey(),enabledKey);
   assert.equal(paperDollDisplayIdentity(entity).faceIndex,4);

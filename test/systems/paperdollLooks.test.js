@@ -9,6 +9,9 @@ import { inventoryItemImage } from '../../src/systems/item/itemTemplates.js';
 import { paperdollItemImage, paperdollCloakLining } from '../../src/ui/paperDoll.js';
 import { getTemplate } from '../../src/characters/paperdoll/paperdoll.js';
 import { EQUIP_SLOTS } from '../../src/systems/equip.js';
+import { clothingDisplayTemplate } from '../../src/systems/item/clothingDisplay.js';
+import { clothingKind } from '../../src/systems/item/clothingKinds.js';
+import { ITEM_TEMPLATES } from '../../src/systems/item/itemTemplates.js';
 import { dedupeAndFrame, unionBounds, artBounds, lookLabel } from '../../src/ui/enhanced/paperdollAppearancePicker.js';
 
 const keep = (fn) => async () => {
@@ -61,11 +64,39 @@ test('GARMENT-KINDS: a garment is offered every style of every garment of its ki
   assert.equal(inventoryItemImage(straps).record, layer.record);
   assert.deepEqual(paperdollLookOf(straps), shirt, 'kept with its template and style');
   const robes = paperdollLookChoices({ group: 'MensClothing', templateIndex: 163, variant: 0 }).map((c) => getTemplate(c.t)?.name);
-  assert.ok(robes.includes('Kimono') && robes.includes('Toga') && !robes.includes('Short Shirt'));
+  assert.ok(robes.includes('Toga') && !robes.includes('Kimono') && !robes.includes('Short Shirt'));
   // records two garments share are one card (Casual Pants' third style is the Breeches' first record)
   const legs = paperdollLookChoices({ group: 'MensClothing', templateIndex: 151, variant: 0 });
   const records = legs.map((c) => `${getTemplate(c.t ?? 151).playerTextureRecord + (c.v ?? 0)}`);
   assert.equal(new Set(records).size, records.length);
+}));
+
+test('all clothing choices preserve coverage and use the requested body sheet, including unmatched gender names', keep(() => {
+  assert.equal(clothingKind(getTemplate(194)), 'full', 'Formal Eodoric is a dress');
+  assert.equal(clothingKind(getTemplate(157)), 'top', 'Dwynnen Surcoat is a top');
+  assert.equal(clothingKind(getTemplate(176)), 'top', 'Anticlere Surcoat is a top');
+  assert.equal(clothingKind(getTemplate(143)), 'top', 'the native Kimono art covers the torso');
+  assert.equal(clothingKind(getTemplate(185)), 'sash', 'Eodoric is a sash');
+  assert.deepEqual(paperdollLookChoices({ group: 'WomensClothing', templateIndex: 183, variant: 4 }, { gender: 'female' }), []);
+  for (let index = 141; index <= 216; index++) for (const gender of ['male', 'female']) {
+    const template = getTemplate(index), kind = clothingKind(template);
+    assert.ok(kind, `unclassified clothing ${index}`);
+    const display = clothingDisplayTemplate(template, gender, ITEM_TEMPLATES);
+    const sheet = gender === 'female' ? 235 : 239;
+    assert.equal(clothingKind(display), kind, `${index} changes coverage for ${gender}`);
+    const item = { group: index < 182 ? 'MensClothing' : 'WomensClothing', templateIndex: index, variant: 0, dye: 3 };
+    assert.equal(display.playerTextureArchive, sheet, `${index} retains wrong gender`);
+    for (const look of paperdollLookChoices(item, { gender })) {
+      const chosen = getTemplate(look.t ?? display.index);
+      assert.equal(chosen.playerTextureArchive, sheet);
+      assert.equal(clothingKind(chosen), kind, `${index} offers ${chosen.name}`);
+      const layer = paperdollItemImage(item, { gender }, { look });
+      assert.equal(layer.archive, sheet + 2);
+      assert.equal(layer.record, chosen.playerTextureRecord + (chosen.name.includes('Cloak') ? 1 : 0) + (look.v ?? 0));
+    }
+  }
+  const shirt = { group: 'WomensClothing', templateIndex: 202, variant: 0 };
+  assert.ok(!paperdollLookChoices(shirt, { gender: 'female' }).some(l => l.t === 194));
 }));
 
 test('a weapon or shield is drawn as another template of its class and hands; the hand law follows the picture', keep(() => {

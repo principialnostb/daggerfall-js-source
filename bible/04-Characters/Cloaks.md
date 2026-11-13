@@ -47,21 +47,39 @@ it", and it costs frames. Read offline on the steel body (1949 cloth points): th
 cloak to the whole body every frame, 14.4 ms, beside the cloth's own 2.2; standing still the cloth drifted 3.5 units
 off its fit and stayed there; the stowed shield stood 9.3 units behind the cloak.
 
-- The cloth now meets ten capsules on the live bones, in its own bind space
-  (src/formats/morrowind/mwCloakColliders.js:"export function cloakColliders(arm, piece) {"). A capsule is never wider
-  than the fitted cloth leaves room for at rest. The per-frame refit is gone.
+- The cloth met ten capsules on the live bones, in its own bind space; the per-frame refit is gone. (Replaced by
+  CLOAK-BODY below.)
 - Each free point goes a share of its way home to the fitted shape every frame
-  (src/formats/morrowind/mwCloakPhysics.js:"const MEMORY = Object.freeze([0.1, 0.035]);").
-- An animated cloak is fitted to four poses; a still one keeps the blows' and deep stances' too
-  (src/formats/morrowind/mwCloakFit.js:"export const CLOAK_STILL_POSES = Object.freeze([...CLOAK_FIT_POSES,").
-- The stowed shield sits where half its points clear the cloak, and may be drawn in to it
-  (src/formats/morrowind/mwCloakFit.js:"export const SHIELD_SEAT = 0.5;"). It is no longer re-tied to the cloak every
-  pose; the cloth under it is pressed in, four units at most. Its footprint is taken five times a second.
+  (src/formats/morrowind/mwCloakPhysics.js:"const MEMORY = Object.freeze(").
+- An animated cloak was fitted to four poses, a still one to eleven. (CLOAK-BODY below: both to eleven.)
+- The stowed shield sat where half its points cleared the cloak (SHIELD-SINK below). It is no longer re-tied to the
+  cloak every pose; the cloth under it is pressed in, four units at most. Its footprint is taken five times a second.
 
 Read after: 1.1 ms a frame; 0.45 units off the fit standing; nothing through the cloak in any pose of the sweep; the
 shield 1.7 units off the cloak. Seen in the lab on the woman in steel, standing and running. Open: slung weapons
 (a greatsword, a bow) still stand clear at every point; the man, other shields and the Simply mesh are not yet seen.
 All four hosts share fpArm. The port's own; OpenMW's pack swaps pre-bent meshes.
+Test: test/formats/morrowind/cloakcontact.test.js.
+
+## CLOAK-BODY and SHIELD-SINK (2026-11-13)
+
+The owner, 2026-11-13: after CLOAK-CONTACT, legs and armour came through the cloak, the walk looked worse, and the
+stowed shield sat wrong. Read offline on the steel body, moving: the capsules sat on the bones, thinner than the
+plate, and met 0-2 of 1949 points a stride. A walk sent 30 edges through, a sprint 202 (8.8 units deep). The pinned
+collar, fitted to four poses, took a pauldron on an arm swung back. Half the shield stood past the cloak, and the cloth
+came through the rest. The press read the pressed cloth, so it changed every footprint (2.38, 0.38, 2.00 units).
+
+- The cloth meets the worn pieces' own posed surface: their backmost y over each unit of the cloak's (x, z), in its
+  bind space, rounded two units sideways (src/formats/morrowind/mwCloakColliders.js:"export function cloakColliders(").
+  It costs 0.65 ms a frame.
+- Every cloak is fitted to the eleven poses
+  (src/formats/morrowind/mwCloakFit.js:"export const CLOAK_STILL_POSES = Object.freeze([...CLOAK_FIT_POSES,").
+- The hem's shape memory is 0.015, not 0.035: the walk swing is 10.0 units again (8.6 before).
+- Over an animated cloak the shield is drawn in to 1 unit off the body, the cloth pressed 4 units at most
+  (src/formats/morrowind/mwCloakFit.js:"export const SHIELD_PRESS = 4;"). The press is read off the fitted cloth.
+
+Read after: walk and stride 0 edges through, sprint 18 (0.3 units deep); standing 0.54 off the fit; the steel shield
+4 units nearer than over a still cloak, 2.4 off the body, no cloth through it. Not yet seen in the game or the lab.
 Test: test/formats/morrowind/cloakcontact.test.js.
 
 ## Current known limitation

@@ -1,4 +1,5 @@
 import { itemAppearanceKey } from './item/itemAppearanceKey.js';
+import { clothingKind } from './item/clothingKinds.js';
 import { clothingDisplayTemplate } from './item/clothingDisplay.js';
 import { ITEM_TEMPLATES } from './item/itemTemplates.js';
 // PAPERDOLL-LOOKS (BLOODBATH, 2026-11-08; bible/10-UI/Enhanced-Mod-Compatibility.md "2D card looks"): THE 2D LOOK OF A
@@ -39,7 +40,7 @@ export const PAPERDOLL_CLASSES = Object.freeze({
   109: 'shield', 110: 'shield', 111: 'shield', 112: 'shield',
   113: 'blade', 114: 'blade', 116: 'blade', 117: 'blade', 118: 'blade', 119: 'blade', 120: 'blade', 121: 'blade',
   122: 'blade', 123: 'blade',
-  115: 'hafted', 124: 'hafted', 125: 'hafted', 126: 'hafted', 127: 'hafted', 128: 'hafted',
+  115: 'hafted', 124: 'hafted', 125: 'hafted', 126: 'hafted', 127: 'axe-one-hand', 128: 'axe-two-hand',
   129: 'bow', 130: 'bow',
 });
 
@@ -48,20 +49,10 @@ export const PAPERDOLL_CLASSES = Object.freeze({
  *  garment of its kind on its own body's sheet (Daggerfall's men's 141-181 on archive 239, women's 182-216 on 235), its
  *  dye kept. Paperdoll Enhanced adds no record to choose (it repaints the same 111 clothing and 37 armour records, by dye
  *  and metal, women's archives alone - measured 2026-11-08), so the kinds are what widen the choice. */
-export const GARMENT_KINDS = Object.freeze({
-  top: ['Straps', 'Challenger Straps', 'Champion Straps', 'Armbands', 'Fancy Armbands', 'Eodoric', 'Formal Eodoric', 'Short Tunic',
-    'Formal Tunic', 'Reversible Tunic', 'Open Tunic', 'Short Shirt', 'Long Shirt', 'Vest', 'Brassiere', 'Formal Brassiere', 'Peasant Blouse'],
-  full: ['Kimono', 'Toga', 'Dwynnen Surcoat', 'Anticlere Surcoat', 'Plain Robes', 'Priest Robes', 'Priestess Robes', 'Evening Gown',
-    'Day Gown', 'Casual Dress', 'Strapless Dress', 'Khajiit Suit'],
-  legs: ['Casual Pants', 'Breeches', 'Loincloth', 'Tights', 'Short Skirt', 'Long Skirt', 'Wrap'],
-  feet: ['Shoes', 'Sandals', 'Boots', 'Tall Boots'],
-  cloak: ['Casual Cloak', 'Formal Cloak'],
-  sash: ['Sash'],
-});
-const KIND_OF_NAME = new Map(Object.entries(GARMENT_KINDS).flatMap(([kind, names]) => names.map((n) => [n, kind])));
+export { GARMENT_KINDS } from './item/clothingKinds.js';
 const CLOTHING_TEMPLATES = Array.from({ length: 216 - 141 + 1 }, (_, i) => 141 + i);
 /** A garment template's kind, or null. */
-export const garmentKindOf = (templateIndex) => KIND_OF_NAME.get(getTemplate(templateIndex)?.name) ?? null;
+export const garmentKindOf = (templateIndex) => clothingKind(getTemplate(templateIndex));
 /** The garments of a kind drawn on the same sheet as this one, own first. */
 const garmentsLike = (piece) => {
   const kind = garmentKindOf(piece.templateIndex), sheet = getTemplate(piece.templateIndex)?.playerTextureArchive;
@@ -119,7 +110,10 @@ export function paperdollLookChoices(item, identity = undefined) {
   const mode = paperdollLookMode(item);
   if (!mode) return [];
   const original = drawnPiece(item);
+  if (original.templateIndex === 183 && original.variant === 4) return []; // This native brassiere variant is a sash.
   const display = clothingDisplayTemplate(getTemplate(original.templateIndex), identity?.gender, ITEM_TEMPLATES);
+  const sheet = identity?.gender === 'female' ? 235 : identity?.gender === 'male' ? 239 : null;
+  if (mode === 'garment' && sheet && display?.playerTextureArchive !== sheet) return [];
   const piece = display && CLOTHING_GROUPS.has(original.group) ? { ...original, templateIndex: display.index } : original;
   const t = getTemplate(piece.templateIndex);
   const seen = new Set();
@@ -131,6 +125,7 @@ export function paperdollLookChoices(item, identity = undefined) {
     ? Array.from({ length: t.variants }, (_, v) => ({ v }))
     : mode === 'garment'
       ? garmentsLike(piece).flatMap((x) => Array.from({ length: stylesOf(x) }, (_, v) => (x === piece.templateIndex ? { v } : { t: x, v })))
+        .filter((l) => !((l.t ?? piece.templateIndex) === 183 && l.v === 4)) // Female record 7 is a sash, not a brassiere.
         .filter((l) => hoodUp({ ...piece, templateIndex: l.t ?? piece.templateIndex, variant: l.v }) === hooded)
       : Object.keys(PAPERDOLL_CLASSES).map(Number).filter((x) => classKey(x) === classKey(piece.templateIndex)).map((x) => ({ t: x }));
   for (const look of candidates) {

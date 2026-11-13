@@ -154,7 +154,8 @@ export const WRITERS = {
     // bounds is a file that lies, so it is computed rather than zeroed.
     const { center, radius } = boundingSphere(rec.positions);
     o.vec3(center).f32(radius);
-    o.bool(false);                                    // no vertex colours
+    o.bool(!!rec.colors);
+    if (rec.colors) o.f32Array(rec.colors);
     // At 4.0.0.2 the uv-set COUNT is a uint16 and a separate bool gates
     // whether any are written at all. Both, in that order.
     o.u16(rec.uvs ? 1 : 0).bool(!!rec.uvs);
@@ -392,7 +393,7 @@ export function meshesToNif(shapes, { node = null, keepV = false } = {}) {
 /** One shape's records under root 0 - the shape, its data, material, texturing, stencil and source - and, for a
  *  skinned one (MW-STEEL4), its skin instance and data after them. A rigid shape is the records meshesToNif always
  *  wrote, in the same order. */
-function shapeRecords(records, { mesh, texture = null, name = '', skin = null, alphaTest = false }, keepV) {
+function shapeRecords(records, { mesh, texture = null, name = '', skin = null, alphaTest = false, material = null }, keepV) {
   if (!mesh?.positions?.length) throw new Error('this mesh has no positions');
   if (!mesh.indices?.length) throw new Error('this mesh has no triangles');
   // V GOES DOWN in a NIF. See the header.
@@ -405,8 +406,8 @@ function shapeRecords(records, { mesh, texture = null, name = '', skin = null, a
   records.push(
     // the shape. NAMELESS unless named - see the header's MW-D6 note; a skinned part's shape is named for rule 15
     { type: 'NiTriShape', name, data: at + 1, properties: [at + 2, at + 3, at + 4], ...(skin ? { skin: skinAt } : {}) },
-    { type: 'NiTriShapeData', positions: mesh.positions, normals: mesh.normals, uvs, indices: mesh.indices },
-    { type: 'NiMaterialProperty', name: `${mesh.name ?? 'mesh'}Material` },
+    { type: 'NiTriShapeData', positions: mesh.positions, normals: mesh.normals, colors: mesh.colors, uvs, indices: mesh.indices },
+    { ...material, type: 'NiMaterialProperty', name: `${mesh.name ?? 'mesh'}Material` },
     { type: 'NiTexturingProperty', textures: [texture ? { source: at + 5 } : null] },
     { type: 'NiStencilProperty', drawMode: 3 },       // rule 65: Both
   );

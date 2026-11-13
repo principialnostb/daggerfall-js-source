@@ -178,8 +178,8 @@ const EN = new Map([
     "3D customization"
   ],
   [
-    "Меняет 3D-модель предметов на вашем персонаже: броню — на любую модель Morrowind её весового класса, одежду и оружие — на модели того же типа, плюс дополнительные облики ниже, если они подключены. Облик видите только вы: другие игроки видят прежнюю модель. Выберите предмет в инвентаре — вкладка «3D».",
-    "Changes the 3D model of items on your character: armor to any Morrowind model of its weight class, clothing and weapons to models of the same type, plus the additional looks below when connected. Only you see it: other players keep the original model. Pick an item in the inventory, tab \"3D\"."
+    "Меняет 3D-модель предметов на вашем персонаже: броню — на любую модель Morrowind её весового класса, одежду и оружие — на модели того же типа, плюс дополнительные облики из раздела «Предметы и снаряжение», если они подключены. Облик видите только вы: другие игроки видят прежнюю модель. Выберите предмет в инвентаре — вкладка «3D».",
+    "Changes the 3D model of items on your character: armor to any Morrowind model of its weight class, clothing and weapons to models of the same type, plus the additional looks in Items and equipment when connected. Only you see it: other players keep the original model. Pick an item in the inventory, tab \"3D\"."
   ],
   [
     "Отключить кастомизацию 3D",
@@ -230,12 +230,28 @@ const EN = new Map([
     "Requires the Bodies and hands group: Better Bodies / Better Hands."
   ],
   [
-    "Костёр",
-    "Campfire"
+    "Объёмные источники света",
+    "3D Light Fixtures"
   ],
   [
-    "Объёмные поленья, угли и пламя с пикселизацией и подгонкой к поверхности. Ресурсы входят в сборку.",
-    "Adds 3D logs, embers and flames with pixelation and ground alignment. Included with the build."
+    "Объёмный лут",
+    "3D Loot"
+  ],
+  [
+    "Улучшенные предметы декора",
+    "Improved Decorative Props"
+  ],
+  [
+    "Объёмные цепи, колонны и скелетный декор в подземельях.",
+    "Adds 3D chains, columns and skeletal decor to dungeons."
+  ],
+  [
+    "Заменяет спрайты куч лута в подземельях объёмными моделями.",
+    "Replaces dungeon loot pile sprites with 3D models."
+  ],
+  [
+    "Объёмные костры, факелы, жаровни, свечи, люстры и фонари.",
+    "Adds 3D campfires, torches, braziers, candles, chandeliers and lanterns."
   ],
   [
     "Включение и отключение применяется после перезапуска игры.",
@@ -351,8 +367,6 @@ EN.set("Предплечья и текстуры кожи для рук от п�
 EN.set("Кисти от первого лица. Используются вместе с предплечьями Robert’s Bodies и геометрией кулака Better Bodies.","First-person hands. Uses Robert’s Bodies arms and Better Bodies fist geometry.");
 EN.set("Модели тел зверорас. При отсутствии совместимых файлов сохраняются стандартные модели.","Beast-race bodies. Missing compatible files retain standard models.");
 EN.set("Железные перчатки от первого лица, подогнанные к улучшенным кистям. Другие перчатки сохраняют прежний вид.","First-person iron gauntlets fitted to improved hands. Other gauntlets retain their existing appearance.");
-EN.set("Комплекты брони из TESO 5","Armor sets from TESO 5");
-EN.set("Комплекты оружия из TESO 5","Weapon sets from TESO 5");
 EN.set("Требуется указать путь к файлам игры Skyrim SE.","Requires the path to your Skyrim SE game files.");
 EN.set("Сейчас доступна железная броня.","Currently available: iron armor.");
 EN.set("Сейчас доступна двуручная стальная секира.","Currently available: two-handed steel battleaxe.");
@@ -360,6 +374,16 @@ EN.set("Тела и руки — Better Bodies / Better Hands","Bodies and hands
 EN.set("Анимация плащей","Cloak animation");
 EN.set("Интеграция: BLOODBATH","Integration: BLOODBATH");
 EN.set("Автор: BLOODBATH","Author: BLOODBATH");
+EN.set("Заменяет поддерживаемые кучи сокровищ в подземельях объёмными моделями.", "Replaces supported dungeon treasure piles with 3D models.");
+EN.set("3D-ассеты Morrowind подключены", "Morrowind 3D assets connected");
+EN.set("Обновляет декор подземелий. Требуются 3D-ассеты Morrowind.", "Updates dungeon decor. Requires Morrowind 3D assets.");
+EN.set("Чтобы увидеть все изменения, войдите в подземелье заново.", "Re-enter the dungeon to see all changes.");
+EN.set("Заменяет поддерживаемые источники света объёмными моделями. У горящих источников видно анимированное пламя.", "Replaces supported light fixtures with 3D models. Lit fixtures show animated flames.");
+EN.set("Заменяет поддерживаемые кучи сокровищ в подземельях объёмными моделями. Они размещаются на полу, мебели и других поверхностях.", "Shows dungeon caches and treasure piles as 3D models placed on floors, furniture, and other surfaces.");
+EN.set("3D-модели выпавших предметов", "3D Dropped Items");
+EN.set("Выпавшие и брошенные вещи видны в мире как 3D-предметы. Для вещей без подходящей модели используется завязанный мешочек.", "Dropped items appear as 3D objects in the world. Items without a suitable model appear in a tied pouch.");
+EN.set("Выпадение отдельных вещей настраивается в Physical Items (demifiend000).", "Individual drops are configured in Physical Items by demifiend000.");
+EN.set("Обновляет модели мебели, погребений и механизмов в подземельях. Чтобы увидеть все изменения, войдите в подземелье заново.", "Updates dungeon furniture, burial props, and mechanisms. Re-enter the dungeon to see all changes.");
 EN.set("Тела зверорас","Beast bodies");
 EN.set("Реакции на попадания","Hit reactions");
 EN.set("Анимации персонажа","Character animations");
@@ -374,13 +398,13 @@ EN.set("Ресурсы реакций применяются по сохранё
 EN.set("Единый профиль движения. ReAnimation и OpenMW дополняют друг друга; порядок применения сохраняется.","A fixed movement profile. ReAnimation and OpenMW complement each other in the existing overlay order.");
 EN.set("Общая связка тел, кожи, рук и перчаток. Компоненты включаются вместе.","A combined set of bodies, skin, hands and gauntlets. Components are enabled together.");
 EN.set("Меняет 2D-облик предметов на карточке персонажа в инвентаре: лицо, броню в пределах её материала, одежду — любую того же типа: верх, полное облачение, низ, обувь, плащ (с учётом поднятого или опущенного капюшона), оружие и щиты в пределах их класса. Облик видите только вы: мир и другие игроки видят прежний. Работает с Paperdoll Enhanced и без него. Выберите предмет в инвентаре — вкладка «2D».","Customize the 2D appearance of items on your inventory paperdoll: face, armor within its material, clothing to any garment of its type: top, full outfit, legs, feet, cloak (with separate hood-up and hood-down cloak looks), weapons and shields within their class. Only you see these changes; the world and other players keep the original appearance. Works with or without Paperdoll Enhanced. Select an inventory item and open the 2D tab.");
-EN.set("Меняет 3D-модель предметов на вашем персонаже: броню — на любую модель Morrowind её весового класса, одежду и оружие — на модели того же типа, плюс дополнительные облики ниже, если они подключены. Облик видите только вы: другие игроки видят прежнюю модель. Выберите предмет в инвентаре — вкладка «3D».","Customize 3D equipment on your character: armor can use Morrowind models of the same weight class; clothing and weapons use models of the same type. The additional looks below are available when connected. Only you see these changes; other players keep seeing the original model. Select an inventory item and open the 3D tab.");
+EN.set("Меняет 3D-модель предметов на вашем персонаже: броню — на любую модель Morrowind её весового класса, одежду и оружие — на модели того же типа, плюс дополнительные облики из раздела «Предметы и снаряжение», если они подключены. Облик видите только вы: другие игроки видят прежнюю модель. Выберите предмет в инвентаре — вкладка «3D».","Customize 3D equipment on your character: armor can use Morrowind models of the same weight class; clothing and weapons use models of the same type. Additional looks in Items and equipment are available when connected. Only you see these changes; other players keep seeing the original model. Select an inventory item and open the 3D tab.");
 EN.set("Выберите 2D-карточку персонажа или 3D-инвентарь. В режиме 2D модели Morrowind продолжают работать в игровом мире, а персонаж и значки предметов в инвентаре остаются двумерными. Paperdoll Enhanced улучшает 2D-карточку.","Choose a 2D paperdoll or a 3D inventory. In 2D mode, Morrowind models remain active in the game world, while the inventory character and item icons stay two-dimensional. Paperdoll Enhanced improves the 2D paperdoll.");
 EN.set("Работает без модов · улучшают:","Works without mods · enhanced by:");
 EN.set("Перерисовывает 2D-облики в высоком разрешении (женские персонажи)","Repaints the 2D looks in high resolution (female characters)");
 EN.set("Better Bodies и Better Hands: броня и одежда сидят на улучшенных телах","Better Bodies and Better Hands: armor and clothing fit the improved bodies");
 EN.set("Дополнительные облики","Additional looks");
-EN.set("Комплекты ниже добавляют варианты во вкладку 3D","The sets below add choices to the 3D tab");
+EN.set("Комплекты снаряжения добавляют варианты во вкладку 3D","Equipment sets add choices to the 3D tab");
 EN.set("подключено","connected");
 EN.set("не подключено","not connected");
 EN.set("Работает и без этих дополнений.","Works with or without these enhancements.");
@@ -396,3 +420,21 @@ export function emcText(value) {
   for (const [ru,en] of [...EN].sort((a,b)=>b[0].length-a[0].length)) text=text.split(ru).join(en);
   return text;
 }
+
+EN.set("Предметы и снаряжение","Items and equipment");
+EN.set("Комплекты снаряжения из TES 5","Equipment sets from TES 5");
+EN.set("Улучшенные секиры","Improved battleaxes");
+EN.set("Броня","Armor");
+EN.set("Оружие","Weapons");
+
+EN.set("Кастомизация 3D включена","3D customization enabled");
+EN.set("Тела Better Bodies подключены и включены","Better Bodies connected and enabled");
+EN.set("Железная броня","Iron armor");
+EN.set("Двуручная стальная секира","Two-handed steel battleaxe");
+EN.set("Волчьи шкуры: коричневая, белая и чёрная.","Wolf pelts: brown, white and black.");
+
+EN.set("Стальная двуручная секира: длинная рукоять, кожаная обмотка и широкий хват.","Two-handed steel battleaxe: a long haft, leather wrapping and a wide grip.");
+EN.set("Ресурсы улучшенной стальной секиры подключены","Enhanced steel battleaxe resources connected");
+
+EN.set("Двуручные War Axe: длинные рукояти, исходные материалы и широкий хват.","Two-handed War Axes: long hafts, original materials and a wide grip.");
+EN.set("Ресурсы улучшенных двуручных секир подключены","Enhanced two-handed axe resources connected");

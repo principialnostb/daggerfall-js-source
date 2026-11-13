@@ -7,7 +7,7 @@ test('EMC language translates all provider descriptions and dependency labels wi
  for(const item of [...MOD_PACKS,...MOD_GROUPS]){
   assert.doesNotMatch(emcText(item.description),/[А-Яа-я]/,item.id);
  }
- for(const text of ['Комплекты брони из TESO 5','Комплекты оружия из TESO 5','Требуется указать путь к файлам игры Skyrim SE.','Кастомизация 3D','Интеграция: BLOODBATH','Перевод'])assert.doesNotMatch(emcText(text),/[А-Яа-я]/);
+ for(const text of ['Предметы и снаряжение','Комплекты снаряжения из TES 5','Улучшенные секиры','Требуется указать путь к файлам игры Skyrim SE.','Кастомизация 3D','Интеграция: BLOODBATH','Перевод'])assert.doesNotMatch(emcText(text),/[А-Яа-я]/);
  assert.equal(emcText('✓ Better Bodies — подключён'),'✓ Better Bodies — connected');
  assert.equal(emcText('✕ Better Hands — не подключён'),'✕ Better Hands — not connected');
  setEmcLanguage('ru');assert.equal(emcText('Кастомизация 3D'),'Кастомизация 3D');

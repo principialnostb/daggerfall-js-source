@@ -564,12 +564,15 @@ window.__labKit = {
   async outfit(names = []) {
     const e = window.__playerEntity, eq = await mod('/src/systems/equip.js');
     for (let slot = 0; slot <= 26; slot++) eq.unequipSlot(e, slot);
-    const list = Array.isArray(e.items) ? e.items : Object.values(e.items), done = [];
+    const list = Array.isArray(e.items) ? e.items : Object.values(e.items), done = [], used = new Set();
     for (const want of names) {
       const words = String(want).toLowerCase().split('|').map((w) => w.trim()).filter(Boolean);
-      const it = list.find((x) => words.includes(String(x?.name ?? '').toLowerCase())) ?? list.find((x) => words.some((w) => String(x?.name ?? '').toLowerCase().includes(w)));
+      const free = list.filter((x) => !used.has(x));   // DUAL-RUN: a name asked twice takes a second item
+      const it = free.find((x) => words.includes(String(x?.name ?? '').toLowerCase())) ?? free.find((x) => words.some((w) => String(x?.name ?? '').toLowerCase().includes(w)));
       if (!it) { done.push({ want, found: false }); continue; }
-      eq.equipItem(e, it);
+      used.add(it);
+      const again = done.some((d) => d.want === want);
+      eq.equipItem(e, it, again ? eq.EQUIP_SLOTS.LeftHand : undefined);
       done.push({ want, found: it.name });
     }
     eq.rebuildEquipState?.(e);

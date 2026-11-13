@@ -8,7 +8,7 @@ import { PART_BONES } from '../../../src/formats/morrowind/mwNpc.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace } from '../../../src/formats/morrowind/mwFaceMatch.js';
 import { assembleFirstPersonArm, poseAssembly } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import {
-  packFpArm, fpSkeletonPath, buildFpArm, createFpArm, wornVerdicts, animWeaponType, UPPER_BODY, wornEquipKeyOf,
+  packFpArm, fpSkeletonPath, buildFpArm, createFpArm, wornVerdicts, animWeaponType, UPPER_BODY, wornEquipKeyOf, thirdPersonSupportZ,
   unequipWeaponHideMode, animationWindowHasMotion,
   FP_CLIP_PATH, NIF_TO_PASS, FP_FIELD_OF_VIEW, firstPersonEye, FP_FLOATS,
   collectArmTextures, isRobertGauntletFirstPersonAdd,
@@ -3615,8 +3615,15 @@ test('MW-TP-GROUND-NPC: NPC foot support is latched once instead of following ev
   const src = rd('src/combat/fpArm.js');
   assert.match(src, /if \(!playerAppearance && body && thirdGroundMinZ == null\) thirdGroundMinZ = body\.minZ;/,
     'an NPC that begins in motion latches its first posed support height');
-  assert.match(src, /const supportMinZ = Number\.isFinite\(thirdGroundMinZ\) \? thirdGroundMinZ : body\?\.minZ;/,
+  assert.match(src, /const supportMinZ = thirdPersonSupportZ\(body, thirdGroundMinZ, deathState\);/,
     'subsequent animation frames do not feed their changing leg height back into the root transform');
+});
+
+test('A corpse settles to its posed mesh minimum when the death animation ends', () => {
+  const body = { minZ: 18 };
+  assert.equal(thirdPersonSupportZ(body, 0, null), 0);
+  assert.equal(thirdPersonSupportZ(body, 0, { time: 0.5, stopTime: 1 }), 0);
+  assert.equal(thirdPersonSupportZ(body, 0, { time: 1, stopTime: 1 }), 18);
 });
 
 

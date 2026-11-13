@@ -1,4 +1,5 @@
 import { itemAppearanceKey } from '../systems/item/itemAppearanceKey.js';
+import { getAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { preloadClothReplacement } from '../systems/clothReplacementDye.js';
 import { clothingDisplayTemplate } from '../systems/item/clothingDisplay.js';
 import { ITEM_TEMPLATES } from '../systems/item/itemTemplates.js';
@@ -304,10 +305,11 @@ const PAPERDOLL_RACE_FOR_APPEARANCE = Object.freeze({
  * Daggerfall paperdoll body family where no matching classic body exists.
  */
 export function paperDollDisplayIdentity(entity, appearance = activeAppearanceIdentity()) {
+  const editor = appearance ?? getAppearanceIdentity();
   if (!modGroupEnabled('bodies')) appearance = null;
   const actual = {
     race: entity?.race ?? 'Breton',
-    gender: entity?.gender ?? 'male',
+    gender: typeof editor?.female === 'boolean' ? (editor.female ? 'female' : 'male') : entity?.gender ?? 'male',
     faceIndex: entity?.faceIndex ?? 0,
   };
   if (!appearance) return actual;

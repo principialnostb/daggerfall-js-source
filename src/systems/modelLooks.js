@@ -1,3 +1,4 @@
+import { enhancedAxeRecord } from '../characters/ownModels/enhancedBattleaxe.js';
 import { noteModelDyePlayer } from './modelDye.js';
 import { itemAppearanceKey } from './item/itemAppearanceKey.js';
 // MODEL-LOOKS (BLOODBATH, 2026-11-08; bible/10-UI/Enhanced-Mod-Compatibility.md "3D looks"): THE 3D LOOK OF A PIECE ON
@@ -137,7 +138,7 @@ export function modelLookChoices(item, catalog) {
     if (type === MW_WEAPON_TYPE.None || AMMO_TYPES.has(type)) return [];
     const own = pickWeaponRecord(catalog.weapons, type, materialName(piece), { shape: dfWeaponShape(piece, WEAPONS) });
     if (own) { seen.add(own.model); names.add(labelOf(own)); }
-    for (const w of (catalog.weapons ?? []).filter((x) => x.type === type && !x.enchanted && x.model && !/^vfx_/.test(x.id)).sort(byId)) offer(w.id, labelOf(w), [w.model], [w]);
+    for (const w of (catalog.weapons ?? []).filter((x) => x.type === type && !x.enchanted && x.model && !/^vfx_/.test(x.id)).sort(byId)) offer(w.id, labelOf(w), [enhancedAxeRecord(w).model], [enhancedAxeRecord(w)]);
     return numberRepeats(out);
   }
   return [];

@@ -167,7 +167,7 @@ test('BODY-MOTION A TWO-HANDER: at rest a low guard with both hands on the grip 
   assert.ok(facing.reduce((a, x) => a + x, 0) / facing.length > Math.sin(15 * RAD), 'the chest turned toward the weapon, to the right');
 });
 
-test('BODY-MOTION A PAIR: at rest both held down and away from the sides as mirror images across the body\'s middle, both blades forward and down; at a run both swept behind the body, the blades trailing (Mac: "Duelhand idle away from sides, running with them behind you") (mutants: BODY-MOTION-pair-left-unmirrored, BODY-MOTION-pair-run-forward)', () => {
+test('BODY-MOTION A PAIR: at rest both held down and away from the sides as mirror images across the body\'s middle, both blades forward and down; at a run both carried before the shoulders, the blades forward (PAIR-RUN-FORE, the owner, 2026-11-13 - the run with them behind withdrawn) (mutants: BODY-MOTION-pair-left-unmirrored, BODY-MOTION-pair-run-forward)', () => {
   const idle = play({ weapon: MW_WEAPON_TYPE.LongBladeOneHand, hands: 'dual' }, 1.5).mats;
   const R = pt(idle, 'bip01 r hand'), L = pt(idle, 'bip01 l hand');
   const mid = (pt(idle, 'bip01 l upperarm')[0] + pt(idle, 'bip01 r upperarm')[0]) / 2;
@@ -181,8 +181,8 @@ test('BODY-MOTION A PAIR: at rest both held down and away from the sides as mirr
     const s = (pt(m, 'bip01 l upperarm')[1] + pt(m, 'bip01 r upperarm')[1]) / 2;
     behind.push([pt(m, 'bip01 r hand')[1] - s, pt(m, 'bip01 l hand')[1] - s, blade(m, 'weapon bone')[1], blade(m, 'weapon bone left')[1]]);
   });
-  assert.ok(behind.every(([r, l]) => r < -0.4 * A && l < -0.4 * A), 'both hands behind the shoulders');
-  assert.ok(behind.every(([, , br, bl]) => br < -0.6 && bl < -0.6), 'both blades trailing');
+  assert.ok(behind.every(([r, l]) => r > -0.1 * A && l > -0.1 * A), 'neither hand behind the shoulders');
+  assert.ok(behind.every(([, , br, bl]) => br > 0.6 && bl > 0.6), 'both blades forward');
 });
 
 test('BODY-MOTION THE CLIP KEEPS WHAT IT CARRIES: a bow and the draw leave the arms to the clip (the layer\'s arms at no weight), a lit torch the left arm and the right still the carry\'s, and a shield the left arm with a one-hander drawn or the weapon sheathed - standing and at a run, where the free run\'s pump swung it up behind the head (SHIELD-RUN, the Discord: "sprinting with my mace and shield out just makes me look incredibly stupid") - and with fists drawn behind it as well (SHIELD-GUARD, combat/shieldGuard.js: the shield held as a one-hander holds it, not raised in the boxer\'s guard) (a spell, and the trunk under the clip\'s arms: AUDIT BODY-MOTION RIG-4\'s pin) (mutants: BODY-MOTION-torch-arm-taken, BODY-MOTION-equip-arms-taken, SHIELD-RUN-the-shield-pumped, SHIELD-GUARD-fists-raise-the-shield)', () => {

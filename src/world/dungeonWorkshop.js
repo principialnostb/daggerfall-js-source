@@ -39,8 +39,9 @@ export function buildDungeonWorkshop(archive, id) {
   } else if (kind === 'cage') {
     const wide = id === 41313;
     for (const [y, height] of [[.048, .048], [.954, .046]]) {
-      box(b, deck, [0, y, 0], [.495, height, .499], { tile: wide ? [.55, .40] : [.85, .65], skip: [4, 5] });
-      box(b, WORKSHOP_WOOD.endGrain, [0, y, 0], [.495, height, .499], { tile: [.25, .18], skip: [0, 1, 2, 3] });
+      box(b, deck, [0, y, 0], [.495, height, .499], { tile: wide ? [.55, .40] : [.85, .65], skip: [0, 1, 4, 5] });
+      box(b, WORKSHOP_WOOD.beam, [0, y, 0], [.495, height, .499], { tile: [.48, .24], skip: [0, 1, 2, 3] });
+      box(b, WORKSHOP_WOOD.endGrain, [0, y, 0], [.495, height, .499], { tile: [.25, .18], skip: [2, 3, 4, 5] });
     }
     for (const x of [-.459, .459]) for (const z of [-.459, .459]) {
       box(b, iron, [x, .5, z], [.030, .42, .030]);

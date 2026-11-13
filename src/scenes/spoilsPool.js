@@ -85,6 +85,7 @@
 //
 // Not a DFU member. Ledger A (WB).
 import { rollSpoils, nameEmbers, sigilStone } from '../systems/gate/gateSpoils.js';
+import { loadItemLootModel, markGroundLoot, setLootModel } from '../render/groundLootModels.js';
 import { seededRng } from '../systems/wind/wind.js';
 import { spewLaunches, spewPiece, flySpew, keepLaunch, floorRayAt } from '../world/gate/gateSpew.js';
 import { SpoilsGlowRenderer, tierColour } from '../render/spoilsGlow.js';   // WBX3: the loot line
@@ -442,7 +443,7 @@ export function createSpoilsPool({
       if (!img?.colors || !(img.width > 0) || !(img.height > 0)) { f.sprite = 'none'; return; }
       const record = `icon:${img.key ?? floor.indexOf(f)}`;
       renderer.uploadTexture(SPOILS_ICON_ARCHIVE, record, img);
-      f.sprite = { record, ...iconSize(img.width, img.height) };
+      f.sprite = { record, art: img, ...iconSize(img.width, img.height) };
     }, () => { f.sprite = 'none'; });
   }
   function batchOf(f) {
@@ -453,6 +454,9 @@ export function createSpoilsPool({
     try {
       if (icon) {
         f.batch = renderer.createBillboardBatch(SPOILS_ICON_ARCHIVE, f.sprite.record, { w: f.sprite.w, h: f.sprite.h }, [[0, 0, 0]]);
+        markGroundLoot(f.batch, f.sprite.art, f.sprite.record, 0, f.piece.item);
+        const batch = f.batch;
+        loadItemLootModel(f.piece.item).then((model) => setLootModel(batch, model)).catch(() => {});
         f.h = f.sprite.h;
       } else {
         if (!tex) return null;
@@ -460,6 +464,11 @@ export function createSpoilsPool({
         const size = billboardSize(tex, f.piece.record);
         f.batch = renderer.createBillboardBatch(RANDOM_TREASURE_ARCHIVE, f.piece.record, size, [[0, 0, 0]]);
         f.batch.frame = 0;
+        try {
+          const art = tex.getColor32?.(tex.getDFBitmap(f.piece.record, 0), 0);
+          const item = f.piece.kind === 'gold' ? { group: 'Currency', stackCount: f.piece.gold } : null;
+          markGroundLoot(f.batch, art, `${f.piece.record}#0`, 0, item);
+        } catch { /* keep the flat if its source pixels cannot be decoded */ }
         f.h = size.h;
       }
       f.batchIcon = icon;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewRasterSize } from '../../src/ui/enhanced/previewPixelation.js';
+import { previewRasterSize, itemPreviewRasterSize } from '../../src/ui/enhanced/previewPixelation.js';
 import { stepFittingCloth } from '../../src/render/fittingCloth.js';
 import { createCloakPhysics } from '../../src/formats/morrowind/mwCloakPhysics.js';
 import { getPref, setPref } from '../../src/systems/uiPrefs.js';
@@ -11,6 +11,15 @@ test('preview resolution follows player screen-row intensity and off retains ful
   assert.deepEqual(previewRasterSize(384,640,500,800,200), {width:75,height:125});
   assert.deepEqual(previewRasterSize(96,96,68,800,0), {width:96,height:96});
   assert.deepEqual(previewRasterSize(96,96,68,800,800), {width:96,height:96});
+});
+
+test('small item cards retain distinct detail budgets without the full-screen block size', () => {
+  assert.deepEqual([0, 540, 360, 270, 200].map((rows) => itemPreviewRasterSize(96, 96, 68, rows)), [
+    { width: 96, height: 96 }, { width: 36, height: 36 }, { width: 27, height: 27 },
+    { width: 23, height: 23 }, { width: 20, height: 20 },
+  ]);
+  assert.deepEqual(itemPreviewRasterSize(48, 96, 68, 360), { width: 14, height: 27 });
+  assert.deepEqual(itemPreviewRasterSize(192, 384, 136, 360), { width: 27, height: 54 });
 });
 
 test('idle fitting advances the real cloth solver only while Animated Cloaks is enabled', () => {

@@ -92,9 +92,9 @@ export const SWORD_BLOW_KEYS = Object.freeze({
  *  steps in furthest, a hook (slash) turns the hips most, an overhand (chop) drops and leans. The drops are shallower
  *  than a blade's: the hand-to-hand clips crouch of themselves, and the two together laid the trunk flat (seen in the lab). */
 export const FIST_BLOW_KEYS = Object.freeze({
-  chop: Object.freeze({ wind: { back: 0.045, drop: 0.02, yaw: -0.16, pitch: -0.07, side: 0.03 }, hit: { fwd: 0.1, drop: 0.05, yaw: 0.2, pitch: 0.13, side: 0.02 }, step: 0.2 }),
-  slash: Object.freeze({ wind: { back: 0.04, drop: 0.025, yaw: -0.32, pitch: -0.03, side: 0.045 }, hit: { fwd: 0.075, drop: 0.045, yaw: 0.42, pitch: 0.08, side: 0.035 }, step: 0.12 }),
-  thrust: Object.freeze({ wind: { back: 0.055, drop: 0.02, yaw: -0.2, pitch: -0.04, side: 0.03 }, hit: { fwd: 0.14, drop: 0.04, yaw: 0.24, pitch: 0.1, side: 0.025 }, step: 0.28 }),
+  chop: Object.freeze({ wind: { back: 0.045, drop: 0.02, yaw: -0.16, pitch: -0.07, side: 0.03 }, hit: { fwd: 0.1, drop: 0.03, yaw: 0.2, pitch: 0.06, side: 0.02 }, step: 0.2 }),
+  slash: Object.freeze({ wind: { back: 0.04, drop: 0.025, yaw: -0.32, pitch: -0.03, side: 0.045 }, hit: { fwd: 0.075, drop: 0.045, yaw: 0.14, pitch: 0.06, side: 0.035 }, step: 0.12 }),
+  thrust: Object.freeze({ wind: { back: 0.055, drop: 0.02, yaw: -0.2, pitch: -0.04, side: 0.03 }, hit: { fwd: 0.14, drop: 0.04, yaw: 0.24, pitch: 0.06, side: 0.025 }, step: 0.28 }),
 });
 /** PUNCH-CHAIN (the owner, 2026-11-12: the punches' "speed, their expression and the trunk's work, agreed well with the
  *  legs"; read in the lab frame by frame: no wind-up - the fist crept forward through it and the trunk turned 13
@@ -108,10 +108,14 @@ export const PUNCH_CHAIN = Object.freeze({ lead: 0.6, early: 0.5 });
  *  not come back to square: for `seconds` it stands cocked for the next - `yaw` back on the striking side, `pitch`
  *  upright - taken up over `tau`; the next punch winds up from there, and with none it lets go as the legs do. */
 export const PUNCH_READY = Object.freeze({ seconds: 0.6, yaw: -0.2, pitch: -0.04, tau: 0.1 });
+/** PUNCH-AIM (the owner, 2026-11-13: the hands strike "anywhere, not aimed"; read in the lab on the woman in steel): the
+ *  hook's fist landed 45 cm past the centre line, the trunk and hips turned 45 degrees over the clip's own; the
+ *  overhand's 30 cm under the head. At the hit the turn and the lean are now small: the wind-up still cocks the trunk,
+ *  the fist lands on the line at the chin. */
 export const FIST_TRUNK = Object.freeze({
-  chop: Object.freeze({ wind: { yaw: -0.3, pitch: -0.1 }, hit: { yaw: 0.22, pitch: 0.2 } }),
-  slash: Object.freeze({ wind: { yaw: -0.42, pitch: -0.02 }, hit: { yaw: 0.36, pitch: 0.08 } }),
-  thrust: Object.freeze({ wind: { yaw: -0.3, pitch: -0.05 }, hit: { yaw: 0.28, pitch: 0.14 } }),
+  chop: Object.freeze({ wind: { yaw: -0.3, pitch: -0.1 }, hit: { yaw: 0.22, pitch: 0.06 } }),
+  slash: Object.freeze({ wind: { yaw: -0.42, pitch: -0.02 }, hit: { yaw: 0.06, pitch: 0.06 } }),
+  thrust: Object.freeze({ wind: { yaw: -0.3, pitch: -0.05 }, hit: { yaw: 0.28, pitch: 0.07 } }),
 });
 /** A punch's hips: blowPhase's, the drive begun inside the wind-up (PUNCH_CHAIN). */
 export function punchPhase(section, progress) {

@@ -8,24 +8,42 @@ import { sampleTrack, resetClip } from '../../formats/morrowind/mwAnim.js';
 import { pickAnimSource } from '../../formats/morrowind/mwFirstPerson.js';
 
 const states = new WeakMap();
-const isAxe = built => built?.weapon?.model === 'skyrim_steel_battleaxe.nif';
+const isAxe = built => built?.weapon?.model === 'skyrim_steel_battleaxe.nif' || built?.weapon?.model?.startsWith('enhanced_axe_');
 // Use the normal first-person camera. Only the ready hand solve needs a transition.
 export const AXE_VIEW_PLACEMENT = Object.freeze({ ease: 0.12 });
 // Retain the mod's gait phase and wrist travel; reduce the angle amplified by the long shaft.
 export const AXE_GAIT_ANGLE_SHARE = 0.45;
 
+const smooth = x => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
+
+// Join at the clip's attach/detach key, not a timer started after the action ends.
+export function axeActionWeight(upper, action, keys = []) {
+  if (!action || !(action.stopTime > action.startTime)) return null;
+  const drawing = upper === 'Equipping';
+  if (!drawing && upper !== 'Unequipping') return null;
+  const span = action.stopTime - action.startTime;
+  const progress = (action.time - action.startTime) / span;
+  const marker = action.reversed ? 'equip attach' : drawing ? 'equip attach' : 'unequip detach';
+  const key = keys.find(k => String(k.text).toLowerCase().endsWith(': ' + marker) && k.time >= action.startTime && k.time <= action.stopTime);
+  let at = key ? (key.time - action.startTime) / span : drawing ? 0 : 1;
+  if (action.reversed) at = 1 - at;
+  return drawing ? smooth((progress - at) / Math.max(1e-6, 1 - at)) : 1 - smooth(progress / Math.max(1e-6, at));
+}
+
 /** Step on game time, once per frame, never on a screenshot/draw clock. Other weapons reset immediately. */
-export function stepAxePlacement(built, wanted, dt, attacking = false, moving = false) {
+export function stepAxePlacement(built, wanted, dt, attacking = false, moving = false, upper = 'WeaponEquipped', action = null, source = null, ready = null, readySource = null) {
   if (!built?.arm) return;
   if (!isAxe(built)) { states.delete(built.arm); return; }
+  const actionWeight = wanted ? axeActionWeight(upper, action, source?.keys) : null;
+  if ((upper === 'Equipping' || upper === 'Unequipping') && actionWeight === null) { states.delete(built.arm); return; }
   const elapsed = Number.isFinite(dt) ? Math.max(0, dt) : 0;
   const oldHold = states.get(built.arm)?.holdWeight ?? 0;
   const holdGoal = wanted && !attacking ? 1 : 0;
-  const holdWeight = holdGoal + (oldHold - holdGoal) * Math.exp(-elapsed / AXE_VIEW_PLACEMENT.ease);
+  const holdWeight = actionWeight ?? (holdGoal + (oldHold - holdGoal) * Math.exp(-elapsed / AXE_VIEW_PLACEMENT.ease));
   const oldMotion = states.get(built.arm)?.motionWeight ?? 0;
   const motionGoal = wanted && moving && !attacking ? 1 : 0;
   const motionWeight = motionGoal + (oldMotion - motionGoal) * Math.exp(-elapsed / AXE_VIEW_PLACEMENT.ease);
-  states.set(built.arm, { ...states.get(built.arm), holdWeight, motionWeight });
+  states.set(built.arm, { ...states.get(built.arm), holdWeight, motionWeight, transition: actionWeight !== null, ready, readySource });
 }
 
 /** Same lens as every other weapon: no retreat that exposes shoulder/forearm geometry. */
@@ -68,7 +86,12 @@ export function axeReadyHold(built, fallback = null) {
   const state = isAxe(built) && built?.arm ? states.get(built.arm) : null;
   if (!(state?.holdWeight > 1e-4)) return fallback;
   return (skeleton, pose, root, skelMats) => {
-    const mats = skelMats(skeleton, pose, root), bones = climbBones(skeleton);
+    const native = skelMats(skeleton, pose, root), bones = climbBones(skeleton);
+    let mats = native;
+    if (state.transition && state.ready && state.readySource?.trackMap) {
+      const clip = state.ready, time = clip.reversed ? clip.startTime + clip.stopTime - clip.time : clip.time;
+      mats = skelMats(skeleton, built.arm.fns.poseSkeleton(skeleton, state.readySource.trackMap, sampleTrack, time, { accumRoot: built.accumRoot }), root);
+    }
     const weapon = mats.get(skeleton.byName.get('weapon bone'));
     const eye = mats.get(built.cameraRef)?.t;
     const right = bones && handFrame(mats, bones.R, 'R'), left = bones && handFrame(mats, bones.L, 'L');

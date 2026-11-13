@@ -209,7 +209,7 @@ export const CATEGORIES = Object.freeze([
   ]),
   tab("compatibility", "Enhanced Mod Compatibility", [
     sec("bodies", "Тела и анимации", ["catalog:bodies", ...STANDARDIZED_FEATURES.map(id => "feat:" + id)]),
-    sec("environment", "Окружение", ["catalog:environment"]),
+    sec("environment", "Предметы и снаряжение", ["catalog:environment"]),
     sec("textures", "Текстуры", ["catalog:textures", "feat:mw-textures-high-resolution-bodies", "feat:mw-textures-intelligent", "feat:mw-textures-vurt-clothes", "feat:mw-textures-better-clothes", "feat:mw-textures-better-armor", "feat:mw-textures-armor-joints", "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces", "link:overhauls"]),
   ]),
   tab("pixelation", "Pixelation", [

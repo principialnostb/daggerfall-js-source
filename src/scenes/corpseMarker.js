@@ -57,7 +57,7 @@
 import { capFoeLoot } from '../systems/foeLootCap.js';   // FOE-CAP: the death's cap, after its handlers
 import { championName, properName } from '../systems/champions.js';   // LOOT7: a champion's death line names it
 import { getBool } from '../systems/settings/settings.js';   // AUDIT 28 W1: DisableEnemyDeathAlert
-import { floorLanding } from '../player/enterExit.js';
+import { corpseFloorLanding } from '../player/enterExit.js';
 import { billboardSize } from '../world/rmbFlats.js';
 import { addItem, takeOneInto } from '../systems/inventory.js';   // QUICK-LOOT B2: the one-item door, which the bulk take below is now written over
 import { SOUND } from '../systems/soundClips.js';
@@ -114,7 +114,7 @@ export async function mintCorpseMarker({
   // pixel from the kill. Nothing can recenter between here and the
   // caller's push: that is a microtask, and the frame loop is a task.
   const pos = collider
-    ? floorLanding(collider, [feet[0], feet[1] + 0.1, feet[2]])
+    ? corpseFloorLanding(collider, feet)
     : [feet[0], feet[1], feet[2]];
   uploadRecordFrame(archive, record, 0);
   const size0 = billboardSize(t, record) ?? fallbackSize;

@@ -164,7 +164,10 @@ export const ENHANCED_CSS = `
 .emc-catalog .emc-remove { color:#dca08d; border-color:#805b50; }
 .emc-catalog .emc-connect { color:#b5c5df; border-color:#66768d; }
 .emc-catalog .act:disabled, .emc-catalog fieldset:disabled .act { color:#77756c; border-color:#45463f; opacity:.65; cursor:not-allowed; }
-.emc-catalog .emc-extra { padding:12px 0; border-top:1px solid #4f4939; }
+.emc-catalog .emc-equipment-row {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 16px; padding:6px 0; border-top:1px solid #4f4939}
+.emc-catalog .emc-equipment-row .act {margin:0; flex:0 0 auto}
+.emc-catalog .emc-equipment .emc-source-note {margin-bottom:0}
+
 .emc-catalog .emc-source-note { color:#d4b77c; border-left:2px solid #8c7446; padding-left:8px; }
 .emc-nav { display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; gap:12px; }
 .emc-language { display:flex; align-items:center; gap:6px; margin-left:auto; }

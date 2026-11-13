@@ -11,8 +11,10 @@ import { buildDungeonCaveProp, isDungeonCaveProp } from '../world/dungeonCavePro
 import { buildDungeonRemains, currentDungeonRemainsParts, dungeonRemainsKind, dungeonRemainsVariant } from '../world/dungeonRemainsModel.js';
 import { multiply, trs } from '../world/mat4.js';
 import { sphereInPlanes, spherePlanes } from './bounds.js';
-import { getPref } from '../systems/uiPrefs.js';
+
 import { RANDOM_TREASURE_ARCHIVE } from '../systems/loot/lootDataTables.js';
+import { furnishingMorrowind, releaseFurnishingMorrowind } from './furnishingMorrowind.js';
+import { dungeonDecorEnabled, morrowindWorldVisualEnabled } from '../systems/dungeonDecor.js';
 
 const entries = new WeakMap();
 const caches = new WeakMap();
@@ -90,6 +92,7 @@ export function releaseTreasurePile(renderer, batch) {
   const entry = entries.get(batch);
   entries.delete(batch);
   if (!entry) return;
+  releaseFurnishingMorrowind(entry);
   if (entry.mesh) releaseModel(renderer, entry.record);
   for (const record of entry.variants?.keys() ?? []) releaseModel(renderer, record);
 }
@@ -108,9 +111,7 @@ function releaseModel(renderer, record) {
   }
 }
 
-export function drawTreasurePiles(renderer, batches) {
-  const treasureEnabled = getPref('enhancedTreasurePiles') !== false;
-  const propsEnabled = getPref('enhancedDungeonProps') !== false;
+export function drawTreasurePiles(renderer, batches, propsEnabled = dungeonDecorEnabled(), treasureEnabled = morrowindWorldVisualEnabled('enhancedTreasurePiles')) {
   let remaining = null, planes = null;
   for (const [i, batch] of batches.entries()) {
     const entry = entries.get(batch);
@@ -119,7 +120,7 @@ export function drawTreasurePiles(renderer, batches) {
       if (!batch._dead) renderer.drawMesh(entry.classic.mesh, entry.classic.pose);
       continue;
     }
-    if (entry?.burials) {
+    if (entry?.burials && propsEnabled) {
       remaining ??= batches.slice(0, i);
       const parts = !batch._dead ? currentDungeonRemainsParts() : null;
       if (!batch._dead) {
@@ -167,6 +168,7 @@ export function drawTreasurePiles(renderer, batches) {
     remaining ??= batches.slice(0, i);
     const origin = batch.origin ?? [0, 0, 0];
     if (entry.centers) {
+      const furnishing = furnishingMorrowind(entry);
       planes ??= !renderer._bbCullOff && renderer._proj && renderer._view
         ? spherePlanes(multiply(renderer._proj, renderer._view)) : null;
       const { w, h } = batch.size;
@@ -178,6 +180,8 @@ export function drawTreasurePiles(renderer, batches) {
           if (!entry.variants.has(variant)) entry.variants.set(variant, acquire(renderer, variant, parts));
           const yaw = ((Math.round(px * 17) ^ Math.round(pz * 31)) & 15) * 22.5;
           renderer.drawMesh(entry.variants.get(variant), trs(x, y, z, 0, yaw, 0));
+        } else if (furnishing) {
+          furnishing.draw(x, y, z, 0);
         } else {
           entry.mesh ??= acquire(renderer, entry.record);
           renderer.drawMesh(entry.mesh, trs(x, y, z, 0, 0, 0, w, h, w));
