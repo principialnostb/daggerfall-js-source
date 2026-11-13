@@ -79,5 +79,13 @@
  "wager / unwagered (a breach)": "ставка / без ставки",
  "Guildmaster": "голова гільдії",
  "username": "ім’я користувача",
- "guest": "гість"
+ "guest": "гість",
+ "Overhauls / overhaul (the pane, a texture overhaul mod)": "Переробки / переробка",
+ "Replacements (the pane) / replacement (the player's own picture)": "Заміни / заміна",
+ "picture (a game texture or sprite)": "зображення",
+ "texture": "текстура",
+ "Rejected: (a refused file)": "Відхилено:",
+ "NPCs (Replacements tab)": "Люди",
+ "Skin card (the profile card where the body look is chosen)": "картка зовнішності",
+ "Layered Gearing (mod name, kept as is)": "Layered Gearing"
 }

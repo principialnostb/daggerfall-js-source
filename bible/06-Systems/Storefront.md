@@ -56,7 +56,8 @@ the standing horse - as a fifth part of the horse's look, dyed like a coat (`src
 look is painted by the horse's own shading (`src/systems/horse/mountPaint.js`). Eye of the Beholder's riders are masked
 so only the horse is dyed. The coat stays the player's choice and returns when the look is removed. A look rides no
 wire of its own: each screen lays a rider's look from its token (`src/systems/horse/mountLook.js`); its ambient bursts
-use the kill effects' engine (`src/systems/horse/mountFx.js`).
+use the kill effects' engine (`src/systems/horse/mountFx.js`). A look is always laid over the game's own horse, never
+over a picture the player replaced (`10-UI/Replacements.md`).
 
 **Name visuals.** Three titles on animated plates (`src/ui/titleFlame.js`), and the bundle glyphs.
 

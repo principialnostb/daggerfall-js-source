@@ -159,8 +159,8 @@
   {
     "name": "DW1-18-the-rig-cache-forgets-the-atlas-name",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "    const key = `${type}:${item?.material ?? 0}:${thunderlock ? (gilded ? 'gilded' : '') : atlasFileName(item, WEAPON_FILE[type] ?? '', undefined, plain ? false : undefined)}`;",
-    "new": "    const key = `${type}:${item?.material ?? 0}`;",
+    "old": "    const key = `${type}:${item?.material ?? 0}:${thunderlock ? (gilded ? 'gilded' : '') : atlasFileName(item, WEAPON_FILE[type] ?? '', undefined, plain ? false : undefined)}:${playerPicturesGeneration()}`;",
+    "new": "    const key = `${type}:${item?.material ?? 0}:${playerPicturesGeneration()}`;",
     "tests": [
       "test/combat/weapon/dw1_diverseweapons.test.js"
     ]

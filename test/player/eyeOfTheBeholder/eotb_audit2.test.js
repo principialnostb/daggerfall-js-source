@@ -592,8 +592,10 @@ test('EOTB-FLIP: the body\'s decode is the dropped torch\'s door - decodePng, th
   // PIN MOVED (PROFILE-SLOTS): the door is eotbSprite.js's, the body's (and the profile's stage's) one decode
   const body = rd('src/player/eyeOfTheBeholder/eotbSprite.js');
   assert.match(rd('src/player/eyeOfTheBeholder/eotbBody.js'), /decode = decodeSprite/);
-  assert.match(body, /export async function decodeSprite\(url\) \{\s*(?:if \(isLayeredKey\(url\)\)[^\n]*\s*)?return worldOrderColors\(await decodeServedPng\(url\), \{ owned: true \}\);[^\n]*\s*\}/,
-    'FIRST-VISIT: the decode workers\' fetch and decode (vanillaEnhancedPack.js decodeServedPng - decodePng\'s own, off this thread), then worldOrderColors');
+  assert.match(body, /export async function decodeSprite\(url, \{ own = true \} = \{\}\) \{\s*(?:if \(isLayeredKey\(url\)\)[^\n]*\s*)?(?:\/\/[^\n]*\s*)?return worldOrderColors\(\(own \? await replacedSprite\(url\) : null\) \?\? \(await decodeServedPng\(url\)\), \{ owned: true \}\);[^\n]*\s*\}/,
+    'FIRST-VISIT: the decode workers\' fetch and decode (vanillaEnhancedPack.js decodeServedPng - decodePng\'s own, off this thread), then worldOrderColors - the player\'s own replacement for the frame first (the Replacements pane)');
+  assert.match(body, /const picture = bytes \? await decodePng\(bytes\)\.catch\(\(\) => null\) : null;/, 'a replacement is decodePng\'s too');
+  assert.match(body, /const fitted = resampleRgba\(picture, box\.width, box\.height\);/, 'and a bigger one is fitted to the original it replaces');
   assert.ok(!/getImageData|new Image\(|OffscreenCanvas/.test(body + rd('src/player/eyeOfTheBeholder/eotbBody.js')), 'no canvas door of its own');
   assert.match(rd('src/player/eyeOfTheBeholder/eotbSprite.js'), /import \{ toColor32, toColor32OrderInPlace \} from '\.\.\/\.\.\/formats\/color32Order\.js';/, 'the converter is the tree\'s (PERF-PEERS5: its in-place twin beside it)');
   assert.match(rd('src/scenes/droppedTorches.js'), /return toColor32\(await decodePng\(new Uint8Array\(await res\.arrayBuffer\(\)\)\)\);/, 'and the torch still takes it too');

@@ -471,5 +471,12 @@
  "sail patterns: Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire": "Uni, Palé, Fascé, Écartelé, Chevron, Croix, Bordure, Sautoir",
  "pattern (a sail's)": "motif",
  "Fleet (the ships page)": "Flotte",
- "arms slot (Aura Armory)": "emplacement des bras"
+ "arms slot (Aura Armory)": "emplacement des bras",
+ "Replacements (the pane)": "Remplacements",
+ "replacement (the player's own picture)": "remplacement",
+ "picture (a texture or sprite)": "image",
+ "overhaul (a mod's change)": "refonte",
+ "NPCs": "PNJ",
+ "Skin card (the profile's card)": "carte Skin",
+ "Rejected: (a refusal)": "Refusé :"
 }

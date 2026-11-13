@@ -455,5 +455,15 @@
  "War Table": "Masă de război",
  "Weapon Rack": "Rastel de arme",
  "Guild Brazier": "Mangalul breslei",
- "sail patterns: Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire": "Simplu, Paluri, Brâuri, Sfertuit, Căprior, Cruce, Bordură, Cruce în X"
+ "sail patterns: Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire": "Simplu, Paluri, Brâuri, Sfertuit, Căprior, Cruce, Bordură, Cruce în X",
+ "Replacements (System pane: your own pictures)": "Înlocuiri",
+ "replacement (your own picture for one of the game's)": "înlocuire",
+ "picture (a texture or sprite)": "imagine",
+ "Overhaul (one overhaul; the pane is Overhauls)": "Revizie",
+ "Rejected: (a refused file)": "Respins:",
+ "Choose… (file button)": "Alege…",
+ "Clear (button)": "Golește",
+ "Filter (a list's box)": "Filtru",
+ "Skin card (profile window)": "cardul Aspect",
+ "Layered Gearing (mod name, never changes)": "Layered Gearing"
 }

@@ -202,6 +202,10 @@ export const withMountLook = (/** @type {unknown} */ code, /** @type {unknown} *
   const l = horseLookOfCode(Number.isInteger(code) ? /** @type {number} */ (code) : 0);
   return horseLookCode({ ...l, mount: Math.max(0, HORSE_MOUNTS.indexOf(/** @type {string} */ (key))) });
 };
+/** Whether a look's code wears a mount look. A mount look is bought with Aurum, so the horse it dyes is always the
+ *  game's own picture, never one the player replaced (the Replacements pane). */
+export const wearsMountLook = (/** @type {unknown} */ code) =>
+  (horseLookOfCode(Number.isInteger(code) ? /** @type {number} */ (code) : 0).mount ?? 0) > 0;
 /** STOREFRONT: a code as the wire says it - its mount look taken off. */
 export const wireHorseLook = (/** @type {unknown} */ code) =>
   horseLookCode({ ...horseLookOfCode(Number.isInteger(code) ? /** @type {number} */ (code) : 0), mount: 0 });

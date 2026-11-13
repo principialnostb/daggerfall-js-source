@@ -115,6 +115,14 @@ const SET = {
 };
 
 export const GROUP = { None: 0, Terrain: 1, Exterior: 2, Interior: 3, Nature: 4 };
+/** DFLocation.ClimateTextureSet's names by value (`17` -> `Exterior_CityWalls`), for a list that names archives. */
+export const CLIMATE_SET_NAMES = Object.freeze(
+  Object.fromEntries(
+    Object.entries(SET)
+      .filter(([, value]) => value >= 0)
+      .map(([name, value]) => [value, name]),
+  ),
+);
 
 const EXTERIOR_SETS = new Set([
   SET.Exterior_Ruins,

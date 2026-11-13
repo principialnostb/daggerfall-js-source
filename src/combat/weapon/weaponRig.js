@@ -54,6 +54,8 @@ import { installThunderlockSounds, SFX as TL_SFX } from '../../systems/thunderlo
 // same rig because this is the one surface every FPS-weapon host
 // already mounts - so wiring it here wires all four at once.
 import { fpsSpellCasting, loadSpellCastArt, drawSpellCastHands, magicAnimFilename, readiedHandsFrame, castReleaseS, castEndS } from '../fpsSpellCasting.js';   // RSH1: the readied hands; RPT1026-MISC CAST-PACE: the spell's moment; MW-SHOT-PACE: the hands' end
+import { playerPicturesGeneration } from '../../systems/replacements/playerPictures.js';   // a picture chosen on the Replacements pane loads the art again
+import { dfmodGeneration } from '../../systems/dfmodTextures.js';   // and the casting hands follow the attached mods
 import { createClimbHands, climbLens } from '../climbHands.js';   // CLIMB-HANDS: the classic lane's hands on the wall; II: the lens they are pinned through
 import { fieldOfView } from '../../ui/viewSettings.js';   // CLIMB-HANDS II: the world's own field of view, the hands' lens
 // MW-D8: the classic sprite is still the DEFAULT and still the fallback,
@@ -983,7 +985,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     // is what the mod is for, and its author's tables are honoured over
     // DFU's cache slot.
     const gilded = thunderlock && item?.rarity === 'gilded';   // GILDED1: the Hourlock's frames in gold leaf (thunderlockArt.js gildFrame)
-    const key = `${type}:${item?.material ?? 0}:${thunderlock ? (gilded ? 'gilded' : '') : atlasFileName(item, WEAPON_FILE[type] ?? '', undefined, plain ? false : undefined)}`;
+    const key = `${type}:${item?.material ?? 0}:${thunderlock ? (gilded ? 'gilded' : '') : atlasFileName(item, WEAPON_FILE[type] ?? '', undefined, plain ? false : undefined)}:${playerPicturesGeneration()}`;
     if (!cache.has(key)) {
       cache.set(key, null);
       (isPistoletType(type)
@@ -1010,13 +1012,14 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
 
   function spellArtFor(element) {
     if (!palette || !magicAnimFilename(element)) return null;
-    if (!spellCache.has(element)) {
-      spellCache.set(element, null);
+    const key = `${element}:${playerPicturesGeneration()}:${dfmodGeneration()}`;
+    if (!spellCache.has(key)) {
+      spellCache.set(key, null);
       loadSpellCastArt(fetchBytes, palette, renderer, element)
-        .then((art) => spellCache.set(element, art))
+        .then((art) => spellCache.set(key, art))
         .catch((e) => console.warn('[weaponRig] spell anim load failed', element, e));
     }
-    return spellCache.get(element);
+    return spellCache.get(key);
   }
 
   /** WeaponManager.Update's ShowWeapons legs, verbatim order.

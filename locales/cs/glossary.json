@@ -439,5 +439,16 @@
  "logo (a guild's uploaded picture)": "logo",
  "under review (a logo)": "posuzuje se",
  "Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire (sail patterns)": "Prostý, Kůly, Břevna, Čtvrcený, Krokev, Kříž, Lem, Ondřejský kříž",
- "Guild / Wealth / Identity (guild window groups)": "Cech / Majetek / Identita"
+ "Guild / Wealth / Identity (guild window groups)": "Cech / Majetek / Identita",
+ "Replacements (System pane: your own pictures)": "Náhrady",
+ "replacement (your own picture for one of the game's)": "náhrada",
+ "picture (a texture or sprite)": "obrázek",
+ "Overhaul (one overhaul; the pane is Overhauls)": "Přepracování",
+ "Original (the game's own picture)": "Původní",
+ "Rejected: (a refused file)": "Odmítnuto:",
+ "Choose… (file button)": "Vybrat…",
+ "Clear (button)": "Vymazat",
+ "Filter (a list's box)": "Filtr",
+ "Skin card (profile window)": "karta Vzhled",
+ "Layered Gearing (mod name, never changes)": "Layered Gearing"
 }

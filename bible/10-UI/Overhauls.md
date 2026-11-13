@@ -4,6 +4,9 @@ The **Overhauls** screen picks the game's look in three parts: textures, sounds 
 every menu rail (boot, classic, pause) and a pause System pane. The UI card offers four looks: Classic, Enhanced Plus,
 GrimoireUI (a texture pack over the classic skin) and DFO Grimoire (the enhanced skin in GrimoireUI's dress).
 
+A player's own pictures, one at a time, are the Replacements pane's (`10-UI/Replacements.md`), beside Overhauls on the
+title screen and under it on the pause System tab.
+
 ## How it works
 
 **The screen** (`src/systems/overhauls.js` `OVERHAUL_PANELS`, the registry and only writer; drawn by

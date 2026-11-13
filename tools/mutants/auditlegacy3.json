@@ -977,8 +977,8 @@
   {
     "name": "AUDIT-LEGACY-III-P17-the-loader-ignores-common",
     "file": "src/ui/partyPanel.js",
-    "old": "    if (Number.isInteger(pose?.common) && pose.common >= 0) {",
-    "new": "    if (false) {",
+    "old": "    const common = Number.isInteger(pose?.common) && pose.common >= 0;",
+    "new": "    const common = false;",
     "tests": [
       "test/systems/legacy/auditlegacy3.test.js"
     ]

@@ -148,9 +148,11 @@ export class CifRciFile extends BaseImageFile {
       return;
     }
 
-    // Plain CIF: a contiguous array of single-frame IMG records.
+    // Plain CIF: a contiguous array of single-frame IMG records. DFU's array of 64 bounds them as it bounds a weapon's,
+    // so a file of empty records ends here, not in memory.
     let pos = 0;
     do {
+      if (this._records.length >= MAX_WEAPON_RECORDS) throw new Error('CifRciFile: record overflow');
       const header = this.readImgFileHeader(pos);
       this._records.push({
         header,

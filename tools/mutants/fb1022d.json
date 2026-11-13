@@ -578,8 +578,8 @@
   {
     "name": "FB1022D-AUDIT-D4-in-flight-put-back",
     "file": "src/player/eyeOfTheBeholder/eotbBody.js",
-    "old": "p.then((img) => { if (decoded.get(key) === p) decoded.set(key, img); }",
-    "new": "p.then((img) => { decoded.set(key, img); }",
+    "old": "p.then((img) => { if (decoded.get(slot) === p) decoded.set(slot, img); }",
+    "new": "p.then((img) => { decoded.set(slot, img); }",
     "tests": [
       "test/net/peer/fb1022d_peerart.test.js"
     ]

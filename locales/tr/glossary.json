@@ -83,5 +83,13 @@
  "guest (account)": "misafir",
  "By chance (Collections chip: a random roll)": "Şansa bağlı",
  "the sprout (the new account's glyph)": "filiz simgesi",
- "Offered by {giver} (a questline's giver, last in the sentence)": "Veren: {giver}."
+ "Offered by {giver} (a questline's giver, last in the sentence)": "Veren: {giver}.",
+ "Overhauls / overhaul (the pane, a texture overhaul mod)": "Yenilemeler / yenileme",
+ "Replacements (the pane) / Replacement (the player's own picture, its label)": "Değiştirmeler / Kendi resmin",
+ "picture (a game texture or sprite)": "resim",
+ "texture": "doku",
+ "Rejected: (a refused file)": "Reddedildi:",
+ "NPCs (Replacements tab)": "Kişiler",
+ "Skin card (the profile card where the body look is chosen)": "Kostüm kartı",
+ "Layered Gearing (mod name, kept as is)": "Layered Gearing"
 }

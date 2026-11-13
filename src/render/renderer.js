@@ -10,6 +10,7 @@
 import { CLOUD_SHADOW_GLSL, cloudFarOf } from './cloudShadow.js';   // EE5 / VC4: the cloud shadow's reader - VC6c's one home, shared with the air pass's shafts; OW-HORIZON: and the ground past its square
 import { BAYER_GLSL, DISSOLVE_GLSL } from './orderedDither.js';   // SHIP-FADE: the mesh shader's dissolve over the port's one bayer4
 import { pixelFadeShare } from './pixelFade.js';   // MID-RING: a just-built pixel's tint, eased out (a leaf)
+import { fitToTextureLimit } from '../formats/resample.js';   // a picture past the device's texture limit, shrunk to fit
 import { LPT_FS_HEAD, LPT_FS_KEEP, LPT_FS_TEXEL } from './lowPolyTreesGlsl.js';   // LPT1: a low-poly tree's fragment half, both lanes' billboard shaders
 import { LPT_IMPOSTOR_LIGHT } from '../world/lowPolyTrees.js';   // FLORA-GROUND: the sky's light a tree's faces take (a leaf: no imports of its own)
 import { FOG_GLSL } from './fogGlsl.js';
@@ -727,6 +728,7 @@ import { boundsOf, spherePlanes, sphereInPlanes, batchVisible, batchSphere, ZERO
 import { billboardKey, sortByKey } from './billboardKey.js';   // AUDIT 68 S16-bbkey-stale-shadow-reach: the batch's texture key - one home with the two replays; LA-COST2: and the cutout pass's sort by it
 import { cullDisabled } from './frustum.js';   // PERF-CROWD2: the billboard pass culls for every host, so no host can forget to
 import { getPref } from '../systems/uiPrefs.js';   // GRAIN2: the ground-sharpness dial, read where the tile array is built
+import { paintedUpload, paintedGlow } from './paintedOverride.js';   // the player's own picture for one the port paints
 import { puddleProxyOn } from '../systems/weather/wetness.js';   // Full tier owns puddle colour; Wet keeps winGlint
 import { WET_PROXY_GATE } from './puddleProxyGlsl.js';
 
@@ -1734,6 +1736,7 @@ export class Renderer {
     const gl = canvas.getContext('webgl2', { antialias: false, powerPreference: 'high-performance' });
     if (!gl) throw new Error('WebGL2 required');
     this.gl = gl;
+    this._textureLimit = 0;   // MAX_TEXTURE_SIZE, read on the first upload (textureLimit)
     this._shadowCacheWanted = true;   // SC1: the static shadow cache's door (setShadowCache - the lane's install reads the page's, shadowPass.js shadowCacheOn); CACHE-COPY: on, as SC1 built it
 
     // EL1: THE WORLD PROGRAM SET - mesh, character, billboard, terrain -
@@ -5607,6 +5610,11 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     this._uploadSink?.(false, key);
     return true;
   }
+  /** The largest texture this device takes on a side (MAX_TEXTURE_SIZE), read once; 2048 where it cannot say. */
+  textureLimit() {
+    if (!this._textureLimit) this._textureLimit = Number(typeof this.gl?.getParameter === 'function' ? this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE) : 0) || 2048;
+    return this._textureLimit;
+  }
   uploadTexture(archive, record, color32, opts = {}) {
     // (see textureParams below - the decision is pure and pinned there)
     // AUDIT 19 F10: the SAMPLING MODE is part of the key. The cache is
@@ -5631,7 +5639,9 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       this.textures.delete(key);
       if (old) this.gl.deleteTexture(old);
     }
+    color32 = paintedUpload(this, archive, record, opts) ?? color32;   // a picture the port paints: the player's own in its place
     const gl = this.gl;
+    color32 = fitToTextureLimit(color32, this.textureLimit());   // a picture past what this device takes (a player's own, a mod's) is shrunk, never refused
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     this._tex0Bound = null;   // PERF-TEX3: this path owns unit 0 - the shadow may not speak for it
@@ -7198,6 +7208,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     if (opts.white) this.emissionWhite.add(key);
     if (opts.window) (this.windowMasks ??= new Set()).add(key);   // RW1: DFU's window mask - the rooms' glass outdoors, the street's indoors
     if (this.emissionTextures.has(key)) return this.emissionTextures.get(key);
+    color32 = paintedGlow(this, archive, record, color32, opts) ?? color32;   // and its glow, from the player's own picture
     const gl = this.gl;
     const tex = gl.createTexture();
     this._activeTexture(gl.TEXTURE1);

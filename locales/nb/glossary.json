@@ -365,5 +365,14 @@
  "Fleet": "Flåten",
  "decor tool": "innredningsverktøyet",
  "Sure? (confirm button)": "Sikker?",
- "Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire (sail patterns)": "Ensfarget, Stolper, Bjelker, Kvadrert, Sparre, Kors, Bord, Andreaskors"
+ "Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire (sail patterns)": "Ensfarget, Stolper, Bjelker, Kvadrert, Sparre, Kors, Bord, Andreaskors",
+ "Replacements (System pane)": "Erstatninger",
+ "replacement (a player's own picture)": "erstatning",
+ "picture (a texture or sprite)": "bilde",
+ "Overhaul (one)": "omarbeiding",
+ "Rejected: (a refused file)": "Avvist:",
+ "Skin card (heading stays Skin)": "Skin-kortet",
+ "Layered Gearing (mod name - never changes)": "Layered Gearing",
+ "Werewolf / Wereboar form": "Varulvform / Varvillsvinform",
+ "Town guard": "Byvakt"
 }

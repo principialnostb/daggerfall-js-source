@@ -21,7 +21,7 @@ const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8'
 
 test('UI-CALM the front door asks which world first: Online and Offline the two doors, Online first; Continue, New Game, Load Game and the Test Room behind Offline, each backing out to it; Settings and Overhauls plaques in the foot; the rail Online first, Offline\'s four under their word (mutants: UICALM-offline-escapes-to-top, UICALM-online-second)', () => {
   assert.deepEqual([...HOME_OFFLINE], ['Continue', 'New Game', 'Load Game', 'Test Room']);
-  assert.deepEqual([...HOME_LINKS], ['Settings', 'Overhauls']);
+  assert.deepEqual([...HOME_LINKS], ['Settings', 'Overhauls', 'Replacements']);
   assert.deepEqual(['continue', 'new', 'load', 'test', 'online', 'settings', 'about'].map(offlineSection), [true, true, true, true, false, false, false]);
   const menu = rd('src/ui/enhanced/enhancedMenu.js');
   const doors = menu.slice(menu.indexOf('function drawDoors(menu) {'), menu.indexOf('/** PX1b: three-zone foot'));

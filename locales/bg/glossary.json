@@ -437,5 +437,15 @@
  "logo (a guild's uploaded picture)": "лого",
  "under review (a logo)": "се преглежда",
  "Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire (sail patterns)": "Гладко, Стълбове, Пояси, Разчетворено, Шеврон, Кръст, Кант, Андреевски кръст",
- "Guild / Wealth / Identity (guild window groups)": "Гилдия / Богатство / Облик"
+ "Guild / Wealth / Identity (guild window groups)": "Гилдия / Богатство / Облик",
+ "Replacements (System pane: your own pictures)": "Замени",
+ "replacement (your own picture for one of the game's)": "замяна",
+ "picture (a texture or sprite)": "картина",
+ "Overhaul (one overhaul; the pane is Overhauls)": "Преработка",
+ "Rejected: (a refused file)": "Отхвърлено:",
+ "Choose… (file button)": "Избери…",
+ "Clear (button)": "Изчисти",
+ "Filter (a list's box)": "Филтър",
+ "Skin card (profile window)": "картата Облик",
+ "Layered Gearing (mod name, never changes)": "Layered Gearing"
 }

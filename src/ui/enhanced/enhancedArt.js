@@ -15,6 +15,15 @@ import { itemLongName } from '../../systems/item/itemInfo.js'; // RF6: the one r
 import { requestIcon, requestFittedPicture } from '../textureCanvas.js';
 import { SPELL_ICON_COUNT, SPELL_ICON_ROW_COUNT } from '../spell/spellIcons.js';
 import { screenDpr } from '../iconFit.js'; // UI2: a spell's icon fitted to its slot
+import { playerPictureUrl, playerPictureStamp } from '../../systems/replacements/playerPictures.js';
+import {
+  spellIconPictureName,
+  overhaulIconSheet,
+  overhaulIconKey,
+  SPELL_ICON_FILE,
+  SPELL_ICON_CELL,
+  SPELL_ICONS_PER_ROW,
+} from '../../systems/replacements/spellIconSheet.js';
 
 /** An item's icon as a data URL (null until it has loaded), and its name. */
 export function itemIconUrl(item, identity = undefined) {
@@ -37,10 +46,38 @@ const cuts = new Map(); // `${name}:${x},${y},${w},${h}` -> dataURL | null
 const cutWaiting = new Map(); // UI2: the same key -> the screens waiting on it, while its sheet loads
 const CUT_WAKE_MAX = 8;
 
+/** The spell icon sheet an overhaul draws (a worn pack's, an attached mod's) on a canvas, its scale to the classic
+ *  sheet as `unit` so a cut in classic pixels finds its icon; null where the game's own draws. */
+async function overhaulSheetCanvas(name) {
+  if (name !== SPELL_ICON_FILE) return null;
+  const sheet = await overhaulIconSheet();
+  if (!sheet?.width) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = sheet.width;
+  canvas.height = sheet.height;
+  canvas
+    .getContext('2d')
+    .putImageData(
+      new ImageData(
+        new Uint8ClampedArray(sheet.data.buffer, sheet.data.byteOffset, sheet.data.byteLength),
+        sheet.width,
+        sheet.height,
+      ),
+      0,
+      0,
+    );
+  return Object.assign(canvas, { unit: sheet.width / (SPELL_ICONS_PER_ROW * SPELL_ICON_CELL) });
+}
+/** A sheet's cache key: the spell icons' follows the overhaul that draws them. */
+const sheetKey = (name) => (name === SPELL_ICON_FILE ? `${name}#${overhaulIconKey()}` : name);
+
 function loadSheet(name) {
-  if (sheets.has(name)) return sheets.get(name);
+  const key = sheetKey(name);
+  if (sheets.has(key)) return sheets.get(key);
   const p = (async () => {
     try {
+      const overhaul = await overhaulSheetCanvas(name).catch(() => null);
+      if (overhaul) return overhaul;
       const [{ ImgFile }, { DFPalette }, { getBytes }, { bitmapToColor32 }] = await Promise.all([
         import('../../formats/imgFile.js'),
         import('../../formats/dfPalette.js'),
@@ -62,7 +99,7 @@ function loadSheet(name) {
       return null;
     }
   })();
-  sheets.set(name, p);
+  sheets.set(key, p);
   return p;
 }
 
@@ -72,7 +109,7 @@ function loadSheet(name) {
  *  from the cut at scale 1 - textureCanvas.js requestFittedPicture - and waits on it); a sheet that never comes tells
  *  no one. */
 export function sheetCutUrl(name, [x, y, w, h], scale = 2, onReady = null) {
-  const key = `${name}:${x},${y},${w},${h}@${scale}`;
+  const key = `${sheetKey(name)}:${x},${y},${w},${h}@${scale}`;
   if (cuts.has(key)) {
     const wait = cutWaiting.get(key);
     if (onReady && wait && wait.size < CUT_WAKE_MAX) wait.add(onReady);
@@ -84,12 +121,13 @@ export function sheetCutUrl(name, [x, y, w, h], scale = 2, onReady = null) {
   loadSheet(name).then((sheet) => {
     cutWaiting.delete(key);
     if (!sheet) return;
+    const unit = sheet.unit ?? 1; // an overhaul's sheet at its own scale: the cut keeps its detail
     const out = document.createElement('canvas');
-    out.width = w * scale;
-    out.height = h * scale;
+    out.width = w * Math.max(scale, Math.round(unit));
+    out.height = h * Math.max(scale, Math.round(unit));
     const ctx = out.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(sheet, x, y, w, h, 0, 0, out.width, out.height);
+    ctx.drawImage(sheet, x * unit, y * unit, w * unit, h * unit, 0, 0, out.width, out.height);
     cuts.set(key, out.toDataURL('image/png'));
     for (const f of wake) {
       try {
@@ -115,7 +153,9 @@ function spellIconRect(index) {
 export function spellIconPicture(index, { box, dpr = screenDpr(), onReady = null } = /** @type {any} */ ({})) {
   const rect = spellIconRect(index);
   if (!rect) return null;
-  return requestFittedPicture(`spellicon${index}`, (wake) => sheetCutUrl('ICON00I0.IMG', rect, 1, wake), {
+  const own = playerPictureUrl(spellIconPictureName(index)); // the player's own icon (the Replacements pane)
+  const key = own ? `spellicon${index}#${playerPictureStamp(spellIconPictureName(index))}` : `spellicon${index}`;
+  return requestFittedPicture(key, (wake) => own ?? sheetCutUrl('ICON00I0.IMG', rect, 1, wake), {
     box,
     dpr,
     trim: false,
@@ -127,7 +167,8 @@ export function spellIconPicture(index, { box, dpr = screenDpr(), onReady = null
  *  sheet's own 16px). */
 export function spellIconUrl(index) {
   const rect = spellIconRect(index | 0);
-  return rect ? sheetCutUrl('ICON00I0.IMG', rect, 2) : null;
+  if (!rect) return null;
+  return playerPictureUrl(spellIconPictureName(index | 0)) ?? sheetCutUrl('ICON00I0.IMG', rect, 2);
 }
 
 /** Paint a raw { width, height, colors } frame into `cv`, once per frame object. */

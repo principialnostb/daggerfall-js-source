@@ -100,6 +100,8 @@ import { swingSoundFor } from '../../systems/soundClips.js';
 import { isEnchanted } from '../../systems/inventory.js';
 import { atlasFileName, customTextureNames } from '../diverseWeapons/diverseWeapons.js'; // DW1
 import { customWeaponImage } from '../diverseWeapons/diverseWeaponsAssets.js'; // DW1: both bundles, this mod's first
+import { playerDrawsWeaponFrame } from '../../systems/replacements/weaponFrames.js'; // the player's own frames outrank the mods'
+import { cifPictureName } from '../../systems/replacements/playerPictures.js';
 import { widgetMetalName } from './weaponWidgetAssets.js';
 import { getItemHands } from '../../systems/equip.js';
 import { ITEM_HANDS } from '../../characters/equipTable.js';
@@ -338,6 +340,8 @@ export function createWeaponWidget({
     // one (combat/diverseWeapons/diverseWeapons.js customTextureNames says why).
     const file = atlasFileName(w.specificWeapon, classic, undefined, ctx?.glow ? false : undefined); // WEAPON-GLOW1: an element shown asks the plain set
     const metal = widgetMetalName(w.currentMetalType); // AUDIT 68 S09-texname-dup: the one metal rule
+    // the player's own frame (the Replacements pane) is in the classic art already, in the classic box: no mod's covers it
+    if (playerDrawsWeaponFrame(cifPictureName(file, record, frame, metal), classic)) return null;
     const cache = (w.customCache ??= new Map());
     const misses = (w.customMisses ??= new Set());
     for (const name of customTextureNames(file, record, frame, metal, w.s.doubleScale)) {

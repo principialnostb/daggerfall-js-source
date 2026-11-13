@@ -187,8 +187,8 @@
   {
     "name": "HANDSEAM-hands-tile",
     "file": "src/combat/fpsSpellCasting.js",
-    "old": "      tex: renderer.uploadTexture('img', `fpsc:${fileName}:${r}`, c32, { clamp: true }), // HAND-SEAM: one quad, never tiled - no wrap onto the far edge (render/renderer.js textureParams)",
-    "new": "      tex: renderer.uploadTexture('img', `fpsc:${fileName}:${r}`, c32), // HAND-SEAM: one quad, never tiled - no wrap onto the far edge (render/renderer.js textureParams)",
+    "old": "      tex: renderer.uploadTexture('img', key, c32, { clamp: true }), // HAND-SEAM: one quad, never tiled - no wrap onto the far edge (render/renderer.js textureParams)",
+    "new": "      tex: renderer.uploadTexture('img', key, c32), // HAND-SEAM: one quad, never tiled - no wrap onto the far edge (render/renderer.js textureParams)",
     "tests": [
       "test/combat/fpsspellcasting.test.js"
     ]

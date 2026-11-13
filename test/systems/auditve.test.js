@@ -486,7 +486,7 @@ test('AUDIT VE R13: the paper doll composes at four times only while a mod switc
   assert.equal(DM.dfmodCarriesDollArt(), true, 'a head: doll art');
   setDfmodEnabled('dfmod/doll.dfmod', false);
   assert.equal(DM.dfmodCarriesDollArt(), false, 'switched off, none - the lighting mod carries none either');
-  assert.match(src('ui/paperDoll.js'), /const composeScale = \(\) => \(dfmodCarriesDollArt\(\) \? PAPERDOLL_HD_SCALE : 1\);/);
+  assert.match(src('ui/paperDoll.js'), /const composeScale = \(\) => \(dfmodCarriesDollArt\(\) \|\| ownDollArt\(\) \? PAPERDOLL_HD_SCALE : 1\);/);
 });
 
 test('AUDIT VE R1 (VE4\'s law under it): the same shipped list again changes nothing - its opened clients are kept, not closed and opened again at every card\'s read (the walk signature keeps the generation either way, so this is what the early return alone holds) (mutants: the same list installed again)', async () => {

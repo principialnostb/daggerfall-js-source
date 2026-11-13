@@ -49,7 +49,9 @@ import { EQUIP_SLOTS, equipTableOf, getItemHands, ITEM_HANDS } from '../systems/
 import { getTemplate, paperdollOrder } from '../characters/paperdoll/paperdoll.js';
 import { applyDyeToIndex, DYE_TARGETS, DYE_COLORS, CLOTHING_DYES } from '../characters/dyes.js';
 import { decodedTextureTopDown, preloadTextureRecord, textureReplacementRect } from '../systems/textureReplacement.js';
-import { dfmodImgImage, dfmodCifRciImage, dfmodCifRciRect, dfmodGeneration, resampleRgba, dfmodCarriesDollArt } from '../systems/dfmodTextures.js';   // DFMOD1: an attached mod's backdrop, body, head and hi-res items   // DW3: GetItemImage's import arm, by the item's dye; AUDIT-DW F1: decoded when the doll asks
+import { dfmodCifRciRect, dfmodGeneration, resampleRgba, dfmodCarriesDollArt } from '../systems/dfmodTextures.js';
+import { cifPictureName, hasPlayerPicture, hasPlayerFile, playerPictureNames, playerFileNames, playerPicturesGeneration } from '../systems/replacements/playerPictures.js';
+import { ownOrModImg, ownOrModCifRecord } from '../systems/replacements/ownOrMod.js';   // the player's picture, then a mod's   // DFMOD1: an attached mod's backdrop, body, head and hi-res items   // DW3: GetItemImage's import arm, by the item's dye; AUDIT-DW F1: decoded when the doll asks
 import { itemDyeColor, itemDyeTarget } from '../systems/item/itemDye.js';   // DW3: DaggerfallUnityItem.dyeColor, as the port's items carry it
 import { ARTIFACT_MALE_TEXTURE_ARCHIVE, ARTIFACT_FEMALE_TEXTURE_ARCHIVE } from '../systems/loot/loot.js';   // ART-DOLL: an artifact's own doll archive
 import { customItemClass } from '../systems/roleplayRealismItems/rriItems.js';   // RRI1: a custom class's own archive and record on the doll
@@ -217,7 +219,7 @@ let _staleTried = -1;   // DFMOD3-F: the generation a stale recompose was last s
  *  once (it is coalesced), so render -> ask -> render spun forever. Now it answers true ONCE per generation, never
  *  during a compose, and never without the art and deps a compose needs. */
 export const paperDollStale = () => {
-  const gen = dfmodGeneration();
+  const gen = artGeneration();
   if (!_art || !_deps || _refreshing || _composedGen === gen || _staleTried === gen) return false;
   _staleTried = gen;
   return true;
@@ -288,7 +290,7 @@ async function loadArtSet(deps, { race = 'Breton', gender = 'male', faceIndex = 
     const img = new ImgFile();
     img.load(await fetchBytes(name), name, palette);
     const bmp = img.getDFBitmap();
-    return { bmp, off: img.imageOffset, name, alt: await dfmodAlt(dfmodImgImage(name), bmp) };   // OVH2: the NAME rides it - a worn UI pack answers the backdrop by name; DFMOD1: an attached mod's picture of it
+    return { bmp, off: img.imageOffset, name, alt: await dfmodAlt(ownOrModImg(name), bmp) };   // OVH2: the NAME rides it - a worn UI pack answers the backdrop by name; DFMOD1: an attached mod's picture of it
   };
   const face = new CifRciFile();
   face.load(await fetchBytes(art.heads), art.heads, palette);
@@ -304,9 +306,19 @@ async function loadArtSet(deps, { race = 'Breton', gender = 'male', faceIndex = 
     })),
     nude: await loadImgBmp(unclothed),
     clothed: await loadImgBmp(clothed),
-    head: { bmp: headBmp, off: face.getOffset(fi), alt: await dfmodAlt(dfmodCifRciImage(art.heads, fi, 0), headBmp), rect: dfmodCifRciRect(art.heads, fi, 0) },   // FACE-RECT: and its sidecar's <rect>
+    head: { bmp: headBmp, off: face.getOffset(fi), alt: await dfmodAlt(ownOrModCifRecord(art.heads, fi, palette, face), headBmp), rect: modRect(art.heads, fi) },   // FACE-RECT: and its sidecar's <rect>
   };
 }
+
+/** The doll's art set is made again when the mods or the player's own pictures (the Replacements pane) change. */
+const artGeneration = () => `${dfmodGeneration()}.${playerPicturesGeneration()}`;
+/** A mod's box for a CIF record's picture - none while the player's own stands in for it. */
+const modRect = (file, record) =>
+  hasPlayerPicture(cifPictureName(file, record, 0)) || hasPlayerFile(file) ? null : dfmodCifRciRect(file, record, 0);
+/** The player chose a picture of the doll's own: the body, a head or a backdrop. */
+const ownDollArt = () =>
+  playerPictureNames().some((name) => /^(BODY|FACE|SCBG|WOLF|BOAR|WERE|VAMP)/.test(name)) ||
+  playerFileNames().some((file) => /^(FACE|VAMP)/.test(file));
 
 /** DFMOD1: an attached mod's picture of a classic IMG/CIF - the mod's own top-down RGBA `{ width, height, data }`,
  *  or null. DFMOD4: kept at the mod's resolution; `altAt` fits it to the classic size times the compose scale, so
@@ -338,11 +350,11 @@ function altAt(holder, S) {
  *  nearest-scaled into it exactly as before, and the mod's layers keep four times the detail. Every rect, offset and
  *  click mask stays in the classic 110x184 space; only the pixels are denser. */
 export const PAPERDOLL_HD_SCALE = 4;
-const composeScale = () => (dfmodCarriesDollArt() ? PAPERDOLL_HD_SCALE : 1);   // AUDIT VE R13: a mod switched on carries doll art - not the lighting mod, a mod off, Vanilla Enhanced or a copy of it
+const composeScale = () => (dfmodCarriesDollArt() || ownDollArt() ? PAPERDOLL_HD_SCALE : 1);   // AUDIT VE R13: a mod switched on carries doll art - not the lighting mod, a mod off, Vanilla Enhanced or a copy of it
 
 export async function preloadPaperDollArt(deps, ident = {}) {
   const { race = 'Breton', gender = 'male' } = ident;
-  const key = `${paperDollIdentityKey(ident)}#${dfmodGeneration()}`;   // DFMOD1: attaching or removing a mod rebuilds the art
+  const key = `${paperDollIdentityKey(ident)}#${artGeneration()}`;   // DFMOD1: attaching or removing a mod rebuilds the art
   if (_art && _identity === key) return;
   try {
     _art = await loadArtSet(deps, ident);
@@ -514,7 +526,7 @@ function blitRgba(out, img, { atOffset = null, under = null, rows = null, S = 1 
 // back to the racial art, the never-traps rule.
 const _overrideArt = new Map();   // 'FILE#record' -> { bmp, off } | null
 async function loadOverrideArt(file, record, deps, palette) {
-  const key = `${file}#${record}#${dfmodGeneration()}`;   // DFMOD1: a mod attached mid-session re-reads it
+  const key = `${file}#${record}#${artGeneration()}`;   // DFMOD1: a mod attached mid-session re-reads it
   if (_overrideArt.has(key)) return _overrideArt.get(key);
   let art = null;
   try {
@@ -522,13 +534,13 @@ async function loadOverrideArt(file, record, deps, palette) {
       const cif = new CifRciFile();
       cif.load(await deps.fetchBytes(file), file, palette);
       art = { bmp: cif.getDFBitmap(record, 0), off: cif.getOffset(record) };
-      art.alt = await dfmodAlt(dfmodCifRciImage(file, record, 0), art.bmp);   // DFMOD1
-      art.rect = dfmodCifRciRect(file, record, 0);   // FACE-RECT: a racial override's head takes its sidecar's <rect> as the face does
+      art.alt = await dfmodAlt(ownOrModCifRecord(file, record, palette, cif), art.bmp);   // DFMOD1
+      art.rect = modRect(file, record);   // FACE-RECT: a racial override's head takes its sidecar's <rect> as the face does
     } else {
       const img = new ImgFile();
       img.load(await deps.fetchBytes(file), file, palette);
       art = { bmp: img.getDFBitmap(), off: img.imageOffset };
-      art.alt = await dfmodAlt(dfmodImgImage(file), art.bmp);   // DFMOD1
+      art.alt = await dfmodAlt(ownOrModImg(file), art.bmp);   // DFMOD1
     }
     if (!art.bmp?.width) art = null;
   } catch { console.warn('[paperdoll] override art unavailable:', key); art = null; }
@@ -655,15 +667,15 @@ export async function refreshPaperDoll(entity) {
     // trap - to be tried again on the next refresh.
     const drift = paperDollIdentityDrift(entity);
     if (drift) await preloadPaperDollArt(_deps, drift);
-    else if (_ident && !_identity?.endsWith(`#${dfmodGeneration()}`)) await preloadPaperDollArt(_deps, _ident);   // DFMOD1-E: the mods changed - the backdrop, body and head are reloaded with theirs
-    const gen = dfmodGeneration();
+    else if (_ident && !_identity?.endsWith(`#${artGeneration()}`)) await preloadPaperDollArt(_deps, _ident);   // DFMOD1-E: the mods changed - the backdrop, body and head are reloaded with theirs
+    const gen = artGeneration();
     // OVH2: A WORN UI PACK'S BACKDROP. The doll composes WITHOUT its SCBG and the pack's picture of that SCBG is
     // drawn under it (drawPaperDoll) - its hi-res pixels would be lost in the 110x184 composite. The HM1 masks
     // still hole through to "the background": composed on nothing, a masked pixel is clear, and the pack's
     // backdrop shows through it exactly as DFU's SCBG panel shows through the mask shader.
     const overrideName = racialPaperDollBackground(entity);
     const bgName = overrideName && await loadOverrideArt(overrideName, 0, _deps, _art.palette) ? overrideName : _art.bg.name;   // composeDoll's own choice (an override that did not load falls to the racial art)
-    const packBg = bgName ? await packImgTexture(_deps.renderer, bgName) : null;
+    const packBg = bgName && !hasPlayerPicture(bgName) ? await packImgTexture(_deps.renderer, bgName) : null;   // the player's own backdrop (the Replacements pane) outranks the pack's
     const { out, layout, bgSize, width: OW, height: OH } = await composeDoll(_art, _deps, entity, { background: !packBg, scale: composeScale() });   // DFMOD4: 4x with a texture mod
     const key = `paperdoll_v${++_version}`;
     const prevKey = _live?.key ?? null;

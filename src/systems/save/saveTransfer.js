@@ -123,16 +123,18 @@ export function crc32(bytes) {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-/** entries [{ name, data: Uint8Array }] -> one zip, method 0, no zip64 */
-export function zipStore(entries) {
+/** entries [{ name, data: Uint8Array | Blob, crc? }] -> a zip's parts in order, method 0, no zip64: each entry's
+ *  header and data, the central directory and its end. A Blob's CRC is given, as its bytes are not read here. */
+export function zipStoreParts(entries) {
   const locals = [],
     centrals = [];
   let offset = 0;
   const u16 = (v) => [v & 255, (v >> 8) & 255];
   const u32 = (v) => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
-  for (const { name, data } of entries) {
+  for (const { name, data, crc: given } of entries) {
     const nameB = enc.encode(name),
-      crc = crc32(data);
+      crc = given ?? crc32(data),
+      size = data instanceof Uint8Array ? data.length : data.size;
     const local = new Uint8Array([
       ...u32(0x04034b50),
       ...u16(20),
@@ -141,8 +143,8 @@ export function zipStore(entries) {
       ...u16(0),
       ...u16(0),
       ...u32(crc),
-      ...u32(data.length),
-      ...u32(data.length),
+      ...u32(size),
+      ...u32(size),
       ...u16(nameB.length),
       ...u16(0),
       ...nameB,
@@ -158,8 +160,8 @@ export function zipStore(entries) {
         ...u16(0),
         ...u16(0),
         ...u32(crc),
-        ...u32(data.length),
-        ...u32(data.length),
+        ...u32(size),
+        ...u32(size),
         ...u16(nameB.length),
         ...u16(0),
         ...u16(0),
@@ -170,7 +172,7 @@ export function zipStore(entries) {
         ...nameB,
       ]),
     );
-    offset += local.length + data.length;
+    offset += local.length + size;
   }
   const centralSize = centrals.reduce((a, c) => a + c.length, 0);
   const eocd = new Uint8Array([
@@ -183,12 +185,16 @@ export function zipStore(entries) {
     ...u32(offset),
     ...u16(0),
   ]);
-  const total = offset + centralSize + eocd.length;
-  const out = new Uint8Array(total);
-  let p = 0;
-  for (const part of [...locals, ...centrals, eocd]) {
-    out.set(part, p);
-    p += part.length;
+  return [...locals, ...centrals, eocd];
+}
+/** entries [{ name, data: Uint8Array }] -> one zip, method 0, no zip64 */
+export function zipStore(entries) {
+  const parts = zipStoreParts(entries);
+  const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let position = 0;
+  for (const part of parts) {
+    out.set(part, position);
+    position += part.length;
   }
   return out;
 }

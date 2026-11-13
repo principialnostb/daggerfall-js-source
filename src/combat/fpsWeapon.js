@@ -28,7 +28,8 @@ import { getPref } from '../systems/uiPrefs.js'; // MAC-I: the first-person ligh
 import { isEnchanted } from '../systems/inventory.js'; // AUDIT 17e C2
 import { WEAPONS, WEAPON_MATERIALS, weaponDyeColor } from '../characters/weapons.js';
 import { atlasFileName } from './diverseWeapons/diverseWeapons.js'; // DW1: FPSWeapon.cs:637-644 - the per-template name under Diverse Weapons' flag
-import { customWeaponImage } from './diverseWeapons/diverseWeaponsAssets.js'; // DW1: TryImportCifRci's answer, off the player's own bundles
+import { weaponFrameImage, playerWeaponFrame } from '../systems/replacements/weaponFrames.js'; // TryImportCifRci's answer: the player's own frames (the Replacements pane), then the mods' bundles
+import { playerCifCopy, playerFileStamp } from '../systems/replacements/playerPictures.js'; // the player's own copy of a weapon's CIF
 import { MATERIAL_NAMES } from '../systems/item/itemInfo.js'; // MetalTypes' names, for GetNameCifRci's suffix
 import { customItemClass } from '../systems/roleplayRealismItems/rriItems.js'; // RRI1: GetWeaponType is a virtual a custom class answers
 import { THUNDERLOCK_TEMPLATE, PISTOLET_TEMPLATE } from '../characters/thunderlockIds.js'; // the port's own weapon (a leaf - see the file)
@@ -397,13 +398,15 @@ export async function loadFpsWeaponArt(
   weaponType,
   material = WEAPON_MATERIALS.Iron,
   item = null,
-  { customImage = customWeaponImage, plain = false } = {},
+  { customImage = weaponFrameImage, plain = false } = {},
 ) {
   // WEAPON-GLOW1: `plain` - the item's element shows, and Diverse Weapons is asked its plain set too
   const fileName = WEAPON_FILE[weaponType];
   if (!fileName) return null;
   const cif = new CifRciFile();
   cif.load(await getBytes(fileName), fileName, palette);
+  // the player's own copy of the file (the Replacements pane) outranks the mods' frames; the boxes stay the game's
+  const own = await playerCifCopy(fileName, palette, cif);
   // FPSWeapon.GetWeaponTexture2D verbatim: "not for steel as that is
   // default colour in files" (None has no material here). Everything
   // else dyes - including Silver through the aliased 18 (see
@@ -421,7 +424,8 @@ export async function loadFpsWeaponArt(
   // the rig had any art to draw - the weapon invisible for the whole
   // run. DFU's files are local and cost nothing; the port's are a fetch
   // each, so they go out as one batch.
-  const customs = await customFrames(askName, metal, cif, customImage);
+  const customs = await customFrames(askName, metal, cif, own ? playerWeaponFrame : customImage);
+  const ownKey = own ? `#${playerFileStamp(fileName)}` : '';
   const records = [];
   for (let r = 0; r < cif.recordCount; r++) {
     const size = cif.getSize(r);
@@ -435,8 +439,12 @@ export async function loadFpsWeaponArt(
       // TrueTextureSize is the module that draws it at its own size,
       // and that is the other lane.
       const custom = customs[r][f];
-      const c32 = custom ?? frameToColor32(cif.getDFBitmap(r, f), palette, dye);
-      frames.push(renderer.uploadTexture('img', custom ? `fpw:${name}` : `fpw:${fileName}:${material}:${r}:${f}`, c32));
+      const c32 = custom ?? frameToColor32((own ?? cif).getDFBitmap(r, f), palette, dye);
+      // a player's picture keys apart by when it was kept: a mod's frame of the same name, or their earlier one, is not it
+      const customKey = custom?.ownStamp ? `fpw:${name}#${custom.ownStamp}` : `fpw:${name}`;
+      frames.push(
+        renderer.uploadTexture('img', custom ? customKey : `fpw:${fileName}${ownKey}:${material}:${r}:${f}`, c32),
+      );
     }
     records.push({ width: size.width, height: size.height, frames });
   }
@@ -452,8 +460,8 @@ export const frameName = (askName, record, frame, metal) => `${askName}_${record
  *  `<FILE>_<record>-<frame>[_<Metal>]`, asked all at once - answers
  *  `customs[record][frame]` (an image, or null). `shape` is the CIF's
  *  `recordCount` and `getFrameCount(record)`; `ask` the door
- *  (customWeaponImage). Pure, for the pin. */
-export async function customFrames(askName, metal, shape, ask = customWeaponImage) {
+ *  (weaponFrameImage). Pure, for the pin. */
+export async function customFrames(askName, metal, shape, ask = weaponFrameImage) {
   const asks = [];
   const customs = [];
   for (let r = 0; r < shape.recordCount; r++) {

@@ -21,6 +21,7 @@ import { stripCellRect, hardenAlpha, cropImage } from './gun/pistolStrip.js';   
 import { THUNDERLOCK_STRIP } from './gun/thunderlockStrip.js';   // the strip's shape, a leaf's (the anim table and the machine read it too)
 import { FLASH_LUMA, flashMask, flashBodyPoint } from './gun/gunFlash.js';   // the flash's laws, the Pistolet's too - one home
 import { decodePng } from '../systems/textureReplacement.js';
+import { playerStrip, playerPictureStamp } from '../systems/replacements/playerPictures.js';   // the Replacements pane's strip
 import { toScreenOrder } from '../formats/color32Order.js';   // FIELD-GUN3: HT3's law - a SCREEN QUAD's PNG keeps its rows
 import { WEAPON_TYPES, getWeaponAnims } from './fpsWeapon.js';
 import { GUN_FEEL } from './gun/gunFeel.js';   // FIELD-GUN7: the lab's settled pose, one home
@@ -190,21 +191,26 @@ export function thunderlockFrames(strip, { gilded = false, magic = false } = {})
  */
 export async function loadThunderlockArt(renderer, { fetch: fetchStrip = null, decode = decodePng, magic = false, gilded = false } = {}) {
   const file = `art/${THUNDERLOCK_STRIP.file}`;
-  const bytes = fetchStrip
+  // the player's own strip (the Replacements pane), at the strip's own size: the frames are measured in its cells
+  const own = await playerStrip('thunderlock-frames', THUNDERLOCK_STRIP, decode);
+  const bytes = own
+    ? null
+    : fetchStrip
     ? await fetchStrip(file)
     : await (async () => {
       const r = await fetch(sheetUrl(file));
       if (!r.ok) throw new Error(`${file}: ${r.status}`);
       return new Uint8Array(await r.arrayBuffer());
     })();
-  const set = thunderlockFrames(await decode(bytes), { gilded, magic });
+  const set = thunderlockFrames(own ?? (await decode(bytes)), { gilded, magic });
   if (!set) return null;
   const { frames, anchor, union, muzzle } = set, k = THUNDERLOCK_ART.scale;
   const type = magic ? WEAPON_TYPES.Thunderlock_Magic : WEAPON_TYPES.Thunderlock;
   const look = gilded ? ':gilded' : magic ? ':magic' : '';
   // FIELD-GUN3 (Mac, from play: "The sprite is upside down"): HT3's law - drawFpsWeapon ends in drawScreenQuad, whose
   // rect's top takes v0 with no flip at upload, so a decoded PNG keeps its rows (toScreenOrder, never toColor32's flip)
-  const textures = frames.map((rgba, i) => renderer.uploadTexture('img', `thunderlock${look}:${i}`, toScreenOrder(rgba)));
+  const ownKey = own ? `#${playerPictureStamp('thunderlock-frames')}` : '';
+  const textures = frames.map((rgba, i) => renderer.uploadTexture('img', `thunderlock${look}${ownKey}:${i}`, toScreenOrder(rgba)));
   const anchorW = anchor.w * k, anchorH = anchor.h * k;
   return {
     weaponType: type,

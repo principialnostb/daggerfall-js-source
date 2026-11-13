@@ -434,7 +434,7 @@
   "src/combat/enemyGroups.js": 2,
   "src/combat/formulas.js": 194,
   "src/combat/fpArm.js": 771,
-  "src/combat/fpsSpellCasting.js": 89,
+  "src/combat/fpsSpellCasting.js": 87,
   "src/combat/fpsWeapon.js": 16,
   "src/combat/friendlyFire.js": 11,
   "src/combat/gun/gunFeel.js": 80,
