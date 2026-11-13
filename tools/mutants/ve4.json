@@ -186,7 +186,7 @@
     "tests": [
       "test/systems/ve4_vanillaEnhancedShipped.test.js"
     ],
-    "old": "const composeScale = () => (dfmodCarriesDollArt() ? PAPERDOLL_HD_SCALE : 1);",
+    "old": "const composeScale = () => (dfmodCarriesDollArt() || ownDollArt() ? PAPERDOLL_HD_SCALE : 1);",
     "new": "const composeScale = () => PAPERDOLL_HD_SCALE;"
   },
   {
