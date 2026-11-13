@@ -30,22 +30,24 @@ import { armBonesInBody } from '../../src/combat/fpArm.js';
 import { retailSkeleton } from '../fixtures/mw/retailRig.mjs';
 import { ARMORY_BONES } from '../../src/render/armoryPose.js';
 import { insigniaRowOf, insigniaEquip } from '../../src/scenes/brokerInsignia.js';
+import { ARMORY_HOVER, ARMORY_BODY } from '../../src/render/armoryHover.js';
+import { ARMORY_RINGS } from '../../src/render/armoryPass.js';
 
 const rd = (/** @type {string} */ p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 
 test('ARMORY the kit: five slot letters, each a piece of its slot or empty, never all empty - and the pieces it names, the kit of a wardrobe, a slot changed, the held left (mutants: a piece in the wrong slot passed; an empty kit a claim; a slot changed beside the one asked)', () => {
   assert.deepEqual(ARMORY_SLOTS, ['head', 'torso', 'arms', 'legs', 'weapon']);
   // PIN MOVED: GUILD-SHOP - the guild's line, one piece: the Insignia Armlet in the arms slot, the guild shop's
-  assert.equal(ARMORY_PIECES.length, 12, 'two lines of five, the guild\'s armlet and the Crystal Spurs');   // PIN MOVED (THANKS-POST): the update's gift
-  assert.equal(new Set(ARMORY_KEYS).size, 12, 'a key each');
-  for (const s of ARMORY_SLOTS) assert.equal(new Set(ARMORY_PIECES.filter((p) => p.slot === s).map((p) => p.code)).size, s === 'arms' ? 4 : 2, `${s}: its codes its own`);   // PIN MOVED (THANKS-POST): the Crystal Spurs, the arms slot's fourth
+  assert.equal(ARMORY_PIECES.length, 17, 'three lines of five, the guild\'s armlet and the Crystal Spurs');   // PIN MOVED (THANKS-POST): the update's gift
+  assert.equal(new Set(ARMORY_KEYS).size, 17, 'a key each');
+  for (const s of ARMORY_SLOTS) assert.equal(new Set(ARMORY_PIECES.filter((p) => p.slot === s).map((p) => p.code)).size, s === 'arms' ? 5 : 3, `${s}: its codes its own`);   // PIN MOVED (THANKS-POST): the Crystal Spurs, the arms slot's fourth
   assert.deepEqual(armoryLinePieces('guild').map((p) => [p.key, p.slot, p.code, p.source]), [['insigniaarmlet', 'arms', 'c', 'guild']]);
   assert.deepEqual(armoryLinePieces('dagonfire').map((p) => [p.key, p.source]), [['burningcrown', 'broker'], ['emberheart', 'broker'], ['ashbound', 'broker'], ['cinderstride', 'broker'], ['breachbrand', 'broker']], 'the Dagonfire line, the Sigil Broker\'s');
   assert.ok(armoryLinePieces('eternal').every((p) => p.source === 'shop'), 'the Eternal line, the shop\'s');
   assert.deepEqual([armoryLineKit('eternal'), armoryLineKit('dagonfire'), armoryLineKit('none')], ['bbbbb', 'aaaaa', null]);
   assert.deepEqual([armoryWarePieces('eternalset'), armoryWarePieces('emberheart'), armoryWarePieces('nonsuch')], [['eternalhalo', 'eternalsigil', 'eternalarmlets', 'eternalgreaves', 'eternaledge'], ['emberheart'], []]);
   for (const k of ['a0000', '0b000', 'aaaaa', 'bbbbb', 'ab0ba', '0000b']) assert.equal(armoryKitOk(k), true, k);
-  for (const k of ['00000', 'c0000', 'a000', 'a00000', 'A0000', '', null, 12345, undefined]) assert.equal(armoryKitOk(k), false, String(k));
+  for (const k of ['00000', 'd0000', 'a000', 'a00000', 'A0000', '', null, 12345, undefined]) assert.equal(armoryKitOk(k), false, String(k));
   assert.equal(armoryPieceAt('head', 'a')?.key, 'burningcrown');
   assert.equal(armoryPieceAt('weapon', 'b')?.key, 'eternaledge');
   assert.equal(armoryPieceAt('head', '0'), null);
@@ -223,22 +225,22 @@ test('ARMORY a picture\'s arms (PROFILE-SLOTS audit, the owner: "The arm effects
   assert.equal(spriteFor('Idle', 2, 0, { onFoot: 0, wornArmour: true, gender: 'female', outfit: 'p6p6p6' })?.view, 2, 'Layered Gearing\'s');
 });
 
-test('ARMORY what a piece draws: a crown on the head, a heart on the chest, arms and legs on both sides; a sprite\'s forearm stands down; a rider\'s legs and a sunk body\'s chest none; the weapon\'s nothing here (mutants: the weapon drawn on the body; a rider\'s greaves drawn; the forearm drawn on a card)', () => {
+test('ARMORY what a piece draws: a crown over the head, a heart before the chest, arms and legs on both sides; a sprite\'s forearm stands down; a rider\'s legs and a sunk body\'s chest none; the weapon\'s nothing here (mutants: the weapon drawn on the body; a rider\'s greaves drawn; the forearm drawn on a card)', () => {
   const rig = { at: [0, 0, 0], yaw: 0, pose: newPose(), vel: [0, 0, 0] }, eye = [0, 1.6, 3];
   const crown = armoryDraws('burningcrown', rig, eye, true);
-  assert.ok(crown.length >= 3 && crown.every((d) => d.A[1] > 1.5), 'the crown over the brow');
+  assert.ok(crown.length >= 3 && crown.every((d) => d.A[1] > rig.pose.pts[POSE_AT.crown + 1]), 'the crown over the head\'s top');
   const heart = armoryDraws('emberheart', rig, eye, true);
-  assert.ok(heart.some((d) => d.mesh === 2) && heart.every((d) => d.A[1] > 1 && d.A[1] < 1.6), 'a decal on the chest');
+  assert.ok(heart.some((d) => d.mesh === 2) && heart.every((d) => d.A[1] > 1 && d.A[1] < 1.6), 'a decal before the chest');
   assert.equal(armoryDraws('emberheart', rig, eye, false).filter((d) => d.mesh === 1).length, 1, 'far: the embers go, the glow stays');
   const arms = armoryDraws('ashbound', rig, eye, true).filter((d) => d.mesh === 0);
-  assert.equal(arms.length, 4, 'upper and forearm, both sides');
+  assert.equal(arms.length, 8, 'two rings on the upper arm and two on the forearm, both sides');
   assert.ok(arms.some((d) => d.A[0] < 0) && arms.some((d) => d.A[0] > 0), 'left and right');
   const legs = armoryDraws('eternalgreaves', rig, eye, true).filter((d) => d.mesh === 0);
-  assert.equal(legs.length, 2);
+  assert.equal(legs.length, 4, 'two rings round each shin');
   for (const k of ['breachbrand', 'eternaledge']) assert.deepEqual(armoryDraws(k, rig, eye, true), [], `${k}: drawn on the weapon by the weapon glow`);
   const card = { ...rig, pose: newPose() };
   poseFromFigure({ base: 0, mpp: 0.02 }, card.pose);
-  assert.equal(armoryDraws('ashbound', card, eye, true, [1, 0, 0]).filter((d) => d.mesh === 0).length, 2, 'a sprite: the upper arm alone');
+  assert.equal(armoryDraws('ashbound', card, eye, true, [1, 0, 0]).filter((d) => d.mesh === 0).length, 4, 'a sprite: the upper arm\'s rings alone');
   assert.deepEqual(armoryDraws('cinderstride', { ...rig, mounted: true }, eye, true), [], 'a rider\'s legs are the horse\'s');
   const sunk = { ...rig, pose: newPose() }; sunk.pose.sunk = true;
   assert.deepEqual(armoryDraws('emberheart', sunk, eye, true), [], 'under the water to the neck, no chest');
@@ -290,14 +292,14 @@ test('ARMORY on the Morrowind body: every bone the pose reads stands on retail\'
   assert.ok(pose.pts[POSE_AT.shL] < 0 && pose.pts[POSE_AT.shR] > 0 && pose.pts[POSE_AT.elL] < 0 && pose.pts[POSE_AT.waR] > 0, 'its left on the left, its right on the right');
   assert.ok(pose.pts[POSE_AT.chest + 2] > bones['bip01 spine2'][2] + 0.1, 'the chest\'s face, a hand forward of the spine');
   const w = { at: [0, 0, 0], yaw: 0, pose, vel: [0, 0, 0] }, eye = [0, 1.5, 3];
-  assert.ok(armoryDraws('burningcrown', w, eye, true).every((d) => d.A[1] > y('head') - 0.01), 'the crown round the head');
+  assert.ok(armoryDraws('burningcrown', w, eye, true).every((d) => d.A[1] > y('crown') + ARMORY_HOVER.head.gap - ARMORY_HOVER.head.bob - 1e-9), 'the crown the head\'s gap over its top');
   const heart = armoryDraws('emberheart', w, eye, true).find((d) => d.mesh === 2);
-  assert.ok(heart && Math.abs(heart.A[1] - y('chest')) < 1e-6 && heart.A[2] > 0.1, 'the heart on the chest\'s face');
-  assert.equal(armoryDraws('ashbound', w, eye, true).filter((d) => d.mesh === 0).length, 4, 'a rig\'s forearms drawn too');
+  assert.ok(heart && Math.abs(heart.A[1] - y('chest')) <= ARMORY_HOVER.torso.bob + 1e-9 && Math.abs(heart.A[2] - pose.pts[POSE_AT.chest + 2] - ARMORY_HOVER.torso.gap) < 1e-9, 'the heart the torso\'s gap before the chest\'s face');
+  assert.equal(armoryDraws('ashbound', w, eye, true).filter((d) => d.mesh === 0).length, 8, 'a rig\'s forearms drawn too');
   const sigilBack = armoryDraws('eternalsigil', w, [0, 1.5, -3], true).filter((d) => d.mesh === 2).find((d) => d.N[2] < 0);
   assert.ok(sigilBack && sigilBack.A[2] < bones['bip01 spine2'][2] - 0.12, 'the Sigil\'s back ring behind the back, never inside the torso (AUDIT ARMORY)');
   const shins = armoryDraws('cinderstride', w, eye, true).filter((d) => d.mesh === 0);
-  assert.ok(shins.length === 2 && shins.every((d) => d.A[1] < 0.1 && d.B[1] > 0.6), 'the shins, foot to knee');
+  assert.ok(shins.length === 4 && shins.every((d) => d.A[1] > 0.1 && d.B[1] < y('knL') && d.B[1] > d.A[1]), 'rings up the shins, over the foot and under the knee');
 });
 
 /** A GL that answers every call and keeps its log - enough for the pass's own choices, never its pixels (the GPU's are
@@ -348,23 +350,27 @@ test('WOLF-KIT turned beast, the chest, arm and leg pieces stay worn on the wolf
   const sigil = (/** @type {any} */ pose) => armoryDraws('eternalsigil', { at: [0, 0, 0], yaw: 0, pose }, [0, 1.5, 3], true).filter((d) => d.mesh === 2);
   const wolfBack = newPose(); poseFromBones(bones, wolfBack, true);
   const [front, back] = sigil(wolfBack);
-  assert.equal(+(front.A[2] - back.A[2]).toFixed(3), ARMORY_BEAST_CHEST.back, 'the sigil\'s back piece behind the wolf\'s back, not inside it');
+  assert.equal(+(front.A[2] - back.A[2]).toFixed(3), +(ARMORY_BEAST_CHEST.back + 2 * ARMORY_HOVER.torso.gap * ARMORY_BEAST_FIT).toFixed(3), 'the sigil the torso\'s gap before the wolf\'s chest, its back piece the gap behind its back');
   assert.equal(+(bones['bip01 spine2'][1] - wolf.pts[POSE_AT.chest + 1]).toFixed(3), 0, 'a person\'s chest at the spine\'s height');
   assert.equal(+(bones['bip01 spine2'][1] - wolfBack.pts[POSE_AT.chest + 1]).toFixed(3), ARMORY_BEAST_CHEST.down, 'the wolf\'s down off its shoulders, mid-chest');
   // the arms: wider round the wolf's, stopped at the wrist
   const arms = (/** @type {string} */ key, /** @type {any} */ pose) => armoryDraws(key, { at: [0, 0, 0], yaw: 0, pose }, [0, 1.5, 3], true).filter((d) => d.mesh === 0);
+  const G = ARMORY_HOVER.arms.gap;
   for (const key of ['ashbound', 'eternalarmlets']) {
     const p = arms(key, person), w = arms(key, wolfBack);
     assert.equal(w.length, p.length, `${key}: nothing past the wrist`);
-    assert.ok(Math.abs(w[0].r[0] / p[0].r[0] - ARMORY_BEAST_FIT * ARMORY_BEAST_ARM.arm) < 1e-6, `${key}: as wide as the wolf's arm`);
+    assert.ok(Math.abs(p[0].r[0] - (ARMORY_BODY.upper + G)) < 1e-9, `${key}: a person's the arms' gap round the arm`);
+    assert.ok(Math.abs(w[0].r[0] - (ARMORY_BODY.upper * ARMORY_BEAST_ARM.arm + G) * ARMORY_BEAST_FIT) < 1e-9, `${key}: the wolf's the gap round its wider arm, at its scale`);
   }
   assert.deepEqual([person.arm, wolfBack.arm], [1, ARMORY_BEAST_ARM.arm]);
-  // the greaves on the wolf's shank, from the hock down to its toes - a person's from the ankle up to the knee
+  // the greaves on the wolf's shank, from its toes up to the hock - one ring there, near the hock; a person's two up the
+  // shin from the ankle toward the knee
   const legs = (/** @type {any} */ pose) => armoryDraws('eternalgreaves', { at: [0, 0, 0], yaw: 0, pose }, [0, 1.5, 3], true).filter((d) => d.mesh === 0);
-  const [pl] = legs(person), [wl] = legs(wolfBack);
-  assert.ok(pl.B[1] > pl.A[1] + 0.1, 'a person\'s up the shin');
-  assert.equal(+wl.B[1].toFixed(3), +wolfBack.pts[POSE_AT.ftL + 1].toFixed(3), 'the wolf\'s topped at the hock');
-  assert.ok(Math.abs(wl.A[1] - 0.1 * ARMORY_BEAST_FIT) < 1e-6 && Math.abs(wl.A[0] - wl.B[0]) < 1e-6, 'and straight down to its toes');
+  const pl = legs(person), wl = legs(wolfBack);
+  assert.ok(pl.length === 4 && pl[1].A[1] > pl[0].A[1] + 0.1, 'a person\'s two rings up each shin');
+  const toes = 0.1 * ARMORY_BEAST_FIT, hock = wolfBack.pts[POSE_AT.ftL + 1], top = ARMORY_RINGS.eternalgreaves.shin.at(-1);
+  assert.ok(wl.length === 2 && Math.abs(wl[0].A[1] - (toes + (hock - toes) * top)) <= ARMORY_HOVER.legs.bob * ARMORY_BEAST_FIT + 1e-9, 'the wolf\'s one, up its shank toward the hock');
+  assert.ok(Math.abs(wl[0].A[0] - wolfBack.pts[POSE_AT.ftL]) < 1e-6, 'its shank straight down from the hock');
   poseAtRest(wolfBack); assert.deepEqual([wolfBack.arm, wolfBack.hock, wolfBack.back], [1, false, 0], 'the rest pose a person\'s - nothing of the wolf left on it');
   // the classic sprite's lycanthrope wears none
   const lyc = newPose(); poseFromFigure({ base: 0.1, mpp: 0.029, beast: true, marks: null }, lyc);

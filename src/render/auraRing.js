@@ -199,11 +199,11 @@
 //
 // Not a DFU member. Ledger A (WB).
 import { DAEDRIC_COAL, DAEDRIC_CRIMSON, DAEDRIC_FIRE, DAEDRIC_GOLD, AETHERIUM_DEEP, AETHERIUM_BLUE, AETHERIUM_GLOW, DWEMER_BRASS, DWEMER_SHINE, NUMIDIUM_GOLD } from '../ui/playerBadge.js';   // STOREFRONT: the Dominion's Daedric fire, the coils' aetherium and brass
-import { FOG_FACTOR_GLSL } from './labGrass.js';
+import { FOG_FACTOR_GLSL } from './fogGlsl.js';
 import { AURA_PIXEL_GLSL } from './auraPixel.js';   // every look in Daggerfall's pixels
 import { buildProgram, compiledPass } from './glProgram.js';
 import { wrapAngle } from '../world/mat4.js';
-import { GLYPH_PATH, GLYPH_DETAIL, CRYSTAL_PURPLE, HOUR_BRASS, HOUR_GOLD, HOUR_LIGHT, HOUR_DAWN, HOUR_PEARL, HOUR_SUN, COIL_SEA, COIL_TIDE, COIL_FOAM, SPIRE_BEACON, SPIRE_BEACON_WHITE, SPIRE_EMBER, SPIRE_COAL, SPIRE_DAWN, SPIRE_DAWN_GOLD, SPIRE_DAWN_ROSE, WARREN_AMETHYST, WARREN_LILAC, WARREN_BLUSH, WARREN_FRILL, WARREN_PLUM, WITCH_MOSS, WITCH_FIRE, WITCH_GLOW, WITCH_VIOLET, HEARTH_TALLOW, NIRN_LEAF, NIRN_GLOW, NIRN_HAZE, NIRN_DEEP, NIRN_SMOKE, COLD_LAVENDER, COLD_VIOLET, COLD_CRIMSON, COLD_BLOOD, COLD_ROSE, COLD_SMOKE, COLD_MAGENTA, GENESIS_DEEP, GENESIS_ROOT, GENESIS_BLUE, GENESIS_VIOLET, GENESIS_HEART, GENESIS_CORE, SHELL_JADE, SHELL_VIOLET, SHELL_LILAC, SHELL_DEEP, SHELL_OCEAN } from '../ui/playerBadge.js';   // SHADOW-CLOAK: the wearer's own glyph, its emblem; CRYSTAL-FIST AUDIT: the Crystal Fist's purple, the resonance's one colour; WIKIMAID: the warren's five
+import { GLYPH_PATH, GLYPH_DETAIL, CRYSTAL_PURPLE, HOUR_BRASS, HOUR_GOLD, HOUR_LIGHT, HOUR_DAWN, HOUR_PEARL, HOUR_SUN, COIL_SEA, COIL_TIDE, COIL_FOAM, SPIRE_BEACON, SPIRE_BEACON_WHITE, SPIRE_EMBER, SPIRE_COAL, SPIRE_DAWN, SPIRE_DAWN_GOLD, SPIRE_DAWN_ROSE, WARREN_AMETHYST, WARREN_LILAC, WARREN_BLUSH, WARREN_FRILL, WARREN_PLUM, WITCH_MOSS, WITCH_FIRE, WITCH_GLOW, WITCH_VIOLET, HEARTH_TALLOW, NIRN_LEAF, NIRN_GLOW, NIRN_HAZE, NIRN_DEEP, NIRN_SMOKE, COLD_LAVENDER, COLD_VIOLET, COLD_CRIMSON, COLD_BLOOD, COLD_ROSE, COLD_SMOKE, COLD_MAGENTA, GENESIS_DEEP, GENESIS_ROOT, GENESIS_BLUE, GENESIS_VIOLET, GENESIS_HEART, GENESIS_CORE, SHELL_JADE, SHELL_VIOLET, SHELL_LILAC, SHELL_DEEP, SHELL_OCEAN, TIDE_DEEP, TIDE_GLASS, TIDE_FOAM, VEIL_PALE, VEIL_WHITE } from '../ui/playerBadge.js';   // SHADOW-CLOAK: the wearer's own glyph, its emblem; CRYSTAL-FIST AUDIT: the Crystal Fist's purple, the resonance's one colour; WIKIMAID: the warren's five
 
 /** The ring's radius about the feet (m), the ground quad's half-width, the flames' height, and the ground's lift. */
 export const AURA_RING_R = 0.85;
@@ -1113,6 +1113,93 @@ export function shellPlateAt(x, y, turn = 0) {
  *  shellLit. Pure. */
 export const shellLit = (k, seconds) => 0.7 + 0.6 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * (SHELL_HZ.wave * seconds - (k - 1) / 6))), 6);
 
+// THE ELTHERIC TIDE, the Courier's Cabinet's: rings of sea-green light spreading slowly out from the feet over a pool of
+// deep water, foam on their crests, and a few motes of foam rising round the wearer (ui/playerBadge.js TIDE_*). Its own
+// look, added whole: a ring is born at the feet and spreads TIDE_SPACING_M every 1/TIDE_HZ.spread s until it fades by
+// TIDE_R.
+export const TIDE_R = 0.95;               // where the rings have faded, m
+export const TIDE_SPACING_M = 0.22;       // from one ring to the next, m
+export const TIDE_MOTE_R = 0.5;           // the strip the foam rises off, m
+export const TIDE_H = 1.1;                // the motes' climb, to the waist, m
+export const TIDE_MOTES = 8;
+export const TIDE_HZ = Object.freeze({ spread: 1 / 6, breath: 1 / 5, mote: 1 / 6 });
+export const TIDE_FLOW = Object.freeze({ wobble: 0.25 });   // the water's wobble drifting by, noise cells a second
+/** Every rate whole over the clock, so the rings never jump at the wrap. Pure. */
+export const tideRatesWhole = () => [...Object.values(TIDE_HZ), ...Object.values(TIDE_FLOW)].every((rate) => rate > 0 && Number.isInteger(Math.round(rate * AURA_CLOCK_PERIOD * 1e6) / 1e6));
+/** The tide's three colours, RGB 0..1. */
+export const TIDE_RIPPLE_RGB = Object.freeze({
+  deep: Object.freeze(TIDE_DEEP.slice(0, 3)), glass: Object.freeze(TIDE_GLASS.slice(0, 3)), foam: Object.freeze(TIDE_FOAM.slice(0, 3)),
+});
+const smooth01 = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+/** How bright a ring is at `r` m from the feet at the clock `seconds`, 0..1 - the shader's tideRing, its wobble left
+ *  out. Pure. */
+export function tideRingAt(r, seconds) {
+  const ph = r / TIDE_SPACING_M - seconds * TIDE_HZ.spread, f = ph - Math.floor(ph), d = Math.min(f, 1 - f);
+  return Math.exp(-(d * d) / 0.006) * smooth01(0.04, 0.18, r) * (1 - smooth01(TIDE_R * 0.45, TIDE_R, r));
+}
+
+// VEILWAKE, the Courier's Cabinet's: a soft pale blue mist of the Veil hugging the body (ui/playerBadge.js VEIL_*) - a
+// pale cover on the ground at the feet, a low mist round the legs, and wisps drifting slowly round the body that trail
+// behind a wearer who moves (veilTrailOf). Its own look, premultiplied so the mist covers; its wisps ride the Sage's
+// card uniforms.
+export const VEIL_R = 0.32;               // the low mist's strip about the body, m
+export const VEIL_WALL_H = 1.1;           // the low mist's height, gone by the waist, m
+export const VEIL_POOL_R = 0.75;          // the mist's cover on the ground, m
+export const VEIL_WISPS = 12;
+export const VEIL_WISP_LIFE = Object.freeze([4, 5, 6]);
+export const VEIL_WISP_R = Object.freeze([0.12, 0.3]);    // out from the body's middle, m
+export const VEIL_WISP_Y = Object.freeze([0.15, 1.45]);   // the height a wisp is born at, m
+export const VEIL_WISP_RISE = 0.35;                       // how far it climbs in its life, m
+export const VEIL_WISP_M = Object.freeze([0.3, 0.7]);     // its card, new to full grown, m
+export const VEIL_NEAR = Object.freeze([0.5, 1.4]);       // a wisp this near the eye fades, so the wearer's own view stays clear
+export const VEIL_HZ = Object.freeze({ swirl: 1 / 24, breath: 1 / 6 });
+export const VEIL_FLOW = Object.freeze({ roll: 0.25, rise: 0.5 });
+/** Every rate whole over the clock, and every wisp's life a whole number of times over it. Pure. */
+export const veilRatesWhole = () => [...Object.values(VEIL_HZ), ...Object.values(VEIL_FLOW), ...VEIL_WISP_LIFE.map((l) => 1 / l)]
+  .every((rate) => rate > 0 && Number.isInteger(Math.round(rate * AURA_CLOCK_PERIOD * 1e6) / 1e6));
+/** The Veil's two colours, RGB 0..1. */
+export const VEIL_RGB = Object.freeze({ pale: Object.freeze(VEIL_PALE.slice(0, 3)), white: Object.freeze(VEIL_WHITE.slice(0, 3)) });
+/** How far behind a wisp trails for each m/s its wearer moves, at the end of its life (s), and the most it trails (m). */
+export const VEIL_TRAIL_S = 0.3;
+export const VEIL_TRAIL_M = 1.4;
+const veilHash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+/** WISP m AT THE CLOCK `seconds`: where it is about the feet (m), drifting round the body and climbing; its card's size
+ *  (m), its `age` (0 new .. 1 gone) and its seed. Each flight lasts its life, wrapping with the clock. Pure. */
+export function veilWisp(m, seconds) {
+  const life = VEIL_WISP_LIFE[m % VEIL_WISP_LIFE.length], laps = AURA_CLOCK_PERIOD / life;
+  const u = seconds / life + veilHash(m, 0.5), n = Math.floor(u), age = u - n;
+  const lap = ((n % laps) + laps) % laps;
+  const a = veilHash(m + 17, lap) * Math.PI * 2 + Math.PI * 2 * VEIL_HZ.swirl * seconds;
+  const r = VEIL_WISP_R[0] + (VEIL_WISP_R[1] - VEIL_WISP_R[0]) * veilHash(m + 29, lap);
+  const y = VEIL_WISP_Y[0] + (VEIL_WISP_Y[1] - VEIL_WISP_Y[0]) * veilHash(m + 41, lap) + VEIL_WISP_RISE * age;
+  const size = VEIL_WISP_M[0] + (VEIL_WISP_M[1] - VEIL_WISP_M[0]) * Math.sqrt(age);
+  return { x: Math.cos(a) * r, y, z: Math.sin(a) * r, size, age, seed: veilHash(m + 53, lap) };
+}
+/** A wearer's trail - [x, z] m, against the way they move (their motion's velocity, auraMotionStep's `w.motion.v`), at
+ *  most VEIL_TRAIL_M - written into `out`; none for a wearer standing still. Pure but for `out`. */
+export function veilTrailOf(w, out) {
+  const v = w?.motion?.v;
+  const vx = Number.isFinite(v?.[0]) ? v[0] : 0, vz = Number.isFinite(v?.[2]) ? v[2] : 0, k = Math.min(VEIL_TRAIL_S, VEIL_TRAIL_M / Math.max(Math.hypot(vx, vz), 1e-6));
+  out[0] = -vx * k; out[1] = -vz * k;
+  return out;
+}
+/** EVERY WISP AT ONCE, FARTHEST FIRST from `eye`: its place about the feet and its size in `cards`, and (0, its age, its
+ *  cover, its seed) in `looks`. `trail` ([x, z] m, or none) is how far behind a wisp at the end of its life stands - the
+ *  older, the further back, so the mist trails the walk. Pure but for `cards` and `looks`. */
+export function veilCardsInto(cards, looks, seconds, kindle, at, eye, trail = null) {
+  const rows = [];
+  const k1 = Math.max(0, Math.min(1, kindle)), tx = trail ? trail[0] : 0, tz = trail ? trail[1] : 0;
+  const nearOf = (d) => { const n = Math.max(0, Math.min(1, (d - VEIL_NEAR[0]) / (VEIL_NEAR[1] - VEIL_NEAR[0]))); return n * n * (3 - 2 * n); };
+  for (let m = 0; m < VEIL_WISPS; m++) {
+    const w = veilWisp(m, seconds), x = w.x + tx * w.age, z = w.z + tz * w.age;
+    const d = Math.hypot(at[0] + x - eye[0], at[1] + w.y - eye[1], at[2] + z - eye[2]);
+    rows.push([d, x, w.y, z, w.size * (0.4 + 0.6 * k1), 0, w.age, k1 * nearOf(d), w.seed]);
+  }
+  rows.sort((a, b) => b[0] - a[0]);
+  rows.forEach((r, i) => { for (let j = 0; j < 4; j++) { cards[i * 4 + j] = r[1 + j]; looks[i * 4 + j] = r[5 + j]; } });
+  return cards;
+}
+
 /** SHOP (2026-10-28, the owner: "Eternal ... an extremely detailed flaming cape aura that attachs and flows on the back of
  *  your character"; bible/06-Systems/Shop.md): ETERNAL, the sixteenth look - A CAPE OF FIRE in the Genesis fire's colours
  *  (ui/playerBadge.js GENESIS_*). Its cloth is the Holo Shadow Cloak's (cloakPoint: hung from the posed shoulders, swung
@@ -1228,6 +1315,8 @@ export const AURA_LOOK = Object.freeze({
   aetherwings: Object.freeze({ kind: 19, ringR: WING_POOL_R, flameH: WING_REACH[1], glyphs: WING_CARDS, mesh: 'wings' }),   // STOREFRONT: the Seraph Wings in aetherium blue (AETHER_WING_RGB), the Gilded Folio's capstone
   vampirichaze: Object.freeze({ kind: 20, ringR: HAZE_RUNE_R, flameH: HAZE_WALL_H, glyphs: HAZE_CARDS, shade: true }),   // BLOOD-OF-COLDHARBOUR: the runes and the haze's shade at the feet, the low haze on the strip, the wisps and the blood the third draw
   worldshell: Object.freeze({ kind: 21, ringR: SHELL_R, flameH: SHELL_H, glyphs: 0 }),   // the plates and the seed at the feet, the veil and the motes on the strip
+  eltherictide: Object.freeze({ kind: 22, ringR: TIDE_MOTE_R, flameH: TIDE_H, glyphs: 0 }),   // the rings at the feet, the foam's motes on the strip
+  veilwake: Object.freeze({ kind: 23, ringR: VEIL_R, flameH: VEIL_WALL_H, glyphs: VEIL_WISPS, shade: true, trail: true }),   // the mist's cover at the feet, its low mist on the strip, its wisps the third draw
 });
 /** The look a wearer's aura is drawn with - Dagon's Fire for one that names none (the fire was the only aura before). */
 export const auraLookOf = (aura) => (typeof aura === 'string' && Object.hasOwn(AURA_LOOK, aura) ? AURA_LOOK[aura] : AURA_LOOK.dagonfire);
@@ -3094,6 +3183,89 @@ vec3 shellWall(vec2 q) {
   return col * clamp(uKindle * 1.25 - v, 0.0, 0.15) / 0.15;
 }
 `;
+/** THE ELTHERIC TIDE - a ground (`p` metres about the feet) and a wall (the strip: `q` = (u round, v up)), added whole,
+ *  kindled within. A ring's phase is its radius in spacings less the clock's spread (tideRingAt's law), wobbled a little
+ *  by the water so no ring is drawn with a compass. */
+const TIDE_GLSL = `
+const vec3 TD_DEEP = ${v3(TIDE_RIPPLE_RGB.deep)};
+const vec3 TD_GLASS = ${v3(TIDE_RIPPLE_RGB.glass)};
+const vec3 TD_FOAM = ${v3(TIDE_RIPPLE_RGB.foam)};
+float tideBreath() { return 0.85 + 0.15 * sin(uTime * TAU ${hzGlsl(TIDE_HZ.breath)}); }
+float tideRing(float r) {
+  float ph = r / ${g3(TIDE_SPACING_M)} - uTime ${hzGlsl(TIDE_HZ.spread)};
+  float f = fract(ph), d = min(f, 1.0 - f);
+  return exp(-d * d / 0.006) * smoothstep(0.04, 0.18, r) * (1.0 - smoothstep(${g3(TIDE_R * 0.45)}, ${g3(TIDE_R)}, r));
+}
+vec3 tideGround(vec2 p) {
+  float r = length(p);
+  if (r > uGroundR) discard;
+  float breath = tideBreath();
+  float wob = (vnoiseP(p * 4.0 + vec2(uTime * ${g3(TIDE_FLOW.wobble)}, 0.0), vec2(${g1(TIDE_FLOW.wobble * AURA_CLOCK_PERIOD)}, 64.0)) - 0.5) * 0.05;
+  float ring = tideRing(r + wob);
+  // THE POOL of deep water at the feet, THE RINGS in the sea-green, and foam along their crests
+  vec3 col = TD_DEEP * exp(-r * r / 0.25) * 0.22 * breath;
+  col += mix(TD_DEEP, TD_GLASS, ring) * ring * 0.9 * breath;
+  col += TD_FOAM * pow(ring, 6.0) * 0.35;
+  return col * uKindle * (1.0 - smoothstep(uGroundR - 0.25, uGroundR, r));
+}
+vec3 tideWall(vec2 q) {
+  float v = q.y, y = v * uFlameH, circ = TAU * uRingR;
+  // THE FOAM: a few motes rising off the strip, each round its own place, smaller and fainter as it climbs
+  float m = 0.0;
+  for (int k = 0; k < ${TIDE_MOTES}; k++) {
+    float fk = float(k);
+    float h1 = fract(sin(fk * 91.7 + 1.3) * 43758.5453), h2 = fract(sin(fk * 37.3 + 4.1) * 24634.6345);
+    float mv = fract(uTime ${hzGlsl(TIDE_HZ.mote)} + h2);
+    vec2 d = vec2((fract(q.x - h1 + 0.5) - 0.5) * circ + 0.03 * sin(TAU * (mv + h1)), y - mv * uFlameH);
+    float size = 0.022 * (1.0 - 0.5 * mv);
+    m += exp(-dot(d, d) / (size * size)) * (1.0 - mv) * smoothstep(0.0, 0.08, mv);
+  }
+  vec3 col = TD_FOAM * min(m, 1.5) * 0.9 + TD_GLASS * exp(-v * 9.0) * 0.12 * tideBreath();
+  // kindled UP: the foam rising from the feet
+  return col * clamp(uKindle * 1.25 - v, 0.0, 0.15) / 0.15;
+}
+`;
+/** VEILWAKE - a ground, a wall and a wisp, each PREMULTIPLIED: the mist covers what is behind it, a breath of the Veil's
+ *  white light added at its heart. */
+const VEIL_GLSL = `
+const vec3 VW_PALE = ${v3(VEIL_RGB.pale)};
+const vec3 VW_WHITE = ${v3(VEIL_RGB.white)};
+float veilBreath() { return 0.85 + 0.15 * sin(uTime * TAU ${hzGlsl(VEIL_HZ.breath)}); }
+vec4 veilGround(vec2 p) {
+  float r = length(p);
+  if (r > uGroundR) discard;
+  // THE COVER the mist lays at the feet, rolling, thinning out past VEIL_POOL_R
+  float roll = fbmP(vec2(p.x * 3.0 + uTime * ${g3(VEIL_FLOW.roll)}, p.y * 3.0), vec2(${g1(VEIL_FLOW.roll * AURA_CLOCK_PERIOD)}, 64.0));
+  float shade = exp(-r * r / ${g3(VEIL_POOL_R * VEIL_POOL_R * 0.5)}) * (0.4 + 0.6 * roll) * 0.4 * uKindle;
+  vec4 c = vec4(VW_PALE * 0.55 * shade, shade);
+  c.rgb += VW_WHITE * exp(-r * r / 0.05) * 0.06 * veilBreath() * uKindle;
+  return c * (1.0 - smoothstep(uGroundR - 0.2, uGroundR, r));
+}
+vec4 veilWall(vec2 q) {
+  float u = q.x, v = q.y, an = u * TAU;
+  vec2 e = uCamPos.xz - vWorld.xz;
+  float facing = dot(e, e) > 1e-8 ? abs(dot(vec2(cos(an), sin(an)), normalize(e))) : 1.0;
+  float edge = 0.6 + 0.4 * (1.0 - facing) * (1.0 - facing);   // a little thicker where the eye looks along it
+  // THE LOW MIST round the legs, pale into white as it climbs, soft at the ground and gone by the waist
+  float n = fbmP(vec2(u * 12.0, v * 2.0 - uTime * ${g3(VEIL_FLOW.rise)}), vec2(12.0, ${g1(VEIL_FLOW.rise * AURA_CLOCK_PERIOD)}));
+  float mist = smoothstep(0.3, 0.85, n + 0.25 * (1.0 - v)) * pow(1.0 - v, 1.6) * smoothstep(0.0, 0.12, v) * 0.3 * edge;
+  vec4 c = vec4(mix(VW_PALE, VW_WHITE, v) * 0.8 * mist, mist);
+  return c * clamp((1.25 * uKindle - v) / 0.15, 0.0, 1.0);
+}
+// A WISP (s: its seed, its age, its cover): a soft round billow of the mist, ragged at its edge, white on its crown,
+// thinning as it goes
+vec4 veilCard(vec2 uv, vec3 s) {
+  float seed = s.x, age = s.y;
+  float d = length(uv - 0.5) * 2.0;
+  if (d >= 1.0) return vec4(0.0);
+  float n = fbmP(uv * 3.0 + vec2(seed * 13.0, seed * 7.0 - age), vec2(64.0));
+  float body = 1.0 - smoothstep(0.15, 1.0, d + (n - 0.5) * 0.7);
+  float thin = smoothstep(0.0, 0.2, age) * (1.0 - smoothstep(0.55, 1.0, age));
+  float a = clamp(body * (0.3 + 0.7 * n), 0.0, 1.0) * thin * 0.45 * s.z;
+  vec3 col = mix(VW_PALE, VW_WHITE, smoothstep(0.3, 1.0, uv.y + (n - 0.5) * 0.3));
+  return vec4(col * a, a) + vec4(VW_PALE * a * 0.15, 0.0);
+}
+`;
 /** STOREFRONT: THE DAEDRIC DOMINION - a ground (`p` metres about the feet) and a wall (the strip: `q` = (u round, v up)),
  *  each PREMULTIPLIED: its black band, its shadow and its thorns cover the ground, the script's fire and the embers are
  *  added. A letter's strokes are segments in its box along the ring (dominionLetter), DOMINION_SCRIPT its bits. */
@@ -3400,6 +3572,24 @@ void main() {
     o = vec2(o.x * cos(turn) - o.y * sin(turn), o.x * sin(turn) + o.y * cos(turn));
     w = at + r * o.x + cross(e, r) * o.y;
     vS = l.x > 1.5 ? vec3(2.0 + l.w, l.y, l.z) : vec3(l.w * 0.5, l.y, l.z);
+  } else if (uAura == 23) {
+    // VEILWAKE: A WISP of the mist - its card where node's law has it (uSage, farthest first), square to the eye and
+    // turned in its own plane as it drifts
+    float k = floor(aP.x * 0.5);
+    vP = vec2(aP.x - k * 2.0, aP.y);
+    vec4 c = uSage[int(k)], l = uSageLook[int(k)];
+    vec3 at = uAt + c.xyz;
+    vec3 e = uCamPos - at;
+    float el = length(e);
+    e = el > 1e-6 ? e / el : vec3(0.0, 0.0, 1.0);
+    vec3 r = cross(vec3(0.0, 1.0, 0.0), e);
+    float rl = length(r);
+    r = rl > 1e-6 ? r / rl : vec3(1.0, 0.0, 0.0);
+    float turn = l.w * 6.283185307179586 + l.y * 0.8;
+    vec2 o = (vP - 0.5) * c.w;
+    o = vec2(o.x * cos(turn) - o.y * sin(turn), o.x * sin(turn) + o.y * cos(turn));
+    w = at + r * o.x + cross(e, r) * o.y;
+    vS = vec3(l.w, l.y, l.z);
   } else if (uAura == 14) {
     // NIRNROOT-SAGE: A PUFF of the smoke or A NIRNROOT - its card where node's law has it (uSage, farthest first), about its
     // middle
@@ -3476,7 +3666,7 @@ uniform float uPixel;   // 1 the look in Daggerfall's pixels, 2 the levels alone
 out vec4 o;
 ${FOG_FACTOR_GLSL}${AURA_NOISE_GLSL}${AURA_PIXEL_GLSL}
 const float TAU = 6.283185307179586;
-${WARD_GLSL}${RADIANCE_GLSL}${RESONANCE_GLSL}${TURNING_GLSL}${MAELSTROM_GLSL}${SPIRE_GLSL}${CLOAK_SHAPE_GLSL}${CLOAK_FS_GLSL}${ETERNAL_SHAPE_GLSL}${ETERNAL_FS_GLSL}${WING_SHARED_GLSL}${WING_FS_GLSL}${WARREN_GLSL}${WITCH_GLSL}${SAGE_GLSL}${HAZE_GLSL}${DOMINION_GLSL}${HELIX_GLSL}${SHELL_GLSL}
+${WARD_GLSL}${RADIANCE_GLSL}${RESONANCE_GLSL}${TURNING_GLSL}${MAELSTROM_GLSL}${SPIRE_GLSL}${CLOAK_SHAPE_GLSL}${CLOAK_FS_GLSL}${ETERNAL_SHAPE_GLSL}${ETERNAL_FS_GLSL}${WING_SHARED_GLSL}${WING_FS_GLSL}${WARREN_GLSL}${WITCH_GLSL}${SAGE_GLSL}${HAZE_GLSL}${DOMINION_GLSL}${HELIX_GLSL}${SHELL_GLSL}${TIDE_GLSL}${VEIL_GLSL}
 void auraLook(vec2 vP) {   // vP the surface's point the look answers - its texel's middle, or the fragment's
   if (uAura == 16) { vec4 c = uKind == 0 ? dominionGround(vP) : dominionWall(vP); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // STOREFRONT: the Daedric Dominion, premultiplied (AURA_LOOK shade), kindled within
   if (uAura == 17) { vec3 c = uKind == 0 ? helixGround(vP) : helixWall(vP); o = vec4(c * fogFactorAt(vWorld), 1.0); return; }   // STOREFRONT: the Aetherium Coil, added whole, kindled within
@@ -3484,6 +3674,8 @@ void auraLook(vec2 vP) {   // vP the surface's point the look answers - its texe
   if (uAura == 15) { vec4 c = uKind == 0 ? eternalGround(vP) : uKind == 1 ? eternalWall(vP) : eternalCard(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // SHOP: Eternal, premultiplied (AURA_LOOK shade), kindled within
   if (uAura == 20) { vec4 c = uKind == 0 ? hazeGround(vP) : uKind == 1 ? hazeWall(vP) : hazeCard(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // BLOOD-OF-COLDHARBOUR: premultiplied (AURA_LOOK shade), fogged
   if (uAura == 21) { vec3 c = uKind == 0 ? shellGround(vP) : shellWall(vP); o = vec4(c * fogFactorAt(vWorld), 1.0); return; }   // the Worldshell, added whole, kindled within
+  if (uAura == 22) { vec3 c = uKind == 0 ? tideGround(vP) : tideWall(vP); o = vec4(c * fogFactorAt(vWorld), 1.0); return; }   // the Eltheric Tide, added whole, kindled within
+  if (uAura == 23) { vec4 c = uKind == 0 ? veilGround(vP) : uKind == 1 ? veilWall(vP) : veilCard(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // Veilwake, premultiplied, fogged
   if (uAura == 14) { vec4 c = uKind == 0 ? sageGround(vP) : uKind == 1 ? sageWall(vP) : sageCard(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // NIRNROOT-SAGE: premultiplied (AURA_LOOK shade), fogged to nothing; kindled within (the shade and the runes fade in, the low smoke rises, the puffs and the nirnroots by node's law)
   if (uAura == 13) { vec3 c = uKind == 0 ? witchGround(vP) : witchWall(vP); o = vec4(c * fogFactorAt(vWorld), 1.0); return; }   // WITCH1: Witchfire, added whole, kindled within
   if (uAura == 12) { vec4 c = uKind == 0 ? warrenGround(vP) : uKind == 1 ? warrenWall(vP) : warrenBunny(vP, vS); float f = fogFactorAt(vWorld); o = vec4(c.rgb * f, c.a * f); return; }   // WIKIMAID: premultiplied (AURA_LOOK shade), fogged to nothing; kindled within (the ground fades in, the sparkles rise, the rabbits come up - node's law)
@@ -3969,6 +4161,7 @@ export class AuraRingRenderer {
     this._warrenPrints = new Float32Array(WARREN_BUNNIES * WARREN_PRINTS * 2);
     this._sage = new Float32Array(SAGE_CARDS * 4);   // NIRNROOT-SAGE: the smoke's puffs and the nirnroots - refilled per wearer
     this._sageLook = new Float32Array(SAGE_CARDS * 4);
+    this._trail = [0, 0];   // Veilwake: a wearer's trail, refilled per wearer
     /** how many auras the last draw burned, for the stats and the tests */
     this.drawn = 0;
     /** false draws every look per pixel, 'levels' with the levels alone (the probes read the designs and the snap so) -
@@ -4089,6 +4282,12 @@ export class AuraRingRenderer {
         if (look === AURA_LOOK.vampirichaze) {
           hazeCardsInto(this._sage, this._sageLook, sageClock(seconds, w.seed), Math.max(0, Math.min(1, Number.isFinite(w.kindle) ? w.kindle : 1)), w.at, camAt);
           gl.uniform4fv(U.uSageLook, this._sageLook); gl.uniform4fv(U.uSage, this._sage);
+        }
+        // Veilwake: its wisps in the Sage's uniforms, trailing the walk - farthest first
+        if (look === AURA_LOOK.veilwake) {
+          const kindle = Math.max(0, Math.min(1, Number.isFinite(w.kindle) ? w.kindle : 1));
+          gl.uniform4fv(U.uSage, veilCardsInto(this._sage, this._sageLook, sageClock(seconds, w.seed), kindle, w.at, camAt, veilTrailOf(w, this._trail)));
+          gl.uniform4fv(U.uSageLook, this._sageLook);
         }
         // SHADOW-CLOAK: a look that SHADES is drawn premultiplied - its light added, what is behind it covered by its
         // alpha - and every other look as it always was, its light added whole

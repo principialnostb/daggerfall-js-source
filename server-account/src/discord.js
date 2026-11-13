@@ -43,6 +43,12 @@ import { importPublicKey, ID_RE } from '../../src/net/identityToken.js';
 import { findAccount, strikesLook, pushLaw, strikesOf, isBanned, bannedUntil } from './sanctions.js';
 import { CASE_CLAIM_S, modAct, CLICK_RE } from './safety.js';
 import { usageOf } from './discordCommands.js';
+import { pdaInteraction } from './pdaRouter.js';
+import { isFrozen } from './staffFreeze.js';
+import { DISCORD_API, DISCORD_POST_MS, DISCORD_USER_AGENT } from './pdaDiscordApi.js'; // the bot's calls share one door's constants
+
+export { DISCORD_API, DISCORD_POST_MS, DISCORD_USER_AGENT };
+import { linkOf } from './pdaLink.js';
 import { GRANT_CASE_TAB } from './grants.js'; // FOE-BOUNDS: a spawn grants' case is its count's, not the chat reviewer's (read at a card's call, never at load)
 import {
   LADDER_BAN_AT,
@@ -54,17 +60,10 @@ import {
 
 /** The door Discord posts its interactions to (the application's Interactions Endpoint URL). */
 export const DISCORD_INTERACTIONS_PATH = '/v1/discord/interactions';
-/** Discord's API. */
-export const DISCORD_API = 'https://discord.com/api/v10';
 /** The most bytes an interaction's body may be. */
 export const DISCORD_BODY_MAX = 32 * 1024;
 /** How old an interaction's timestamp may be, seconds - an old one replayed is refused. */
 export const DISCORD_SKEW_S = 300;
-/** How long the service waits on Discord's API, ms. */
-export const DISCORD_POST_MS = 8000;
-/** The User-Agent Discord's API asks of every bot (AUDIT SAFE DISCORD-10: "requests that do not have a valid User
- *  Agent specified may be blocked"). */
-export const DISCORD_USER_AGENT = 'DiscordBot (https://github.com/Lattymoy/daggerfall-js-source, 1)';
 /** An answer to a moderator, at most this long (Discord's 2,000, with room). */
 export const SAY_MAX = 1900;
 /** The most of a case's lines a card draws - the newest. */
@@ -389,12 +388,14 @@ const say = (text) => {
   return { type: 4, data: { content: out || text.slice(0, SAY_MAX), flags: 64, allowed_mentions: { parse: [] } } };
 };
 
-/** The moderator's account for a Discord user, or null - a moderator in the game now, and not banned. */
+/** The moderator's account for a Discord user, or null - a moderator in the game now, and not banned. A user listed in
+ *  DISCORD_MODERATORS is that handle's; any other is the account their PDA link names. */
 async function actorOf(db, env, discordId, nowS) {
   const handle = discordModerators(env).get(String(discordId ?? ''));
-  if (!handle) return null;
-  const row = await db.prepare('SELECT * FROM players WHERE handle_lc = ?1').bind(handle).first();
-  return row && canModerate(row, env) && !isBanned(row, nowS) ? row : null;
+  const row = handle
+    ? await db.prepare('SELECT * FROM players WHERE handle_lc = ?1').bind(handle).first()
+    : (await linkOf(db, discordId))?.player;
+  return row && canModerate(row, env) && !isBanned(row, nowS) && !isFrozen(row, nowS) ? row : null; // a frozen moderator acts in nothing, as in the game
 }
 
 /** The order to the relay's door, pushed after Discord is answered where the Worker allows (DISCORD-4). */
@@ -686,10 +687,12 @@ export async function discordInteraction(ctx, env, body, { fetchFn = (u, i) => g
         p.catch(() => {});
       }),
   };
+  const pda = await pdaInteraction(ctx, env, body, io); // a player's PDA, answered before the moderators' queue
+  if (pda) return pda;
   const actor = await actorOf(ctx.db, env, body?.member?.user?.id ?? body?.user?.id, ctx.nowS);
   if (!actor)
     return say(
-      "Only the game's moderators can do that - ask a developer to add your Discord id to DISCORD_MODERATORS.",
+      "Only the game's moderators can do that. Link your account in the PDA, or ask a developer to add your Discord id to DISCORD_MODERATORS.",
     );
   if (body?.type === 3 && isLogoPress(body))
     return onLogoPress({ ...ctx, bucket: ctx.bucket ?? env?.SAVES }, body, actor); // GUILD-LOGO: a guild's logo approved or turned down

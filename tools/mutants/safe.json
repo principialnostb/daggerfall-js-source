@@ -188,7 +188,7 @@
   {
     "name": "SAFE8-a-discord-user-not-a-moderator-acting",
     "file": "server-account/src/discord.js",
-    "old": "  return row && canModerate(row, env) && !isBanned(row, nowS) ? row : null;",
+    "old": "  return row && canModerate(row, env) && !isBanned(row, nowS) && !isFrozen(row, nowS) ? row : null;",
     "new": "  return row ?? null;",
     "tests": [
       "test/server/safe_review.test.js"

@@ -7,7 +7,7 @@
 // ARMORY (2026-10-28; bible/04-Characters/Aura-Armory.md section 4): and an Aura Armory kit on the same figure, posed at
 // rest (render/armoryPose.js), drawn by the game's own armory pass - seen from the front, where its pieces are.
 import { AuraRingRenderer, auraMotionStep, CLOAK_REST_POSE, AURA_KINDLE_S } from './auraRing.js';
-import { ArmoryRenderer, ARMORY_TRAIL, ARMORY_STRIDE_M } from './armoryPass.js';
+import { ArmoryRenderer, ARMORY_TRAIL, ARMORY_STRIDE_M, armoryHeadTip } from './armoryPass.js';
 import { newPose, poseAtRest } from './armoryPose.js';
 import { perspective, lookAt, mirrorProjectionX, multiply } from '../world/mat4.js';
 
@@ -26,8 +26,24 @@ export const PREVIEW_FIGURE = Object.freeze(
     [0, 1.64, 0.01, 0.1, 0.12, 0.11], // neck, head
   ].map((b) => Object.freeze(b)),
 );
-/** The floor's reach (m), the camera's distance and height (m), what it looks at, and its field of view (rad). */
-export const PREVIEW_STAGE = Object.freeze({ floorR: 2.4, dist: 3.1, height: 1.55, lookY: 0.95, fov: 0.78 });
+/** The floor's reach (m), the camera's distance and height (m), what it looks at, and its field of view (rad); the
+ *  highest a kit's head piece stands before the camera looks up to keep it in the frame (`top`, m). */
+export const PREVIEW_STAGE = Object.freeze({ floorR: 2.4, dist: 3.1, height: 1.55, lookY: 0.95, fov: 0.78, top: 2 });
+/** The camera drawn in on one part of the frame, `focus` its middle's share down the frame and how many times larger
+ *  (`{ y, zoom }`): what it looks at and its field of view, from the same place. Null for none: the stage's own. Pure.
+ *  @param {{ y: number, zoom: number } | null} focus */
+export function stageLens(focus) {
+  const S = PREVIEW_STAGE,
+    half = Math.tan(S.fov / 2);
+  if (!focus) return { lookY: S.lookY, fov: S.fov };
+  return { lookY: S.lookY + (1 - 2 * focus.y) * half * S.dist, fov: 2 * Math.atan(half / Math.max(1, focus.zoom)) };
+}
+/** Where the stage looks with `kit` worn alone and no focus: up by as far as its head piece floats over the stage's
+ *  `top`, so a crown over the head stays in the frame; `lookY` for any other kit or none. Pure. */
+export function kitLookY(/** @type {string|null} */ kit, /** @type {number} */ lookY) {
+  const tip = kit ? armoryHeadTip({ kit, pose: poseAtRest(newPose()) }) : null;
+  return tip != null && tip > PREVIEW_STAGE.top ? lookY + tip - PREVIEW_STAGE.top : lookY;
+}
 /** The stroll that swings a cape: its pace (m/s), the seconds of one walk and stop, and of one sway of its facing. */
 export const PREVIEW_STROLL = Object.freeze({ pace: 1.7, walkS: 9, turnS: 13, turn: 0.45 });
 
@@ -135,13 +151,21 @@ void main() {
  * THE STAGE on `canvas`, drawing `aura` until stopped. Answers { set(aura), setKit(kit), stop() } - or null where the
  * canvas has no WebGL2 (the window then shows the aura's words alone). A canvas taken out of the page stops its own clock.
  * ARMORY: `kit` an Aura Armory kit worn beside it (or alone, `aura` null) - the camera then sways round the figure's front.
- * @param {HTMLCanvasElement} canvas @param {string|null} aura @param {{ ground?: number[], clear?: number[], now?: () => number, kit?: string|null }} [o]
+ * `focus` draws the camera in on one part of the frame (stageLens), a piece's slot.
+ * @param {HTMLCanvasElement} canvas @param {string|null} aura @param {{ ground?: number[], clear?: number[], now?: () => number, kit?: string|null, focus?: { y: number, zoom: number } | null }} [o]
  */
 export function startAuraPreview(
   canvas,
   aura,
-  { ground = [0.11, 0.1, 0.13], clear = [0.035, 0.03, 0.055], now = () => performance.now() / 1000, kit = null } = {},
+  {
+    ground = [0.11, 0.1, 0.13],
+    clear = [0.035, 0.03, 0.055],
+    now = () => performance.now() / 1000,
+    kit = null,
+    focus = null,
+  } = {},
 ) {
+  const lens = stageLens(focus);
   /** @type {WebGL2RenderingContext|null} */
   const gl = /** @type {any} */ (
     canvas.getContext('webgl2', { alpha: false, antialias: true, preserveDrawingBuffer: false })
@@ -277,8 +301,9 @@ export function startAuraPreview(
       (kitWearer.kit && !wearer.aura ? 1.05 : 0.85) * Math.sin((2 * Math.PI * (t - t0)) / 18);
     const S = PREVIEW_STAGE,
       eye = [Math.sin(a) * S.dist, S.height, Math.cos(a) * S.dist];
-    const proj = mirrorProjectionX(perspective(S.fov, w / h, 0.05, 50)),
-      view = lookAt(eye, [0, S.lookY, 0], [0, 1, 0]);
+    const lookY = focus || wearer.aura ? lens.lookY : kitLookY(kitWearer.kit, lens.lookY);
+    const proj = mirrorProjectionX(perspective(lens.fov, w / h, 0.05, 50)),
+      view = lookAt(eye, [0, lookY, 0], [0, 1, 0]);
     gl.viewport(0, 0, w, h);
     gl.clearColor(clear[0], clear[1], clear[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

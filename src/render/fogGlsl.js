@@ -94,3 +94,6 @@ vec3 dwWaterFogAdd(vec3 add, vec3 worldPos) {
   float d = dwWaterDistance(worldPos);
   return add * exp(-d * uDwFog[1].xyz) * uDwFog[2].w * (1.0 - dwWaterClose(d));
 }`;
+
+/** The fog block as a program's source takes it, ending its own line, so a pass reads it without the grass renderer. */
+export const FOG_FACTOR_GLSL = FOG_GLSL + '\n';

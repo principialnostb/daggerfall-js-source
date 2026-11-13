@@ -51,6 +51,25 @@ export default [
     rules: { 'no-undef': 'error', 'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }], 'no-dupe-keys': 'error', 'no-dupe-class-members': 'error' },
   },
   {
+    // the journal's Activity: a page inside Discord's frame, so a browser's globals and no others
+    files: ['server-account/journal/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        console: 'readonly', window: 'readonly', document: 'readonly', location: 'readonly', history: 'readonly',
+        fetch: 'readonly', URL: 'readonly', URLSearchParams: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly',
+        setInterval: 'readonly', clearInterval: 'readonly', requestAnimationFrame: 'readonly', cancelAnimationFrame: 'readonly',
+        performance: 'readonly', globalThis: 'readonly', ResizeObserver: 'readonly', MessageEvent: 'readonly',
+        KeyboardEvent: 'readonly', PointerEvent: 'readonly', HTMLElement: 'readonly', HTMLButtonElement: 'readonly',
+        HTMLInputElement: 'readonly', HTMLTextAreaElement: 'readonly', HTMLImageElement: 'readonly', HTMLCanvasElement: 'readonly',
+        CanvasRenderingContext2D: 'readonly', Blob: 'readonly', Intl: 'readonly', AudioContext: 'readonly', Headers: 'readonly',
+        HTMLSelectElement: 'readonly', BiquadFilterType: 'readonly', SVGElement: 'readonly',
+      },
+    },
+    rules: { 'no-undef': 'error', 'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }], 'no-dupe-keys': 'error' },
+  },
+  {
     files: ['src/**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
@@ -134,5 +153,5 @@ export default [
     rules: { 'max-statements-per-line': ['error', { max: 1 }] },
   },
   // generated and gitignored trees the lint paths above reach into
-  { ignores: ['app/release/**', 'tools/parity/dfu/**', 'tools/parity/cs/api/**', 'tools/parity/out/**'] },
+  { ignores: ['app/release/**', 'tools/parity/dfu/**', 'tools/parity/cs/api/**', 'tools/parity/out/**', 'server-account/journal/kit/**'] },
 ];

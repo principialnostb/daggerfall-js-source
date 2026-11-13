@@ -305,6 +305,10 @@ const REFUSAL_WORDS = {
   // MAIL1, letters. The words are the service's (server-account/src/letters.js) and the letter's law's
   // (net/letterLaw.js, which the service returns verbatim); every one says what to do next.
   'mail-needs-account': () => t('account.refusal.mailNeedsAccount', 'Letters need a username and a password. Give this account one and you can send and receive them.'),
+  // the Discord PDA's link (server-account/src/pdaLink.js)
+  'discord-needs-account': () => t('account.refusal.discordNeedsAccount', 'Linking Discord needs a username and a password. Give this account one first.'),
+  'discord-rate': () => t('account.refusal.discordRate', 'You asked for many codes. Wait a while, then try again.'),
+  'not-linked': () => t('account.refusal.notLinked', 'This account is not linked to Discord.'),
   // SERVER-POST, the server's post (server-account/src/post.js): the developers' messages, and the items in them
   'post-needs-account': () => t('account.refusal.postNeedsAccount', 'The mailbox needs a username and a password. Give this account one and the developers can send you post.'),
   'no-post': () => t('account.refusal.noPost', 'That message is not in your mailbox any more.'),
@@ -1411,6 +1415,10 @@ export const settleBrokerSale = (io, body) => (io ? call(io, '/v1/broker/settle'
  *  the wardrobe after it and the card's Patreon row. Linking has no call here: the account read carries the link, and
  *  the player follows it in a browser (server-account/src/patreon.js says why). */
 export const unlinkPatreon = (io) => call(io, '/v1/patreon/unlink', {});
+/** The Discord PDA's link: a one-time code to type in Discord (`{ ok, code, expiresAt }`), and the link taken off. The
+ *  account read carries the link's state (`discord`). */
+export const discordCode = (io) => call(io, '/v1/discord/code', {});
+export const unlinkDiscord = (io) => call(io, '/v1/discord/unlink', {});
 
 /** ACC4: ONE BEAT OF TIME PLAYED. It carries no number - the service
  *  credits the gap by its own clock (net/playClock.js says why), and

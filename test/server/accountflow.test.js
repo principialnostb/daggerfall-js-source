@@ -117,8 +117,13 @@ test('ACC1e: every refusal word the SERVICE can emit has a sentence here - walke
   // the builders' rule); the one door of theirs a player opens, the Staff tab's (staffFreeze.js STAFF_CHAT_STATUS), is
   // this screen's, below
   const panel = (f) => f === 'staff.js' || /^staff[A-Z]\w*\.js$/.test(f);
+  // The Discord PDA's modules answer in Discord, in their own words; the words their game routes answer are held to
+  // this screen by test/server/pda_words.test.js instead.
+  // So do the journal's Activity's door and its sea: their words are the book's (server-account/journal/words.js), held
+  // to it by test/server/journal_activity.test.js.
+  const pda = (f) => /^pda[A-Z]\w*\.js$/.test(f) || f === 'journalDoor.js' || f === 'seaJournal.js' || f === 'seaJournalLaw.js';
   const files = readdirSync(new URL('../../server-account/src', import.meta.url))
-    .filter((f) => f.endsWith('.js') && !panel(f)).sort();
+    .filter((f) => f.endsWith('.js') && !panel(f) && !pda(f)).sort();
   const staffSays = readdirSync(new URL('../../server-account/src', import.meta.url)).filter(panel)
     .flatMap((f) => [...src(`server-account/src/${f}`).matchAll(/error:\s*'([a-z-]+)'/g)].map((m) => m[1]));
   assert.ok(staffSays.length >= 5, 'the staff walk found nothing - it has stopped seeing its subject');

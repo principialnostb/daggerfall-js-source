@@ -27,9 +27,11 @@ the hall's.
 An account's ware is a bit on `players.guild_wares`, kept when its character leaves the guild. A rename costs
 `GUILD_RENAME_SILVER` and a logo review `GUILD_LOGO_FEE` (2,500 each).
 
-**The Insignia Armlet** (`src/net/armoryLaw.js`, drawn by `src/render/armoryPass.js`). A gilt band on the left upper arm
-in the guild's colours, its crest (arms or approved logo) on the outer face (`src/ui/guild/guildCrestArt.js`). On a
-sprite it stands on the side the picture paints that arm, and is hidden when that arm is behind the body. A peer's
+**The Insignia Armlet** (`src/net/armoryLaw.js`, drawn by `src/render/armoryPass.js`). The guild's crest (arms or
+approved logo) on a gilt shield floating beside the left upper arm, a glow in the guild's colours behind it
+(`src/ui/guild/guildCrestArt.js`). On a 3D body the shield turns round the arm toward the viewer, at most
+`ARMORY_ARMLET.turn` from straight out, so it reads from the front and from behind. On a sprite it floats beside the arm
+on the side the picture paints that arm, facing the viewer, and is hidden when that arm is behind the body. A peer's
 armlet shows their guild's arms, read by tag (`/v1/guilds/arms`, `src/net/guild/guildArmsBook.js`).
 
 **Hall furniture** (`src/world/guildFurniture.js`, `src/world/guildFurnitureArt.js`, models 864300-864306). A piece

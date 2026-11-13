@@ -172,8 +172,8 @@
   {
     "name": "AUDIT-AURA-PIXEL-D2-back-on-chest-mark",
     "file": "src/render/armoryPass.js",
-    "old": "const back = pose.card ? backOnCard(onCard(chestZ - 0.24 * s))",
-    "new": "const back = pose.card ? onCard(chestZ - 0.24 * s)",
+    "old": "backOnCard(onCard(chestZ - depth))",
+    "new": "onCard(chestZ - depth)",
     "tests": [
       "test/render/auditaurapixel.test.js"
     ],

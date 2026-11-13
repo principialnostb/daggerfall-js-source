@@ -37,7 +37,7 @@ export function guildWareLook(/** @type {unknown} */ key) {
     case 'insigniaarmlet':
       return t(
         'guild.shop.look.insigniaarmlet',
-        "Your guild's arms on a gilded band round one upper arm. An Aura Armory piece for the arms slot.",
+        "Your guild's arms on a gilded shield that floats beside one upper arm. An Aura Armory piece for the arms slot.",
       );
     case 'guildcrest':
       return t('guild.shop.look.guildcrest', "Your guild's arms in your portrait, where other players see your face.");

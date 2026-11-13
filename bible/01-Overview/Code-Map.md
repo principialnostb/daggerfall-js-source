@@ -33,6 +33,7 @@ change that adds a directory adds its row here.
 | `src/characters/` | People and creatures: bodies and rigs, outfits and dyes, enemies, NPC builders. |
 | `src/combat/` | Combat law: FormulaHelper's port, weapons, hits, spells in the hand. |
 | `src/formats/` | The readers for Daggerfall's (and Morrowind's) file formats. Exact to DFU's (`Port-Doctrine.md`, Scope). |
+| `src/journalKit/` | The entry the Discord journal's Cabinet kit is bundled from (`tools/journalKit.mjs`): the game's own painters, outside the game's own windows. |
 | `src/net/` | Online: the client's link to the relay, the wire, and the law both ends run. The relay imports from here. |
 | `src/player/` | The player's body in the world: motor, camera, first-person views, seats. |
 | `src/poi/` | Points of interest: the editor's document, its import and export, and the feed the game stands. |

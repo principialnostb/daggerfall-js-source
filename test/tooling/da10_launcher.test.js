@@ -270,7 +270,8 @@ test('DA10: the page - the news, the card, the options, the bar and PLAY; every 
   for (const id of ['news', 'setup', 'found', 'setup-actions', 'files', 'update-check', 'status', 'detail', 'progress', 'status-actions', 'play', 'version']) {
     assert.match(html, new RegExp(`id="${id}"`), `#${id}`);
   }
-  assert.deepEqual([...html.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['play', 'private-host', 'private-join', 'private-stop', 'choose-folder', 'open-saves', 'reinstall', 'restart', 'play']);
+  // PLAY in the dock first; PLAY's question, the Private server (with its own PLAY) and Settings come after the page
+  assert.deepEqual([...html.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['play', 'play', 'private-host', 'private-join', 'play', 'private-stop', 'choose-folder', 'open-saves', 'reinstall', 'restart']);
   assert.match(html, /<button id="play" class="play" type="button" data-act="play" disabled>Play<\/button>/, 'Play starts held - the first view frees it');
   const js = rd('app/launcher/launcher.js');
   assert.match(js, /\$\('update-check'\)\.addEventListener\('change', \(e\) => bridge\.act\('set-update-check', e\.target\.checked\)\);/);

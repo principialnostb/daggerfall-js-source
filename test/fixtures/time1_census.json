@@ -925,6 +925,18 @@
    "why": "OFFLINE-ROAD: a sworn one abroad keeps the world's time, held to the session's monotonic time since the welcome (AUDIT FB1021 L3-1)"
   },
   {
+   "file": "src/systems/revenant/revenantRemoteLaw.js",
+   "has": "export const worldMinuteAt = (/** @type {number} */ ms) => Math.floor(sharedClassicMinutes(ms));",
+   "clock": "event",
+   "why": "an expedition's errand is timed in the world's minutes - set out, on the road and back at the same minute for the player, the journal in Discord and the service"
+  },
+  {
+   "file": "src/systems/revenant/revenantRemoteLaw.js",
+   "has": "export const wallSecondOf = (/** @type {number} */ minute) => Math.ceil(wallMsForClassicMinutes(minute) / 1000);",
+   "clock": "event",
+   "why": "an errand's return as a wall-clock second, for the journal's timers and the service's minute that brings it back"
+  },
+  {
    "file": "src/systems/worldTick.js",
    "has": "_heardMark = Object.freeze({ world: worldMinutes(), perf, n: (_heardMark?.n ?? 0) + 1 });",
    "clock": "law",

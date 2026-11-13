@@ -545,7 +545,7 @@
   {
     "name": "AUDIT-SCALE-A2-firing-unbounded",
     "file": "server-account/src/cron.js",
-    "old": "export const FIRING_STATEMENTS_MAX = 600;",
+    "old": "export const FIRING_STATEMENTS_MAX = 650;",
     "new": "export const FIRING_STATEMENTS_MAX = 6000;",
     "tests": [
       "test/net/auditscale.test.js"

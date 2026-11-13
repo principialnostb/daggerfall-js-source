@@ -124,8 +124,8 @@
   {
     "name": "ARMORY-the-forearm-drawn-on-a-card",
     "file": "src/render/armoryPass.js",
-    "old": "        if (full) tube(0, el, wa, 0.054 * a, 0.046 * a);",
-    "new": "        tube(0, el, wa, 0.054 * a, 0.046 * a);",
+    "old": "...(full ? R.fore.map((a) => ({ c: mix(u.el, wa, a), d: df, r: Rf })) : [])",
+    "new": "...R.fore.map((a) => ({ c: mix(u.el, wa, a), d: df, r: Rf }))",
     "tests": [
       "test/render/armory.test.js"
     ]
@@ -204,12 +204,13 @@
   },
   {
     "name": "ARMORY-the-edge-read-as-the-brand",
-    "file": "src/systems/weaponGlow.js",
-    "old": "export const ARMORY_GLOW = Object.freeze({ breachbrand: 'brand', eternaledge: 'edge' });",
-    "new": "export const ARMORY_GLOW = Object.freeze({ breachbrand: 'brand', eternaledge: 'brand' });",
+    "file": "src/systems/weaponGlowLooks.js",
+    "old": "export const ARMORY_GLOW = Object.freeze({ breachbrand: 'brand', eternaledge: 'edge', tideedge: 'tide' });",
+    "new": "export const ARMORY_GLOW = Object.freeze({ breachbrand: 'brand', eternaledge: 'brand', tideedge: 'tide' });",
     "tests": [
       "test/systems/weaponglow1.test.js"
-    ]
+    ],
+    "note": "Re-aimed by content: the Courier's Cabinet's wares beside it."
   },
   {
     "name": "ARMORY-left-out-of-the-boot",
@@ -241,8 +242,8 @@
   {
     "name": "ARMORY-the-sigils-back-inside-the-torso",
     "file": "src/render/armoryPass.js",
-    "old": "-(pose.back > 0 ? pose.back : 0.27 * s))",
-    "new": "-(pose.back > 0 ? pose.back : 0.2 * s))",
+    "old": "(pose.back > 0 ? pose.back : ARMORY_BODY.back * s) + gap * s",
+    "new": "(pose.back > 0 ? pose.back : 0.15 * s) + gap * s",
     "tests": [
       "test/render/armory.test.js"
     ]
@@ -258,9 +259,9 @@
   },
   {
     "name": "ARMORY-a-body-kit-on-the-blades-stage",
-    "file": "src/systems/weaponGlow.js",
-    "old": "  Object.entries(armoryKitPieces(kit)).every(([s, k]) => s === 'weapon' || !k) ? armoryWeaponLook(kit) : null;",
-    "new": "  Object.entries(armoryKitPieces(kit)).every(() => true) ? armoryWeaponLook(kit) : null;",
+    "file": "src/systems/weaponGlowLooks.js",
+    "old": "  Object.entries(armoryKitPieces(kit)).every(([s, k]) => s === 'weapon' || !k) ? armoryKitLook(kit) : null;",
+    "new": "  Object.entries(armoryKitPieces(kit)).every(() => true) ? armoryKitLook(kit) : null;",
     "tests": [
       "test/render/armory.test.js"
     ]
@@ -436,8 +437,8 @@
   {
     "name": "ARMORY-the-crowns-tip-at-its-band",
     "file": "src/render/armoryPass.js",
-    "old": "(C.brow + C.band + C.flame) * s",
-    "new": "(C.brow + C.band) * s",
+    "old": "return base + (C.band + C.flame) * s * Math.min(1, up[1] + Math.sin(C.sway))",
+    "new": "return base + C.band * s * Math.min(1, up[1] + Math.sin(C.sway))",
     "tests": [
       "test/ui/profileslots.test.js"
     ]
@@ -589,8 +590,8 @@
   {
     "name": "WOLF-KIT-the-wolfs-back-a-persons",
     "file": "src/render/armoryPass.js",
-    "old": "add(chest, fwd, -(pose.back > 0 ? pose.back : 0.27 * s))",
-    "new": "add(chest, fwd, -(0.27 * s))",
+    "old": "const depth = (pose.back > 0 ? pose.back : ARMORY_BODY.back * s)",
+    "new": "const depth = (ARMORY_BODY.back * s)",
     "tests": [
       "test/render/armory.test.js"
     ]
@@ -607,8 +608,8 @@
   {
     "name": "WOLF-KIT-the-bands-inside-the-wolfs-arms",
     "file": "src/render/armoryPass.js",
-    "old": "const a = pose.arm > 0 ? pose.arm : 1;",
-    "new": "const a = 1;",
+    "old": "const fit = pose.arm > 0 ? pose.arm : 1;   // WOLF-KIT: the wolf's arms wider",
+    "new": "const fit = 1;   // WOLF-KIT: the wolf's arms wider",
     "tests": [
       "test/render/armory.test.js"
     ]

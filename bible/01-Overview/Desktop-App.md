@@ -138,14 +138,41 @@ Every check runs inside two gates: the Check for Updates Automatically switch (`
 behind a small bridge (`app/launcherPreload.cjs`), with a CSP that allows nothing remote or inline. Every word,
 GitHub's notes included, reaches the page as text.
 
-- **Patch notes** on the left: the latest releases' notes (at most `NEWS_MAX`), kept in `news.json`. Releases since the
-  player last pressed Play (`lastPlayed`) are marked NEW, one on its way UPDATE.
-- **The side column:** Game files (Change folder), Saves (Open saves folder), Updates (the check switch, Reinstall),
-  and on Windows Graphics (Use Vulkan).
-- **The status bar and Play.** Play waits only while something is decided for the player: an update check (at most
-  `CHECK_TIMEOUT_MS`), a download or install, or no game files. An installer update installs before play and reopens
-  the app; **Play without updating** skips it. A download that stalls for `DOWNLOAD_STALL_MS`, or an install that
-  never starts within `INSTALL_GIVEUP_MS`, frees Play.
+- **The window** is 1120 by 680 where the screen has room, centred on the display under the pointer. On a smaller
+  work area it takes the room there is, down to 900 by 520 (`app/lib/launcherWindow.cjs` `launcherBounds`), so Play
+  stays above the taskbar on a 1366 by 768 laptop at 125%. A short window wears a compact layout.
+- **The night** behind the page is drawn in pixels by `app/launcher/scene.js`: a castle on a crag against Masser, with
+  Secunda, a lake, mist, pines and fireflies, from one seed and in the Enhanced skin's colours. No picture of the
+  game's art ships. It holds still while the window is hidden, once Play starts the game, and for a player who asks for
+  less motion. The icons are bitmaps in `app/launcher/icons.js`.
+- **The pointer** is the game's own gauntlet (`src/ui/plus/gauntletArt.js`), its finger drawn in while a button is
+  held. The page takes no `data:` images, so the shell reads that one file and serves its frames as PNGs
+  (`app/lib/launcherPointer.cjs`). Under it, `app/launcher/pointer.js` draws a red glow that trails embers as it moves
+  and throws sparks at a click. It draws nothing while the pointer rests, and holds still when the night does.
+- **The headline**, left: the newest release's title and first point, and whether it is new since the player last
+  played or in the next update.
+- **Patch notes**, right: the latest releases' notes (at most `NEWS_MAX`), kept in `news.json`. Releases since the
+  player last pressed Play (`lastPlayed`) are marked NEW, one on its way UPDATE. Until the game has files, the first
+  run's card takes the place of both.
+- **The dock and Play.** The status line's mark shows the view's `tone`. A download shows its size, and its speed and
+  time left, which the page works out from the bytes. Play waits only while something is decided for the player: an
+  update check (at most `CHECK_TIMEOUT_MS`), a download or install, or no game files. An installer update installs
+  before play and reopens the app; **Play without updating** skips it. A download that stalls for
+  `DOWNLOAD_STALL_MS`, or an install that never starts within `INSTALL_GIVEUP_MS`, frees Play.
+- **Over the page.** Play asks where to play in a window: online or offline (the game's own menu asks which), or the
+  Private server. **Settings** is a drawer from the right: Game files (Change folder), Saves (Open saves folder),
+  Updates (the check switch, Reinstall), and on Windows Graphics (Use Vulkan). Whatever is over the page makes the
+  regions under it `inert` (`data-behind`), so neither the keys nor a pad reach behind it. The status line is not
+  among them, so it is still read aloud. Escape, or B on a pad, closes one at a time, and the game starting closes
+  them all.
+- **A private server on.** Its window has its own Play beside Stop, since the dock's is under it, and Escape closes
+  it outright: "Online or offline" would load the game on the server. The dock says a server is on, and opens the
+  window again.
+- **What it costs.** No backdrop blur anywhere on the page, so it draws the same on Vulkan. With VSync off the app
+  lifts Chromium's frame limit for the launcher too (`app/lib/frameRate.cjs`), so every endless animation moves in
+  `steps()` on a property the page paints, never opacity or transform, which the compositor runs every frame. All of
+  them pause while the game starts. The trail draws at most 60 frames a second and leaves the page at rest, and the
+  night draws 30.
 - **`--play`** goes straight into the game (`runDirect`), for game managers and Steam shortcuts. With no game files, or
   a saved folder that is not whole, the launcher opens instead.
 - **A controller** drives it: `app/launcher/pad.js` runs the game's own `src/ui/menu/menuPad.js` over the page.
@@ -234,7 +261,7 @@ All Chromium switches go on before the app is ready.
 - `test/tooling/updatecheck.test.js`, `test/tooling/autoupdate.test.js`, `test/tooling/selfswap.test.js`,
   `test/tooling/da13_gamechannel.test.js` - updating
 - `test/tooling/da10_launcher.test.js`, `test/tooling/da12_directplay.test.js`, `test/tooling/da9_arena2detect.test.js`
-  - the launcher, `--play`, detection
+  - the launcher, `--play`, detection; `test/tooling/launcher_face.test.js` - its window, scene, pointer, headline and layers
 - `test/tooling/gpubackend.test.js`, `test/tooling/shaderease_cacheturn.test.js`, `test/tooling/boot_hidden.test.js`,
   `test/render/gputrail.test.js` - graphics and boot
 

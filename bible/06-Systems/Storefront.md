@@ -69,6 +69,24 @@ shows tier, featured window and the price this account pays, with the list price
 carries its Enhanced Plus kit role, so themes and the Grimoire dress it. The account is read again at every open
 (`shopReread`), and only the card's wares are listed (`shopListed`); with no card the Folios stand alone.
 
+**The Courier's Cabinet** (`src/net/discordShopLaw.js` `SEAL_WARES`) is a second shop. It is in Discord, not in this
+window. It sells for Seals, which players earn by playing the games in Discord. Seals cannot be bought with money or
+traded, and they never become Aurum, gold or items. The Cabinet alone sells these wares: the Courier of the Veil
+title, the Eltheric Tide and Veilwake auras, the Courier's Seal glyph, The Courier and Tide Compass icons, and the
+Aura Armory's Tidebound pieces, one at a time or as a set. A ware belongs to the account as soon as it is bought. The
+service keeps it in `players.discord_wares` (migration 0219), and `server-account/src/titles.js` `cabinetKeys` counts
+it as held. The game then draws, signs and lists it like any other ware. The Collections page names the Cabinet as
+its source. The Cabinet in Discord shows each ware drawn by these same painters (`src/journalKit/cabinetPreview.js`,
+`Journal-Activity.md`).
+
+**The Cabinet's looks.** Each aura has a look of its own, not shared with any aura made for one player
+(`src/render/auraRing.js`). Eltheric Tide: rings of sea-green light spread slowly out from the feet, and a few motes of
+foam rise (`tideRingAt`). Veilwake: a pale blue mist covers the ground at the feet and wraps the legs, and wisps drift
+round the body. The wisps trail behind a player who moves (`veilTrailOf`). The title sits on a plate of sea-green
+light. The glyph is a red wax seal with a quill pressed into it. The Tidebound pieces have shapes of their own, not the
+Eternal set's (`Aura-Armory.md`): sea-glass beads with spray, a nautilus shell, coiling water, surf and a rippling
+Edge.
+
 **The profile** has Kill effect, Portals and Mount slots. A ware not held can be tried on; one held is worn.
 
 **Others' effects** (Features: all, near, none) chooses whose kill effects and mount looks are drawn
@@ -83,7 +101,8 @@ carries its Enhanced Plus kit role, so themes and the Grimoire dress it. The acc
 - A setting hides the shop, off by default (the owner): `port:shopHidden` in `src/systems/uiPrefs.js`. On, the pause
   screen draws no gem. Aurum, items and the Folios are untouched.
 - Admins hold every shop item, always (the owner): `server-account/src/titles.js` `holdsAll`. Nothing held is sold to
-  an Admin; Aurum packs still sell.
+  an Admin; Aurum packs still sell. Admins hold the Courier's Cabinet's wares too.
+- Seals are earned by play in Discord alone, never bought with money and never traded (the owner).
 - Every ware is timed by the owner through `SHOP_FEATURED`; open all: a window never holds a sale back (the owner).
 - Online, the token carries `fx`, the effects kit: kill, portal and mount, `0` for none (`src/net/effectLaw.js`), so
   nobody can show an effect they do not own. The pose carries the kill count, place and body height (`xk`, `xp`, `xh`).
@@ -104,6 +123,7 @@ carries its Enhanced Plus kit role, so themes and the Grimoire dress it. The acc
 - `test/render/killfx.test.js`, `test/scenes/portalskins.test.js`, `test/ui/storefront_badges.test.js` - rendering
 - `test/ui/shop_hide.test.js`, `test/ui/shop_untold.test.js` - hiding, re-reading, only the card's wares
 - `test/server/admin_all_storefront.test.js` - Admins hold it all
+- `src/net/discordShopLaw.js`, `test/net/courierscabinet.test.js` - the Courier's Cabinet's wares, held and drawn
 
 ## Open
 

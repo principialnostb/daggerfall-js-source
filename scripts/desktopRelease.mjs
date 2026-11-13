@@ -90,6 +90,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const DESKTOP_STAGED = Object.freeze([
   Object.freeze({ from: 'src/ui/menu/menuPad.js', to: 'app/launcher/menuPad.js' }),
   Object.freeze({ from: 'src/assets/branding/dfo-online.png', to: 'app/launcher/dfo-online.png' }),
+  Object.freeze({ from: 'src/ui/plus/gauntletArt.js', to: 'app/launcher/gauntletArt.js' }),
   Object.freeze({ from: 'dist', to: 'app/dist' }),
 ]);
 

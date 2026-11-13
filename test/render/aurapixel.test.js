@@ -151,7 +151,7 @@ test('AURA-PIXEL the passes turn the law on - the auras\' and the armory\'s - an
 
 test('GLYPHS-MOUNTED (2026-10-31, the owner: "glyphs shouldnt show when mounted"): every look that floats cards draws none over a rider - a horse, a cart or a dragon - and its ground and wall as before; afoot, its cards (mutants: the rider\'s cards drawn; the walker\'s gone)', () => {
   const floats = Object.entries(AURA_LOOK).filter(([, l]) => l.glyphs && !l.mesh);
-  assert.deepEqual(floats.map(([k]) => k).sort(), ['lilacwarren', 'oblivionward', 'sagesmoke', 'vampirichaze']);
+  assert.deepEqual(floats.map(([k]) => k).sort(), ['lilacwarren', 'oblivionward', 'sagesmoke', 'vampirichaze', 'veilwake']);
   for (const [aura, look] of [...floats, ['seraphwings', AURA_LOOK.seraphwings]]) {
     const { gl, calls } = namedGl(), r = new AuraRingRenderer(gl);
     const draws = () => calls.filter((c) => c[0] === 'drawArrays').map((c) => c[3]);

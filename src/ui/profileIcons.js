@@ -15,6 +15,7 @@ import { t } from '../systems/textManager.js'; // STOREFRONT: the season's portr
 import { ownGuildArms, guildLogoSrc } from '../net/guild/guildArmsBook.js';
 import { SEASON_ICON_ART } from './icons/seasonIconArt.js'; // STOREFRONT: Season One's
 import { DAILY_ICON_ART } from './icons/dailyIconArt.js'; // AURUM: the daily wares'
+import { CABINET_ICON_ART } from './icons/cabinetIconArt.js'; // the Courier's Cabinet's, bought with Seals in Discord
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -62,6 +63,13 @@ export const ICON_TEXT = Object.freeze({
   get guildcrest() {
     return t('profile.icon.guildcrest', 'Guild Crest');
   }, // GUILD-SHOP
+  // the Courier's Cabinet's two
+  get courier() {
+    return t('account.icon.courier', 'The Courier');
+  },
+  get tidecompass() {
+    return t('account.icon.tidecompass', 'Tide Compass');
+  },
 });
 
 /** Each icon's drawing: its field's two colours (the round ground, inner to outer) and its shapes - each `[tag, attrs]`
@@ -376,6 +384,7 @@ export const ICON_ART = Object.freeze({
   // STOREFRONT: Season One's three (ui/icons/seasonIconArt.js); AURUM: the daily wares' eight (ui/icons/dailyIconArt.js)
   ...SEASON_ICON_ART,
   ...DAILY_ICON_ART,
+  ...CABINET_ICON_ART,
 });
 
 /** AUDIT-STOREFRONT: THE PAINTS a drawing names (`url(#brass)`), each laid in its own SVG once it is named: brass lit from

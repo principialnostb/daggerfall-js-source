@@ -1608,7 +1608,7 @@ import { ecotoneGlsl, ECO_UNITS } from './ecotoneGlsl.js';   // ECOTONE1: the gr
 import { snowCoverGlsl, TWIN_LAYERS, SNOW_LINES_UNIT, SNOW_TILE_M } from './snowCoverGlsl.js';   // PRECIP4: the snow the ground keeps - the chunk, a twin set's summer half, the frame's lines' unit
 import { snowCapGlsl } from './snowCapGlsl.js';   // PEAKS1: a steep face over the cap's line is bare rock
 import { SNOW_VS, snowTerrainFs, SNOW_UNITS, SNOW_LAYER, snowSurfaceRise } from './snowfallGlsl.js';   // SNOWFALL1: the mod's snow surface, lit as the ground is
-import { GLOW_SPRITE_VS, GLOW_SPRITE_FS, GLOW_FIELD_VS, GLOW_FIELD_FS, GLOW_FIELDS_MAX, GLOW_REACH_MAX, glowFieldReach, GLOW_MESH_FS, GLOW_CLOCK_PERIOD, GLOW_CHARGE_PULL, GLOW_DRAWS_MAX, GLOW_DEPTH_FLOOR, glowUnit, glowMeshVs, glowRingDraws, GLOW_WORLD_VS, GLOW_WORLD_FIELDS_MAX, glowWorldFs } from './weaponGlowGlsl.js';   // WEAPON-GLOW1: a weapon's element, drawn
+import { GLOW_SPRITE_VS, GLOW_SPRITE_FS, GLOW_FIELD_VS, GLOW_FIELD_FS, GLOW_FIELDS_MAX, GLOW_REACH_MAX, glowFieldReach, GLOW_MESH_FS, GLOW_CLOCK_PERIOD, GLOW_CHARGE_PULL, GLOW_DRAWS_MAX, GLOW_DEPTH_FLOOR, glowUnit, glowMeshVs, glowRingDraws, GLOW_WORLD_VS, GLOW_WORLD_FIELDS_MAX, glowWorldFs, glowFieldKey } from './weaponGlowGlsl.js';   // WEAPON-GLOW1: a weapon's element, drawn
 const GLOW_WORLD_FS = glowWorldFs(GLOW_SPRITE_FS, FOG_GLSL);   // AUDIT BACK-HOLSTER A7: the world picture's outline, fogged
 const SNOW_UNIT_LIST = Object.entries(SNOW_UNITS);   // AUDIT ENVIRONS P1: the five pictures' units, listed once
 
@@ -4081,6 +4081,7 @@ export class Renderer {
     gl.uniformMatrix4fv(u.model, false, modelMatrix);
     gl.uniform1f(u.skin, skin ? skin.pairs : 0);
     gl.uniform1i(u.look, g.code);
+    gl.uniform1i(u.glowSkin, g.skin ?? 0);   // a skin's own pattern in its look's code (the Tidebound Edge's)
     gl.uniform1f(u.level, g.level);
     gl.uniform1f(u.time, glowSeconds());
     gl.uniform3fv(u.ramp, g.ramp);
@@ -4154,7 +4155,7 @@ export class Renderer {
     this._wgm = {
       proj: at('uProj'), view: at('uView'), model: at('uModel'), skin: at('uSkin'), draws: at('uGlowDraw'), instanced: at('uGlowInstanced'),
       pull: at('uGlowPull'), useTex: at('uUseTex'), alphaCut: at('uAlphaCut'), look: at('uLook'), level: at('uLevel'), time: at('uTime'),
-      ramp: at('uRamp'), mode: at('uMode'), unit: at('uUnit'), origin: at('uGlowOrigin'),
+      ramp: at('uRamp'), mode: at('uMode'), unit: at('uUnit'), origin: at('uGlowOrigin'), glowSkin: at('uGlowSkin'),
     };
     this._use(p);
     gl.uniform1i(at('uTex'), 0);
@@ -5191,6 +5192,7 @@ void main() {
     gl.uniform2i(u.art, aw, ah);
     gl.uniform2i(u.fieldAt, wx, down);
     gl.uniform1i(u.look, glow.code);
+    gl.uniform1i(u.glowSkin, glow.skin ?? 0);   // a skin's own pattern in its look's code (the Tidebound Edge's)
     gl.uniform1f(u.level, glow.level);
     gl.uniform1f(u.time, glowSeconds());
     gl.uniform1f(u.dmax, glowFieldReach(glow.look));
@@ -5217,7 +5219,7 @@ void main() {
     const gl = this.gl;
     let byTex = this._glowFields.get(tex);
     if (!byTex) { byTex = new Map(); this._glowFields.set(tex, byTex); }
-    const flat = glow.code + 8 * ((cutL ? 1 : 0) + (cutR ? 2 : 0)) + 32 * (aw * 4096 + ah);
+    const flat = glowFieldKey(glow, cutL, cutR, aw, ah);   // a skin's its own: its reach and window are
     const key = world ? -1 - flat : flat;   // BACK-HOLSTER GLOW: a world picture's its own
     const hit = byTex.get(key);
     if (hit) { hit.used = ++this._glowFieldClock; return hit.tex; }
@@ -5284,6 +5286,7 @@ void main() {
     this._wgq = {
       dst: at('uDst'), canvas: at('uCanvas'), src: at('uSrc'), pad: at('uPad'), art: at('uArt'), fieldAt: at('uFieldAt'),
       look: at('uLook'), level: at('uLevel'), time: at('uTime'), ramp: at('uRamp'), dmax: at('uDmax'), reachMax: at('uReachMax'),
+      glowSkin: at('uGlowSkin'),
     };
     this._use(p);
     gl.uniform1i(at('uTex'), 0);
@@ -5301,7 +5304,7 @@ void main() {
     this._wgw = {
       vp: wat('uVP'), origin: wat('uOrigin'), right: wat('uRight'), up: wat('uUp'), size: wat('uSize'), pad: wat('uPad'), art: wat('uArt'),
       pull: wat('uPull'), src: wat('uSrc'), fieldAt: wat('uFieldAt'), look: wat('uLook'), level: wat('uLevel'), time: wat('uTime'),
-      ramp: wat('uRamp'), dmax: wat('uDmax'), reachMax: wat('uReachMax'),
+      ramp: wat('uRamp'), dmax: wat('uDmax'), reachMax: wat('uReachMax'), glowSkin: wat('uGlowSkin'),
     };
     this._use(w);
     gl.uniform1i(wat('uTex'), 0);
@@ -8851,6 +8854,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       gl.uniform2i(u.art, aw, ah);
       gl.uniform2i(u.fieldAt, wx, down);
       gl.uniform1i(u.look, glow.code);
+      gl.uniform1i(u.glowSkin, glow.skin ?? 0);   // a skin's own pattern in its look's code (the Tidebound Edge's)
       gl.uniform1f(u.level, glow.level);
       gl.uniform1f(u.time, glowSeconds());
       gl.uniform1f(u.dmax, glowFieldReach(glow.look));

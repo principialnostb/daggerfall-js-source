@@ -35,7 +35,7 @@ import { idleTurn } from './idleTurn.js';
 export function mountPrograms(renderer, search) {
   const o = outdoorPasses(search);
   if (!o.outdoors) return [];
-  // main.js:"if (params.has('exterior') || params.has('region') || params.has('loc'))" - the fixed city, behind ?world;
+  // src/main.js:"if (params.has('exterior') || params.has('region') || params.has('loc'))" - the fixed city, behind ?world;
   // it builds the sky and the marks, never the world host's ring, duels, sea, rain or spoils
   const world = pageHas('world', search) || !['exterior', 'region', 'loc'].some((k) => pageHas(k, search));
   // the far ring's lane: scenes/world.js mounts the lane first (syncLightingLane), and the ring reads renderer.lightingLane

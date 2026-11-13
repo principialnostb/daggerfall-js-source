@@ -32,8 +32,8 @@
   {
     "name": "ARM-BEHIND-bracers-bare",
     "file": "src/render/armoryPass.js",
-    "old": "0.056 * a, 0.06 * a); }\n      }\n      clipped(from, u.clip);",
-    "new": "0.056 * a, 0.06 * a); }\n      }",
+    "old": "inF(cuff), R.lo); }\n      }\n      clipped(from, u.clip);",
+    "new": "inF(cuff), R.lo); }\n      }",
     "tests": [
       "test/render/armbehind.test.js"
     ],
@@ -92,8 +92,8 @@
   {
     "name": "CHEST-CENTRE-sigil-back-behind",
     "file": "src/render/armoryPass.js",
-    "old": "const back = pose.card ? backOnCard(onCard(chestZ - 0.24 * s)) :",
-    "new": "const back = pose.card ? add(chest, fwd, -0.24 * s) :",
+    "old": "const back = add(pose.card ? backOnCard(onCard(chestZ - depth)) :",
+    "new": "const back = add(pose.card ? add(chest, fwd, -depth) :",
     "tests": [
       "test/render/armbehind.test.js"
     ],
@@ -102,8 +102,8 @@
   {
     "name": "CHEST-CENTRE-card-as-rig",
     "file": "src/render/armoryPass.js",
-    "old": "const chest = pose.card ? onCard(chestZ) : pt('chest'),",
-    "new": "const chest = pt('chest'),",
+    "old": "const chest = add(pose.card ? onCard(chestZ + gap * s) : add(pt('chest'), fwd, gap * s), hover(0))",
+    "new": "const chest = add(add(pt('chest'), fwd, gap * s), hover(0))",
     "tests": [
       "test/render/armbehind.test.js"
     ],

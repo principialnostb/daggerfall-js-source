@@ -34,6 +34,7 @@ app/release/
 app/game-seed.json
 app/launcher/menuPad.js
 app/launcher/dfo-online.png
+app/launcher/gauntletArt.js
 
 # tools/parity: reproducible from prepare.sh / run.sh. cs/api holds DFU's
 # own sources (kept EXTERNAL per Port-Doctrine); out/ reaches ~2.4GB.
@@ -123,3 +124,6 @@ Thumbs.db
 desktop.ini
 # the private server bundles (scripts/privateRelay.mjs)
 app/private/
+
+# the journal Activity's kit, built from src/ by tools/journalKit.mjs at the account deploy
+server-account/journal/kit/

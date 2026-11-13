@@ -623,6 +623,10 @@ function privateView(s) {
   return { status: p.status, note, enabled: !s.launch && !busy, on: p.status === 'hosting' || p.status === 'joined' };
 }
 
+/** The status line's mark at a glance: news to act on, a step that did not work, or checks turned off. Anything busy is
+ *  'busy', and anything else is 'ok'. */
+const STATUS_TONE = Object.freeze({ notice: 'info', background: 'info', installing: 'info', failed: 'warn', stuck: 'warn', offline: 'warn', skipped: 'off' });
+
 /** The launcher window's whole content, from the state. */
 function viewOf(s) {
   const u = s.update, st = s.setup;
@@ -667,6 +671,8 @@ function viewOf(s) {
       ? 'Only the files that changed. It is ready before you play, so you are on the same version as everyone online.'
       : 'It installs before you play, so you are on the same version as everyone online.';
     v.progress = { percent: u.percent, label: u.total ? `${mb(u.transferred)} of ${mb(u.total)} MB` : 'Starting the download' };
+    // the page works out the speed and the time left from the bytes as they arrive
+    if (u.total > 0) Object.assign(v.progress, { transferred: Math.max(0, Number(u.transferred) || 0), total: u.total });
     v.busy = true;
     if (SETUP_DONE.has(st.status)) v.statusActions = [{ id: 'play-now', label: 'Play without updating' }];
   } else if (u.status === 'checking') {
@@ -691,7 +697,7 @@ function viewOf(s) {
     v.detail = 'GitHub did not answer. This version plays as it is, and the next launch asks again.';
   } else if (u.status === 'skipped') {
     v.status = 'Update checks are off';
-    v.detail = 'Turn them on under Updates to hear of new versions.';
+    v.detail = 'Turn them on in Settings, under Updates, to hear of new versions.';
   } else if (justUpdated(s)) {
     v.status = `Updated to v${s.current}`;
     v.detail = 'What changed is in the patch notes.';
@@ -700,6 +706,8 @@ function viewOf(s) {
   }
   // the gem breathes while anything is being looked for or at
   if (st.status === 'looking' || st.status === 'checking' || st.searching || st.judging) v.busy = true;
+  v.launching = !!s.launch;
+  v.tone = v.busy ? 'busy' : STATUS_TONE[u.status] ?? 'ok';
   return v;
 }
 

@@ -11,6 +11,15 @@ import assert from 'node:assert/strict';
 import { ArmoryRenderer, armoryDraws, armletSide, armSide, cardRightOf, ARMORY_ARMLET } from '../../src/render/armoryPass.js';
 import { newPose, poseFromFigure, poseWorld, spriteMarks, POSE_AT, ARM_BAND, ARM_PX } from '../../src/render/armoryPose.js';
 import { lookAt, perspective, mirrorProjectionX, ortho, multiply } from '../../src/world/mat4.js';
+import { ARMORY_HOVER, ARMORY_BODY, armoryHoverAt, armoryPhase } from '../../src/render/armoryHover.js';
+
+/** A draw's point less where the hover law floats it at the clock 0 (no seed, no motion) - its rest, `k` its part. */
+const atRest = (/** @type {number[]} */ p, /** @type {string} */ key, /** @type {number} */ k, /** @type {any} */ pose) => {
+  const h = armoryHoverAt('arms', armoryPhase(key, k), 0, null, pose.scale > 0 ? pose.scale : 1);
+  return [p[0] - h[0], p[1] - h[1], p[2] - h[2]];
+};
+/** How far out from its arm the Insignia Armlet's plate stands on a card (m at the body's scale), past `half` the arm. */
+const plateOut = (/** @type {number} */ half) => half + ARMORY_HOVER.arms.gap + ARMORY_ARMLET.size * 0.6;
 
 const near = (/** @type {ArrayLike<number>} */ a, /** @type {ArrayLike<number>} */ b, eps = 1e-5) => [0, 1, 2].every((i) => Math.abs(a[i] - b[i]) < eps);
 /** The world's camera at `eye` facing `yaw` (forward (sin, cos) - world.js's), its lens mirrored as the world's is. */
@@ -77,14 +86,15 @@ test('ARMORY-MIRROR the armlet\'s side on a side view: the arms not read off the
   assert.equal(armletSide(read, fwd, chest, [0.3, 1.6, -3]), 'L', 'square behind: the picture\'s left');
   assert.equal(armletSide(read, fwd, chest, [2, 1.6, 2]), 'R', 'three-quarter before its right: the far arm, beside the body');
   assert.deepEqual(armoryDraws('insigniaarmlet', { at: [0, 0, 0], yaw: 0, kit: '00c00', pose: read, kindle: 1, torn: -1, _d: 3 }, [2, 1.6, -2], true, [-0.7, 0, -0.7]), [], 'nothing drawn there');
-  // the body facing +z seen square from its left (-x): the band on the near arm, the body's left
+  // the body facing +z seen square from its left (-x): the plate beside the near arm, the body's left, across the card
   const yaw = 0, eye = [-3, 1.5, 0.1], card = [0, 0, -1];   // the view's right from -x looking +x
   const draws = armoryDraws('insigniaarmlet', { at: [0, 0, 0], yaw, kit: '00c00', pose: side, kindle: 1, torn: -1, _d: 3 }, eye, true, card);
-  const band = draws[0], mid = [0, 1, 2].map((i) => (band.A[i] + band.B[i]) / 2);
+  const plate = atRest(draws[1].B, 'insigniaarmlet', 0, side);
   const shL = poseWorld(side, 'shL', [0, 0, 0], yaw, [0, 0, 0], 0, card), elL = poseWorld(side, 'elL', [0, 0, 0], yaw, [0, 0, 0], 0, card);
   const at = [0, 1, 2].map((i) => shL[i] + (elL[i] - shL[i]) * ARMORY_ARMLET.at);
-  assert.ok(near(mid, at, 1e-5), 'on the left upper arm');
-  assert.ok(mid[0] < -0.1, 'the near side, toward the eye');
+  assert.ok(Math.abs(plate[0] - at[0]) < 1e-5 && Math.abs(plate[1] - at[1]) < 1e-5, 'at the left upper arm');
+  assert.ok(Math.abs(Math.abs(plate[2] - at[2]) - plateOut(ARMORY_BODY.upper) * side.scale) < 1e-5, 'beside it across the card, the arms\' gap off it');
+  assert.ok(plate[0] < -0.1, 'the near side, toward the eye');
 });
 
 /** A picture the sets' size: a torso, a head, and two arms that hang against it at the shoulder and stand clear of it
@@ -111,7 +121,7 @@ test('ARMORY-MIRROR a picture\'s band: from ARM_BAND.at down the upper arm, the 
   assert.deepEqual([side.flank.lo, side.flank.hi], [20 - 31.5, 43 - 31.5], 'a side view: the body\'s two edges at the band\'s row');
 });
 
-test('ARMORY-MIRROR the Insignia Armlet on a picture\'s band: there and as wide - the band round the arm\'s run, the crest in proportion; a side view\'s on the arm at the body\'s back edge, along the eye\'s line; none with the right side to the eye (mutants: the band unread; its width unread; the back edge the front; the eye\'s line lost; the right side drawn)', () => {
+test('ARMORY-MIRROR the Insignia Armlet on a picture\'s band: its plate beside the arm\'s run, the arms\' gap out past its edge; a side view\'s beside the arm at the body\'s back edge, off the eye\'s line through it by as much; none with the right side to the eye (mutants: the band unread; its width unread; the back edge the front; the eye\'s line lost; the right side drawn)', () => {
   const { px, w, h } = armsPicture(), mpp = 0.019;
   const pose = newPose();
   poseFromFigure({ base: 0, mpp, marks: spriteMarks(px, w, h), shift: 0 }, pose);
@@ -119,24 +129,25 @@ test('ARMORY-MIRROR the Insignia Armlet on a picture\'s band: there and as wide 
   // from behind (the picture's left the body's left), the world's card right
   const yaw = 0, eye = [0.3, 1.6, -3], right = [-1, 0, 0];
   const draws = armoryDraws('insigniaarmlet', { at: [0, 0, 0], yaw, kit: '00c00', pose, kindle: 1, torn: -1, _d: 3 }, eye, true, right);
-  const band = draws[0], mid = [0, 1, 2].map((i) => (band.A[i] + band.B[i]) / 2);
-  assert.ok(near(mid, [11 * mpp, 74 * mpp, 0], 1e-6), `on the arm's clear run (${mid.map((v) => v.toFixed(3))})`);
-  assert.ok(Math.abs(band.r[0] - 3 * mpp) < 1e-9, 'the band as wide as the painted arm');
-  assert.ok(Math.abs(draws[2].size - ARMORY_ARMLET.size * (3 * mpp) / ARMORY_ARMLET.r) < 1e-9, 'the crest in proportion to it');
+  const plate = atRest(draws[1].B, 'insigniaarmlet', 0, pose), out = 11 * mpp + plateOut(0) * pose.scale + 3 * mpp;
+  assert.ok(near(plate, [out, 74 * mpp, 0], 1e-6), `beside the arm's clear run, out past it (${plate.map((v) => v.toFixed(3))}, ${out.toFixed(3)})`);
+  assert.deepEqual([draws.length, draws[1].part, draws[0].part], [2, 1, 2], 'the crest and the glow behind it, no band');
+  assert.ok(Math.abs(draws[1].size - ARMORY_ARMLET.size * pose.scale) < 1e-9 && Math.abs(draws[0].size - ARMORY_ARMLET.halo * pose.scale) < 1e-9, 'the crest and its glow their own size');
   // a side view: arms not read, the body's edges; facing +z and seen from its left (-x), its back is the card's right
   const side = newPose();
   poseFromFigure({ base: 0, mpp, marks: spriteMarks(px, w, h, { arms: false }), shift: 0 }, side);
   const sEye = [-3, 1.5, 0.1], sRight = [0, 0, -1];
-  const sd = armoryDraws('insigniaarmlet', { at: [0, 0, 0], yaw, kit: '00c00', pose: side, kindle: 1, torn: -1, _d: 3 }, sEye, true, sRight)[0];
-  const sMid = [0, 1, 2].map((i) => (sd.A[i] + sd.B[i]) / 2), back = (11.5 - ARM_PX.half) * mpp, card = [0, side.flank.y, -back];
+  const sd = armoryDraws('insigniaarmlet', { at: [0, 0, 0], yaw, kit: '00c00', pose: side, kindle: 1, torn: -1, _d: 3 }, sEye, true, sRight)[1];
+  const sAt = atRest(sd.B, 'insigniaarmlet', 0, side), back = (11.5 - ARM_PX.half) * mpp, card = [0, side.flank.y, -back];
+  const off = plateOut(ARMORY_BODY.upper) * side.scale, sMid = [sAt[0], sAt[1], sAt[2] + (sAt[2] < card[2] ? off : -off)];   // back across the card onto the arm
   const toMid = [0, 1, 2].map((i) => sMid[i] - sEye[i]), toCard = [0, 1, 2].map((i) => card[i] - sEye[i]);
   const cross = [toMid[1] * toCard[2] - toMid[2] * toCard[1], toMid[2] * toCard[0] - toMid[0] * toCard[2], toMid[0] * toCard[1] - toMid[1] * toCard[0]];
-  assert.ok(Math.hypot(...cross) / Math.hypot(...toCard) < 1e-6, 'on the eye\'s line through the arm painted at its back edge');
+  assert.ok(Math.hypot(...cross) / Math.hypot(...toCard) < 1e-6, 'beside the arm painted at its back edge, across the card from the eye\'s line through it');
   assert.ok(Math.hypot(...toMid) < Math.hypot(...toCard) - 0.1, 'before the card: the near arm');
   assert.deepEqual(armoryDraws('insigniaarmlet', { at: [0, 0, 0], yaw, kit: '00c00', pose: side, kindle: 1, torn: -1, _d: 3 }, [3, 1.5, 0.5], true, [0, 0, 1]), [], 'its right side to the eye, a little before it: none');
 });
 
-test('ARMORY-MIRROR both arms\' pieces, each arm as the picture paints it: the right arm\'s side and where it is hidden, as the left\'s mirrored; one chain from three-quarters behind; each band on its arm\'s clear run and as wide (the owner: "ensure the armory aura sets dont show through the body and allign perfectly on the sprites"; mutants: the right arm read as the left; its picture side swapped; the hidden arm drawn; the band unread)', () => {
+test('ARMORY-MIRROR both arms\' pieces, each arm as the picture paints it: the right arm\'s side and where it is hidden, as the left\'s mirrored; one arm\'s chains from three-quarters behind; each ring on its arm\'s clear run, the arms\' gap wider than it (the owner: "ensure the armory aura sets dont show through the body and allign perfectly on the sprites"; mutants: the right arm read as the left; its picture side swapped; the hidden arm drawn; the band unread)', () => {
   const { px, w, h } = armsPicture(), mpp = 0.019, fwd = [0, 0, 1], chest = [0, 1.3, 0];
   const read = newPose();
   poseFromFigure({ base: 0, mpp, marks: spriteMarks(px, w, h), shift: 0 }, read);
@@ -150,17 +161,20 @@ test('ARMORY-MIRROR both arms\' pieces, each arm as the picture paints it: the r
   assert.deepEqual([armSide(side, fwd, chest, [-3, 1.5, 0.5], 'right'), armSide(side, fwd, chest, [-3, 1.5, 0.5], 'left')], [null, 'L'], 'its left side seen: the right arm behind it');
   const wearer = (/** @type {string} */ kit, /** @type {any} */ pose) => ({ at: [0, 0, 0], yaw: 0, kit, pose, kindle: 1, torn: -1, _d: 3 });
   const behind = armoryDraws('ashbound', wearer('00a00', read), [2, 1.6, -2], true, [-0.7, 0, 0.7]);
-  assert.equal(behind.filter((d) => d.mesh === 0).length, 1, 'three-quarter behind: one arm\'s chain, the near one\'s');
-  // from before it, its card right +x: each band on its arm's clear run, as wide
+  assert.equal(behind.filter((d) => d.mesh === 0).length, 2, 'three-quarter behind: one arm\'s two chains, the near one\'s');
+  // from before it, its card right +x: each ring on its arm's clear run, the arms' gap wider than the painted arm
   const right = [1, 0, 0], front = armoryDraws('eternalarmlets', wearer('00b00', read), [0, 1.6, 3], true, right).filter((d) => d.mesh === 0);
   assert.equal(front.length, 2, 'both arms');
-  const across = front.map((d) => +(((d.A[0] + d.B[0]) / 2) / mpp).toFixed(1)).sort((p, q) => p - q);
-  assert.ok(Math.abs(across[0] + 11) < 0.3 && Math.abs(across[1] - 11) < 0.3, `each band on its arm's run, 11 px either side (${across})`);
-  assert.ok(Math.abs(front[0].r[1] - 0.066 * (6 * mpp) / (2 * 0.064)) < 1e-9, 'as wide as the painted arm');
-  // the chain runs the arm's own slope, moved across to pass through its band (the reader's line stands 1.7 px inside it)
+  const across = front.map((d, i) => +(atRest([0, 1, 2].map((q) => (d.A[q] + d.B[q]) / 2), 'eternalarmlets', i * 4, read)[0] / mpp).toFixed(1)).sort((p, q) => p - q);
+  assert.ok(Math.abs(across[0] + 11) < 0.3 && Math.abs(across[1] - 11) < 0.3, `each ring on its arm's run, 11 px either side (${across})`);
+  assert.ok(Math.abs(front[0].r[1] - (3 * mpp + ARMORY_HOVER.arms.gap * read.scale)) < 1e-9, 'the painted arm\'s half and the arms\' gap round');
+  // the chains at rest stand on the arm's own slope, moved across to pass through its band (the reader's line stands 1.7 px
+  // inside it): the line through an arm's two rings' middles crosses the band's row on its run
   const chains = armoryDraws('ashbound', wearer('00a00', read), [0, 1.6, 3], true, right).filter((d) => d.mesh === 0);
-  for (const c of chains) {
-    const y = read.bands.R.y, t = (y - c.A[1]) / (c.B[1] - c.A[1]), x = (c.A[0] + (c.B[0] - c.A[0]) * t) / mpp;
+  assert.equal(chains.length, 4, 'two rings an arm');
+  for (const i of [0, 1]) {
+    const [c1, c2] = [0, 1].map((j) => atRest([0, 1, 2].map((q) => (chains[i * 2 + j].A[q] + chains[i * 2 + j].B[q]) / 2), 'ashbound', i * 4 + j, read));
+    const y = read.bands.R.y, t = (y - c1[1]) / (c2[1] - c1[1]), x = (c1[0] + (c2[0] - c1[0]) * t) / mpp;
     assert.ok(Math.abs(Math.abs(x) - 11) < 0.05, `through the band at its row (${x.toFixed(2)} px)`);
   }
 });

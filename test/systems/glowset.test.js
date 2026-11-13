@@ -41,6 +41,13 @@ test('GLOW-SET: every word /glow writes is one the wire and the item law take, a
   assert.deepEqual([...ITEM_FIELDS.glowSet.values].sort(), [...words].sort());
   for (const w of words) { assert.ok(LOOK_GLOW_RE.test(w), w); assert.ok(WG.glowFromWord(w), w); assert.equal(validItemField('glowSet', w), w); }
   assert.equal(validItemField('glowSet', 'fire4'), undefined);
+  // and back: every word the wire takes is one /glow and the item law take, but the Tidebound Edge's - a sold piece's
+  // look, never a staff gift
+  const wire = [];
+  for (const look of [...WG.GLOW_LOOKS, ...Object.keys(WG.GLOW_SKINS)]) for (let l = 0; l <= 4; l++) if (LOOK_GLOW_RE.test(`${look}${l}`)) wire.push(`${look}${l}`);
+  assert.deepEqual(wire.filter((w) => !ITEM_FIELDS.glowSet.values.includes(w)), ['tide2'], 'the one word /glow never writes');
+  assert.equal(validItemField('glowSet', 'tide2'), undefined);
+  assert.ok(!('error' in (parseGlowCommand('/glow edge') ?? {})) && 'error' in parseGlowCommand('/glow tide'), '/glow has no tide');
 });
 
 test('GLOW-SET: the set word shows over the element, the Gilded crimson and the arcane look, in both hands', () => {

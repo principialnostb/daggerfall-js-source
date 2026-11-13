@@ -48,6 +48,8 @@ on:
     # DISCORD-CODE: and the deploy's last step runs tools/discordModCommands.mjs, so its own graph is listed (after this
     # workflow's own line) - test/server/discord_setup.test.js holds it, and the commands it writes live under
     # server-account/. No comment inside the list: the pins read it as one run of lines.
+    # The journal's kit (tools/journalKit.mjs, the Cabinet's pictures) is bundled from
+    # src/journalKit/cabinetPreview.js at the deploy, so its graph is listed last, with the tool - test/server/accountdeploy.test.js holds it.
     paths:
       - "server-account/**"
       - "src/net/identityToken.js"
@@ -251,6 +253,7 @@ on:
       - "src/net/aurumLaw.js"
       - "src/net/aurumCacheLaw.js"
       - "src/net/giftLaw.js"
+      - "src/net/discordShopLaw.js"
       - "src/net/cacheProof.js"
       - "src/net/lostLaw.js"
       - "src/systems/superDungeon/sdSpoils.js"
@@ -472,6 +475,26 @@ on:
       - "vendor/foraging/ItemTemplates.json"
       - "vendor/iliac-puddle-no-more/ItemTemplates.json"
       - ".github/workflows/account-deploy.yml"
+      - "src/net/serpent/serpentLaw.js"
+      - "src/net/herald/heraldCard.js"
+      - "src/net/superDungeon/sdHerald.js"
+      - "src/net/superDungeon/sdLaw.js"
+      - "src/net/gate/gateHerald.js"
+      - "src/net/gate/gateRite.js"
+      - "src/world/worldWide/worldGrid.js"
+      - "src/world/tamriel/tamrielFrame.js"
+      - "src/world/tamriel/tamrielLand.js"
+      - "src/world/tamriel/tamrielGeography.js"
+      - "src/world/tamriel/tamrielRelief.js"
+      - "src/world/tamriel/tamrielReliefData.js"
+      - "src/world/segment.js"
+      - "server/src/pdaRelayLaw.js"
+      - "src/systems/revenant/revenantRemoteLaw.js"
+      - "src/systems/revenant/revenantStars.js"
+      - "src/systems/revenant/revenantGear.js"
+      - "src/systems/revenant/revenantFeud.js"
+      - "src/systems/revenant/revenantPersonality.js"
+      - "src/characters/mobile/mobileFactions.js"
       - "tools/discordModCommands.mjs"
       - "tools/stripeMethods.mjs"
       - "tools/lib/isMain.mjs"
@@ -488,6 +511,33 @@ on:
       - "src/net/invasion/invasionWire.js"
       - "src/net/invasion/invasionBlows.js"
       - "src/systems/toybox/toyboxSpecial.js"
+      - "src/journalKit/cabinetPreview.js"
+      - "src/render/auraPreview.js"
+      - "src/render/auraRing.js"
+      - "src/ui/playerBadge.js"
+      - "src/ui/titleFlame.js"
+      - "src/render/fogGlsl.js"
+      - "src/render/hazeGlsl.js"
+      - "src/render/auraPixel.js"
+      - "src/render/orderedDither.js"
+      - "src/render/glProgram.js"
+      - "src/render/armoryPass.js"
+      - "src/render/armoryTide.js"
+      - "src/render/armoryHover.js"
+      - "src/render/armoryPose.js"
+      - "src/net/guild/guildArmsBook.js"
+      - "src/ui/guild/guildCrestArt.js"
+      - "src/ui/heraldryArt.js"
+      - "src/ui/guild/guildLogoImages.js"
+      - "src/render/weaponPiecePreview.js"
+      - "src/render/weaponGlowGlsl.js"
+      - "src/systems/weaponGlowLooks.js"
+      - "src/ui/profileIcons.js"
+      - "src/ui/icons/seasonIconArt.js"
+      - "src/ui/icons/iconKit.js"
+      - "src/ui/icons/dailyIconArt.js"
+      - "src/ui/icons/cabinetIconArt.js"
+      - "tools/journalKit.mjs"
   workflow_dispatch:
 
 permissions:
@@ -775,6 +825,21 @@ jobs:
             jq -c '.errors // empty' /tmp/replicas.json 2>/dev/null || true
           fi
 
+      # THE JOURNAL'S KIT: the Cabinet in Discord's Activity draws each ware with the game's own painters, bundled
+      # from src/journalKit/cabinetPreview.js into journal/kit/ (never committed). It is built here, from this commit,
+      # so the Deploy below uploads it with the journal; a kit past its size budget fails the job rather than ship.
+      - uses: actions/cache@v4
+        id: kitdeps
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+      - name: Build the journal's kit
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.kitdeps.outputs.cache-hit }}" != "true" ]; then npm ci --no-audit --no-fund; fi
+          node tools/journalKit.mjs
+          test -s server-account/journal/kit/cabinetPreview.js
+
       # ── 3. DEPLOY, AND IT COMES BEFORE THE KEY ───────────────────
       #
       # AUDIT-ACC F15: THE ORDER USED TO BE THE OTHER WAY AND THE FIRST
@@ -1005,6 +1070,25 @@ jobs:
             echo "- webhook secret: $([ -n "${PATREON_WEBHOOK_SECRET}" ] && echo put || echo 'not set - pledges are not followed')"
             echo "- the Patreon client's redirect URI: \`$base/v1/patreon/callback\`"
             echo "- the Patreon webhook's URL: \`$base/v1/patreon/webhook\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # THE JOURNAL'S SIGN-IN SECRET, WHERE THE REPOSITORY HAS IT. The Activity knows its player from Discord's proxy, signed
+      # with the application's key. Where the proxy sends nothing, Discord's OAuth sign-in names the player, and that needs
+      # the application's client secret, which only the Developer Portal shows. Unset, the proxy's word is the only door.
+      - name: Put the journal's Discord sign-in secret, where the repository has it
+        working-directory: server-account
+        env:
+          DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -n "${DISCORD_CLIENT_SECRET}" ]; then
+            jq -n 'env | {DISCORD_CLIENT_SECRET}' | $WRANGLER secret bulk
+          fi
+          {
+            echo "### The journal's Activity"
+            echo ""
+            echo "- Discord sign-in: $([ -n "${DISCORD_CLIENT_SECRET}" ] && echo 'the client secret is put - a player the proxy does not name signs in through Discord' || echo 'no DISCORD_CLIENT_SECRET - players are named by the proxy alone')"
+            echo "- the Activity's files: served by this Worker from server-account/journal/ (URL Mappings: \`/\` to \`${{ steps.deploy.outputs.base }}\`, without https://)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # ── 4d. THE SHOP'S TWO STRIPE SECRETS, WHERE THE REPOSITORY HAS THEM ──

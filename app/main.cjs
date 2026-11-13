@@ -385,7 +385,28 @@ const MENU_PAD = app.isPackaged ? path.join(LAUNCHER_DIR, 'menuPad.js') : path.j
 // (src/assets/branding/dfo-online.png, BR5) - packed beside the launcher's page as the pad module is and read from
 // the source tree unpacked, so the launcher can never draw a logo the game does not.
 const LAUNCHER_LOGO = app.isPackaged ? path.join(LAUNCHER_DIR, 'dfo-online.png') : path.join(__dirname, '..', 'src', 'assets', 'branding', 'dfo-online.png');
+// The launcher's pointer is the game's gauntlet, read from the game's own art module (packed beside the page as the
+// logo is) and served as PNG files (lib/launcherPointer.cjs).
+const LAUNCHER_POINTER_ART = app.isPackaged ? path.join(LAUNCHER_DIR, 'gauntletArt.js') : path.join(__dirname, '..', 'src', 'ui', 'plus', 'gauntletArt.js');
+let launcherPointer = null;
+let launcherPointerWarned = false;
+/** The pointer's frames, read once - unless the read failed or found none, which the next request tries again (a file
+ *  an antivirus held, an edit while the shell runs unpacked). The page falls back to the OS arrow meanwhile. */
+function launcherPointerFiles() {
+  launcherPointer ??= fs.promises.readFile(LAUNCHER_POINTER_ART, 'utf8').then(pointerFiles, () => new Map()).then((files) => {
+    if (files.size < Object.keys(POINTER_FILES).length) {
+      launcherPointer = null;
+      if (!launcherPointerWarned) { launcherPointerWarned = true; console.warn('[shell] the launcher pointer art could not be read:', LAUNCHER_POINTER_ART); }
+    }
+    return files;
+  });
+  return launcherPointer;
+}
 async function serveLauncherFile(parts) {
+  if (parts.length === 1 && Object.hasOwn(POINTER_FILES, parts[0])) {
+    const png = (await launcherPointerFiles()).get(parts[0]);
+    return png ? new Response(png, { headers: { 'Content-Type': 'image/png' } }) : new Response('not found', { status: 404 });
+  }
   const p = parts.length === 1 && parts[0] === 'menuPad.js'
     ? MENU_PAD
     : parts.length === 1 && parts[0] === 'dfo-online.png'
@@ -525,6 +546,8 @@ const {
   CHECK_TIMEOUT_MS, RECHECK_MS, INSTALL_NOTICE_MS, INSTALL_GIVEUP_MS, DOWNLOAD_STALL_MS, DETECT_DEADLINE_MS, JUDGE_DEADLINE_MS, PICK_DEADLINE_MS,
   initialState, reduce, nextStep, viewOf, newsFrom, cachedNews, notArena2Detail, installAttemptFor, directPlay, PLAY_SWITCH,
 } = require('./lib/launcherState.cjs');
+const { launcherBounds } = require('./lib/launcherWindow.cjs');
+const { POINTER_FILES, pointerFiles } = require('./lib/launcherPointer.cjs');
 
 /** Which transport THIS copy updates by - lib/autoUpdate.cjs's table
  *  over the live facts: packaged or not, the platform, and the portable
@@ -1366,7 +1389,7 @@ function buildMenu() {
         {
           label: 'Locate ARENA2 Folder...',
           click: async () => {
-            // DA10: with the launcher open (the macOS menu bar is the app's), its own door - its Game files row says the answer
+            // With the launcher open (the macOS menu bar is the app's), its own door: Settings' Game files row says the answer, or the card
             if (launcher) { launcherChooseFolder(); return; }
             const target = liveWindow();
             const dir = await locateArena2(target);
@@ -1618,8 +1641,7 @@ const fromLauncher = (e) => !!launcher && e.sender === launcher.win.webContents 
 
 function openLauncherWindow() {
   const win = new BrowserWindow({
-    width: 960,
-    height: 660,   // GPU-BACKEND-LAUNCHER: the Graphics option's room in the side column
+    ...launcherBounds(require('electron').screen),
     useContentSize: true,
     resizable: false,
     maximizable: false,

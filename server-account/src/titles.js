@@ -130,6 +130,7 @@ import { guildWaresHeld } from '../../src/net/guild/guildShopLaw.js'; // GUILD-S
 import { EFFECT_SLOTS, effectKeys, effectOf, effectKitHeld } from '../../src/net/effectLaw.js'; // STOREFRONT: the effects held and worn
 import { PASS_ALL_GRANTS, passItemsOf, passKeysOf } from '../../src/net/battlePassLaw.js'; // STOREFRONT, PASS-PANELS: the Battle Pass's items bought
 import { giftPiecesOf } from '../../src/net/giftLaw.js'; // THANKS-POST: the update's gift, its armory piece
+import { SEAL_WARES, discordHeld } from '../../src/net/discordShopLaw.js'; // the Courier's Cabinet's wares, bought with Seals
 
 /** THE FOUNDER CUTOFF, and it is a date rather than a count because
  *  "all current players" is a statement about a MOMENT. Everyone who
@@ -413,7 +414,8 @@ const ADMIN_GLYPHS = GLYPHS.filter(
     !STAFF_GLYPHS.includes(g) &&
     (Object.values(TIER_GLYPH).includes(g) ||
       SHOP_WARES.some((w) => w.kind === 'glyph' && w.key === g) ||
-      passKeysOf(PASS_ALL_GRANTS, 'glyph').includes(g)),
+      passKeysOf(PASS_ALL_GRANTS, 'glyph').includes(g) ||
+      SEAL_WARES.some((w) => w.kind === 'glyph' && w.codes.includes(g))),
 );
 /** ADMIN-ALL: the Broker's insignia an admin holds - every offer, so the Broker sells them nothing. */
 export const insigniaOf = (/** @type {any} */ player, /** @type {any} */ env) =>
@@ -516,6 +518,7 @@ export function titlesHeld(player, env) {
     if (isNamedFirstWyrm(player, env) && !held.includes(DRAGON_TITLES.first)) held.push(DRAGON_TITLES.first); // FIRST-WYRM: by name
     for (const t of shopKeys(player, 'title')) if (!held.includes(t)) held.push(t); // SHOP: Genesis, bought (shop.js)
     for (const t of passKeys(player, 'title')) if (!held.includes(t)) held.push(t); // STOREFRONT: the Battle Pass's, bought
+    for (const t of cabinetKeys(player, 'title')) if (!held.includes(t)) held.push(t); // the Courier's Cabinet's, for Seals
   }
   if (holdsAll(player, env)) for (const t of ADMIN_TITLES) if (!held.includes(t)) held.push(t); // ADMIN-ALL: and every other
   return held;
@@ -525,6 +528,20 @@ export function titlesHeld(player, env) {
  *  Eternal Set gives what it holds). A registered account's alone: a guest cannot buy. */
 export const shopKeys = (/** @type {any} */ player, /** @type {string} */ kind) =>
   typeof player?.handle === 'string' && player.handle ? shopKeysOf(player, kind) : [];
+/** THE COURIER'S CABINET: the keys of one kind this row bought with Seals in Discord
+ *  (`discord_wares`, migration 0219; net/discordShopLaw.js), each one its vocabulary holds. A registered account's alone:
+ *  only one can link Discord. */
+export const cabinetKeys = (/** @type {any} */ player, /** @type {string} */ kind) => {
+  if (!(typeof player?.handle === 'string' && player.handle)) return [];
+  const words = /** @type {Record<string, ReadonlyArray<string>>} */ ({
+    title: TITLES,
+    aura: AURAS,
+    glyph: GLYPHS,
+    icon: ICONS,
+    armory: ARMORY_PIECES.map((p) => p.key),
+  })[kind];
+  return words ? discordHeld(player, kind).filter((k) => words.includes(k)) : [];
+};
 /** STOREFRONT, PASS-PANELS (bible/06-Systems/Battle-Pass.md): the keys of one kind the Battle Pass gave this row - the
  *  items it bought on the tracks (`pass_items`, migration 0201; battlePass.js buyPass). A registered account's alone. */
 export const passKeys = (/** @type {any} */ player, /** @type {string} */ kind) =>
@@ -568,6 +585,7 @@ export function aurasHeld(player, env) {
     for (const a of festivalKeys(player, 'aura')) if (!held.includes(a)) held.push(a); // WITCH1: Witchfire, bought
   for (const a of shopKeys(player, 'aura')) if (!held.includes(a)) held.push(a); // SHOP: Eternal, bought
   for (const a of passKeys(player, 'aura')) if (!held.includes(a)) held.push(a); // STOREFRONT: the Battle Pass's, bought
+  for (const a of cabinetKeys(player, 'aura')) if (!held.includes(a)) held.push(a); // the Courier's Cabinet's, for Seals
   if (holdsAll(player, env)) for (const a of AURAS) if (!held.includes(a)) held.push(a); // ADMIN-ALL: and every other
   return held;
 }
@@ -584,6 +602,7 @@ export function iconsHeld(/** @type {any} */ player, /** @type {any} */ env) {
     ...passKeys(player, 'icon'),
     ...shopKeys(player, 'icon'),
     ...guildWaresHeld(Number(player?.guild_wares ?? 0)),
+    ...cabinetKeys(player, 'icon'),
   ]); // STOREFRONT: and the Battle Pass's portraits; AURUM: and the daily wares' (shop_held); GUILD-SHOP: the Guild Crest
   if (Number(player?.fest_taken) >= SOULCAKE_TAKEN) own.add(SOULCAKE_ICON);
   return ICONS.filter((i) => own.has(i));
@@ -643,6 +662,7 @@ export function armoryHeld(/** @type {any} */ player, /** @type {any} */ env) {
     ...shopKeys(player, 'armory'),
     ...guildWaresHeld(Number(player?.guild_wares ?? 0)),
     ...giftPiecesOf(player),
+    ...cabinetKeys(player, 'armory'),
   ]); // GUILD-SHOP: the Insignia Armlet; THANKS-POST: a gift's pieces
   return ARMORY_PIECES.filter((p) => own.has(p.key)).map((p) => p.key);
 }
@@ -692,6 +712,7 @@ export function glyphsOf(player, env, nowS) {
   if (player?.arena?.champion === true) on.push('laurel'); // ARENA4: the laurel, true of the season's #1 while they hold it
   for (const g of shopKeys(player, 'glyph')) if (!on.includes(g)) on.push(g); // SHOP: the Origin, bought - true of the account that paid for it
   for (const g of passKeys(player, 'glyph')) if (!on.includes(g)) on.push(g); // STOREFRONT: the Battle Pass's, bought
+  for (const g of cabinetKeys(player, 'glyph')) if (!on.includes(g)) on.push(g); // the Courier's Cabinet's, for Seals
   if (holdsAll(player, env)) for (const g of ADMIN_GLYPHS) if (!on.includes(g)) on.push(g); // ADMIN-ALL: the paint glyphs, every one
   return glyphsInOrder(on);
 }

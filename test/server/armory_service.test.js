@@ -28,7 +28,7 @@ const closeGates = (/** @type {any} */ env, /** @type {any} */ who, /** @type {n
 
 test('ARMORY the law: five slots in the kit\'s order; ten pieces, two a slot - the Sigil Broker\'s Dagonfire, the shop\'s Eternal; a code a slot never shared (mutants: a slot dropped; two pieces one code; a line sold at the other\'s door)', () => {
   assert.deepEqual(ARMORY_SLOTS, ['head', 'torso', 'arms', 'legs', 'weapon']);
-  assert.deepEqual(ARMORY_SOURCE, { dagonfire: 'broker', eternal: 'shop', guild: 'guild', crystal: 'gift' });   // THANKS-POST (PIN MOVED): the Crystal Spurs' line, a gift; GUILD-SHOP (PIN MOVED): the Insignia Armlet's line, the guild shop's
+  assert.deepEqual(ARMORY_SOURCE, { dagonfire: 'broker', eternal: 'shop', guild: 'guild', crystal: 'gift', tidebound: 'discord' });   // THANKS-POST (PIN MOVED): the Crystal Spurs' line, a gift; GUILD-SHOP (PIN MOVED): the Insignia Armlet's line, the guild shop's
   assert.deepEqual(ARMORY_PIECES.map((p) => [p.key, p.slot, p.code, p.line, p.source]), [
     ['burningcrown', 'head', 'a', 'dagonfire', 'broker'],
     ['emberheart', 'torso', 'a', 'dagonfire', 'broker'],
@@ -42,6 +42,11 @@ test('ARMORY the law: five slots in the kit\'s order; ten pieces, two a slot - t
     ['eternaledge', 'weapon', 'b', 'eternal', 'shop'],
     ['insigniaarmlet', 'arms', 'c', 'guild', 'guild'],   // GUILD-SHOP (PIN MOVED): the arms slot's third, the guild shop's
     ['crystalspurs', 'arms', 'd', 'crystal', 'gift'],   // THANKS-POST (PIN MOVED): the arms slot's fourth, the update's gift
+    ['tidecirclet', 'head', 'c', 'tidebound', 'discord'],   // the Courier's Cabinet's line, each slot's next code
+    ['tidepearl', 'torso', 'c', 'tidebound', 'discord'],
+    ['tidebracers', 'arms', 'e', 'tidebound', 'discord'],
+    ['tidegreaves', 'legs', 'c', 'tidebound', 'discord'],
+    ['tideedge', 'weapon', 'c', 'tidebound', 'discord'],
   ]);
   assert.deepEqual(armoryLinePieces('dagonfire').map((p) => p.key), DAGONFIRE);
   assert.deepEqual(armoryLinePieces('eternal').map((p) => p.key), ETERNAL);
@@ -62,7 +67,7 @@ test('ARMORY the kit: five characters, a known piece of its slot or 0, never all
   assert.ok(armoryKitOk('a0000'));
   assert.ok(armoryKitOk('abab0'));
   assert.ok(armoryKitOk('aaaaa') && armoryKitOk('bbbbb'));
-  for (const bad of ['00000', 'a000', 'a00000', 'z0000', 'A0000', 'c0000', null, undefined, 11111, ['a', '0', '0', '0', '0']]) assert.equal(armoryKitOk(bad), false, String(bad));
+  for (const bad of ['00000', 'a000', 'a00000', 'z0000', 'A0000', 'd0000', null, undefined, 11111, ['a', '0', '0', '0', '0']]) assert.equal(armoryKitOk(bad), false, String(bad));
   assert.deepEqual(armoryKitPieces('ab0b0'), { head: 'burningcrown', torso: 'eternalsigil', arms: null, legs: 'eternalgreaves', weapon: null });
   assert.deepEqual(armoryKitPieces('nope!'), { head: null, torso: null, arms: null, legs: null, weapon: null });
   assert.equal(armoryKitOf({ head: 'burningcrown', legs: 'eternalgreaves' }), 'a00b0');

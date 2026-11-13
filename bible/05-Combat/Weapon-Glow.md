@@ -14,22 +14,28 @@ players see a glowing weapon on a Morrowind body as its owner does. It is a Sett
   3. The element its blow carries: its `elemental` loot lines and socketed gems, read as the blow reads them
      (`weaponElement`). The most of one element shows; a tie goes fire, frost, shock. Strength 1 to 3 by the total
      (`GLOW_LEVEL_EDGES`).
-  4. The Aura Armory's weapon piece (`brand`, `edge`; `armoryWeaponLook`), on every weapon in the player's hand.
+  4. The Aura Armory's weapon piece (`brand`, `edge`, `tide`; `armoryWeaponLook`), on every weapon in the player's
+     hand.
   5. The arcane look on a Morrowind weapon that is enchanted (`ARCANE_LEVEL`).
 
   Bare fists wear the armory's weapon piece (`fistGlow`); Hand Wraps wear only that piece or a set glow.
 - **Looks** (`src/render/weaponGlowGlsl.js`, ramps in `GLOW_RAMPS`): fire, frost, shock, arcane, brand, edge, gilded,
-  each a band round the silhouette, hottest at the edge and cooling outward in four palette steps, its reach moving in
-  its own way. The weapon's own edge takes the element's light inside the silhouette. The clock wraps at 240 s with
-  every rate whole over it.
+  tide, each a band round the silhouette, hottest at the edge and cooling outward in four palette steps, its reach
+  moving in its own way. Tide, the Tidebound Edge, is drawn in the edge's code as its skin (`GLOW_SKINS`,
+  `GLOW_SKIN`; the shaders' `uGlowSkin`): a swell of water whose crests run toward the tip, a bright skin at its
+  surface with foam on each crest, and drops falling off the weapon's lower edges (`GLOW_TIDE`, `tideEdgeReach`). Its
+  field is keyed by the skin too (`glowFieldKey`), since its drops reach farther. The weapon's own edge takes the
+  element's light inside the silhouette. The clock wraps at 240 s with every rate whole over it.
 - **The classic drawer** (`drawScreenQuadGlow`, `src/render/renderer.js`): drawn over the sprite on the same rect and
   mirror, emissive, from a distance field baked once per frame, look and cut (`_glowField`). The classic sprite, the
   Weapon Widget clone and the Thunderlock all take it. While an element shows, the hand swings the plain sheet under it
   (`plainWeaponType`).
 - **The Morrowind drawer** (`glowLook` in `drawRigSpriteBox`, `src/render/characterSprite.js`; `src/combat/fpArm.js`):
   the outline round the weapon's model and its ranges lit by the element.
-- **Online.** A weapon in a player's hand carries `glow`, one of thirteen words (`glowWord`, `glowFromWord`;
-  `LOOK_GLOW_RE`, `lookGlowOk` in `src/net/wire.js`), written from the owner's card and omitted when none. A peer's
+- **Online.** A weapon in a player's hand carries `glow`, one of fourteen words (`glowWord`, `glowFromWord`;
+  `LOOK_GLOW_RE`, `lookGlowOk` in `src/net/wire.js`), written from the owner's card and omitted when none. The relay
+  drops `tide2` unless the kit in the player's token wears the Tidebound Edge (`lookGlowWorn`), so a changed client
+  cannot show a piece it did not buy. A staff `/glow` never writes `tide2`. A peer's
   Morrowind body reads it and glows by the viewer's switch. A foe's kit carries no glow.
 
 ## Rules
@@ -57,7 +63,7 @@ texture from the archives, coloured by the first effect).
 - `src/render/weaponGlowGlsl.js` - the looks
 - `src/render/renderer.js`, `src/render/characterSprite.js`, `src/combat/fpArm.js` - the drawers
 - `src/systems/staffGlow.js` - the staff `/glow` command
-- `tools/weaponGlowProbe.mjs` - the drawer's frame cost
+- `tools/weaponGlowProbe.mjs` - every look in both drawers, the armory's and the rung's on a sheet of their own
 - `test/systems/weaponglow1.test.js`, `test/systems/glowset.test.js`, `test/systems/gildedglow.test.js` - the laws,
   set glows, Gilded
 

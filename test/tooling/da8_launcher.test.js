@@ -39,7 +39,7 @@ test('DA8: the updater transport installs BEFORE play - check, download (shown),
   s = run(s, { type: 'progress', percent: 62.4, transferred: 2.9e6, total: 4.6e6 });
   let v = L.viewOf(s);
   assert.equal(v.status, 'Downloading v0.1.4684');
-  assert.deepEqual(v.progress, { percent: 62.4, label: '2.9 of 4.6 MB' });
+  assert.deepEqual(v.progress, { percent: 62.4, label: '2.9 of 4.6 MB', transferred: 2.9e6, total: 4.6e6 });
   assert.equal(v.play.enabled, false, 'DA10: Play waits for the update');
   assert.deepEqual(v.statusActions.map((a) => a.id), ['play-now'], 'the one way past it: play now, update at quit');
   assert.ok(!v.statusActions[0].primary, 'and it is NOT the default - Enter does not skip the update');

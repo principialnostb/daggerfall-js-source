@@ -1249,7 +1249,7 @@ img.fit { image-rendering: pixelated; }   /* AUDIT UI A1: a fitted picture drawn
 .card button.acttitle.actnone { color: var(--dim); }
 /* a piece not held: tried on when pointed at, its way of being had said under the row - never worn from here */
 .card button.acttitle.actaura .actauraword { display: inline-block; }   /* an aura's or a piece's word, painted as its title's (badgeCss) */
-.card button.actarmory.locked.aura-dagonfire, .card button.actarmory.locked.aura-eternal, .card button.actarmory.locked.aura-guild, .card button.actarmory.locked.aura-crystal { opacity: 0.4; border-style: dashed; }   /* AUDIT lane 3 F5: every line's (net/armoryLaw.js ARMORY_LINES) */
+.card button.actarmory.locked.aura-dagonfire, .card button.actarmory.locked.aura-eternal, .card button.actarmory.locked.aura-guild, .card button.actarmory.locked.aura-crystal, .card button.actarmory.locked.aura-tidebound { opacity: 0.4; border-style: dashed; }   /* AUDIT lane 3 F5: every line's (net/armoryLaw.js ARMORY_LINES) */
 .card .slots-look { margin: 4px 0 0; min-height: 2.6em; }
 /* STOREFRONT (2026-10-29): the effects under the stage - the kill effect, the portals, the mount - three tiles, each in
    its effect's own colour; the Mount slot's horse over its choices (ui/mountPreview.js). */
@@ -1275,6 +1275,12 @@ ${effectInkCss()}
 .card a.act { display: inline-flex; align-items: center; text-decoration: none; }
 .card .acctpatreon .acctwearrow { align-items: center; }
 .card .acctpatreonstate { display: inline-flex; align-items: center; font-size: 12.5px; color: var(--dim); }
+/* The Discord PDA's row: the link state quiet as the patron's, and a live code drawn large and spaced so it reads at a
+   glance when typed into Discord on another device. */
+.card .acctdiscord .acctwearrow { align-items: center; }
+.card .acctdiscordstate { display: inline-flex; align-items: center; font-size: 12.5px; color: var(--dim); }
+.card .acctdiscordcode { display: inline-flex; align-items: center; font: 600 18px/1.2 ui-monospace, monospace; letter-spacing: 0.12em; user-select: all; }
+.card .acctdiscord p.meta { margin: 0; }
 /* NAME-AS - THE NAME THE ROOM READS: two of the wardrobe's own buttons in the card's own colour (the chosen one at full
    strength behind the doubled edge, the other dimmed, as a title worn and held), and one quiet line under them saying
    what the other players see - tight under its buttons, where .meta's own foot would part them. */
