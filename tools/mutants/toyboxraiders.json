@@ -1,0 +1,29 @@
+[
+  {
+    "name": "TOYBOX-RAIDERS-old-raider-stands",
+    "file": "src/scenes/exteriorFoes.js",
+    "old": " || toyboxRaidKey(raidTags.get(r.i))) continue;",
+    "new": ") continue;",
+    "tests": [
+      "test/scenes/toyboxraiders.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-RAIDERS-dragon-not-toybox",
+    "file": "src/systems/staffEvents.js",
+    "old": "  return kind === TB_INVASION || kind === TB_DRAGON;",
+    "new": "  return kind === TB_INVASION;",
+    "tests": [
+      "test/scenes/toyboxraiders.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-RAIDERS-every-key-toybox",
+    "file": "src/systems/staffEvents.js",
+    "old": "  return kind === TB_INVASION || kind === TB_DRAGON;",
+    "new": "  return true;",
+    "tests": [
+      "test/scenes/toyboxraiders.test.js"
+    ]
+  }
+]

@@ -21,7 +21,7 @@ const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8'
 
 test('UI-CALM the front door asks which world first: Online and Offline the two doors, Online first; Continue, New Game, Load Game and the Test Room behind Offline, each backing out to it; Settings and Overhauls plaques in the foot; the rail Online first, Offline\'s four under their word (mutants: UICALM-offline-escapes-to-top, UICALM-online-second)', () => {
   assert.deepEqual([...HOME_OFFLINE], ['Continue', 'New Game', 'Load Game', 'Test Room']);
-  assert.deepEqual([...HOME_LINKS], ['Settings', 'Overhauls']);
+  assert.deepEqual([...HOME_LINKS], ['Settings', 'Overhauls', 'Replacements']);
   assert.deepEqual(['continue', 'new', 'load', 'test', 'online', 'settings', 'about'].map(offlineSection), [true, true, true, true, false, false, false]);
   const menu = rd('src/ui/enhanced/enhancedMenu.js');
   const doors = menu.slice(menu.indexOf('function drawDoors(menu) {'), menu.indexOf('/** PX1b: three-zone foot'));
@@ -107,7 +107,7 @@ test('UI-CALM the windows read: the quiet ink a step lighter and the type floor 
   assert.match(rd('src/ui/enhanced/enhancedStyle.js'), /applyPlusTheme\(doc\);   \/\/ PLUS2: the stored colour\n    injectUiCalmStyle\(doc\);/);
   const hold = rd('src/ui/holdingsPages.js');
   assert.match(hold, /const colours = choices\.map\(\(name\) => LOOK_SWATCHES\[name\] \?\? null\);\n  if \(colours\.every\(Boolean\)\) \{/);
-  assert.match(hold, /if \(_lookOpen === 'horse'\) for \(const row of m\.look\.rows\) extra\.push\(choiceRow\(/);
+  assert.match(hold, /if \(_lookOpen === 'horse'\)\n\s*for \(const row of m\.look\.rows\)\n\s*extra\.push\(choiceRow\(/);
   assert.match(rd('src/ui/enhanced/enhancedChargen.js'), /stagePrimary = \{ label: left > 0 \? `\$\{left\} left to spend` : 'Begin your life',/);
   assert.deepEqual(CLASS_WAYS.map(([w, names]) => [w, names.length]), [['Magic', 6], ['Stealth', 6], ['Combat', 6]]);
   assert.deepEqual(['Mage', 'Thief', 'Knight', 'Custom'].map(classWayOf), ['Magic', 'Stealth', 'Combat', null]);
@@ -174,4 +174,12 @@ test('UI-CALM II the walk polished (a player: "cheap letters, overlapping, dotte
   assert.match(firm, /const fail = readFailText\(book\.state\);\n    if \(fail\) say\(fail, true, true\);/);
   assert.match(firm, /if \(st\.status === 404\) return t\('firm\.readFail\.missing'/);
   assert.match(rd('src/net/firmament/firmamentBook.js'), /state\.status = Number\.isSafeInteger\(r\?\.status\) \? r\.status : null;/);
+});
+
+test('WHERE-TO-PLAY: a browser\'s Online asks Main servers or Private server first; the desktop app goes straight in', () => {
+  const src = readFileSync(new URL('../../../src/ui/enhanced/enhancedMenu.js', import.meta.url), 'utf8');
+  assert.match(src, /globalThis\.daggerShell \? \(\) => go\('online'\) : level\('where'\)/, 'the app\'s launcher already asked');
+  assert.match(src, /doorBtn\('online', t\('menu\.home\.mainServers', 'Main servers'\)[^\n]*go\('online'\)/, 'Main servers is the realm');
+  assert.match(src, /doorBtn\('private', t\('menu\.home\.private', 'Private server'\)[^\n]*level\('private'\)/);
+  assert.match(src, /doorBtn\('getapp', [^\n]*'\.\.\/#desktop', '_blank', 'noopener'/, 'private servers point to the desktop app\'s download');
 });

@@ -3,7 +3,7 @@
 // createCharacter (systems/chargen) rolls the real career the first
 // time a chargen-running context boots, and every host runs it
 // through systems/chargenSession.js - dungeonContext.js:"GameManager.AreEnemiesNearby",
-// world.js:"dependency already", exterior.js:"createChargenFlow(fetchBytes)" and applyHeadlessChargen for the
+// testPresetHost.js:"dependency already", exterior.js:"createChargenFlow(fetchBytes)" and applyHeadlessChargen for the
 // test room (AUDIT 23).
 //
 // NOT A GAP (recorded): the stand-ins below - flat skills 30,
@@ -17,6 +17,7 @@
 // GetClassCareerTemplate), which a module-level literal cannot await
 // - and nothing reads these once chargen resolves. armor 0 until
 // player equipment. LiveSpeed lives in PlayerMotor stats.
+import { registerNoClip } from '../player/noClip.js';
 import { pvpLevitateBarred } from '../systems/wild/pvpRules.js';   // PVP-RULES: no Levitate under the flag
 import { SKILL_COUNT, SKILLS_RECENTLY_RAISED_WORDS } from '../systems/skills.js';
 import { SOCIAL_GROUP_COUNT } from '../formats/factionFile.js';   // AUDIT 65 SL-4: PlayerEntity.cs:128's socialGroupCount = 11
@@ -234,10 +235,10 @@ export function damageShieldPool(entity, dmg) {
  * first.
  */
 let _damageVeto = null;
-const _staff = { god: false, fly: false };   // STAFF1: the staff's switches (setStaffPowers, below) - declared above their readers (BOOT-TDZ)
+const _staff = { god: false, fly: false, noclip: false };   // STAFF1: the staff's switches (setStaffPowers, below) - declared above their readers (BOOT-TDZ)
 /** STAFF-PANEL5-FREEZE (net/staffChat.js; design doc "DFO Staff Panel: design", Freeze player): STAFF FROZE THIS PLAYER until
  *  then (epoch seconds) - the relay's word, never saved. While it stands the motor is held as paralysis holds it (every
- *  host's paralysis gate ORs `staffFrozen()`) and no blow is delivered (the veto's door below): mob, "the player can only
+ *  host's paralysis gate ORs `staffFrozen()`) and no blow is delivered (the veto's door below): "the player can only
  *  look around". Only this screen's - the relay and the account service hold a game that ignores it. */
 let _frozenUntil = 0;
 export function setStaffFrozen(/** @type {unknown} */ until) { _frozenUntil = Number.isSafeInteger(until) && /** @type {number} */ (until) > 0 ? /** @type {number} */ (until) : 0; }
@@ -250,9 +251,12 @@ export const playerDamageWithheld = () => { if (_staff.god || staffFrozen()) ret
 /** STAFF1 (net/staffCommands.js): THE STAFF'S OWN TWO SWITCHES - /god (no blow delivered: the veto's door above, so a
  *  caller asking before it spends a blow is told too) and /fly (levitation without the spell: every host's motor-flag
  *  write ORs `staffFly()` beside the Levitate effect). The typer's alone, never saved, never sent. */
-export function setStaffPowers({ god, fly } = {}) { if (typeof god === 'boolean') _staff.god = god; if (typeof fly === 'boolean') _staff.fly = fly; }
+export function setStaffPowers({ god, fly, noclip } = {}) { if (typeof god === 'boolean') _staff.god = god; if (typeof fly === 'boolean') _staff.fly = fly; if (typeof noclip === 'boolean') _staff.noclip = noclip; }
 export const staffPowers = () => ({ ..._staff });
-export const staffFly = () => _staff.fly;
+// The toybox's no-clip flies as /fly does (the motor's levitation, set where /fly is read) and moves through the world
+// (player/noClip.js, which reads this switch)
+export const staffFly = () => _staff.fly || _staff.noclip;
+registerNoClip(() => _staff.noclip);
 /** AUDIT-SEATS G5 (Seats-Arc 6.1: "Teleport, Recall and Levitate do nothing in a siege room"): THE WARD ON THE LEVITATE
  *  EFFECT, registered by the host that knows where the player stands (scenes/world.js - a siege's own room): while it
  *  answers true, the motor-flag write reads the effect as lifting nothing - inside that ONE write (scenes/shared.js

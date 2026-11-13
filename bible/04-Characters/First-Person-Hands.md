@@ -111,7 +111,7 @@ The owner, third person: "the leather gloves still have a problem on the outer s
 leather gauntlet names its wrist with no model (INDX 9). OpenMW's `NpcAnimation::addPartGroup` RESERVES such a slot
 (`reserveIndividualPart`), so the skin under it is not drawn; the port skipped it, and the fuller Better Bodies (third
 person) / Robert's (first person) wrist came out through the leather cuff. Now `composeRefs` claims the slot with no
-mesh (src/formats/morrowind/mwItemMap.js:"if (!id) { notes.push"); a NAMED part no BODY record carries still keeps its skin (MW-D29's
+mesh (src/formats/morrowind/mwItemMap.js:"if (!id) {"); a NAMED part no BODY record carries still keeps its skin (MW-D29's
 never-traps law, unchanged). Verified on `Morrowind.esm`: the leather (netch) gauntlets now hide `hand` and `wrist`;
 the port's own steel gauntlets already hid wrist and forearm. Every test that composes worn armour (27 files) was run
 with and without the change: no new failure.

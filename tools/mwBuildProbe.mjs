@@ -44,7 +44,10 @@ const esmFiles = new Map();
 const deps = {
   morrowindDataGeneration: () => 1,
   storedMorrowindNames: async () => [...ESMS, ...BSAS],
-  loadMorrowindFile: async (n) => esmFiles.get(n) ?? (esmFiles.set(n, new Uint8Array(readFileSync(join(DATA, n)))), esmFiles.get(n)),   // the game's file memo
+  loadMorrowindFile: async (n) => {   // the game's file memo
+    if (!esmFiles.has(n)) esmFiles.set(n, new Uint8Array(readFileSync(join(DATA, n))));
+    return esmFiles.get(n);
+  },
   async loadMorrowindArchives() {
     if (archives) return archives;
     archives = [];

@@ -31,7 +31,7 @@ collapse, `equip.js:"export function equipDelayFor(item) {"`).
   | Broadsword | 1800 | Flail | 2200 | Kite Shield | 3000 |
   | Saber | 1600 | Warhammer | 2000 | Tower Shield | 3400 |
 
-- **The drain.** 980 units a second, to 0 (`weaponRig.js:"entity.equipCountdown = Math.max(0, entity.equipCountdown - dt * 980);"`,
+- **The drain.** 980 units a second, to 0 (`weaponRig.js:"entity.equipCountdown = Math.max(0, entity.equipCountdown - dt * 980"`,
   WeaponManager.cs:677-693) - so a Longsword for a Claymore is 1700 + 3000 = 4700 units, 4.8 s.
 - **What it holds.** No swing while it runs (`weaponRig.js:"const canAttack = !playerWeapon.sheathed"`, the attack input
   and the touch button the same), and the classic hands are drawn EMPTY (`weaponRig.js:"else if ((entity?.equipCountdown ?? 0) > 0) v = false;"`,

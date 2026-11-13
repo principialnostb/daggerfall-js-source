@@ -21,17 +21,21 @@
 export const LEG_CLOCK = Object.freeze({ tau: 0.5, lock: 0.12, fall: 0.25 });
 
 export function createLegClock() {
-  let re = 0, im = 0;
+  let re = 0,
+    im = 0;
   return {
     /** One posed frame: `lead` the left foot's lead over the right along the facing (legs), `phase` the clip's contact
      *  phase (or null), `dt` seconds since the last. */
     measure(lead, phase, dt) {
       const d = Math.max(0, Number(dt) || 0);
       if (!Number.isFinite(phase) || !Number.isFinite(lead)) {
-        const k = Math.exp(-d / LEG_CLOCK.fall); re *= k; im *= k;
+        const k = Math.exp(-d / LEG_CLOCK.fall);
+        re *= k;
+        im *= k;
         return;
       }
-      const k = 1 - Math.exp(-d / LEG_CLOCK.tau), a = -2 * Math.PI * phase;
+      const k = 1 - Math.exp(-d / LEG_CLOCK.tau),
+        a = -2 * Math.PI * phase;
       re += (lead * Math.cos(a) - re) * k;
       im += (lead * Math.sin(a) - im) * k;
     },
@@ -42,6 +46,9 @@ export function createLegClock() {
       const p = phase + Math.atan2(im, re) / (2 * Math.PI);
       return p - Math.floor(p);
     },
-    reset() { re = 0; im = 0; },
+    reset() {
+      re = 0;
+      im = 0;
+    },
   };
 }

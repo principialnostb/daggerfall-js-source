@@ -1363,6 +1363,7 @@ export class TravelMapWindow {
       const name = this._getLocationNameInCurrentRegion();
       this.telePopUp = new TeleportPopUpWindow({ pixel: pos, name: this._shownLocationNameInCurrentRegion() }, {
         onExit: () => { this.telePopUp = null; },
+        confirmLabel: this.deps.confirmLabel, cancelLabel: this.deps.cancelLabel,   // a caller's own words on the buttons (the toybox's "Teleport")
         onTeleport: (pixel) => {
           this.telePopUp = null;
           this.deps.onTeleport?.({

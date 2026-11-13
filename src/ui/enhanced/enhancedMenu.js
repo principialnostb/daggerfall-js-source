@@ -52,7 +52,7 @@ import { enhancedModCatalog } from './enhancedModCatalog.js';
 // reload. Classic works that way because classic is a DOS program with
 // a fixed 320x200 screen. Neither reason survives here.
 //
-// This is ONE screen, under BOTH skins (main.js:"── THE FRONT DOOR", FD1: the
+// This is ONE screen, under BOTH skins (src/main.js:"── THE FRONT DOOR", FD1: the
 // launcher and its settings window are deleted; the classic rail is
 // Begin, which leads into the splash and PICK03I0 exactly as before).
 // Every destination is a press away from every other, settings
@@ -110,6 +110,7 @@ import { questTracker, followOn, trackButton } from '../quest/questTracker.js'; 
 import { closeOnOutsideTap } from './enhancedOverlays.js';   // OT1: a tap on the scrim resumes
 import { drawTutorialsPane, releaseTutorialsPane } from '../tutorialsPane.js';   // TUT1: the Tutorials tab and section - every tutorial page, to read again
 import { drawShotsPane, releaseShotsPane } from '../shotsPane.js';   // LOAD1: the Screenshots pane - the gallery the PrintScreen key keeps
+import { drawReplacementsPane, releaseReplacementsPane } from '../replacementsPane.js';
 import { TEST_PRESETS, TEST_RIDE, TEST_SEA, TEST_LOOT } from '../../systems/testRoom.js';   // TR3: the one home the pane shows; TSR4: the ride; LR3: the loot ladder
 import { mwRaceId } from '../../formats/morrowind/mwNpc.js';
 import { EQUIP_SLOTS, equipTableOf } from '../../systems/equip.js';
@@ -129,9 +130,12 @@ import { offlineCopyOf, onlineCopyOf } from '../../systems/offlineCopy.js';   //
 import { sharedClassicMinutes } from '../../net/wire.js';   // AUDIT LIVED1 G: the shared clock's minute a character joins at
 import { SKY_SEGMENTS, skyClassicMinutes, wallMsForSkyMinutes } from '../../net/skyLaw.js';   // TIME4: the sky's day, said at the door
 import {
-  realmIo, realmList, realmCustoms, realmPut, realmDelete, realmUndo, realmFetch, realmRowAsSave, realmSummaryOf, realmRefusalText, takeRealmNotice,
+  realmIo, realmList, realmCustoms, realmPut, realmDelete, realmUndo, realmFetch, realmRowAsSave, realmSummaryOf, realmRefusalText, takeRealmNoticeEntry,
   sweepUnsent, realmLineageRemove,
 } from '../../systems/realmSaves.js';   // REALM P1.3: the Online door lists the realm's characters, the service's
+import { readRoster, keepRoster, rosterDropped } from '../../systems/realmRoster.js';   // the tiles drawn from this device first
+import { askThroughBusy } from '../../systems/realmRetry.js';
+import { withRealmContact, showRealmMessage } from './realmContact.js';   // a copy to offline greys the screen while it asks
 import { applyCustoms, customsLines, crossLeveling, LEVELING_CROSS_LINE } from '../../systems/realmCustoms.js';   // REALM P1.5: an offline character comes in once, through customs
 import { REALM_COPY_SAVE_NAME, realmCopyIds } from '../../systems/realmCopyMark.js';   // a copy of a realm character never comes in
 import { copyStrandedToOffline, hasStranded } from '../../systems/online/strandedCopy.js';   // STRANDED: a save set aside, back as an offline character
@@ -295,7 +299,7 @@ import { maxRoundsRemaining } from '../hud/hudActiveSpells.js';   // BUFF-END: a
 // by it. Empty at FT0; the Enhanced category of Settings and the Mods
 // section keep their rows until each one's slice moves it here
 // (bible/10-UI/Features-Arc.md).
-const SECTIONS_BOOT = ['Online', 'Continue', 'New Game', 'Load Game', 'Test Room', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About'];   // UI-CALM: Online first, Offline's four under it (drawDoors, the rail's own word)   // TUT1: the tutorials, to read before the game (ui/tutorialsPane.js)   // ORG2: Features is Settings' tabs now   // LOAD1: the gallery (ui/shotsPane.js)   // OVH1: the three looks   // FT16: Controls is a Settings CATEGORY, not a rail door   // FT14: Mods is gone - every mod is a tile on Features, and what the pane carried besides stands under them   // ONLINE1: the shared world's door
+const SECTIONS_BOOT = ['Online', 'Continue', 'New Game', 'Load Game', 'Test Room', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About'];   // UI-CALM: Online first, Offline's four under it (drawDoors, the rail's own word)   // TUT1: the tutorials, to read before the game (ui/tutorialsPane.js)   // ORG2: Features is Settings' tabs now   // LOAD1: the gallery (ui/shotsPane.js)   // OVH1: the three looks   // FT16: Controls is a Settings CATEGORY, not a rail door   // FT14: Mods is gone - every mod is a tile on Features, and what the pane carried besides stands under them   // ONLINE1: the shared world's door
 // FD1 (Mac, 2026-09-11): the CLASSIC skin opens on this same door. Its
 // three game doors collapse into BEGIN, which leads into the classic
 // start sequence - the title, the film, Daggerfall's own start window -
@@ -304,7 +308,7 @@ const SECTIONS_BOOT = ['Online', 'Continue', 'New Game', 'Load Game', 'Test Room
 // SO1: ENHANCED left the rail for a category of Settings (settingsMap).
 // ONLINE1: ONLINE joins it - Mac: "if using classic, you'd see the
 // other user's paperdoll" - the same pane, the same save brought in.
-const SECTIONS_CLASSIC = ['Begin', 'Online', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About'];   // TUT1   // ORG2   // LOAD1: the key keeps its shots under either skin   // OVH1   // FT14; FT16: Controls is a Settings category
+const SECTIONS_CLASSIC = ['Begin', 'Online', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About'];   // TUT1   // ORG2   // LOAD1: the key keeps its shots under either skin   // OVH1   // FT14; FT16: Controls is a Settings category
 
 // U51: the same rail with the boot-only questions swapped for the
 // in-game ones. Continue and New Game answer "which game", which is
@@ -317,14 +321,14 @@ const SECTIONS_CLASSIC = ['Begin', 'Online', 'Settings', 'Overhauls', 'Tutorials
 // mode's doors), and the pane says so in words. A rail that drops the
 // row instead teaches the player the door was never there - the same
 // argument the Mods section is built on.
-const SECTIONS_PAUSE = ['Resume', 'Save Game', 'Load Game', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About', 'Exit'];   // TUT1: a landing's shell (the window's own door is its Tutorials tab)   // ORG2   // LOAD1   // OVH1   // FT14; FT16: Controls is a Settings category
+const SECTIONS_PAUSE = ['Resume', 'Save Game', 'Load Game', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About', 'Exit'];   // TUT1: a landing's shell (the window's own door is its Tutorials tab)   // ORG2   // LOAD1   // OVH1   // FT14; FT16: Controls is a Settings category
 
 const idOf = (label) => label.toLowerCase().split(' ')[0];
 
 /** UI-CALM: the doors behind Offline on the enhanced front door, in order - the games this device keeps. */
 export const HOME_OFFLINE = Object.freeze(['Continue', 'New Game', 'Load Game', 'Test Room']);
 /** UI-CALM: the two small doors under the two questions - the settings a player may want before either. */
-export const HOME_LINKS = Object.freeze(['Settings', 'Overhauls']);
+export const HOME_LINKS = Object.freeze(['Settings', 'Overhauls', 'Replacements']);
 /** UI-CALM: whether a section is one of Offline's (its Escape lands back on the offline doors). */
 export const offlineSection = (id) => HOME_OFFLINE.some((l) => idOf(l) === id);
 
@@ -339,6 +343,7 @@ const RAIL_TEXT = Object.freeze({
   settings: () => t('menu.rail.settings', 'Settings'),
   features: () => t('menu.rail.features', 'Features'),
   overhauls: () => t('menu.rail.overhauls', 'Overhauls'),
+  replacements: () => t('menu.rail.replacements', 'Replacements'),
   tutorials: () => t('menu.rail.tutorials', 'Tutorials'),
   screenshots: () => t('menu.rail.screenshots', 'Screenshots'),
   about: () => t('menu.rail.about', 'About'),
@@ -570,6 +575,7 @@ export function takePickedLegacyBirth() { const b = _pickedLegacyBirth; _pickedL
 /** REALM P1.3: the realm's characters as the service listed them this visit (null: not asked yet), its bound, what the
  *  last act said (a refusal, customs' report, a copy's word) and whether an act is running. Per VISIT, as the cloud's. */
 let realmRows = null;
+let realmRowsFor = null;   // the account the tiles below are
 let realmRowsOk = false;   // AUDIT FB1029e F5: the roster as the realm answered it - a failed read lists no one, and plays no line
 let realmAsked = false;
 let realmMax = 0;
@@ -1434,14 +1440,25 @@ function realmCard(who) {
   box.append(el('h4', null, t('menu.realm.heading', 'Your online characters')));
   for (const w of realmWords) box.append(el('p', 'meta', w));
   if (!who) return box;
+  const player = storedSession(appStorage())?.id ?? null;
+  // The tiles are one account's: another account signed in on this visit starts the card over
+  if (player !== realmRowsFor) { realmRowsFor = player; realmAsked = false; realmRows = null; realmRowsOk = false; realmMax = 0; realmLinesAsked = false; realmLineIds = null; }
   if (!realmAsked) {
     realmAsked = true;
+    // The tiles this device kept are drawn at once; the realm's answer brings them up to date. A failed answer leaves
+    // the kept tiles standing and says nothing: Play asks the realm again anyway.
+    const kept = realmRows == null ? readRoster(appStorage(), player) : null;
+    if (kept) { realmRows = kept.characters; realmMax = kept.max; }
     realmList(realmIo({ fetch: (...a) => globalThis.fetch(...a), storage: appStorage() })).then((r) => {
-      realmRows = r.ok ? r.characters : [];
-      if (r.ok) sweepUnsent(appStorage(), r.characters, storedSession(appStorage())?.id ?? null);   // AUDIT RESCUE-SAVE A7 + 2 B5: a copy no join can play goes
-      realmRowsOk = !!r.ok;
-      realmMax = r.ok ? r.max : 0;
-      if (!r.ok) realmWords = [...realmWords, realmRefusalText(r.error)];
+      if (r.ok) keepRoster(appStorage(), player, r);
+      if (player !== realmRowsFor) return;   // asked for an account no longer signed in
+      if (r.ok) {
+        realmRows = r.characters; realmMax = r.max; realmRowsOk = true;
+        sweepUnsent(appStorage(), r.characters, player);   // AUDIT RESCUE-SAVE A7 + 2 B5: a copy no join can play goes
+      } else if (realmRows == null) {
+        realmRows = []; realmMax = 0; realmRowsOk = false;
+        realmWords = [...realmWords, realmRefusalText(r.error)];
+      }
       render();
     }).catch(() => {});
   }
@@ -1460,8 +1477,8 @@ function realmCard(who) {
           // HOUSE-LOSS (2026-09-29, Mac: "GarySoup lost his house and furniture"): a character brought in whose first save
           // never landed is UNDONE, never deleted - its delete took the home customs had carried, and it could never come
           // in again. The undo gives back its home, its guild place and its customs (realm.js undoRealm).
-          row.customs && save.unfinished ? { label: t('menu.realm.undo', 'Undo bringing in'), disabled: realmBusy, onClick: () => ask(t('menu.realm.undoAsk', 'Undo bringing {name} in?', { name: row.name }), t('menu.realm.undoBody', '{name} didn\u2019t finish coming online because its first save never arrived. Undo removes it and gives back its home and guild place, so you can bring the offline character online again. To finish instead, click Bring online on it below.', { name: row.name }), t('menu.realm.undoYes', 'Undo'), () => realmAct(() => realmUndo(realmIoNow(), row.id), () => [t('menu.realm.undone', '{name} is no longer online. Its home and guild place are back with the offline character. Bring it online again when you are ready.', { name: row.name })])) }
-            : { label: t('menu.realm.delete', 'Delete character'), disabled: realmBusy, onClick: () => ask(t('menu.realm.deleteAsk', 'Delete {name}?', { name: row.name }), t('menu.realm.deleteBody', 'Deleting an online character is permanent. Its Renown, professions, Stores, the homes it bought and its guild place are lost. Homes belong to your account, so your other characters lose them too. Any offline copy you made stays.'), t('menu.realm.deleteYes', 'Delete'), () => realmAct(() => realmDelete(realmIoNow(), row.id), () => [t('menu.realm.deleted', '{name} is gone from the realm.', { name: row.name })])) },
+          row.customs && save.unfinished ? { label: t('menu.realm.undo', 'Undo bringing in'), disabled: realmBusy, onClick: () => ask(t('menu.realm.undoAsk', 'Undo bringing {name} in?', { name: row.name }), t('menu.realm.undoBody', '{name} didn\u2019t finish coming online because its first save never arrived. Undo removes it and gives back its home and guild place, so you can bring the offline character online again. To finish instead, click Bring online on it below.', { name: row.name }), t('menu.realm.undoYes', 'Undo'), () => realmAct(() => realmUndo(realmIoNow(), row.id), () => [t('menu.realm.undone', '{name} is no longer online. Its home and guild place are back with the offline character. Bring it online again when you are ready.', { name: row.name })], row.id)) }
+            : { label: t('menu.realm.delete', 'Delete character'), disabled: realmBusy, onClick: () => ask(t('menu.realm.deleteAsk', 'Delete {name}?', { name: row.name }), t('menu.realm.deleteBody', 'Deleting an online character is permanent. Its Renown, professions, Stores, the homes it bought and its guild place are lost. Homes belong to your account, so your other characters lose them too. Any offline copy you made stays.'), t('menu.realm.deleteYes', 'Delete'), () => realmAct(() => realmDelete(realmIoNow(), row.id), () => [t('menu.realm.deleted', '{name} is gone from the realm.', { name: row.name })], row.id)) },
         ],
       }));
     }
@@ -1546,12 +1563,18 @@ function carryOn(familyId, personId, newborn = false) {
   }).catch(() => { realmWords = [realmRefusalText('server')]; realmBusy = false; render(); });
 }
 const realmIoNow = () => realmIo({ fetch: (...a) => globalThis.fetch(...a), storage: appStorage() });
-/** One realm act at a time: busy while it runs, its words (or its refusal) shown after, and the list asked again. */
-function realmAct(run, words) {
+/** One realm act at a time: busy while it runs, its words (or its refusal) shown after, and the list asked again over
+ *  the tiles shown. `goneId`: the character the act takes out of the realm, dropped from the tiles once it lands. */
+function realmAct(run, words, goneId = null) {
   realmBusy = true; render();
   return Promise.resolve().then(run).then((r) => {
+    if (r?.ok !== false && goneId) dropRealmRow(goneId);
     realmWords = r?.ok === false ? [realmRefusalText(r.error)] : (typeof words === 'function' ? words(r) : words);
-  }).catch(() => { realmWords = [realmRefusalText('server')]; }).finally(() => { realmBusy = false; realmAsked = false; realmRows = null; render(); });
+  }).catch(() => { realmWords = [realmRefusalText('server')]; }).finally(() => { realmBusy = false; realmAsked = false; render(); });
+}
+function dropRealmRow(/** @type {string} */ id) {
+  realmRows = realmRows?.filter((row) => row.id !== id) ?? null;
+  rosterDropped(appStorage(), storedSession(appStorage())?.id ?? null, id);
 }
 /** REALM P1.5: CUSTOMS, ASKED FIRST (FIELD 2026-09-29, Dracula/Valentin: "HOW TF WAS I SUPPOSED TO KNOW YALL WOULD FORCE
  *  THE LOANS TO BE PAID"). Customs is once, so the press says what it will do - customs run on a copy of the save,
@@ -1587,18 +1610,24 @@ function customsNow(save) {
 }
 /** REALM P1.4: COPY TO OFFLINE - the realm's save read and written as a NEW offline character (a new id), a slot like
  *  any other. Nothing played on the copy ever goes back: the Online door loads only from the service. */
+/** The copy greys the screen under a popup while it asks; a busy realm is asked again, and a failure is said there. */
 function copyToOffline(row) {
-  return realmAct(async () => {
-    const got = await realmFetch(realmIoNow(), row.id);
+  realmBusy = true; render();
+  return withRealmContact(async ({ cancelled }) => {
+    const got = await askThroughBusy(() => realmFetch(realmIoNow(), row.id), { cancelled });
     if (!got.ok) return got;
     let snap = null;
     try { snap = JSON.parse(got.text); } catch { snap = null; }
     if (!snap || typeof snap !== 'object') return { ok: false, error: 'no-data' };
+    (await import('../../systems/item/knownItemsOnly.js')).dropUnknownItems(snap);   // a newer realm's items this build cannot read
+    if (cancelled()) return { ok: false, error: 'cancelled' };   // a Cancel pressed while it asked writes nothing; no wait follows
     snap = offlineCopyOf(snap);   // AUDIT LIVED1 E: the world's stamps rebased onto the character's clock, the one clock offline
     snap.characterId = mintCharacterId();
     const r = saveSlot(snap.name || row.name, REALM_COPY_SAVE_NAME, snap, { storage: appStorage() });
     return r.ok ? { ok: true } : { ok: false, error: 'no-room' };
-  }, () => [t('menu.realm.copied', '{name} is copied as a new offline character. Nothing you play on the copy comes back online.', { name: row.name })]);
+  }).then((copied) => {
+    if (copied?.ok !== false) realmWords = [t('menu.realm.copied', '{name} is copied as a new offline character. Nothing you play on the copy comes back online.', { name: row.name })];
+  }).finally(() => { realmBusy = false; realmAsked = false; render(); });
 }
 
 /** STRANDED: the save this device set aside for a realm character, copied as a new offline character and dropped from the
@@ -1850,7 +1879,7 @@ function paneSave(body) {
 
 // ── EXIT (pause only) ────────────────────────────────────────────
 // U51. Classic confirms on TEXT.RSC 1069 and then posts dfuiExitGame
-// (pauseWindow.js:"if (this._saveSettings) saveSettings();   // ConfirmExitBox"); in a browser Application.Quit means nothing,
+// (pauseWindow.js:"if (this._saveSettings) saveSettings(); // ConfirmExitBox"); in a browser Application.Quit means nothing,
 // so the port's door out has always been the front door - the same
 // unwind chargen's cancel and the death sequence use (Ledger A).
 //
@@ -2516,7 +2545,7 @@ function categoryCard({ pool = portPool(), pause = false } = {}) {
  *  of English words did not know its own note, and the row was the one on the tab no language reached. */
 const PRESET_WORDS = {
   name: () => t('menu.settings.preset.name', 'Quality preset'),
-  note: () => t('menu.settings.preset.note', 'View distance, grass, clouds, ground sharpness, water, windows and steady shadows.'),
+  note: () => t('menu.settings.preset.note', 'View distance, grass, clouds, ground sharpness, water, wet ground, windows and steady shadows.'),
   effect: () => t('menu.settings.preset.effect', 'Steady shadows and the windows change at once; the rest when the world next loads.'),
   custom: () => t('menu.settings.preset.custom', 'Custom'),
 };
@@ -5094,8 +5123,24 @@ function drawDoors(menu) {
     more.append(doorBtn('back', t('menu.home.back', 'Back'), '', level('top')));
     return;
   }
+  // a browser's Online asks where first, as the desktop launcher's PLAY does; private servers live in the app (a page
+  // can neither host one nor reach a friend's PC from an https page)
+  if (homeLevel === 'where') {
+    const where = page('px-page-online', t('menu.home.where', 'Where to play'));
+    where.append(doorBtn('online', t('menu.home.mainServers', 'Main servers'), t('menu.home.onlineSub', 'Play with others in the shared world'), () => go('online')));
+    where.append(doorBtn('private', t('menu.home.private', 'Private server'), t('menu.home.privateSub', 'Host a game or join a friend\'s'), level('private')));
+    where.append(doorBtn('back', t('menu.home.back', 'Back'), '', level('top')));
+    return;
+  }
+  if (homeLevel === 'private') {
+    const priv = page('px-page-online', t('menu.home.private', 'Private server'));
+    priv.append(el('p', 'px-pagenote', t('menu.home.privateNote', 'Private servers run in the desktop app: host a game on your PC, or join a friend\'s by their address. A browser cannot do either.')));
+    priv.append(doorBtn('getapp', t('menu.home.getApp', 'Get the desktop app'), '', () => globalThis.open?.('../#desktop', '_blank', 'noopener')));
+    priv.append(doorBtn('back', t('menu.home.back', 'Back'), '', level('where')));
+    return;
+  }
   page('px-page-online', t('menu.home.realmHead', 'The Realm'))
-    .append(doorBtn('online', railLabel('Online'), t('menu.home.onlineSub', 'Play with others in the shared world'), () => go('online')));
+    .append(doorBtn('online', railLabel('Online'), t('menu.home.onlineSub', 'Play with others in the shared world'), globalThis.daggerShell ? () => go('online') : level('where')));
   page('px-page-offline', t('menu.home.ownHead', 'Thine Own Tale'))
     .append(doorBtn('offline', t('menu.home.offline', 'Offline'), t('menu.home.offlineSub', 'Your own game, kept on this device'), level('offline')));
   // Settings and Overhauls stand in the foot's box beside Screenshots and About (appendPxFoot) - UI-CALM, a player:
@@ -5313,6 +5358,7 @@ export const SYSTEM_PANES = Object.freeze([
   ['resume', 'Resume'], ['save', 'Save Game'], ['load', 'Load Game'],
   ['settings', 'Settings'],   // FT16: Controls is a category INSIDE it
   ['overhauls', 'Overhauls'],   // OVH1
+  ['replacements', 'Replacements'],
   ['screenshots', 'Screenshots'],   // LOAD1: the gallery, mid-game too
   ['about', 'About'], ['exit', 'Exit'],   // FT14: no Mods pane
 ]);
@@ -5348,6 +5394,7 @@ function pauseSystem(body) {
     ({
       save: paneSave, load: paneLoad,
       overhauls: paneOverhauls,   // OVH1
+      replacements: (detail) => drawReplacementsPane(detail, { ask: askCard }),
       screenshots: drawShotsPane,   // LOAD1
       about: paneAbout, exit: paneExit,
     })[sysSec](detail);
@@ -6571,6 +6618,7 @@ function renderInto() {
         test: paneTest,
         save: paneSave, exit: paneExit,
         overhauls: paneOverhauls,   // OVH1
+        replacements: (paneBody) => { paneBody.classList.add('wide'); drawReplacementsPane(paneBody, { ask: askCard }); },   // the title screen's door too, as Overhauls
         screenshots: drawShotsPane,   // LOAD1
         tutorials: drawTutorialsPane,   // TUT1
         about: paneAbout, begin: paneBegin,   // FD1: the classic rail's door; SO1: Enhanced is a Settings category now
@@ -6806,8 +6854,11 @@ export function mountEnhancedMenu(host, {
   cloudAsked = false;
   cloudArm = null;
   cloudWhy = null;   // the pre-merge audit (0927b): a refusal is last visit's news - this visit asks the service again
-  realmAsked = false; realmRows = null; realmBusy = false; realmLinesAsked = false; realmLineIds = null;   // REALM P1.3: the realm is asked again each visit
-  realmWords = [takeRealmNotice(globalThis.sessionStorage)].filter(Boolean);   // REALM P1.3: why the last online boot came back here
+  realmAsked = false; realmRows = null; realmRowsOk = false; realmBusy = false; realmLinesAsked = false; realmLineIds = null;   // REALM P1.3: the realm is asked again each visit
+  // REALM P1.3: why the last online boot came back here - a refused Play in a popup over the Online door, any other on it
+  const notice = takeRealmNoticeEntry(globalThis.sessionStorage);
+  realmWords = notice && !notice.popup ? [notice.text] : [];
+  if (notice?.popup && globalThis.document) Promise.resolve().then(() => showRealmMessage(globalThis.document, notice.text));
   sections = mode === 'pause' ? SECTIONS_PAUSE : isEnhanced() ? SECTIONS_BOOT : SECTIONS_CLASSIC;   // FD1: one door, two rails
   // WHICH PANE OPENS. Both doors open on the PIXEL HOME (PX1/PX2) -
   // the face itself, every section one press away. Pause used to open
@@ -6816,6 +6867,7 @@ export function mountEnhancedMenu(host, {
   // Game the second row a thumb meets and Resume the first.
   section = 'home';
   homeLevel = 'top';   // UI-CALM: every visit asks which world first
+  if (notice && sections.some((label) => idOf(label) === 'online')) section = 'online';   // a refused Play lands back where it was pressed, saying why
   pauseTab = 'system';
   // ...and THEN the caller's landing, if it named one. After the reset,
   // which is what keeps the reset the default rather than a thing this
@@ -6913,6 +6965,7 @@ export function mountEnhancedMenu(host, {
       // the DOCUMENT and would outlive this screen exactly as the one
       // above would.
       discardControlsStaging();
+      releaseReplacementsPane();   // the Replacements pane's previews, Play and its listener
       // MEM-AUDIT (2026-10-23): and what still watched the last screen - the foot's observer (its reserve keeps the home's
       // whole tree, the sky's canvas with it) and the account card's paint and focus listener
       footObs?.disconnect?.(); footObs = null;

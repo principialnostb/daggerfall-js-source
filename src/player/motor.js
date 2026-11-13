@@ -454,6 +454,7 @@ import { TRANSPORT_MODES, isRiding, rideBaseFor, canRunUnlessRiding, rideWalks }
 import { timeScale } from '../systems/timeScale.js';   // TO1: Unity's Time.fixedDeltaTime rides Time.timeScale (see update())
 import { CLIMB_MOVE_KINDS, CLIMB_MOVE_RISE_MAX, CLIMB_MOVE_TIME_MAX } from '../net/wire.js';   // CLIMB6: a move on the wire, its kinds and bounds the wire's
 import { clampToRing } from '../net/duel/duelSession.js';   // AUDIT DUEL1 D4: the ring's one clamp
+import { noClipOn, noClipStep } from './noClip.js';   // the toybox's no-clip: the step without the collider
 import { keepOffBodies } from './bodyClamp.js';   // PROP-BODIES: the flats' bodies, kept out of after the collider's move
 import { MAX_TERRAIN_HEIGHT, STREAMING_TERRAIN_SCALE } from '../world/terrain/terrainSampler.js';   // FALL-KEPT: the world's tallest drop bounds a carried fall
 
@@ -1737,7 +1738,7 @@ export class PlayerMotor {
       this._step(step, moveInput, yaw, pitch);
       this._pushStep(step);   // TELL6e: a blow's push, after the step's own move
       if (this.arena) this._keepInArena();   // DUEL1: after the collider's move, so both ends of the span stand inside
-      keepOffBodies(this, CAPSULE_RADIUS);   // PROP-BODIES: a tree's trunk, a rock, a barrel - walked round, never through
+      if (!noClipOn()) keepOffBodies(this, CAPSULE_RADIUS);   // PROP-BODIES: a tree's trunk, a rock, a barrel - walked round, never through
       this._countOdometer(step);   // MOVE-REAL
     }
     this._alpha = Math.min(1, this._acc / step);
@@ -3128,6 +3129,8 @@ export class PlayerMotor {
       }
       return;
     }
+    // No-clip (player/noClip.js): below the cancel and the freeze, above every probe, climb and the collider
+    if (noClipOn()) return void noClipStep(this, dt, input, yaw, pitch, runSpeed(this.stats.speed, this.stats.running) * runSpeedMult());
     // A6 - PlayerMoveScanner's OTHER TWO probes belong HERE (:308-309:
     // `playerScanner.FindHeadHit(new Ray(controller.transform.position,
     // Vector3.up)); playerScanner.SetHitSomethingInFront();`), on every

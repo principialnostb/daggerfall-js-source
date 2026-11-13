@@ -78,7 +78,7 @@ function birthAddress(chargenSearch) {
 /** What the world host makes of its params at the top of the boot: the realm join and the birth, lifted off world.js. */
 function hostReads(params) {
   const nw = /const realmNew = ([^;\n]+);/.exec(W);
-  const join = /const realmBoot = ([^?\n]+) \? await openRealmBoot\(\{ io: realmIoNow\(\), id: params\.get\('realm'\) \}\) : null;/.exec(W);
+  const join = /const realmBoot = ([^?\n]+) \? await openRealmBoot\(\{ io: realmIoNow\(\), id: params\.get\('realm'\) \}, bootLoading\) : null;/.exec(W);
   assert.ok(nw && join, 'the world host\'s realm reads moved');
   return { realmNew: new Function('params', `return ${nw[1]};`)(params), joins: new Function('params', `return ${join[1]};`)(params), id: params.get('realm') };
 }

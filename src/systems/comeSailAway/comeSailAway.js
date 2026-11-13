@@ -252,7 +252,13 @@ export function tileMapIndexAtPosition(position, terrain) {
   const map = terrain.tileMap;   // a null terrain throws, as `terrainTransform.GetComponent` does
   if (map == null || map.length === 0) return -1;
   const tp = terrain.position;
-  const vx = f(f(position[0]) - f(tp[0])), vz = f(f(position[2]) - f(tp[2]));
+  return tileMapIndexAtXZ(position[0], position[2], tp[0], tp[2], map);
+}
+/** The same index for a point (x, z) over a terrain whose corner stands at (tpx, tpz) and whose tiles are `map`: the
+ *  arithmetic above with no vector made - a harbour's sounding asks it thousands of times a frame. */
+export function tileMapIndexAtXZ(x, z, tpx, tpz, map) {
+  if (map == null || map.length === 0) return -1;
+  const vx = f(f(x) - f(tpx)), vz = f(f(z) - f(tpz));
   const num2 = f(vx / TERRAIN_EDGE), num3 = f(vz / TERRAIN_EDGE);
   const num4 = Math.min(127, Math.max(0, Math.trunc(f(128 * num2))));
   const num5 = Math.min(127, Math.max(0, Math.trunc(f(128 * num3))));

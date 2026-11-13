@@ -318,7 +318,8 @@ test('fpsSpellCasting: the five spell archives satisfy the animation on real dat
 
 test('HAND-SEAM: the casting hands upload CLAMPED (NEAREST, no wrap) under their own key - the inner edge of each hand never samples the art\'s far column', () => {
   const src = readFileSync(new URL('../../src/combat/fpsSpellCasting.js', import.meta.url), 'utf8');
-  assert.match(src, /tex: renderer\.uploadTexture\('img', `fpsc:\$\{fileName\}:\$\{r\}`, c32, \{ clamp: true \}\),/, 'the hands ask for the clamp');
+  assert.match(src, /tex: renderer\.uploadTexture\('img', key, c32, \{ clamp: true \}\),/, 'the hands ask for the clamp');
+  assert.match(src, /`fpsc:\$\{fileName\}\$\{own \? `#\$\{playerFileStamp\(fileName\)\}` : ''\}:\$\{r\}`/, 'under their own key - the player\'s copy keyed apart');
   const r = readFileSync(new URL('../../src/render/renderer.js', import.meta.url), 'utf8');
   // PIN MOVED (POI-2, render/meshAlpha.js): the key ends on a POI sampler's suffix after the clamp's, and the wrap is a
   // texture's own sampler's where it asks for one - else, as before, what textureParams answers (the hands ask for none)

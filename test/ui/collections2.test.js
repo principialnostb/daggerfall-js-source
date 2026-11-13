@@ -120,9 +120,9 @@ const CATALOGUE = {
   'title:formermaster': 'chapters dormant', 'title:highmaster': 'chapters dormant', 'title:seasonmaster': 'chapters dormant', 'title:grandchampion': 'ranked open',
   'title:arenachampion': 'ranked ranked', 'title:iliacchampion': 'ranked ranked', 'title:grandmaster': 'ranked ranked', 'title:ilovelamp': 'world open',
   'title:founder': 'account closed', 'title:disciple': 'patrons patron', 'title:apostle': 'patrons dormant', 'title:hierophant': 'patrons patron',
-  'title:herald': 'patrons patron', 'title:developer': 'staff staff', 'title:dungeonmaster': 'staff staff', 'title:shadowfang': 'bestowed bestowed',
+  'title:herald': 'patrons patron', 'title:developer': 'staff staff', 'title:moderator': 'staff staff', 'title:dungeonmaster': 'staff staff', 'title:shadowfang': 'bestowed bestowed',
   'title:penitent': 'bestowed bestowed', 'title:aegis': 'bestowed bestowed', 'title:primarch': 'bestowed bestowed', 'title:crystalfist': 'bestowed bestowed',
-  'title:wikimaid': 'bestowed bestowed', 'title:nirnrootsage': 'bestowed bestowed' /* NIRNROOT-SAGE (PIN MOVED): Blob-Marley's own */, 'title:coldharbour': 'bestowed bestowed' /* BLOOD-OF-COLDHARBOUR (PIN MOVED): Trakel's own */,
+  'title:wikimaid': 'bestowed bestowed', 'title:nirnrootsage': 'bestowed bestowed' /* NIRNROOT-SAGE (PIN MOVED): Blob-Marley's own */, 'title:coldharbour': 'bestowed bestowed' /* BLOOD-OF-COLDHARBOUR (PIN MOVED): Trakel's own */, 'title:worldturtle': 'bestowed bestowed',
   /* HUNTERS-MARK, MARKS-OF-MASTERY (PIN MOVED): the hunt's four, a Master's ten, the sea's two */
   'title:bloodhound': 'hunt open', 'title:beastbane': 'hunt open', 'title:grandhuntsman': 'hunt open', 'title:huntlegend': 'hunt open',
   'title:mastermining': 'mastery open', 'title:masterlogging': 'mastery open', 'title:masterherbalism': 'mastery open', 'title:masterhunting': 'mastery open',
@@ -130,7 +130,7 @@ const CATALOGUE = {
   'title:masterprovisioning': 'mastery open', 'title:masterenchanting': 'mastery open', 'title:serpenthunter': 'serpent open', 'title:deepbane': 'serpent open', 'title:wyrmrider': 'dragon chance', 'title:firstwyrmrider': 'dragon closed', 'title:aetherrider': 'dragon chance', 'title:firstaetherrider': 'dragon closed', 'aura:beaconlight': 'spire open', 'aura:burningstair': 'spire open', 'aura:firstlight': 'spire retired',
   'aura:turninghour': 'abyss chance', 'aura:firsthour': 'abyss retired', 'aura:maelstrom': 'serpent chance', 'aura:dagonfire': 'broker open',
   'aura:witchfire': 'festival seasonal', 'aura:seraphwings': 'staff staff', 'aura:oblivionward': 'bestowed bestowed', 'aura:radiance': 'bestowed bestowed',
-  'aura:shadowcloak': 'bestowed bestowed', 'aura:resonance': 'bestowed bestowed', 'aura:lilacwarren': 'bestowed bestowed', 'aura:sagesmoke': 'bestowed bestowed' /* NIRNROOT-SAGE (PIN MOVED) */, 'aura:vampirichaze': 'bestowed bestowed' /* BLOOD-OF-COLDHARBOUR (PIN MOVED) */, 'icon:tallowskull': 'festival seasonal',
+  'aura:shadowcloak': 'bestowed bestowed', 'aura:resonance': 'bestowed bestowed', 'aura:lilacwarren': 'bestowed bestowed', 'aura:sagesmoke': 'bestowed bestowed' /* NIRNROOT-SAGE (PIN MOVED) */, 'aura:vampirichaze': 'bestowed bestowed' /* BLOOD-OF-COLDHARBOUR (PIN MOVED) */, 'aura:worldshell': 'bestowed bestowed', 'icon:tallowskull': 'festival seasonal',
   'icon:twinmoons': 'festival seasonal', 'icon:wyrdcauldron': 'festival seasonal', 'icon:soulcake': 'festival seasonal', 'glyph:tower': 'seats open character',
   'glyph:crownDF': 'seats open character', 'glyph:crownWR': 'seats open character', 'glyph:crownSN': 'seats open character',
   'glyph:crownSK': 'seats open character', 'glyph:crownMW': 'seats open character', 'glyph:crownSU': 'seats open character', 'glyph:crownVW': 'seats open character',
@@ -139,7 +139,7 @@ const CATALOGUE = {
   'glyph:sprout': 'account auto', 'glyph:disciple': 'patrons patron', 'glyph:apostle': 'patrons dormant', 'glyph:hierophant': 'patrons patron',
   'glyph:herald': 'patrons patron', 'glyph:dev': 'staff staff', 'glyph:mod': 'staff staff', 'glyph:dm': 'staff staff',
   'glyph:shadowfang': 'bestowed bestowed', 'glyph:penitent': 'bestowed bestowed', 'glyph:aegis': 'bestowed bestowed', 'glyph:primarch': 'bestowed bestowed',
-  'glyph:crystalfist': 'bestowed bestowed', 'glyph:wikimaid': 'bestowed bestowed', 'glyph:nirnrootsage': 'bestowed bestowed' /* NIRNROOT-SAGE (PIN MOVED) */, 'glyph:coldharbour': 'bestowed bestowed' /* BLOOD-OF-COLDHARBOUR (PIN MOVED) */,
+  'glyph:crystalfist': 'bestowed bestowed', 'glyph:wikimaid': 'bestowed bestowed', 'glyph:nirnrootsage': 'bestowed bestowed' /* NIRNROOT-SAGE (PIN MOVED) */, 'glyph:coldharbour': 'bestowed bestowed' /* BLOOD-OF-COLDHARBOUR (PIN MOVED) */, 'glyph:worldturtle': 'bestowed bestowed',
   'title:genesis': 'shop shop', 'glyph:origin': 'shop shop', 'aura:eternal': 'shop shop' /* SHOP (PIN MOVED): sold in the shop during the pre-alpha */,
   /* ARMORY (PIN MOVED): the Aura Armory - the Dagonfire line the Sigil Broker's, the Eternal line the shop's */
   'armory:burningcrown': 'broker open', 'armory:emberheart': 'broker open', 'armory:ashbound': 'broker open', 'armory:cinderstride': 'broker open',
@@ -155,6 +155,11 @@ const CATALOGUE = {
   'icon:gatefire': 'shop store', 'icon:aurbis': 'shop store', 'icon:elderscroll': 'shop store', 'icon:azurastar': 'shop store',
   'icon:redmountain': 'shop store', 'icon:hourglass': 'shop store', 'icon:sanguinerose': 'shop store', 'icon:whitegold': 'shop store',
   'armory:insigniaarmlet': 'guild open', 'icon:guildcrest': 'guild open', 'armory:crystalspurs': 'account retired' /* THANKS-POST (PIN MOVED): the update's gift */,   // GUILD-SHOP (PIN MOVED): the guild shop's armlet and crest, any member's for silver
+  // the Courier's Cabinet's, sold for Seals in Discord
+  'title:veilcourier': 'discord cabinet', 'aura:eltherictide': 'discord cabinet', 'aura:veilwake': 'discord cabinet',
+  'glyph:waxseal': 'discord cabinet', 'icon:courier': 'discord cabinet', 'icon:tidecompass': 'discord cabinet',
+  'armory:tidecirclet': 'discord cabinet', 'armory:tidepearl': 'discord cabinet', 'armory:tidebracers': 'discord cabinet',
+  'armory:tidegreaves': 'discord cabinet', 'armory:tideedge': 'discord cabinet',
 };
 
 // ── THE CATALOGUE ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -166,7 +171,7 @@ test('COLLECTIONS-II THE CATALOGUE IS WHOLE AND AS RECORDED: every title, aura, 
   for (const kind of W.WARDROBE_KINDS) for (const e of W.wardrobeEntries(kind)) got[`${kind}:${e.key}`] = [e.src, e.avail, ...(e.scope ? [e.scope] : [])].join(' ');
   assert.deepEqual(got, CATALOGUE);
   // PIN MOVED (WYRM-RIDER): the Dwarven Dragon's source, after the Sea Serpent's
-  assert.deepEqual(W.WARDROBE_SOURCES.map(([id]) => id), ['spire', 'abyss', 'serpent', 'dragon', 'broker', 'questlines', 'hunt', 'mastery', 'festival', 'pass', 'seats', 'chapters', 'ranked', 'world', 'account', 'guild', 'shop', 'patrons', 'staff', 'bestowed'] /* PIN MOVED (GUILD-SHOP): the guild shop, after the account's own */ /* PIN MOVED (SHOP): the shop before the patrons */ /* PIN MOVED (STOREFRONT): the Battle Pass after the festival, a season's play */, 'play\'s first, what no play earns last');   // PIN MOVED (HUNTERS-MARK, MARKS-OF-MASTERY): The Hunt and Marks of Mastery, play's own, after the questlines
+  assert.deepEqual(W.WARDROBE_SOURCES.map(([id]) => id), ['spire', 'abyss', 'serpent', 'dragon', 'broker', 'questlines', 'hunt', 'mastery', 'festival', 'pass', 'seats', 'chapters', 'ranked', 'world', 'account', 'guild', 'shop', 'discord', 'patrons', 'staff', 'bestowed'] /* PIN MOVED (GUILD-SHOP): the guild shop, after the account's own */ /* PIN MOVED (SHOP): the shop before the patrons */ /* PIN MOVED (STOREFRONT): the Battle Pass after the festival, a season's play */, 'play\'s first, what no play earns last');   // PIN MOVED (HUNTERS-MARK, MARKS-OF-MASTERY): The Hunt and Marks of Mastery, play's own, after the questlines
   for (const kind of W.WARDROBE_KINDS) for (const e of W.wardrobeEntries(kind)) {
     const how = e.how();
     assert.ok(typeof how === 'string' && how.length > 12, `${kind}:${e.key} says how`);
@@ -181,7 +186,7 @@ test('COLLECTIONS-II THE CATALOGUE IS WHOLE AND AS RECORDED: every title, aura, 
 test('COLLECTIONS-II WHAT COMES TOGETHER, ALL OF IT EACH WAY (AUDIT COLLECTIONS-II lane 1: an aura named its title and not the glyph granted beside it): each grant group of the service - a listed title with its glyph and aura (TIER_GLYPH, TIER_AURA), the developer\'s three, the firsts\' two, the Spire\'s two, the champion\'s laurel - is one clique in the catalogue, and nothing is said to come with anything else (mutants: an aura not granted with its title; an aura\'s glyph dropped)', () => {
   const groups = [];
   for (const t of Object.keys(TIER_LISTS)) groups.push([`title:${t}`, `glyph:${TIER_GLYPH[t]}`, ...(TIER_AURA[t] ? [`aura:${TIER_AURA[t]}`] : [])]);
-  groups.push(['title:developer', `aura:${DEVELOPER_AURA}`, 'glyph:dev'], ['title:hoursfirst', `aura:${HOURS_FIRST_AURA}`], [`title:${EG_FIRST_TITLE}`, `aura:${EG_FIRST_AURA}`], ['title:arenachampion', 'glyph:laurel']);
+  groups.push(['title:developer', `aura:${DEVELOPER_AURA}`, 'glyph:dev'], ['title:hoursfirst', `aura:${HOURS_FIRST_AURA}`], [`title:${EG_FIRST_TITLE}`, `aura:${EG_FIRST_AURA}`], ['title:arenachampion', 'glyph:laurel'], ['title:moderator', 'glyph:mod']);
   for (const [t, a] of Object.entries(EG_HONOUR_AURA)) groups.push([`title:${t}`, `aura:${a}`]);
   const want = {};
   for (const g of groups) for (const a of g) want[a] = g.filter((b) => b !== a).sort();

@@ -1,4 +1,4 @@
-// GLOW-SET (2026-10-30, mob: "can we set the glow on wepaoins say like hand wraps?"; bible/05-Combat/Weapon-Glow.md
+// GLOW-SET (2026-10-30; bible/05-Combat/Weapon-Glow.md
 // law 9). Pinned here: /glow's grammar, the word it writes on the weapon or Hand Wraps in hand, that word over every
 // other law in both hands and on the look, the item law's words equal to the wire's, and the host's wiring.
 
@@ -41,6 +41,13 @@ test('GLOW-SET: every word /glow writes is one the wire and the item law take, a
   assert.deepEqual([...ITEM_FIELDS.glowSet.values].sort(), [...words].sort());
   for (const w of words) { assert.ok(LOOK_GLOW_RE.test(w), w); assert.ok(WG.glowFromWord(w), w); assert.equal(validItemField('glowSet', w), w); }
   assert.equal(validItemField('glowSet', 'fire4'), undefined);
+  // and back: every word the wire takes is one /glow and the item law take, but the Tidebound Edge's - a sold piece's
+  // look, never a staff gift
+  const wire = [];
+  for (const look of [...WG.GLOW_LOOKS, ...Object.keys(WG.GLOW_SKINS)]) for (let l = 0; l <= 4; l++) if (LOOK_GLOW_RE.test(`${look}${l}`)) wire.push(`${look}${l}`);
+  assert.deepEqual(wire.filter((w) => !ITEM_FIELDS.glowSet.values.includes(w)), ['tide2'], 'the one word /glow never writes');
+  assert.equal(validItemField('glowSet', 'tide2'), undefined);
+  assert.ok(!('error' in (parseGlowCommand('/glow edge') ?? {})) && 'error' in parseGlowCommand('/glow tide'), '/glow has no tide');
 });
 
 test('GLOW-SET: the set word shows over the element, the Gilded crimson and the arcane look, in both hands', () => {
@@ -110,5 +117,5 @@ test('ARMORY-FISTS: a bare fist wears the kit\'s weapon piece - mine and a peer\
   const rigSrc = read('src/combat/weapon/weaponRig.js');
   assert.match(rigSrc, /heldGlow = heldFor \? spriteGlow\(heldFor\) : fistGlow\(\);/);
   assert.match(rigSrc, /return w \? glowOf\(w\) : fistGlow\(\); \};/);
-  assert.match(rigSrc, /fpArm\.setHandGlow\?\.\(wrapsMeshGlow\(\) \?\? \(armItem \? null : fistGlow\(\)\)\);/);
+  assert.match(rigSrc, /fpArm\.setHandGlow\?\.\(armItem\?\.werecreatureClaws \? glowOf\(armItem\) : \(wrapsMeshGlow\(\) \?\? \(armItem \? null : fistGlow\(\)\)\)\);/);
 });

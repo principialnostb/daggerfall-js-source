@@ -8,12 +8,22 @@ import { getPref } from '../../systems/uiPrefs.js';
 export const WEAPON_LOOKS_PREF = 'mwWeaponLooks';
 export const weaponLookKey = (item) => `weapon:${item.templateIndex}:${item.material ?? 0}`;
 export const SKYRIM_STEEL_AXE = Object.freeze({
-  model: 'skyrim_steel_battleaxe.nif', bone: 'Weapon Bone', animateAs: 8,
+  model: 'skyrim_steel_battleaxe.nif',
+  bone: 'Weapon Bone',
+  animateAs: 8,
   firstPersonAttitude: BATTLEAXE_FIRST_PERSON,
-  borrowsAmmo: false, id: 'skyrim_steel_battleaxe', name: 'Steel Battleaxe', speed: 1,
+  borrowsAmmo: false,
+  id: 'skyrim_steel_battleaxe',
+  name: 'Steel Battleaxe',
+  speed: 1,
 });
 export const WEAPON_SKINS = Object.freeze([
-  Object.freeze({ value: 'skyrim-steel-battleaxe', label: 'Skyrim · Steel Battleaxe', templateIndex: 128, ...SKYRIM_STEEL_AXE }),
+  Object.freeze({
+    value: 'skyrim-steel-battleaxe',
+    label: 'Skyrim · Steel Battleaxe',
+    templateIndex: 128,
+    ...SKYRIM_STEEL_AXE,
+  }),
 ]);
 // DFU ItemEnums.Weapons.War_Axe (128): the two-handed axe. Material is cosmetic compatibility here.
 export const weaponSkinsFor = (item) => WEAPON_SKINS.filter((skin) => skin.templateIndex === item?.templateIndex);

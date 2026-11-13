@@ -203,6 +203,16 @@ test('RPT1026-WORLD DECOR-VERBS: with World Tooltips off the interior host\'s na
   assert.ok(plaque.includes('foldQuickLoot(verbs ? decorPressFrame(frame) : frame);'));
 });
 
+test('RPT1026-WORLD DECOR-VERBS: while decorating a press on a placed piece runs the lit row or Move - it never opens the piece (mutants: activateDecor while flying; lit verb required)', () => {
+  const wm = readFileSync(new URL('../../../src/scenes/worldModes.js', import.meta.url), 'utf8');
+  assert.match(wm, /decorTool\.flying\(\) && !decorTool\.ghost\(\) \? decorTool\.act\(plaqueActionFor\(key\) \?\? 'move', decorIdOfKey\(key\)\) : activateDecor\(decorIdOfKey\(key\)\)/);
+  assert.ok(!wm.includes('decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) ? decorTool.act(plaqueActionFor(key), decorIdOfKey(key)) : activateDecor(decorIdOfKey(key))'), 'the old lit-or-open arm is gone');
+  const tool = readFileSync(new URL('../../../src/scenes/decor/decorTool.js', import.meta.url), 'utf8');
+  assert.ok(tool.includes("if (placing?.browse && (act === 'Interact' || act === 'ActivateCenterObject')) return;"), 'browse leaves Interact for the host\'s plaque press');
+  const yards = readFileSync(new URL('../../../src/scenes/homeYards.js', import.meta.url), 'utf8');
+  assert.ok(yards.includes("tool.act(plaqueActionFor(hit.key) ?? 'move', hit.key.slice('decor:'.length));"), 'the yard press matches the room');
+});
+
 test('RPT1026-WORLD guard: the decorator\'s Move in the caravan, the ship and the house - by the plaque\'s row and by the panel\'s In this room - stands the piece where the click sets it down (the decorator itself was never the fault)', async () => {
   for (const room of [CARAVAN, { kind: 'ship', where: 'Your ship' }, { kind: 'house', where: 'Your house' }]) {
     for (const door of ['plaque', 'panel']) {

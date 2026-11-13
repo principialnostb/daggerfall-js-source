@@ -305,7 +305,7 @@ test('AUDIT LW-II-2 W10: the word carried is the host\'s alone (`carriedOf` - th
   const hosted = makeTown({ tripsOf: () => roads, relations: () => createRelations(), carriedOf: (d) => (d === day ? [visit] : null) }).town;
   hosted._roadsOf(day);
   assert.deepEqual(hosted.carriedAt(D + 1000).map((x) => [x.key, x.from]), [['trip:a9', 'Wayrest']], 'the host\'s told');
-  assert.match(W, /return \{ away, visitors, holders, news, places \};/);
+  assert.match(W, /return livingBooks\.done\(\{ away, visitors, holders, news, places \}\);/);
   // the online pace: the measure of test/systems/livingWorld/lw16_word.test.js's B2 at the walk a real hour a sky day gives
   assert.equal(ONLINE_MPM, CALENDAR_MPM / 2);
   const { nav, buildings, doors } = synthTown();

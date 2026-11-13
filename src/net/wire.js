@@ -1,6 +1,7 @@
 // @ts-check
-import { validStaffEventIn } from './staffEvent/staffEventLaw.js';   // STAFF-EVENT: a staff event's word in
+import { validStaffEventIn, STAFF_EVENT_ID_RE } from './staffEvent/staffEventLaw.js';   // STAFF-EVENT: a staff event's word in
 import { validStaffTeleportIn } from './staffTeleport.js';
+import { validInvasionIn } from './invasion/invasionWire.js';   // an invasion's word to its city's cell
 import { validRelayCfgIn } from './relayCfg.js';   // SCALE5b: a relay setting, said to the hub
 import { HUB_SHARD_ROOMS, isHubShard, HUB_FIND_Q_MAX, REGION_SHARD_ROOMS } from './hubShards.js';   // SCALE5c: the hub, sixteen ways
 // ONLINE1 (2026-09-12, Mac: "the basic bones of multiplayer ... being
@@ -217,7 +218,7 @@ import { privateInteriorOf } from './privateInterior.js';   // SLIM-FRAME: an ow
 import { validSdMarks, SD_ELEMENTS } from './superDungeon/sdMarks.js';   // SD18a: a Hollow's marks and its blows' elements - sdMarks.js imports nothing, so the worker's graph stays
 import { validArenaIn, validArenaOut } from './arena/arenaLaw.js';   // ARENA4: the arena's words both ways - arenaLaw.js imports nothing, so the worker's graph stays flat
 import { effectKitOk } from './effectLaw.js';   // STOREFRONT: the effects kit worn rides a row - effectLaw.js imports nothing
-import { armoryKitOk } from './armoryLaw.js';   // ARMORY: the kit worn rides a row - armoryLaw.js imports nothing, so the worker's graph stays flat
+import { armoryKitOk, armoryKitPieces } from './armoryLaw.js';   // ARMORY: the kit worn rides a row - armoryLaw.js imports nothing, so the worker's graph stays flat
 import { readHouse } from './houseLaw.js';   // LEGACY7 part two: a house rides a row - houseLaw.js imports nothing, so the worker's graph stays flat
 import { validHoldemIn, validHoldemOut } from './holdemTable.js';   // CARDS5: the relay's card table's words both ways - holdemTable.js imports only cardLaw.js, which imports only dice.js (already the bundle's)
 import { validIliacIn, validIliacOut } from './iliac/iliacTable.js';   // CARDS10: the relay's Iliac table's words both ways - iliacTable.js imports the rules (iliacHand.js, iliacCards.js) and Hold'em's bounds
@@ -281,12 +282,32 @@ export const LOOK_GROUPS = Object.freeze(['MensClothing', 'WomensClothing', 'Arm
  *  `arcane2` (systems/weaponGlow.js glowWord) - so a peer's Morrowind body draws the weapon as its owner sees it: the
  *  affixes that decide it never travel. A weapon's alone, OMITTED when none (`class`'s law: an item without it keeps
  *  the bytes it always had); anything else is dropped, never the item. */
-export const LOOK_GLOW_RE = /^(?:(?:fire|frost|shock)[123]|arcane2|brand2|edge2|gilded2)$/;   // AUDIT WEAPON-GLOW NET-4: the words a client can say (thirteen) - the arcane look has one strength; ARMORY: and the Aura Armory's two weapon pieces, one each; GILDED-GLOW: and the Gilded rung's crimson, one
+export const LOOK_GLOW_RE = /^(?:(?:fire|frost|shock)[123]|arcane2|brand2|edge2|gilded2|tide2)$/;   // AUDIT WEAPON-GLOW NET-4: the words a client can say (fourteen) - the arcane look has one strength; ARMORY: and the Aura Armory's two weapon pieces, one each; GILDED-GLOW: and the Gilded rung's crimson, one
 /** AUDIT WEAPON-GLOW NET-4: the slots a glowing weapon is said in - the hands (the equip table's RightHand and LeftHand,
  *  the siege referee's own pair); a weapon anywhere else is in no hand. */
 export const LOOK_GLOW_SLOTS = SIEGE_HAND_SLOTS;
 /** Whether an item as the look carries it may say a glow - a weapon, in a hand, its word one LOOK_GLOW_RE takes. */
 export const lookGlowOk = (it) => it?.group === 'Weapons' && LOOK_GLOW_SLOTS.includes(it.equipSlot) && typeof it.glow === 'string' && LOOK_GLOW_RE.test(it.glow);
+/** A glow word that is a sold piece's own, and the piece: the Tidebound Edge is bought, so a look says `tide2` only while
+ *  the kit its owner's token signed (`ak`) wears the Edge. The other words read the weapon itself and stay as they are. */
+export const LOOK_GLOW_KIT = Object.freeze({ tide2: 'tideedge' });
+/** A look less every glow word its owner's kit does not wear (LOOK_GLOW_KIT); the same look when nothing is dropped. The
+ *  relay asks it at the hello and at a look, so a changed client cannot show a piece it never bought. Pure. */
+export function lookGlowWorn(look, kit) {
+  if (!Array.isArray(look?.items)) return look;
+  const weapon = armoryKitPieces(kit).weapon;
+  const unworn = (it) => !!it && Object.hasOwn(LOOK_GLOW_KIT, it.glow) && LOOK_GLOW_KIT[it.glow] !== weapon;
+  if (!look.items.some(unworn)) return look;
+  return {
+    ...look,
+    items: look.items.map((it) => {
+      if (!unworn(it)) return it;
+      const kept = { ...it };
+      delete kept.glow;
+      return kept;
+    }),
+  };
+}
 /** AUDIT MW-NPC II K2: a foe record's worn kit (`lw`) - a piece a slot of the equip table's 27 at most. */
 export const WORN_PIECES_MAX = 27;
 /** A display name's bounds. */
@@ -525,7 +546,7 @@ export function validHomeFrame(m) {
  * the relay carries one of these names and nothing a stager could shape into anything else. Appended, never
  * reordered or renamed - a client that does not know a word shows no event, so a new one is safe against an old build.
  */
-export const LIVE_EVENTS = Object.freeze(['dread', 'sunbaby', 'rocket']);   // SUNBABY1: the sun baby's sky of flowers (world/sunbabySky.js), world163; ROCKET1: the rocket's mounds, farting horses and frenzy (world/rocketEvent.js), world253
+export const LIVE_EVENTS = Object.freeze(['dread', 'sunbaby', 'rocket', 'newera']);   // SUNBABY1: the sun baby's sky of flowers (world/sunbabySky.js), world163; ROCKET1: the rocket's mounds, farting horses and frenzy (world/rocketEvent.js), world253
 /** EVENT1: stages a second - a dev's deliberate act, and tokenGate cannot go lower (RED_HZ_MAX's reason). */
 export const EVENT_HZ_MAX = 1;
 /** EVENT1: the hub's storage key for the event staged now - its own prefix, apart from every one a drain or the hub's
@@ -1710,7 +1731,14 @@ export const KEEPALIVE_FAN_MS = HEARTBEAT_MS / 2;
  *  is deployed by CI and the relay by hand, so a skew between them is the ordinary state of a release day, and until
  *  now nothing on either end could see it. */
 // Integrated Arena spectator visibility with staff teleport, stable boat identity and private ownership; deploy relay before clients.
-export const RELAY_VERSION = 'world297';   // world297: STOREFRONT (2026-10-29, world281, world283, world286, world288, world289, world290, world291, world293, world294 then world295 on its branch, renumbered past PVP-REWORK's world281, PVP-FOLLOWUP's world282, PVP-SAFE-HIT's world283, AUDIT TAMRIEL-WIDE's world284, CAPE-TOGGLE's world285, FB1029 GROUND's world286, FRONTS' world287, DRAGON's world288, HAND-WRAPS' world289, PVP-LINGER's world290, GILDED-GLOW's world291, DELVE II's world292, PVP-VITALS and WYRM-RIDER's world293, DRAGON-HARDER's world294, GUILD-SHOP's world295 and FIELD BUGS 2026-10-30b's world296 at the merges of main; the owner: "an overhaul to the ingame shop menu ... Portal effects ... and kill effects"; bible/06-Systems/Storefront.md, Battle-Pass.md; NOT YET DEPLOYED): a token's effects kit, `fx` (net/effectLaw.js JOINED THE BUNDLE), badged onto a peer's row with the armory's kit - both on the hello's row now; a pose's kill (`xk`, `xp`, `xh`), its place and a blow's (`hp`) rounded on the second wire as the pose's own (slimPose, the wire audit); AURAS gains the Aetherium Wings (the Gilded Folio's capstone); BLOOD-OF-COLDHARBOUR (2026-10-30, for Trakel): TITLES, GLYPHS and AURAS each gain Trakel's own last - Blood of Coldharbour, its rose, the Vampiric Haze - which the relay reads off every hello's token; THANKS-POST (2026-10-30): the Aura Armory's Crystal Spurs, the arms slot's `d` (net/armoryLaw.js), which a kit on the token may name; the token's glyphs signed as their mask over GLYPHS (`gb`, read back as `g`) and a socket's attachment holding them so (packAttach); the camp law's brass sites are the readers'. Deploy the relay before the account service that mints `gb`. ROLLBACK FLOOR: world297 while acct230 or later mints `gb` - an older relay drops a `gb` token's glyphs, or refuses one with `gx`; roll the service back first and wait MAX_TTL_S (five minutes) before the relay (bible/06-Systems/Storefront.md section 10).
+export const RELAY_VERSION = 'world309';   // world309: the Courier's Cabinet's wares join the vocabularies - the Courier of the Veil title, the Eltheric Tide and Veilwake auras, the Courier's Seal glyph, The Courier and Tide Compass icons (net/identityToken.js) and the Tidebound line's five pieces (net/armoryLaw.js) - and a look's weapon may say `tide2` (LOOK_GLOW_RE) while its token's kit wears the Tidebound Edge (lookGlowWorn). An older relay refuses a token carrying them and strips the word, so deploy the relay before the service mints them. ROLLBACK FLOOR: never roll the relay back below world309 while acct249 or later mints tokens - an older relay refuses the Courier's Seal (glyph bit 35) and the new words, and turns away every player who wears one; roll the service back first and wait MAX_TTL_S (five minutes) before the relay. Carried: the ROLLBACK FLOOR (G2), the service never below acct233 for a week after this relay last minted `p`; and from world297 (STOREFRONT) a pose's kill (`xk`, `xp`, `xh`) on the wire, and its ROLLBACK FLOOR: world297 while acct230 or later mints `gb` - roll the service back first and wait MAX_TTL_S (five minutes) before the relay.
+// world308: the Discord PDA's two doors on the relay - GET /v1/pda/live, the live events' public facts, and POST /v1/pda/friends, a signed ask of the hub for a player's friends (server/src/pdaRelay.js). Deploy the relay first, then the account service; the service shows times alone until it does.
+// world307: the World Turtle title, its turtle glyph and the Worldshell aura join the vocabulary (net/identityToken.js), so a token carrying them verifies; an older relay refuses one, so deploy the relay before the service mints them. world306: the hub's book tells a toybox event only to a game whose hub hello says `tb` (server/src/staffEvents.js bookFor), so an older game never stands its monsters; deploy the relay and the site in either order. world305: the Moderator title joins TITLES (net/identityToken.js), so a token wearing it verifies; an older relay refuses it, so deploy the relay before the service mints it. world304: the toybox - a developer's ghost frame (`ghost`, GHOST_RELAY_MIN), a toybox event's fields and moments (`tb`, TOYBOX_EVENT_RELAY_MIN) and an invasion's fight (`inv`, INVASION_RELAY_MIN); an older relay refuses them, so deploy the relay before the site.
+// world302: LEGIBLE (2026-10-31, world295, world298 then world299 on its branch, renumbered past main's world295-world301 at the merges; bible/01-Overview/Readability-Arc.md LEGIBLE 3 and LEGIBLE 4; NOT YET DEPLOYED): the relay's files formatted by the one formatter (tools/format.mjs) and net/eliteGates/egFragLaw.js's comma sequence written as two statements - the same behaviour, new bytes (tools/sameProgram.mjs proves every formatted file the same program); world297 STOREFRONT's law is unchanged. Carried from world299 (DRAGON-CELL): its ROLLBACK FLOOR (G2), the service never below acct233 for a week after this relay last minted `p`. Carried from world297 (STOREFRONT): a pose's kill (`xk`, `xp`, `xh`) on the wire, and its ROLLBACK FLOOR: world297 while acct230 or later mints `gb` - roll the service back first and wait MAX_TTL_S (five minutes) before the relay (bible/06-Systems/Storefront.md section 10).
+// world301: CACHE-SPREAD (2026-10-31, world300 on its branch, renumbered past EG-MIGHT's world300 at the merge of main; Mac: "no daily cap ... value finds from 5 to 10"; bible/06-Systems/Aurum.md section 3a): net/aurumCacheLaw.js, in the bundle through net/cacheProof.js - a cache gives 5 to 10 Aurum by its hash and the law holds no day's bound. The relay's own words are unchanged: the welcome's `cp` as world299 signs it. Deploy the relay, then the service (acct235), then clients. EG-MIGHT's note (world300, below) stands.
+// world300: EG-MIGHT (2026-10-31, world298 then world299 on its branch, renumbered past LITANY-STAND's world298 and DRAGON-CELL's world299 at the merges of main; the owner: "Address DMG cap in Elite Breach"; bible/11-Multiplayer/Elite-Gates.md section 21.1): a breach member's token's kit might (`mg`, net/mightLaw.js) rides its socket and its admission (net/eliteGates/egMight.js egTokenAtt - it joins the bundle with net/mightLaw.js), its purse grown by it and its share of a body's health by its root; AUDIT POTION-MIGHT: the first entry's might kept, a health potion told (`pot`, EG_POT_RELAY_MIN) and believed on the room's own clock, the receipt's share at the reference. An older relay ignores `mg` and `pot`; deploy it and the account service (acct234) in either order. The rollback floor below stands.   // world299: DRAGON-CELL (2026-10-31, world298 on its branch, renumbered past LITANY-STAND's world298 at the merge of main; from Discord: a player read every dragon's pixel off the omen the relay told the whole world at its landing; the owner chose "Cell-scoped"; bible/11-Multiplayer/Dwarven-Dragon.md DRAGON-CELL, audits/Audit-Dragon-Cell.md and Audit-Dragon-Cell-II.md; NOT YET DEPLOYED, re-hashed in place by both audits, DRAGON-BUDGET and DRAGON-EACH): a watch holds four omens, each seed its own HMAC (net/dragon/dragonSeed.js dragonOmenSeeds) and each a world cell (net/dragon/dragonLaw.js dragonCellOf); on `ask` the relay tells a dragon's omen only to a socket posed within DRAGON_TELL_PX of its cell - judged in a cell room within its cover or in a battle, never a private room - that has stood DRAGON_TELL_DWELL_MS in that cell; a socket not yet stood hears nothing, any other null no sooner than a quiet watch; an `in` reads no omen outside its cover, from a far pose or before its socket has stood; DRAGON-BUDGET (the owner: "Do it"): an account is judged in at most DRAGON_JUDGED_CELLS_MAX cells a watch, the hub's count (DRAGON_INTERNAL_JUDGE); a site is a pixel's centre in its omen's cell (dragonSiteOk); DRAGON-EACH (the owner: "open up the rewards"): a receipt signs its dragon's place (`p`, dragonPlaceOf) and the hub keeps one a dragon of the newest watch; AUDIT DRAGON-CELL III: an ask is charged each cell it could be told of (DRAGON_JUDGED_CELLS_MAX 48, the hub's word `cs`), an `in` its site's cell, and a fight's words reach a passer-by once it is granted the cell. DRAGON_RELAY_MIN 299, DRAGON_BRAIN_MIN 3. CI deploys the relay, then the service (acct233, migration 0203), then clients; in between acct232 pays one dragon a watch, and acct233 refuses a placed receipt it counted (G2). ROLLBACK FLOOR (G2): the service never below acct233 for a week after this relay last minted `p`; world298 and older read the hub's keep by its newest receipt. Carried from world297 (STOREFRONT): its kill fields and rollback floor, now carried on world301's line.
+// world298: LITANY-STAND (2026-10-31, Discord: "is it still bugged or am I dumb"; bible/03-World/Delve-II.md section 16): net/delve/delveLaw.js - a Litany word's `st` is the plate its member stands on, judged once until they step off. Online a step was said once, judged at the pose of the frame before it (off the plate), and never lit. DELVE_RELAY_MIN is 298: an older relay judges every word's plate, and an Elite Litany would wake two foes at each showing while a member stood on a wrong plate. Deploy the relay first, then the site.
+// world297: STOREFRONT (2026-10-29, world281, world283, world286, world288, world289, world290, world291, world293, world294 then world295 on its branch, renumbered past PVP-REWORK's world281, PVP-FOLLOWUP's world282, PVP-SAFE-HIT's world283, AUDIT TAMRIEL-WIDE's world284, CAPE-TOGGLE's world285, FB1029 GROUND's world286, FRONTS' world287, DRAGON's world288, HAND-WRAPS' world289, PVP-LINGER's world290, GILDED-GLOW's world291, DELVE II's world292, PVP-VITALS and WYRM-RIDER's world293, DRAGON-HARDER's world294, GUILD-SHOP's world295 and FIELD BUGS 2026-10-30b's world296 at the merges of main; the owner: "an overhaul to the ingame shop menu ... Portal effects ... and kill effects"; bible/06-Systems/Storefront.md, Battle-Pass.md; NOT YET DEPLOYED): a token's effects kit, `fx` (net/effectLaw.js JOINED THE BUNDLE), badged onto a peer's row with the armory's kit - both on the hello's row now; a pose's kill (`xk`, `xp`, `xh`), its place and a blow's (`hp`) rounded on the second wire as the pose's own (slimPose, the wire audit); AURAS gains the Aetherium Wings (the Gilded Folio's capstone); BLOOD-OF-COLDHARBOUR (2026-10-30, for Trakel): TITLES, GLYPHS and AURAS each gain Trakel's own last - Blood of Coldharbour, its rose, the Vampiric Haze - which the relay reads off every hello's token; THANKS-POST (2026-10-30): the Aura Armory's Crystal Spurs, the arms slot's `d` (net/armoryLaw.js), which a kit on the token may name; the token's glyphs signed as their mask over GLYPHS (`gb`, read back as `g`) and a socket's attachment holding them so (packAttach); the camp law's brass sites are the readers'. Deploy the relay before the account service that mints `gb`. (Its rollback floor is on the version line.)
 // world294: DRAGON-HARDER (2026-10-29, the owner: "The dragon is way too easy to kill"; world289, world290, world291 world292 then world293 on its branch, renumbered past HAND-WRAPS' world289, PVP-LINGER's world290, GILDED-GLOW's world291 and DELVE II's world292 and WYRM-RIDER/PVP-VITALS' world293 at the merges of main; bible/11-Multiplayer/Dwarven-Dragon.md DRAGON-HARDER; NOT YET DEPLOYED): net/dragon/dragonBrain.js DRAGON_TTK_S 200 to 720 - a fighter's share of the dragon's health, twelve minutes at reference damage; and DRAGON-HIDDEN (the owner: "people are able to predict the dragon spawn by looking at source code") - every dragon roll a watch's seed, HMAC of GATE_SIGNING_KEY (net/dragon/dragonSeed.js JOINS THE BUNDLE), told on `ask` once its landing is past, so DRAGON_RELAY_MIN is 294; the pose law unchanged, so DRAGON_RIDE_RELAY_MIN stays 288 (HAND-WRAPS' world289, PVP-LINGER's world290, GILDED-GLOW's world291 and DELVE II's world292 keep rd 3 too); AUDIT DRAGON-HIDDEN (2026-10-30, re-hashed in place): an `ask` answered in any room and each time, a forged site held to a pixel's centre on its theatre's side of the Bay's edge (dragonSiteOk), an older law's unslain fight let go when its cell wakes. DRAGON-HIDDEN-TIME (2026-10-30, the owner: "dragon location and timer need to be random ... more so not traceable"): the landing minute is the seed's roll too (dragonLandOf), so the clock tells nobody when; the relay tells a watch's omen only once its dragon has landed, and a quiet watch's only after the latest landing. Deploy the relay before clients.
 // world293: WYRM-RIDER (2026-10-30, world294 on its branch, one release with PVP-VITALS): the token's TITLES take Wyrm Rider, First Wyrm Rider, Aether Rider and First Aether Rider (net/identityToken.js). PVP-VITALS (2026-10-30, NOT YET DEPLOYED): a flagged fighter's health rises, magicka and fatigue are the relay's own - net/wild/pvpVitals.js joins the bundle; a `vit` report carries `m`, `f` and `u`, a spell frame its cast's number `c`, and a flagged caster's gift frame is paid for or dropped. Deploy the relay first, then the site.
 // world292: DELVE II DLV3 (2026-10-29, NOT YET DEPLOYED; world284, world288 then world289 on its branch, renumbered past AUDIT TAMRIEL-WIDE's world284, CAPE-TOGGLE's world285, FB1029 GROUND's world286, FRONTS's world287, DRAGON's world288, HAND-WRAPS' world289, PVP-LINGER's world290 and GILDED-GLOW's world291 at the merges of main): a dungeon's room keeps its encounters (`dv`, DELVE_RELAY_MIN - server/src/delveRoom.js, net/delve/delveLaw.js joins the bundle), the `delve` grant kind (a world room's alone, GRANT_ROOM_KINDS) and the token's level stamped in a dungeon's room; a game-made dungeon's curated block names its room, `.c<n>` (AUDIT DLV5-6 M3). Deploy the relay first, then the site.
@@ -1955,6 +1983,7 @@ export function poseChanged(a, b, eps = 0.01) {
     || (a.hl | 0) !== (b.hl | 0)   // HT-WAIST-NET: a lantern lit at the waist, or put out, goes out at once, as a draw does
     || (a.hk | 0) !== (b.hk | 0) || (a.hu | 0) !== (b.hu | 0)   // PEERFX1: a blow landed or taken goes out at once, as a swing does
     || (a.xk | 0) !== (b.xk | 0)   // STOREFRONT: a kill of mine goes out at once, so its effect plays where the others see the body fall
+    || (a.gh | 0) !== (b.gh | 0)   // the toybox's ghost on or off is news at once
     || (a.cv | 0) !== (b.cv | 0)   // INVIS-NET: a player vanishing (or coming back) is news at once, as a draw is
     || (a.cl | 0) !== (b.cl | 0) || ((a.cl | 0) > 0 && Math.abs(wrapAngle((a.cw ?? 0) - (b.cw ?? 0))) > eps)   // CLIMB5: a hold taken or let go, a move begun, goes out at once - and the body turning on the wall, as a turn does
     || (a.ck | 0) !== (b.ck | 0) || (a.cy | 0) !== (b.cy | 0)   // CLIMB6: a move of another kind, or on another lip, is another move - at once
@@ -2042,7 +2071,7 @@ export const poseHandsOf = (usingRightHand, strikeHand) => ({ ...(usingRightHand
 /** A pose the room will relay, or null. */
 export function validPose(p) {
   if (!p || typeof p !== 'object') return null;
-  const { x, y, z, yaw, pitch, mv, wd, an, as, am, sr, cn, cr, ce, ar, fk, rd, rv, rc, hs, lh, ah, wb, dd, hl, lt, lc, hk, hp, hb, hq, hu, uq, xk, xp, xh, cv, cl, cw, ck, cy, cd, st, ga, gb, gm, ts, pl, ab, fy } = p;
+  const { x, y, z, yaw, pitch, mv, wd, an, as, am, sr, cn, cr, ce, ar, fk, rd, rv, rc, hs, lh, ah, wb, dd, hl, lt, lc, hk, hp, hb, hq, hu, uq, xk, xp, xh, cv, cl, cw, ck, cy, cd, st, ga, gb, gm, ts, pl, ab, fy, gh: ghost } = p;
   if (![x, y, z, yaw, pitch].every(finite)) return null;
   if (Math.abs(x) > POSE_BOUND || Math.abs(z) > POSE_BOUND || Math.abs(y) > POSE_Y_BOUND) return null;
   // ONCRASH1 (2026-09-15, Mac: "reports of player browser crashing when
@@ -2124,6 +2153,9 @@ export function validPose(p) {
     // not the player (EntityConcealmentBehaviour: the renderer off) and their foes' senses read it (EnemySenses
     // .BlockedByIllusionEffect). OMITTED at 0 (validLook's `class` law): an unconcealed pose keeps its bytes.
     ...(uint(cv, 7) ? { cv: uint(cv, 7) } : {}),
+    // the toybox's ghost: `gh` 1 while its player is a ghost, so the developers and moderators who still hear the pose
+    // draw it veiled (systems/toybox/toyboxGhost.js). Who hears it at all is the relay's (server/src/staffGhost.js).
+    ...(uint(ghost, 1) ? { gh: 1 } : {}),
     // CLIMB5 (2026-10-01, the Enhanced Climbing arc - bible/03-World/Parkour-Arc.md): `cl` the player's CLIMB - 1
     // hanging from a lip, 2 climbing a face, 3 a move in flight (a mantle, a vault, a lower, a leap) - and `cw` the way
     // the body faces on it (the wall, or the move's way; player/motor.js climbPoseOf), an angle wrapped as the yaw is,
@@ -2406,7 +2438,7 @@ export function inRangeOf(roomKey, from) {
   return (to) => !!to && Math.max(Math.abs(fx - Math.floor(to.x / PIXEL_UNITS)), Math.abs(fy - Math.floor(to.z / PIXEL_UNITS))) <= RANGE_PIXELS;
 }
 
-/** One client frame, parsed and checked: {t:'hello'|'pose'|'ping'|'chat'|'roll'|'say'|'narrate'|'stage'|'mute'|'ban'|'renown'|'guild'|'guildout'|'home'|'yard'|'world'|'foes'|'own'|'hit'|'act'|'who'|'quest'|'social'|'party'|'trade'|'cast'|'card'|'page'|'duel'|'wed'|'park'|'caravan'|'look'|'gate'|'grant'|'siege'|'arena'|'raid'|'raidtowns'|'sev'|'rite'|'star'|'ow'|'trav'|'amap'|'stp'|'cfg'|'find'|'serpent'|'dragon'|'sd'|'kt'|'eg'|'wild'|'vit'|'wdun'|'holdem'|'iliac'|'gambit'|'lease'|'dv', ...}
+/** One client frame, parsed and checked: {t:'hello'|'inv'|'pose'|'ping'|'chat'|'roll'|'say'|'narrate'|'stage'|'mute'|'ban'|'renown'|'guild'|'guildout'|'home'|'yard'|'world'|'foes'|'own'|'hit'|'act'|'who'|'quest'|'social'|'party'|'trade'|'cast'|'card'|'page'|'duel'|'wed'|'park'|'caravan'|'look'|'gate'|'grant'|'siege'|'arena'|'raid'|'raidtowns'|'sev'|'rite'|'star'|'ow'|'trav'|'amap'|'stp'|'cfg'|'find'|'serpent'|'dragon'|'sd'|'kt'|'eg'|'wild'|'vit'|'wdun'|'holdem'|'iliac'|'gambit'|'lease'|'dv'|'ghost', ...}
  *  or {error} - the caller closes on an error. INSPECT1: every arm below, named - this line had fallen seven behind
  *  (test/net/auditworld2.test.js derives the list from the arms now, so it cannot fall behind again - the merge with
  *  main's HCC-PARK was its first catch: the park arm, unnamed). */
@@ -2540,6 +2572,11 @@ export function parseClient(text, { hasHello = false } = {}) {
     const r = validDragonIn(m);
     return r ? { t: 'dragon', ...r } : { error: 'bad dragon' };
   }
+  if (m.t === 'inv') {   // an invasion's word, to its city's cell - projected by validInvasionIn; the cell's brain judges it
+    if (!hasHello) return { error: 'inv before hello' };
+    const word = validInvasionIn(m);
+    return word ? { t: 'inv', ...word } : { error: 'bad inv' };
+  }
   if (m.t === 'rite') {   // WB12d: a word at the faithful's rite, to the circle's cell - projected by validRiteIn; the cell judges where and when
     if (!hasHello) return { error: 'rite before hello' };
     const r = validRiteIn(m);
@@ -2666,6 +2703,8 @@ export function parseClient(text, { hasHello = false } = {}) {
     if (Number.isSafeInteger(m.ll) && m.ll >= 1 && m.ll <= LOOT_HELLO_LAW_WIRE_MAX) hello.ll = m.ll;   // LOOT-DOOR (AUDIT HORIZONTAL B7): the loot this build reads - read as GROUND-GATE's `gl` is
     if (m.ls === 1) hello.ls = 1;   // LEASE1: this build hands its hub's lease to the room (net/roomLease.js) - 1 or nothing, the `w2` law
     if (m.sm === 1) hello.sm = 1;   // STAFF-PANEL5-MESSAGE: this build shows a staff message's box (net/staffMessages.js) - 1 or nothing, the `w2` law: a hub socket without it is "old game, not shown"
+    if (m.tb === 1) hello.tb = 1;   // this build reads a toybox event's fields - 1 or nothing, the `w2` law: a hub socket without it hears no toybox event
+    if (m.gh === 1) hello.gh = 1;   // the toybox's ghost, asked again at a hello while it is on (server/src/staffGhost.js) - the relay asks the glyphs
     if (m.fv === 1) hello.fv = 1;   // STAFF-PANEL5-FREEZE: this build shows the freeze screen (net/staffChat.js) - 1 or nothing; a frozen account's socket from a build without it is closed with the reload words
     return hello;
   }
@@ -2797,6 +2836,10 @@ export function parseClient(text, { hasHello = false } = {}) {
     if (!hasHello) return { error: 'home before hello' };
     return typeof m.order === 'string' && m.order.length > 0 && m.order.length <= 1024
       ? { t: 'home', order: m.order } : { error: 'bad home' };
+  }
+  if (m.t === 'ghost') {   // the toybox's ghost turned on or off (server/src/staffGhost.js judges who may)
+    if (!hasHello) return { error: 'ghost before hello' };
+    return typeof m.on === 'boolean' ? { t: 'ghost', on: m.on } : { error: 'bad ghost' };
   }
   if (m.t === 'stp') {
     if (!hasHello) return { error: 'stp before hello' };
@@ -3883,7 +3926,7 @@ export const relaySupportsEvent = (v) => { const m = /^world(\d+)$/.exec(typeof 
 /** SUNBABY1: THE FIRST RELAY THAT KNOWS EACH LIVE EVENT'S WORD. A relay's parseClient answers a word it does not know
  *  with 'bad stage' and CLOSES the socket, so knowing the frame (EVENT_RELAY_MIN) is not knowing every word on it: a
  *  word is staged only on a relay at or past its own row. One row a word of LIVE_EVENTS, appended with it. */
-export const LIVE_EVENT_RELAY_MIN = Object.freeze({ dread: EVENT_RELAY_MIN, sunbaby: 163, rocket: 253 });
+export const LIVE_EVENT_RELAY_MIN = Object.freeze({ dread: EVENT_RELAY_MIN, sunbaby: 163, rocket: 253, newera: 303 });
 export const relayKnowsLiveEvent = (v, kind) => { const m = /^world(\d+)$/.exec(typeof v === 'string' ? v : ''); return !!m && Object.hasOwn(LIVE_EVENT_RELAY_MIN, kind) && Number(m[1]) >= LIVE_EVENT_RELAY_MIN[kind]; };
 export const relaySupportsPark = (v) => { const m = /^world(\d+)$/.exec(typeof v === 'string' ? v : ''); return !!m && Number(m[1]) >= PARK_RELAY_MIN; };
 export const relaySupportsCast = (v) => { const m = /^world(\d+)$/.exec(typeof v === 'string' ? v : ''); return !!m && Number(m[1]) >= CAST_RELAY_MIN; };
@@ -6159,8 +6202,9 @@ export const STAR_RC_KEEP_MS = 24 * 60 * 60 * 1000;
 // room keeps the first plan it hears (`pl`) and each started site's ledger (net/delve/delveLaw.js), folding the owning
 // party's words (`w`), acts (`a`) and blows (`x`); it says the ledger back (`dl`, each socket its own `me`) with what
 // moved it (`ev`), and an earner asks to open its share (`v`). No law imported: its bounds are pinned equal by test.
-/** The first relay that keeps a dungeon's encounters. An older one CLOSES the socket on `dv`, so a client says none. */
-export const DELVE_RELAY_MIN = 292;
+/** The first relay whose encounters this page may play: world292 kept them (an older one CLOSES the socket on `dv`), and
+ *  world298 judges a Litany plate stood on (LITANY-STAND), which this page says in every word. */
+export const DELVE_RELAY_MIN = 298;
 export const relaySupportsDelve = (v) => { const m = /^world(\d+)$/.exec(typeof v === 'string' ? v : ''); return !!m && Number(m[1]) >= DELVE_RELAY_MIN; };
 /** A socket's `dv` words a second: a word each site a second, an act, and a hand of four blows - a second's slack. */
 export const DELVE_HZ_MAX = 8;
@@ -6685,15 +6729,20 @@ export const DRAGON_OUT_KINDS = Object.freeze(['st', 'mv', 'atk', 'hp', 'ph', 'm
 /** The dragon frames' own bucket: its blow rate (net/dragon/dragonBrain.js DRAGON_HIT_HZ_MAX, 4), the `in`, slack. */
 export const DRAGON_HZ_MAX = 8;
 export const dragonGate = (bucket, nowMs) => tokenGate(bucket, nowMs, DRAGON_HZ_MAX);
+/** An invasion's words a socket says a second: a blow on each foe a swing meets, and its `in`. */
+export const INVASION_HZ_MAX = 12;
+export const invasionGate = (bucket, nowMs) => tokenGate(bucket, nowMs, INVASION_HZ_MAX);
 /** DRAGON-HIDDEN: the first relay that answers `ask` - an older one rolls the public salt, or closes the socket on the
  *  frame - so a client says no dragon word to it. The ride's gate is its own (DRAGON_RIDE_RELAY_MIN). */
-export const DRAGON_RELAY_MIN = 294;   // world292 then world293 on its branch, until DELVE II, then WYRM-RIDER and PVP-VITALS, took them
+export const DRAGON_RELAY_MIN = 299;   // DRAGON-CELL: the relay that tells an omen near its cell alone (298 on its branch, until LITANY-STAND took it; 294 DRAGON-HIDDEN's; world292 then world293 on its branch, until DELVE II, then WYRM-RIDER and PVP-VITALS, took them)
 export const relaySupportsDragon = (v) => { const m = /^world(\d+)$/.exec(typeof v === 'string' ? v : ''); return !!m && Number(m[1]) >= DRAGON_RELAY_MIN; };
 /** The door between a dragon's cell and the hub: the kill and its receipts. */
 export const DRAGON_INTERNAL_FELL = '/internal/dragon/fell';
+/** DRAGON-BUDGET: a cell asking the hub whether an account may be judged in one more cell this watch. */
+export const DRAGON_INTERNAL_JUDGE = '/internal/dragon/judge';
 export const DRAGON_TELL_RETRY_MS = 5000;
 /** A cell's storage: its fights' ids (`watch@site`), each under DRAGON_FIGHT_KEY + ':' + its id; the hub's: each account's
- *  latest receipt. */
+ *  receipts of its newest watch, one a dragon (DRAGON-EACH). */
 export const DRAGON_FIGHT_KEY = 'dragon';
 export const DRAGON_FIGHTS_KEY = 'dragons';
 export const DRAGON_RC_PREFIX = 'dragonrc:';
@@ -6720,14 +6769,14 @@ const dgHp = (v) => Number.isSafeInteger(v) && v >= 0 && v <= DRAGON_HP_MAX;
 const dgYaw = (v) => finite(v) && Math.abs(v) <= 4;
 const dgAlt = (v) => finite(v) && v >= -10 && v <= 1000;
 
-/** A client's dragon word, projected: `{k:'in', w, bv, lv, sx, sz}`, `{k:'hit', d, r}` or `{k:'ask', w}` - or null. */
+/** A client's dragon word, projected: `{k:'in', w, bv, lv, sx, sz, ev?}`, `{k:'hit', d, r}` or `{k:'ask', w}` - or null. */
 export function validDragonIn(m) {
   if (!m || typeof m !== 'object' || !DRAGON_KINDS.includes(m.k)) return null;
   if (m.k === 'ask') return Number.isSafeInteger(m.w) && m.w >= 0 ? { k: 'ask', w: m.w } : null;   // DRAGON-HIDDEN: a watch's omen
   if (m.k === 'in') {
     if (!Number.isSafeInteger(m.w) || m.w < 0 || !intIn(m.bv, 0, 999) || !intIn(m.lv, 1, DRAGON_LV_WIRE_MAX)) return null;
     if (!finite(m.sx) || !finite(m.sz) || Math.abs(m.sx) > POSE_BOUND || Math.abs(m.sz) > POSE_BOUND) return null;
-    return { k: 'in', w: m.w, bv: m.bv, lv: m.lv, sx: m.sx, sz: m.sz };
+    return { k: 'in', w: m.w, bv: m.bv, lv: m.lv, sx: m.sx, sz: m.sz, ...(typeof m.ev === 'string' && STAFF_EVENT_ID_RE.test(m.ev) ? { ev: m.ev } : {}) };   // `ev`: a called dragon's event (net/dragon/dragonLaw.js dragonCalledOf)
   }
   return finite(m.d) && m.d > 0 && m.d <= DRAGON_DMG_WIRE_MAX && intIn(m.r, 0, 2) ? { k: 'hit', d: m.d, r: m.r } : null;
 }
@@ -7201,7 +7250,7 @@ export function validSdFoundTell(b) {
 // lumen each; and a run's row carries its Reliquaries' circles (`r[8]`, at most EG_RUN_REL_MAX) for the rest's stake line.
 
 /** What a client may say: `open` to the hub (EG-ZA: and `void` and `claimed`); the rest to a breach's room (EG-ZF: `heal`). */
-export const EG_KINDS = Object.freeze(['open', 'in', 'down', 'home', 'hit', 'pick', 'surplus', 'vote', 'cant', 'buy', 'lping', 'ping', 'bequest', 'forsake', 'pz', 'fell', 'use', 'vt', 'clk', 'spec', 'void', 'claimed', 'heal', 'tonic', 'mast', 'wkpaid', 'yield', 'rz']);   // AUDIT WORLD-EVENTS L1-4: `yield` the fall given in to, lying down; `rz` my Resurrect at a member lying down   // AUDIT EG III (lane1 #5): `tonic` a Spire Tonic drunk; AUDIT EG III: `wkpaid` a Redoubt the service paid already this week (section 16.3); AUDIT EG III (section 15): `mast` - Spirebridge asked; EG-H2: `spec` - a hall of the breach's own law asked; EG-H1: `vt` my body, `clk` the shared clock's ping; EG-ZA: `void` a stake no call answered, `claimed` a held receipt the service counted - both to the hub alone
+export const EG_KINDS = Object.freeze(['open', 'in', 'down', 'home', 'hit', 'pick', 'surplus', 'vote', 'cant', 'buy', 'lping', 'ping', 'bequest', 'forsake', 'pz', 'fell', 'use', 'vt', 'clk', 'spec', 'void', 'claimed', 'heal', 'tonic', 'mast', 'wkpaid', 'yield', 'rz', 'pot']);   // AUDIT POTION-MIGHT C2: `pot` a health potion drunk; AUDIT WORLD-EVENTS L1-4: `yield` the fall given in to, lying down; `rz` my Resurrect at a member lying down   // AUDIT EG III (lane1 #5): `tonic` a Spire Tonic drunk; AUDIT EG III: `wkpaid` a Redoubt the service paid already this week (section 16.3); AUDIT EG III (section 15): `mast` - Spirebridge asked; EG-H2: `spec` - a hall of the breach's own law asked; EG-H1: `vt` my body, `clk` the shared clock's ping; EG-ZA: `void` a stake no call answered, `claimed` a held receipt the service counted - both to the hub alone
 /** What the hub and a breach's room say back. */
 export const EG_FIGHT_KINDS = Object.freeze(['efs', 'ead', 'emv', 'ehp', 'edie', 'efl', 'eb', 'ecut', 'etx', 'emk', 'eph', 'efell', 'eob', 'ez', 'esay', 'egust', 'edark', 'erail', 'tell', 'untell', 'ebridge']);   // EG-H1: Watchfire's `tell`, the union floor's `untell`; AUDIT EG III: Spirebridge's `ebridge`
 /** AUDIT EG III (Elite-Gates.md section 15): the longest a Spirebridge stands on the wire (ms - net/eliteGates/egSpanLaw.js EG_SB_MS, 6 s,
@@ -7273,6 +7322,10 @@ export const relaySupportsEg = (v) => { const m = /^world(\d+)$/.exec(typeof v =
  *  `world237` - `world236` on its branch until the merge past LONE-HERALD's world236, which says no `eland`. */
 export const EG_LAND_RELAY_MIN = 237;
 export const relaySupportsEgLand = (v) => { const m = /^world(\d+)$/.exec(typeof v === 'string' ? v : ''); return !!m && Number(m[1]) >= EG_LAND_RELAY_MIN; };
+/** AUDIT POTION-MIGHT C2 (bible/11-Multiplayer/Elite-Gates.md section 17.4): the first relay that takes `pot`, a health potion
+ *  drunk in a breach (an older one refuses the word). */
+export const EG_POT_RELAY_MIN = 300;
+export const relaySupportsEgPot = (v) => { const m = /^world(\d+)$/.exec(typeof v === 'string' ? v : ''); return !!m && Number(m[1]) >= EG_POT_RELAY_MIN; };
 /** The door the hub opens a breach's room through (HCC-PARK's doors' law - the public worker forwards /room/<key> alone). */
 export const EG_INTERNAL_OPEN = '/internal/eg/open';
 /** Where a breach's room keeps its breach, and where the hub keeps an account's live call (AUDIT EG IV, lane3 #9: swept by
@@ -7449,6 +7502,7 @@ export function validEgIn(m) {
     case 'yield': return { k: 'yield' };   // AUDIT WORLD-EVENTS L1-4
     case 'rz': return egId(m.to) ? { k: 'rz', to: m.to } : null;   // AUDIT WORLD-EVENTS L1-4: the member raised, by account
     case 'tonic': return { k: 'tonic' };   // AUDIT EG III (lane1 #5): a Spire Tonic of my run drunk (section 17.1 - the room heals it)
+    case 'pot': return { k: 'pot' };   // AUDIT POTION-MIGHT C2: a health potion of my own drunk (section 17.4 - the room believes its heal on its own clock)
     case 'hit': return intIn(m.i, 1, 1e9) && intIn(m.q, 0, 0x7fffffff) && finite(m.d) && m.d >= 1 && m.d <= 1e6 && intIn(m.r, 0, 2) ? { k: 'hit', i: m.i, q: m.q, d: m.d, r: m.r } : null;
     case 'pick': return intIn(m.v, 0, 199) ? { k: 'pick', v: m.v } : null;
     case 'surplus': return m.use === 0 || m.use === 1 ? { k: 'surplus', use: m.use } : null;

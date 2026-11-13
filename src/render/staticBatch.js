@@ -18,8 +18,8 @@
 // across the build's own awaits), and `finish()` regroups the index
 // ranges by texture into the shape `renderer.createMesh` takes.
 
-import { boundsOf, boundsSteps } from './bounds.js';   // PERF-EXT23: the spheres createMesh takes, measured in the merge's own slices - a leaf, no GL
-import { apertureSteps } from './windowApertures.js';   // WL1: a window picture's glass, tile by tile, measured in the same slices - a leaf
+import { boundsOf, boundsSteps } from './bounds.js'; // PERF-EXT23: the spheres createMesh takes, measured in the merge's own slices - a leaf, no GL
+import { apertureSteps } from './windowApertures.js'; // WL1: a window picture's glass, tile by tile, measured in the same slices - a leaf
 
 /** The rotation part of a TRS matrix applied to a normal. The block
  *  matrices are rotations and translations (rmbLayout's trs, scale 1),
@@ -30,7 +30,9 @@ function rotateNormal(m, x, y, z, out, o) {
   const ny = m[1] * x + m[5] * y + m[9] * z;
   const nz = m[2] * x + m[6] * y + m[10] * z;
   const l = Math.hypot(nx, ny, nz) || 1;
-  out[o] = nx / l; out[o + 1] = ny / l; out[o + 2] = nz / l;
+  out[o] = nx / l;
+  out[o + 1] = ny / l;
+  out[o + 2] = nz / l;
 }
 
 /** The determinant of a column-major matrix's upper 3x3. */
@@ -51,11 +53,20 @@ export function unevenScaleNormalMatrix(m) {
   const l0 = m[0] * m[0] + m[1] * m[1] + m[2] * m[2];
   const l1 = m[4] * m[4] + m[5] * m[5] + m[6] * m[6];
   const l2 = m[8] * m[8] + m[9] * m[9] + m[10] * m[10];
-  const hi = Math.max(l0, l1, l2), lo = Math.min(l0, l1, l2);
+  const hi = Math.max(l0, l1, l2),
+    lo = Math.min(l0, l1, l2);
   if (!(lo > 0) || hi - lo <= hi * 1e-6) return null;
   // cofactor matrix of the upper 3x3 (column-major): cof = det * inverse^T
-  const a = m[0], b = m[4], c = m[8], d = m[1], e = m[5], f = m[9], g = m[2], h = m[6], i = m[10];
-  const s = det3(m) < 0 ? -1 : 1;   // cofactors carry the determinant's sign; a mirror must not turn the normals inward
+  const a = m[0],
+    b = m[4],
+    c = m[8],
+    d = m[1],
+    e = m[5],
+    f = m[9],
+    g = m[2],
+    h = m[6],
+    i = m[10];
+  const s = det3(m) < 0 ? -1 : 1; // cofactors carry the determinant's sign; a mirror must not turn the normals inward
   // prettier-ignore
   return new Float32Array([
     s * (e * i - f * h), -s * (b * i - c * h), s * (b * f - c * e), 0,
@@ -84,25 +95,37 @@ export function shadowCells(positions, indices, size) {
   const tris = indices.length / 3;
   const key = new Float64Array(tris);
   const at = new Int32Array(tris * 3);
-  let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    minZ = Infinity,
+    maxX = -Infinity,
+    maxZ = -Infinity;
   for (let t = 0; t < tris; t++) {
-    const a = indices[t * 3] * 3, b = indices[t * 3 + 1] * 3, c = indices[t * 3 + 2] * 3;
+    const a = indices[t * 3] * 3,
+      b = indices[t * 3 + 1] * 3,
+      c = indices[t * 3 + 2] * 3;
     const x = Math.floor((positions[a] + positions[b] + positions[c]) / (3 * size));
     const y = Math.floor((positions[a + 1] + positions[b + 1] + positions[c + 1]) / (3 * size));
     const z = Math.floor((positions[a + 2] + positions[b + 2] + positions[c + 2]) / (3 * size));
-    at[t * 3] = x; at[t * 3 + 1] = y; at[t * 3 + 2] = z;
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    at[t * 3] = x;
+    at[t * 3 + 1] = y;
+    at[t * 3 + 2] = z;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
     if (y < minY) minY = y;
-    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
   }
-  const nx = maxX - minX + 1, nz = maxZ - minZ + 1;
+  const nx = maxX - minX + 1,
+    nz = maxZ - minZ + 1;
   const count = new Map();
   for (let t = 0; t < tris; t++) {
     const k = ((at[t * 3 + 1] - minY) * nz + (at[t * 3 + 2] - minZ)) * nx + (at[t * 3] - minX);
     key[t] = k;
     count.set(k, (count.get(k) ?? 0) + 1);
   }
-  const next = new Map(), cells = [];
+  const next = new Map(),
+    cells = [];
   let start = 0;
   for (const k of [...count.keys()].sort((p, q) => p - q)) {
     const n = /** @type {number} */ (count.get(k));
@@ -114,7 +137,9 @@ export function shadowCells(positions, indices, size) {
   for (let t = 0; t < tris; t++) {
     const s = /** @type {number} */ (next.get(key[t]));
     next.set(key[t], s + 1);
-    out[s * 3] = indices[t * 3]; out[s * 3 + 1] = indices[t * 3 + 1]; out[s * 3 + 2] = indices[t * 3 + 2];
+    out[s * 3] = indices[t * 3];
+    out[s * 3 + 1] = indices[t * 3 + 1];
+    out[s * 3 + 2] = indices[t * 3 + 2];
   }
   return { indices: out, cells };
 }
@@ -123,20 +148,22 @@ export function shadowCells(positions, indices, size) {
 export const SHADOW_CELL_SIZE = 16;
 
 export class StaticBatchBuilder {
-  /** @param {{ shadowCell?: number, pieces?: boolean, windows?: ((archive: number, record: number) => boolean) | null }} [opts] shadowCell: LA-AUDIT A1's cell side; 0 (the default)
-   *  builds no cells. pieces: RW1 - every merged sub-mesh also carries one sphere per model that went into it
+  /** @param {{ shadowCell?: number, shadowColumns?: number, pieces?: boolean, windows?: ((archive: number, record: number) => boolean) | null }} [opts] shadowCell: LA-AUDIT A1's cell side; 0 (the default)
+   *  builds no cells. shadowColumns: a town pixel's shadow cells instead, columns of this side (shadowColumnSteps); 0
+   *  builds none. pieces: RW1 - every merged sub-mesh also carries one sphere per model that went into it
    *  (`pieces`, [cx, cy, cz, r] each), so a window's glass measured on the screen is that model's, not the whole batch's
    *  (render/realWindows.js: the view out is cropped to the glass a frame met). Off by default: a city pixel's batch
    *  never measures them. */
-  constructor({ shadowCell = 0, pieces = false, windows = null } = {}) {
+  constructor({ shadowCell = 0, shadowColumns = 0, pieces = false, windows = null } = {}) {
     this.pieces = !!pieces;
-    this.windows = windows;   // WL1: (archive, record) => may this picture hold glass - its group's apertures are measured in the merge
-    this.chunks = [];        // [{positions, normals, uvs, base}] one per model, already transformed
+    this.windows = windows; // WL1: (archive, record) => may this picture hold glass - its group's apertures are measured in the merge
+    this.chunks = []; // [{positions, normals, uvs, base}] one per model, already transformed
     this.groups = new Map(); // resolved key -> [Uint32Array index runs, already offset by base]
     this.vertexCount = 0;
     this.triangles = 0;
     this.models = 0;
     this.shadowCell = shadowCell;
+    this.shadowColumns = shadowColumns;
   }
 
   /**
@@ -150,7 +177,7 @@ export class StaticBatchBuilder {
    *   the normals take `local` itself, exact for every rotation-and-translation block model.
    */
   add(cpu, local, resolveKey, normalMatrix = null) {
-    const nm = normalMatrix ?? unevenScaleNormalMatrix(local) ?? local;   // WD1: a scaled world-data model lights through its inverse transpose
+    const nm = normalMatrix ?? unevenScaleNormalMatrix(local) ?? local; // WD1: a scaled world-data model lights through its inverse transpose
     const n = cpu.positions.length / 3;
     if (!n || !cpu.subMeshes?.length) return;
     // WOD5: a MIRRORED model - a negative determinant, World of
@@ -160,9 +187,12 @@ export class StaticBatchBuilder {
     // reverses the winding: each triangle's last two corners swap.
     const mirrored = det3(local) < 0;
     const base = this.vertexCount;
-    const positions = new Float32Array(n * 3), normals = new Float32Array(n * 3);
+    const positions = new Float32Array(n * 3),
+      normals = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
-      const x = cpu.positions[i * 3], y = cpu.positions[i * 3 + 1], z = cpu.positions[i * 3 + 2];
+      const x = cpu.positions[i * 3],
+        y = cpu.positions[i * 3 + 1],
+        z = cpu.positions[i * 3 + 2];
       positions[i * 3] = local[0] * x + local[4] * y + local[8] * z + local[12];
       positions[i * 3 + 1] = local[1] * x + local[5] * y + local[9] * z + local[13];
       positions[i * 3 + 2] = local[2] * x + local[6] * y + local[10] * z + local[14];
@@ -174,10 +204,18 @@ export class StaticBatchBuilder {
       if (!count) continue;
       const run = new Uint32Array(count);
       for (let i = 0; i < count; i++) run[i] = cpu.indices[sm.startIndex + i] + base;
-      if (mirrored) for (let i = 0; i + 2 < count; i += 3) { const t = run[i + 1]; run[i + 1] = run[i + 2]; run[i + 2] = t; }
+      if (mirrored)
+        for (let i = 0; i + 2 < count; i += 3) {
+          const t = run[i + 1];
+          run[i + 1] = run[i + 2];
+          run[i + 2] = t;
+        }
       const key = resolveKey(sm.textureArchive, sm.textureRecord);
       let g = this.groups.get(key);
-      if (!g) { g = []; this.groups.set(key, g); }
+      if (!g) {
+        g = [];
+        this.groups.set(key, g);
+      }
       g.push(run);
       this.triangles += sm.primitiveCount;
     }
@@ -194,20 +232,11 @@ export class StaticBatchBuilder {
   }
 
   /**
-   * PERF-EXT23 (2026-09-25, the players: "fps issues in the exterior but
-   * fine in the interior", "me too my friend.. don't know why. I got a
-   * RX6600"): THE MERGE, A UNIT AT A TIME. A streamed pixel's build breathes
-   * between its models (PERF7), and then ran its whole tail in one piece:
-   * this merge, and createMesh's bounds - the whole mesh's sphere and one
-   * per texture group, two passes over every vertex each. A synthetic city
-   * pixel (3,000 models, 600k vertices, 160 groups) put 45-60 ms of that on
-   * ONE frame; a town 6-26 ms. The same merge awaits `breathe()` after each
-   * model's copy, each range of the sphere's two passes (bounds.js
-   * boundsSteps) and each group's copy and sphere, so no unit is over ~0.6
-   * ms, and it hands the spheres over (`bounds`) so createMesh does not
-   * walk the vertices again. The arrays and every sphere are the bytes
-   * finish() and createMesh make. The interior and the dungeon merge once,
-   * at their first frame, and keep finish().
+   * THE MERGE, A UNIT AT A TIME: finish()'s arrays and createMesh's spheres, byte for byte, awaiting `breathe()` after
+   * each model's copy, each range of the sphere's two passes (bounds.js boundsSteps) and each group's copy and sphere,
+   * so no unit is over ~0.6 ms; in one piece, a synthetic city pixel (3,000 models, 600k vertices) takes 45-60 ms of
+   * one frame. It hands the spheres over (`bounds`); createMesh still measures the shadow columns' spheres itself, at
+   * upload, in one piece. The interior and the dungeon merge once, at their first frame, and keep finish().
    * @param {() => Promise<void>} breathe the build's breather
    */
   async finishSliced(breathe) {
@@ -228,36 +257,68 @@ export class StaticBatchBuilder {
     const uvs = new Float32Array(this.vertexCount * 2);
     let v = 0;
     for (const c of this.chunks) {
-      positions.set(c.positions, v * 3); normals.set(c.normals, v * 3); uvs.set(c.uvs, v * 2);
+      positions.set(c.positions, v * 3);
+      normals.set(c.normals, v * 3);
+      uvs.set(c.uvs, v * 2);
       v += c.positions.length / 3;
       yield;
     }
     const whole = withBounds ? yield* boundsSteps(positions) : null;
     const indices = new Uint32Array(this.triangles * 3);
-    yield;   // the index array's allocation is a unit of its own (3.6 MB on a synthetic city)
+    yield; // the index array's allocation is a unit of its own (3.6 MB on a synthetic city)
     const subMeshes = [];
     const subs = [];
     let at = 0;
     for (const [key, runs] of this.groups) {
       const start = at;
-      for (const run of runs) { indices.set(run, at); at += run.length; }
-      const [archive, record] = key.split('_').map(Number);   // the resolved key is `${archive}_${record}`, drawMesh's own spelling
-      const sub = { textureArchive: archive, textureRecord: record, startIndex: start, primitiveCount: (at - start) / 3 };
-      if (this.pieces) {   // RW1: one sphere a model that went into this sub-mesh
+      for (const run of runs) {
+        indices.set(run, at);
+        at += run.length;
+      }
+      const [archive, record] = key.split('_').map(Number); // the resolved key is `${archive}_${record}`, drawMesh's own spelling
+      const sub = {
+        textureArchive: archive,
+        textureRecord: record,
+        startIndex: start,
+        primitiveCount: (at - start) / 3,
+      };
+      if (this.pieces) {
+        // RW1: one sphere a model that went into this sub-mesh
         const pieces = new Float32Array(runs.length * 4);
         runs.forEach((run, i) => pieces.set(boundsOf(positions, run), i * 4));
         sub.pieces = pieces;
       }
-      if (this.windows?.(archive, record)) sub.apertures = yield* apertureSteps(positions, normals, uvs, indices, start, at - start);   // WL1: renderer.createMesh takes them as they are
+      if (this.windows?.(archive, record))
+        sub.apertures = yield* apertureSteps(positions, normals, uvs, indices, start, at - start); // WL1: renderer.createMesh takes them as they are
       subMeshes.push(sub);
-      if (withBounds) { subs.push(boundsOf(positions, indices, start, at - start)); yield; }
+      if (withBounds) {
+        subs.push(boundsOf(positions, indices, start, at - start));
+        yield;
+      }
     }
-    const merged = /** @type {any} */ ({ positions, normals, uvs, indices, subMeshes, vertexCount: this.vertexCount, triangles: this.triangles, models: this.models });
+    const merged = /** @type {any} */ ({
+      positions,
+      normals,
+      uvs,
+      indices,
+      subMeshes,
+      vertexCount: this.vertexCount,
+      triangles: this.triangles,
+      models: this.models,
+    });
     if (withBounds) merged.bounds = { whole, subs };
-    if (this.shadowCell > 0) {   // LA-AUDIT A1
+    if (this.shadowCell > 0) {
+      // LA-AUDIT A1
       yield;
       const c = shadowCells(positions, indices, this.shadowCell);
-      merged.shadowIndices = c.indices; merged.shadowCells = c.cells;
+      merged.shadowIndices = c.indices;
+      merged.shadowCells = c.cells;
+    } else if (this.shadowColumns > 0) {
+      const columns = yield* shadowColumnSteps(positions, indices, this.shadowColumns);
+      if (columns) {
+        merged.shadowIndices = columns.indices;
+        merged.shadowCells = columns.cells;
+      }
     }
     this._spend();
     return merged;
@@ -281,3 +342,81 @@ export const keyResolver = (texRemap) => (archive, record) => {
   const key = `${archive}_${record}`;
   return texRemap && texRemap.has(key) ? texRemap.get(key) : key;
 };
+
+/** A town pixel's shadow cells, a side in world units: a street or two, so a near cascade or a lamp's face takes few. */
+export const TOWN_SHADOW_CELL = 32;
+/** How many triangles each range of shadowColumnSteps walks before it yields. */
+export const SHADOW_COLUMN_RANGE = 8192;
+/** The most columns a batch is cut into. A batch spread wider keeps no cells, and its replays take its sub-meshes. */
+export const SHADOW_COLUMN_GRID_MAX = 1 << 16;
+
+/**
+ * A town pixel's shadow cells. Its merge is one sub-mesh a texture, each across the pixel, so a near map that takes a
+ * sub-mesh draws the city. The same triangles go in a second index buffer, a range a grid column of their centroids
+ * (z, then x), each in the merge's order. A column holds the whole height: a town is wide and low, and a floor would
+ * part its walls from its roofs. Each pass yields every `range` triangles. A centroid that is not finite goes in a
+ * last cell; null for no finite centroid, or a grid past SHADOW_COLUMN_GRID_MAX.
+ * @returns {Generator<void, ?{ indices: Uint32Array, cells: Array<{ startIndex: number, primitiveCount: number }> }, unknown>}
+ */
+export function* shadowColumnSteps(positions, indices, size, range = SHADOW_COLUMN_RANGE) {
+  const tris = indices.length / 3;
+  const column = new Float64Array(tris),
+    row = new Float64Array(tris);
+  let minX = Infinity,
+    minZ = Infinity,
+    maxX = -Infinity,
+    maxZ = -Infinity;
+  for (let first = 0; first < tris; first += range) {
+    for (let tri = first, end = Math.min(tris, first + range); tri < end; tri++) {
+      const at0 = indices[tri * 3] * 3,
+        at1 = indices[tri * 3 + 1] * 3,
+        at2 = indices[tri * 3 + 2] * 3;
+      const x = Math.floor((positions[at0] + positions[at1] + positions[at2]) / (3 * size));
+      const z = Math.floor((positions[at0 + 2] + positions[at1 + 2] + positions[at2 + 2]) / (3 * size));
+      column[tri] = x;
+      row[tri] = z;
+      if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+    yield;
+  }
+  const wide = maxX - minX + 1,
+    deep = maxZ - minZ + 1;
+  if (!(wide * deep <= SHADOW_COLUMN_GRID_MAX)) return null;
+  const last = wide * deep; // the cell of the centroids that are not finite
+  const count = new Int32Array(last + 1);
+  for (let first = 0; first < tris; first += range) {
+    for (let tri = first, end = Math.min(tris, first + range); tri < end; tri++) {
+      const x = column[tri],
+        z = row[tri];
+      const k = Number.isFinite(x) && Number.isFinite(z) ? (z - minZ) * wide + (x - minX) : last;
+      column[tri] = k;
+      count[k]++;
+    }
+    yield;
+  }
+  const next = new Int32Array(last + 1),
+    cells = [];
+  let start = 0;
+  for (let k = 0; k <= last; k++) {
+    next[k] = start;
+    if (!count[k]) continue;
+    cells.push({ startIndex: start * 3, primitiveCount: count[k] });
+    start += count[k];
+  }
+  const out = new Uint32Array(tris * 3);
+  yield; // the buffer's allocation is a unit of its own
+  for (let first = 0; first < tris; first += range) {
+    for (let tri = first, end = Math.min(tris, first + range); tri < end; tri++) {
+      const to = next[column[tri]]++ * 3;
+      out[to] = indices[tri * 3];
+      out[to + 1] = indices[tri * 3 + 1];
+      out[to + 2] = indices[tri * 3 + 2];
+    }
+    yield;
+  }
+  return { indices: out, cells };
+}

@@ -385,7 +385,28 @@ const MENU_PAD = app.isPackaged ? path.join(LAUNCHER_DIR, 'menuPad.js') : path.j
 // (src/assets/branding/dfo-online.png, BR5) - packed beside the launcher's page as the pad module is and read from
 // the source tree unpacked, so the launcher can never draw a logo the game does not.
 const LAUNCHER_LOGO = app.isPackaged ? path.join(LAUNCHER_DIR, 'dfo-online.png') : path.join(__dirname, '..', 'src', 'assets', 'branding', 'dfo-online.png');
+// The launcher's pointer is the game's gauntlet, read from the game's own art module (packed beside the page as the
+// logo is) and served as PNG files (lib/launcherPointer.cjs).
+const LAUNCHER_POINTER_ART = app.isPackaged ? path.join(LAUNCHER_DIR, 'gauntletArt.js') : path.join(__dirname, '..', 'src', 'ui', 'plus', 'gauntletArt.js');
+let launcherPointer = null;
+let launcherPointerWarned = false;
+/** The pointer's frames, read once - unless the read failed or found none, which the next request tries again (a file
+ *  an antivirus held, an edit while the shell runs unpacked). The page falls back to the OS arrow meanwhile. */
+function launcherPointerFiles() {
+  launcherPointer ??= fs.promises.readFile(LAUNCHER_POINTER_ART, 'utf8').then(pointerFiles, () => new Map()).then((files) => {
+    if (files.size < Object.keys(POINTER_FILES).length) {
+      launcherPointer = null;
+      if (!launcherPointerWarned) { launcherPointerWarned = true; console.warn('[shell] the launcher pointer art could not be read:', LAUNCHER_POINTER_ART); }
+    }
+    return files;
+  });
+  return launcherPointer;
+}
 async function serveLauncherFile(parts) {
+  if (parts.length === 1 && Object.hasOwn(POINTER_FILES, parts[0])) {
+    const png = (await launcherPointerFiles()).get(parts[0]);
+    return png ? new Response(png, { headers: { 'Content-Type': 'image/png' } }) : new Response('not found', { status: 404 });
+  }
   const p = parts.length === 1 && parts[0] === 'menuPad.js'
     ? MENU_PAD
     : parts.length === 1 && parts[0] === 'dfo-online.png'
@@ -428,8 +449,9 @@ function handleDagger(req) {
   // DA13: a version the channel brought is served by its own index - its own files, or the seed's where they are the
   // same - and a path it does not name is no file of the game's, whatever the seed holds (a file it removed). A
   // directory serves its index.html, as below.
-  if (gameStore?.active()) {
-    const file = gameStore.resolve(rel) ?? gameStore.resolve(`${rel}/index.html`);
+  const store = servingStore ?? gameStore;   // a private server plays the pinned game (hostingGame)
+  if (store?.active()) {
+    const file = store.resolve(rel) ?? store.resolve(`${rel}/index.html`);
     return file ? fileResponse(file) : new Response('not found', { status: 404 });
   }
   let p = path.normalize(path.join(DIST, rel));
@@ -488,6 +510,7 @@ function handleDagger(req) {
 // the next one is asked for, or when GitHub does not answer.
 const RELEASES_LATEST_API = 'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases/latest';
 const RELEASES_LIST_API = 'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases?per_page=20';
+const RELEASES_TAG_API = 'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases/tags/';   // + the hosting pin's tag (main's release, not the fork's)
 const RELEASES_PAGE = 'https://github.com/principialnostb/daggerfall-js-source/releases/latest';
 const { isNewerRelease } = require('./lib/updateCheck.cjs');
 const { updateTransport } = require('./lib/autoUpdate.cjs');
@@ -518,11 +541,13 @@ app.on('will-quit', () => gpuGone.flush());
 // GPU-BACKEND: a chosen backend's GPU process gone in its first minute is that backend failing to start
 app.on('child-process-gone', (_e, details) => { if (details?.type === 'GPU') backendGuard.onGpuGone(details); });
 const { RELEASES_URL, latestDownloadUrl, releaseAssetUrl, manualDownloadFile } = require('./lib/downloads.cjs');
-const { assetCheck, swapPlan, swapScript } = require('./lib/selfSwap.cjs');   // UPDATE-SWAP: the Mac app and the portable exe update themselves
+const { assetCheck, swapPlan, swapScript, swapStarterVbs } = require('./lib/selfSwap.cjs');   // UPDATE-SWAP: the Mac app and the portable exe update themselves
 const {
   CHECK_TIMEOUT_MS, RECHECK_MS, INSTALL_NOTICE_MS, INSTALL_GIVEUP_MS, DOWNLOAD_STALL_MS, DETECT_DEADLINE_MS, JUDGE_DEADLINE_MS, PICK_DEADLINE_MS,
   initialState, reduce, nextStep, viewOf, newsFrom, cachedNews, notArena2Detail, installAttemptFor, directPlay, PLAY_SWITCH,
 } = require('./lib/launcherState.cjs');
+const { launcherBounds } = require('./lib/launcherWindow.cjs');
+const { POINTER_FILES, pointerFiles } = require('./lib/launcherPointer.cjs');
 
 /** Which transport THIS copy updates by - lib/autoUpdate.cjs's table
  *  over the live facts: packaged or not, the platform, and the portable
@@ -792,7 +817,7 @@ async function restartToUpdate() {
   } finally { restartAsking = false; }
 }
 
-/** UPDATE-RESTART (2026-10-30, the owner: "we should close the desktop app instead of reload it does not update" /
+/** UPDATE-RESTART (2026-10-30 /
  *  "make sure it updates"): the game's update screen, at its end (app/preload.cjs restartForUpdate). The update this
  *  copy holds is put in place by quitting and starting again - never a reload, which can leave the page on the copy it
  *  had: a version the channel brought is played by the next launch (gameStore.startup activates it, and the GPU caches
@@ -818,6 +843,19 @@ const SWAP_DIR = () => path.join(app.getPath('userData'), 'Update');
 /** The swap in flight - { version } - one at a time; and the versions a swap failed on, told by hand instead. */
 let swapJob = null;
 const swapFailedOn = new Set();
+/** A staged portable exe still beside this one at launch means the last swap could not move it in
+ *  and this is the old copy started again. It does not swap this run (the update is the player's to download), so a
+ *  swap that cannot finish never restarts the app over and over. */
+const swapLeftover = (() => {
+  const exe = process.env.PORTABLE_EXECUTABLE_FILE;
+  if (process.platform !== 'win32' || !exe) return false;
+  try {
+    if (!fs.existsSync(`${exe}.new`)) return false;
+    fs.rmSync(`${exe}.new`, { force: true });
+  } catch { /* the leftover stays: this run still does not swap */ }
+  console.warn('[update] the last swap did not finish - this run does not swap');
+  return true;
+})();
 /** Whether a swap is bringing `version` (or already brought it): the notice waits for it. */
 const swapping = (version) => (swapJob?.version === version || (updateReady?.swap && updateReady.version === version)) && !swapFailedOn.has(version);
 
@@ -864,6 +902,7 @@ function startSwap(version, latest) {
   if (swapJob || swapFailedOn.has(version) || (updateReady?.swap && updateReady.version === version)) return;
   const plan = swapPlanHere(latest.file);
   if (!plan.kind || !latest.asset || !latest.download) return;
+  if (plan.kind === 'portable' && swapLeftover) return;
   swapJob = { version };
   if (updateReady?.swap) { updateReady = null; buildMenu(); }   // an older staged copy is written over: it is not swapped in half-written
   const dest = path.join(SWAP_DIR(), plan.kind === 'mac' ? 'update.dmg' : 'update.exe');
@@ -899,8 +938,13 @@ app.on('will-quit', () => {
     const win = plan.kind === 'portable';
     const script = path.join(os.tmpdir(), `dfo-swap-${process.pid}.${win ? 'cmd' : 'sh'}`);
     fs.writeFileSync(script, swapScript(plan, { pid: process.pid, relaunch: swapRelaunch, args: swapRelaunch ? [PLAY_SWITCH] : [] }), { mode: 0o700 });
-    const child = win ? spawn('cmd.exe', ['/d', '/c', script], { detached: true, stdio: 'ignore', windowsHide: true })
-      : spawn('/bin/sh', [script], { detached: true, stdio: 'ignore' });
+    let child;
+    if (win) {   // wscript starts cmd in one hidden console (lib/selfSwap.cjs swapStarterVbs)
+      const starter = script.replace(/\.cmd$/, '.vbs');
+      fs.writeFileSync(starter, swapStarterVbs(script));
+      const wscript = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'wscript.exe');
+      child = spawn(wscript, ['//B', '//NoLogo', starter], { detached: true, stdio: 'ignore', windowsHide: true });
+    } else child = spawn('/bin/sh', [script], { detached: true, stdio: 'ignore' });
     child.unref();
   } catch (err) { console.warn('[update] the swap could not be started:', err?.message ?? err); }
 });
@@ -1062,7 +1106,9 @@ async function fetchPackRange(url, start, end) {
   const watch = () => { clearTimeout(timer); timer = setTimeout(() => stop.abort(), DOWNLOAD_STALL_MS); };
   watch();
   try {
-    const res = await gameFetch(url, { headers: { 'User-Agent': 'daggerfall-js-app', Range: `bytes=${start}-${end - 1}` }, signal: stop.signal });
+    // cache: 'no-store' - pieces of a pack never go into Chromium's HTTP cache: on Windows its disk cache refuses two
+    // pieces of one file at once (net::ERR_CACHE_OPERATION_NOT_SUPPORTED), and gameStore.stage asks for four
+    const res = await gameFetch(url, { headers: { 'User-Agent': 'daggerfall-js-app', Range: `bytes=${start}-${end - 1}` }, cache: 'no-store', signal: stop.signal });
     const contentRange = res.headers.get('content-range');
     if (res.status !== 206 || !res.body) { stop.abort(); return { status: res.status, contentRange, bytes: Buffer.alloc(0) }; }
     const reader = res.body.getReader();
@@ -1351,7 +1397,7 @@ function buildMenu() {
         {
           label: 'Locate ARENA2 Folder...',
           click: async () => {
-            // DA10: with the launcher open (the macOS menu bar is the app's), its own door - its Game files row says the answer
+            // With the launcher open (the macOS menu bar is the app's), its own door: Settings' Game files row says the answer, or the card
             if (launcher) { launcherChooseFolder(); return; }
             const target = liveWindow();
             const dir = await locateArena2(target);
@@ -1603,8 +1649,7 @@ const fromLauncher = (e) => !!launcher && e.sender === launcher.win.webContents 
 
 function openLauncherWindow() {
   const win = new BrowserWindow({
-    width: 960,
-    height: 660,   // GPU-BACKEND-LAUNCHER: the Graphics option's room in the side column
+    ...launcherBounds(require('electron').screen),
     useContentSize: true,
     resizable: false,
     maximizable: false,
@@ -1991,6 +2036,7 @@ ipcMain.on('launcher:act', async (e, msg) => {
     case 'set-backend': setBackendFromLauncher(arg); break;
     case 'restart': restartFromLauncher(); break;
     case 'open': if (Object.hasOwn(LAUNCHER_LINKS, arg)) shell.openExternal(LAUNCHER_LINKS[arg]); break;
+    case 'private-host': case 'private-join': case 'private-stop': await privateAct(action, arg); break;
     default: break;
   }
 });
@@ -2079,6 +2125,88 @@ ipcMain.on('dagger:diagnostic', (e, raw) => {
     }).catch((error) => { console.error('[diagnostics] log write failed:', error?.message ?? error); });
   } catch (error) { console.error('[diagnostics] rejected malformed record:', error?.message ?? error); }
 });
+// ---- A private server, hosted on this PC or joined -------------------------------------------------------------------
+// The launcher's Private server option (app/lib/launcherState.cjs privateView). Hosting runs the game's own relay in
+// Cloudflare's local runtime with this PC's own sign-in key (app/lib/privateHost.mjs); joining runs a bridge on
+// 127.0.0.1 to a friend's host. Either way the game page is told the address (dagger:private-server) and a local
+// character it loads plays online there - never on the main servers.
+let priv = null;   // { url, stop, timer } while hosting or joined
+let hostingStore = null;   // the pinned release's game (lib/hostingPin.cjs), opened on the first Host or Join
+let servingStore = null;   // the store dagger:// serves while a private server runs: the pin's, or null for the app's
+/** The pinned release's game, fetched once into its own folder - or null when nothing is pinned or the app plays it. */
+async function hostingGame() {
+  const { HOSTING_PIN } = require('./lib/hostingPin.cjs');
+  if (!HOSTING_PIN || !gameStore) return null;
+  const version = versionOfTag(HOSTING_PIN);
+  if (gameStore.version() === version) return null;
+  hostingStore ??= openGameStore({ root: path.join(app.getPath('userData'), 'Hosting game'), seed: gameStore.seed, dist: DIST });
+  if (hostingStore.active() && hostingStore.version() === version) return hostingStore;
+  privateTell({ status: 'starting' });
+  const rel = await net.fetch(RELEASES_TAG_API + HOSTING_PIN, { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000) });
+  const game = rel.ok ? gameAssetsOf(await rel.json()) : null;
+  if (!game) throw new Error(`the hosting version (${HOSTING_PIN}) could not be found`);
+  const res = await gameFetch(game.manifest, { headers: { 'User-Agent': 'daggerfall-js-app' }, signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`the hosting version's manifest answered HTTP ${res.status}`);
+  const manifest = parseManifestFile(Buffer.from(await res.arrayBuffer()), { version });
+  await hostingStore.stage(manifest, { fetchRange: (start, end) => fetchPackRange(game.pack, start, end), onProgress: () => {} });
+  hostingStore.activate(version);
+  return hostingStore;
+}
+const privateHost = () => import(pathToFileURL(path.join(__dirname, 'private', 'host.mjs')).href);
+/** The relay the game being played carries (scripts/privateRelay.mjs writes it into dist/). */
+const privateRelay = () => { const store = servingStore ?? gameStore; return store?.active() ? store.resolve('private/relay.mjs') : path.join(DIST, 'private', 'relay.mjs'); };
+/** This PC's own IPv4 addresses - the ones a friend can type (a LAN's, a Tailscale's). */
+function lanAddresses() {
+  return Object.values(require('node:os').networkInterfaces()).flat().filter((n) => n && n.family === 'IPv4' && !n.internal).map((n) => n.address);
+}
+const privateTell = (p) => launcherDispatch({ type: 'private', priv: p });
+async function privateStop() {
+  const p = priv;
+  priv = null;
+  const pinned = servingStore;
+  servingStore = null;
+  if (p) { clearInterval(p.timer); await p.stop().catch(() => {}); }
+  if (pinned && gameWindow && !gameWindow.isDestroyed()) gameWindow.reload();   // back to the app's own game
+}
+async function privateAct(action, arg) {
+  if (action === 'private-stop') { await privateStop(); privateTell({ status: 'off' }); return; }
+  if (priv) return;
+  try {
+    const host = await privateHost();
+    servingStore = await hostingGame();   // the pinned game, before any relay or page reads a file
+    if (servingStore && gameWindow && !gameWindow.isDestroyed()) gameWindow.reload();
+    if (action === 'private-host') {
+      const relayScript = privateRelay();
+      if (!relayScript || !fs.existsSync(relayScript)) { privateTell({ status: 'failed', error: 'This version of the game has no private server in it.' }); return; }
+      privateTell({ status: 'starting' });
+      // the runtime's binary cannot run from inside app.asar: electron-builder unpacks it (asarUnpack), and miniflare is told where
+      if (app.isPackaged) process.env.MINIFLARE_WORKERD_PATH ??= require('workerd').default.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+      const { Miniflare, supportedCompatibilityDate } = await import('miniflare');
+      const h = await host.startHost({ dir: path.join(app.getPath('userData'), 'Private server'), relayScript, Miniflare, compatibilityDate: supportedCompatibilityDate });
+      const tell = () => privateTell({ status: 'hosting', port: h.port, max: h.max, players: h.players(), addresses: lanAddresses() });
+      priv = { url: h.url, stop: h.stop, timer: setInterval(tell, 5000) };
+      tell();
+    } else {
+      const where = host.parseAddress(arg);
+      if (!where) { privateTell({ status: 'failed', error: 'Type the address your friend gave you, like 192.168.1.20:7777.' }); return; }
+      const address = `${where.host}:${where.port}`;
+      privateTell({ status: 'joining', address });
+      const b = await host.startBridge(where);
+      const info = await host.probe(b.url);
+      if (!info) { await b.stop(); privateTell({ status: 'failed', error: `No private server answered at ${address}. Check the address, and that your friend is hosting.` }); return; }
+      if (info.players >= info.max) { await b.stop(); privateTell({ status: 'failed', error: `${address} is full (${info.max} players).` }); return; }
+      priv = { url: b.url, stop: b.stop, timer: null };
+      privateTell({ status: 'joined', address });
+    }
+  } catch (e) {
+    console.warn('[private] could not start:', e);
+    await privateStop();
+    privateTell({ status: 'failed', error: e?.code === 'EADDRINUSE' ? 'Port 7777 is already in use on this PC. Is another server running?' : `Could not start: ${e?.message ?? e}` });
+  }
+}
+app.on('will-quit', () => { void privateStop(); });
+// the game page asks once, as it boots (app/preload.cjs): the address its online play goes to, or null for the main servers
+ipcMain.on('dagger:private-server', (e) => { e.returnValue = priv ? { url: priv.url } : null; });
 
 // The preload asks for its storage root synchronously at page boot -
 // storage must exist before the first module reads a setting.

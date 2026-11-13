@@ -11,8 +11,8 @@
   {
     "name": "APPEARANCES2-kit-look-never-decoded",
     "file": "src/characters/foeBodies.js",
-    "old": "if (items[i]) items[i].ap = [t, m, v];",
-    "new": "if (items[i]) void [t, m, v];",
+    "old": "  for (const [i, t, m, v] of la ?? []) if (items[i]) items[i].ap = [t, m, v];",
+    "new": "  for (const [i, t, m, v] of la ?? []) if (items[i]) void [t, m, v];",
     "tests": [
       "test/net/appearances2_kit.test.js"
     ]
@@ -20,8 +20,8 @@
   {
     "name": "APPEARANCES2-kit-decoder-index",
     "file": "src/characters/foeBodies.js",
-    "old": "if (items[i]) items[i].ap = [t, m, v];",
-    "new": "if (items[i + 1]) items[i + 1].ap = [t, m, v];",
+    "old": "  for (const [i, t, m, v] of la ?? []) if (items[i]) items[i].ap = [t, m, v];",
+    "new": "  for (const [i, t, m, v] of la ?? []) if (items[i + 1]) items[i + 1].ap = [t, m, v];",
     "tests": [
       "test/net/appearances2_kit.test.js"
     ]
@@ -38,8 +38,8 @@
   {
     "name": "APPEARANCES2-body-key-blind-to-the-look",
     "file": "src/characters/foeBodies.js",
-    "old": ":${it.variant ?? ''}:${it.ap ?? ''}`).join('|');",
-    "new": ":${it.variant ?? ''}`).join('|');",
+    "old": "    .map(\n      (it) =>\n        `${it.equipSlot}:${it.templateIndex}:${it.material ?? ''}:${it.dye ?? ''}:${it.variant ?? ''}:${it.ap ?? ''}`,\n    )",
+    "new": "    .map((it) => `${it.equipSlot}:${it.templateIndex}:${it.material ?? ''}:${it.dye ?? ''}:${it.variant ?? ''}`)",
     "tests": [
       "test/net/appearances2_kit.test.js"
     ]
@@ -47,8 +47,8 @@
   {
     "name": "APPEARANCES2-record-key-blind-to-the-look",
     "file": "src/characters/foeBodies.js",
-    "old": "`${lw.map((w) => w.join(',')).join(';')}${la ? `|${la.map((w) => w.join(',')).join(';')}` : ''}`;",
-    "new": "`${lw.map((w) => w.join(',')).join(';')}`;",
+    "old": "  `${lw.map((w) => w.join(',')).join(';')}${la ? `|${la.map((w) => w.join(',')).join(';')}` : ''}`;",
+    "new": "  `${lw.map((w) => w.join(',')).join(';')}`;",
     "tests": [
       "test/net/appearances2_kit.test.js"
     ]
@@ -56,8 +56,8 @@
   {
     "name": "APPEARANCES2-heir-drops-the-look",
     "file": "src/characters/foeBodies.js",
-    "old": "    if (f._mwWornWireRaw) { worn = f._mwWornWireRaw; looks = f._mwWornWireLooks ?? null; }",
-    "new": "    if (f._mwWornWireRaw) { worn = f._mwWornWireRaw; looks = null; }",
+    "old": "      looks = f._mwWornWireLooks ?? null;",
+    "new": "      looks = null;",
     "tests": [
       "test/net/appearances2_kit.test.js"
     ]
@@ -138,7 +138,7 @@
     "name": "APPEARANCES2-diverse-weapons-copy-read-as-the-artifact",
     "file": "src/combat/diverseWeapons/diverseWeapons.js",
     "old": "const isArtifact = (item) => !isLookCopy(item) && (item?.artifact === true || hasArtifactEffect(item));",
-    "new": "const isArtifact = (item) => (item?.artifact === true || hasArtifactEffect(item));",
+    "new": "const isArtifact = (item) => item?.artifact === true || hasArtifactEffect(item);",
     "tests": [
       "test/ui/appearances2_render.test.js"
     ]
@@ -218,8 +218,8 @@
   {
     "name": "APPEARANCES2-preview-doll-reads-the-character",
     "file": "src/ui/wardrobe/wardrobePreview.js",
-    "old": "    Promise.resolve(composeDoll(stand)).then((px) => {",
-    "new": "    Promise.resolve(composeDoll(entity)).then((px) => {",
+    "old": "    Promise.resolve(composeDoll(stand))",
+    "new": "    Promise.resolve(composeDoll(entity))",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]
@@ -236,8 +236,8 @@
   {
     "name": "APPEARANCES2-preview-memo-blind-to-the-worn-table",
     "file": "src/ui/wardrobe/wardrobePreview.js",
-    "old": ".${it.dye}.${appearanceSig(it)}` : '')).join('|');",
-    "new": ".${it.dye}` : '')).join('|');",
+    "old": "    .map((it) =>\n      it ? `${it.group}.${it.templateIndex}.${it.material}.${it.variant}.${it.dye}.${appearanceSig(it)}` : '',\n    )",
+    "new": "    .map((it) => (it ? `${it.group}.${it.templateIndex}.${it.material}.${it.variant}.${it.dye}` : ''))",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]
@@ -245,8 +245,8 @@
   {
     "name": "APPEARANCES2-preview-drawing-never-told",
     "file": "src/ui/wardrobe/wardrobePreview.js",
-    "old": "      onReady?.();\n    }).catch(",
-    "new": "    }).catch(",
+    "old": "        onReady?.();\n      })",
+    "new": "      })",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]
@@ -290,8 +290,8 @@
   {
     "name": "APPEARANCES2-preview-passed-over-left-drawing",
     "file": "src/ui/wardrobe/wardrobePreview.js",
-    "old": "    if (want && want.key !== key) memo.delete(want.key);",
-    "new": "    void want;",
+    "old": "    if (want && want.key !== key) memo.delete(want.key); // passed over before it was built",
+    "new": "    void want; // passed over before it was built",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]
@@ -317,8 +317,8 @@
   {
     "name": "APPEARANCES2-window-try-dresses-the-piece",
     "file": "src/ui/wardrobe/wardrobeWindow.js",
-    "old": "tried = { item, look }; repaint(); };",
-    "new": "tried = { item, look }; deps.wear(item, look); repaint(); };",
+    "old": "      tried = { item, look };\n      repaint();",
+    "new": "      tried = { item, look };\n      deps.wear(item, look);\n      repaint();",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]
@@ -335,8 +335,8 @@
   {
     "name": "APPEARANCES2-window-tried-kept-across-pieces",
     "file": "src/ui/wardrobe/wardrobeWindow.js",
-    "old": "picked = p.item; note = null; tried = null; repaint();",
-    "new": "picked = p.item; note = null; repaint();",
+    "old": "        tried = null;\n        repaint();",
+    "new": "        repaint();",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]
@@ -344,8 +344,8 @@
   {
     "name": "APPEARANCES2-window-wear-keeps-the-tried-look",
     "file": "src/ui/wardrobe/wardrobeWindow.js",
-    "old": "WARDROBE_WORDS.done(nameOf(item), name) } : { ok: false, text: wardrobeRefusal(done.reason ?? null) };\n          if (done.ok) tried = null;",
-    "new": "WARDROBE_WORDS.done(nameOf(item), name) } : { ok: false, text: wardrobeRefusal(done.reason ?? null) };",
+    "old": "          if (done.ok) tried = null;\n          repaint();",
+    "new": "          repaint();",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]
@@ -353,8 +353,8 @@
   {
     "name": "APPEARANCES2-window-preview-never-let-go",
     "file": "src/ui/wardrobe/wardrobeWindow.js",
-    "old": "      preview?.dispose?.();",
-    "new": "      void preview;",
+    "old": "      preview?.dispose?.(); // APPEARANCES-II: the preview body's rig goes with the window",
+    "new": "      void preview; // APPEARANCES-II: the preview body's rig goes with the window",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]

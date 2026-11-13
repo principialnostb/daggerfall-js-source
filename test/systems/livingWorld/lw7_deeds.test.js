@@ -366,7 +366,7 @@ test('LW7 the streaming host: every resident\'s place by the lives (`livingCycle
   assert.match(w, /if \(!turns\.slain\.size && !turns\.died\.size && !turns\.killed\.size\) return false;[^\n]*\n\s*const h = livingPlaceOf\(res, livingCycleOf\(res, Math\.floor\(\(t - 240\) \/ 1440\)\)\)\.hand;\n\s*return h != null && h <= t;/);
   // PIN MOVED (LEGACY-HOME): one of Project Legacy's line struck down is the family record's, never the lives' (test/systems/legacyhome.test.js)
   assert.match(w, /const livingSlay = \(res, t, seen\) => \{\n\s*if \(isFamilyRes\(res\)\) \{ legacyHost\?\.kinSlain\(res\); return; \}[^\n]*\n(?:\s*legacyHost\?\.residentDied\(res\.id\);[^\n]*\n)?\s*livingRelations\.turn\('slain', turnKey\(res, livingCycleOf\(res, Math\.floor\(\(t - 240\) \/ 1440\)\)\), \{ t, seen, who: res\.name \}\);\n\s*\};/);
-  assert.match(w, /got = \{ holder, dies: !pl\.vacant && pl\.dies, hand: pl\.hand \};/);
+  assert.match(rd('src/scenes/livingWorld/livingBooks.js'), /got = \{ holder, dies: !place\.vacant && place\.dies, hand: place\.hand \};/);   // the places' book lives in the living books module
   assert.match(w, /return pl\.dies && pl\.hand == null; \},   \/\/ LW7/);
   assert.match(w, /f = handsOn\(f, \(m\) => livingPlaceOf\(m, livingCycleOf\(m, Math\.floor\(\(trip\.outT0 - 240\) \/ 1440\)\)\)\.hand\);/);
   assert.match(w, /helped: won\.has\(n\.enc\) \}\)\) \};/);   // PIN MOVED (LW16): the town's news at any minute (livingRoadNewsAt), the word carried's too
@@ -402,5 +402,5 @@ test('LW7 the streaming host: every resident\'s place by the lives (`livingCycle
   assert.match(tt, /_toneTarget = _toneNext;   \/\/ LW7[^\n]*\n\s*_toneNext = null;/, 'the window takes the door\'s resident, and every other door leaves nobody');
   assert.match(tt, /livingTalk\?\.talked\?\.\(target\.person\);[^\n]*\n\s*_toneNext = target\.person\.living \? target\.person : null;/, 'the mobile door names its resident');
   assert.match(tt, /_toneHeard\(\);   \/\/ LW7: the question's tone/);
-  assert.match(tt, /askWork: \(\) => \(_toneHeard\(\), eng\.pipeline\.getAnswerText\(workListItem\(\), \{/);
+  assert.match(tt, /askWork: \(\) => \{\n\s+_toneHeard\(\);\n\s+return eng\.pipeline\.getAnswerText\(workListItem\(\), \{/);
 });

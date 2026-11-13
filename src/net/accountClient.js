@@ -38,6 +38,7 @@
 // once" a sentence rather than a fact.
 // ═══════════════════════════════════════════════════════════════════
 
+import { privateRunOn, privateRunMinter } from './privateServer.js';   // a private run reaches no account service (serviceBase)
 import { HANDLE_RE } from './handleShape.js';
 import { GUILD_RENAME_SILVER } from './guild/guildShopLaw.js';
 import { noteHallArms } from './guild/guildArmsBook.js';   // GUILD-SHOP: a hall's arms, read with its pieces   // GUILD-SHOP: a new name's price, in silver
@@ -73,18 +74,20 @@ import { t, localizedTable } from '../systems/textManager.js';   // L10N4: the r
 import { VENDOR_REFUSAL_WORDS } from './vendorLaw.js';   // HOME-VENDOR: a trader's refusals
 import { SEA_BOUNTY_MIN, SEA_BOUNTY_MAX } from './sea/seaBountyLaw.js';   // SEA-BOUNTY: a post's bounds, in its refusal
 import { busyRead, busyAnswer, busyWaitMs, retryAfterMs, BUSY_HOLD_MS } from './busyLaw.js';   // BUSY-GATE: the reads that stand back while the service is overloaded
+import { forgetRoster } from '../systems/realmRoster.js';
 import { ARENA_TEXT } from '../systems/arena/arenaText.js';   // ARENA4b: the arena's refusals, in its own frozen table
 import { cardById } from './iliac/iliacCards.js';   // AUDIT CARDS-6 D7: the card a short deck lacks, said by its name
 import { jittered } from './backoff.js';   // STORM-SHED: a failed mint's hold, jittered as every book's wait is
 import { tradeHeldSaid } from './realm/realmTradeLaw.js';   // RPT1026-MARKET HOLD-SAID: the standing hold's own notice
 import { MINT_VERSION } from './productRecord.js';   // AUDIT FB1026d C3: a craft asks its record be stamped with the version this build mints
-import { AURUM_CACHE_DAY_MAX } from './aurumCacheLaw.js';   // AURUM-CACHES: the day's forgery bound, in its refusal
 
 /** WHERE THE SERVICE IS. Its own constant beside the relay's
  *  DEFAULT_SERVER (net/online.js), because they are two Workers and
  *  ACC0's whole argument is that they deploy apart - a player pointing
  *  at a test relay has not moved their account. */
 export const DEFAULT_ACCOUNT_SERVICE = 'https://daggerfall-accounts.mackcothran.workers.dev';
+/** The account service on a private server - none (`.invalid` never resolves, RFC 2606). */
+export const PRIVATE_NO_SERVICE = 'https://private.invalid';
 
 /** The bounds the SERVICE enforces, restated here for the field caps
  *  alone. `password.js` PASSWORD_MIN/MAX and `guestName.js` HANDLE_RE
@@ -206,9 +209,8 @@ const REFUSAL_WORDS = {
   'cache-guest': () => t('account.refusal.cacheGuest', 'Aurum caches need a registered account. Add a username and password first.'),
   'cache-closed': () => t('account.refusal.cacheClosed', 'Aurum is closed for now. The coffer stays shut.'),
   'cache-id': () => t('account.refusal.cacheId', 'This coffer cannot be opened. Reload the game and try again.'),
-  'cache-taken': () => t('account.refusal.cacheTaken', 'You emptied this coffer already.'),
+  'cache-taken': () => t('account.refusal.cacheTaken', 'You emptied this coffer this week. It fills again on Monday.'),
   'cache-proof': () => t('account.refusal.cacheProof', 'Wait a moment in the dungeon, then open the coffer again.'),
-  'cache-capped': () => t('account.refusal.cacheCapped', 'You have opened {n, plural, one {# Aurum coffer} other {# Aurum coffers}} today. Come back after midnight, UTC, to open this one.', { n: AURUM_CACHE_DAY_MAX }),
   breach: () => t('account.refusal.breach', 'That breach is not one the Spire knows.'),
   none: () => t('account.refusal.none', 'The Spire took no key for that.'),   // AUDIT EG IV (lane3 #1): an open asked again (`again`) whose ask never reached it
   // EG-E3: a dungeon elite's find (server-account/src/eg.js findEg)
@@ -257,6 +259,8 @@ const REFUSAL_WORDS = {
   'no-piece': () => t('account.refusal.noPiece', 'The account service does not know that piece. The game may need updating.'),
   source: () => t('account.refusal.source', 'The account service does not know that. The game may need updating.'),
   rid: () => t('account.refusal.rid', 'That request could not be read. Try again.'),
+  kind: () => t('account.refusal.source', 'The account service does not know that. The game may need updating.'),   // BOUND-DESTROY: a let-go of neither cakes nor bowls (server-account/src/festival.js discardFestival)
+  count: () => t('festival.refusal.count', 'You hold fewer than that now.'),   // BOUND-DESTROY: a let-go past the count
   ware: () => t('festival.refusal.ware', 'The Wyrd Sister has no such thing.'),
   cakes: () => t('festival.refusal.cakes', 'You need more Soul Cakes.'),
   home: () => t('festival.refusal.home', 'Set it out at your own home.'),
@@ -301,6 +305,10 @@ const REFUSAL_WORDS = {
   // MAIL1, letters. The words are the service's (server-account/src/letters.js) and the letter's law's
   // (net/letterLaw.js, which the service returns verbatim); every one says what to do next.
   'mail-needs-account': () => t('account.refusal.mailNeedsAccount', 'Letters need a username and a password. Give this account one and you can send and receive them.'),
+  // the Discord PDA's link (server-account/src/pdaLink.js)
+  'discord-needs-account': () => t('account.refusal.discordNeedsAccount', 'Linking Discord needs a username and a password. Give this account one first.'),
+  'discord-rate': () => t('account.refusal.discordRate', 'You asked for many codes. Wait a while, then try again.'),
+  'not-linked': () => t('account.refusal.notLinked', 'This account is not linked to Discord.'),
   // SERVER-POST, the server's post (server-account/src/post.js): the developers' messages, and the items in them
   'post-needs-account': () => t('account.refusal.postNeedsAccount', 'The mailbox needs a username and a password. Give this account one and the developers can send you post.'),
   'no-post': () => t('account.refusal.noPost', 'That message is not in your mailbox any more.'),
@@ -496,6 +504,9 @@ const REFUSAL_WORDS = {
   'bad-find': () => t('account.refusal.badFind', 'That find could not be read.'),   // SILVER-FINDS: a loot find of no kind the service knows
   'marks-young': () => t('account.refusal.marksYoung', 'Silver turns up in finds and gathering once your account is a week old.'),   // AUDIT 625 S1: the witnesses' own age
   'not-developer': () => t('account.refusal.notDeveloper', 'Only a developer may do that.'),   // MARKS1's report, NOTICE1's notices, CUSTOMS-PASS's grant
+  // the toybox's grant (server-account/src/devToybox.js): its target and the item law's own refusal
+  'dev-target-guest': () => t('account.refusal.devTargetGuest', 'A guest account has no mailbox. Grant it to a registered account.'),
+  'toybox-unlawful': () => t('account.refusal.toyboxUnlawful', 'The item law refuses this piece.'),
   // SEAT1a: the seats' registry (server-account/src/townSeats.js)
   'seats-need-account': () => t('account.refusal.seatsNeedAccount', 'The seats are witnessed by registered accounts. Add a username to witness one.'),
   'seats-closed': () => t('account.refusal.seatsClosed', 'The seats are not open yet.'),
@@ -1103,6 +1114,7 @@ export const D1_BOOKMARK_READS = new Map([
   ['/v1/arena/board', 'POST'],
   ['/v1/festival/town', 'POST'],   // WITCH1: a town's Hearth Offerings
   ['/v1/hunt/state', 'POST'],   // HUNT-LEAN: a character's hunt
+  ['/v1/prof/ground', 'POST'],   // AUDIT FB1031 W3: the held map's witnessed tiles
 ]);
 let _d1Mark = { secret: null, mark: null };
 /** AUDIT SCALE II A-2: how many times the page's bookmark has been forgotten - a read's answer is kept only under the
@@ -1403,6 +1415,10 @@ export const settleBrokerSale = (io, body) => (io ? call(io, '/v1/broker/settle'
  *  the wardrobe after it and the card's Patreon row. Linking has no call here: the account read carries the link, and
  *  the player follows it in a browser (server-account/src/patreon.js says why). */
 export const unlinkPatreon = (io) => call(io, '/v1/patreon/unlink', {});
+/** The Discord PDA's link: a one-time code to type in Discord (`{ ok, code, expiresAt }`), and the link taken off. The
+ *  account read carries the link's state (`discord`). */
+export const discordCode = (io) => call(io, '/v1/discord/code', {});
+export const unlinkDiscord = (io) => call(io, '/v1/discord/unlink', {});
 
 /** ACC4: ONE BEAT OF TIME PLAYED. It carries no number - the service
  *  credits the gap by its own clock (net/playClock.js says why), and
@@ -1563,6 +1579,7 @@ export function adoptIdentity(storage, { name, kind, glyphs, glyphsOff, aura, ar
  *  same way with nothing on screen explaining why. */
 export function forgetSession(storage) {
   forgetSessionPass();   // SESSION-SIGN: the session's pass with it
+  forgetRoster(storage, storedSession(storage)?.id);   // and the account's online characters as this device kept them
   try { storage?.removeItem?.(SESSION_KEY); return true; } catch { return false; }
 }
 
@@ -1701,6 +1718,8 @@ export const lineHoldMs = (/** @type {unknown} */ wait, rand = Math.random) => {
  * @returns {((room?: string|null) => Promise<string|null>) & { lastWhy: string|null, coolMs: () => number, opened: (room: string|null, token: string) => void, unopened: (room: string|null, token: string) => void, ahead: (room?: string|null, withinMs?: number) => boolean, holds: (room: string|null) => boolean, forget: () => void }}
  */
 export function accountTokenMinter({ fetch, storage, onIssued = null, character = null, now = () => Date.now(), rand = Math.random }) {
+  const onPrivate = privateRunMinter();   // a private run signs in at its host (net/privateServer.js), never here
+  if (onPrivate) return Object.assign(onPrivate, { lastWhy: null, opened() {}, unopened() {}, coolMs: () => 0, ahead: () => false, forget() {}, holds: () => false });
   /** @type {{ token: string, secret: string, character: string|null, at: number, sent: number, rooms: Set<string> } | null} */
   let held = null;
   /** @type {Promise<string|null> | null} */
@@ -1804,7 +1823,7 @@ export function accountTokenMinter({ fetch, storage, onIssued = null, character 
     /** AUDIT SAFE CLIENT-2 (2026-10-17): THE HELD TOKEN LET GO - the relay said this account is banned
      *  (scenes/chatSafetyHost.js), and a token minted a moment before the ban opened every room a rejoin asked within
      *  TOKEN_REUSE_MS. The next room mints, and the service refuses it.
-     *  STAFF-HIDE-TOGGLE (2026-10-23, mob: "need hide to be a toggle"): and Hide me or Show myself pressed
+     *  STAFF-HIDE-TOGGLE (2026-10-23): and Hide me or Show myself pressed
      *  (scenes/staffFollowHost.js relinkGame) - a token signed before the press would open a room as the game was, so it
      *  goes, and so does any mint still on its way (`forgets`): the next room asks the service, which reads the switch as
      *  it stands now. */
@@ -1854,7 +1873,7 @@ export function accountTokenMinter({ fetch, storage, onIssued = null, character 
           // stands. Built field by field, `who` dropped it, so the code's card never stood for anyone: every first line
           // went unread-code. Absent from a service before acct150, which says nothing (heard as yes - chatSafetyHost adopt)
           ...('conduct' in answer.data ? { conduct: answer.data.conduct === true } : {}),
-          // STAFF-CHAT-RED (mob, 2026-10-23: "give me a option next to chat to chat as /red or myself at all times"): the
+          // STAFF-CHAT-RED: the
           // service's word that this token is a hidden staff member's (server-account/src/staffHidden.js hiddenToken,
           // `hidden: 1`), so the chat's switch knows Me says nothing to players (net/chatVoice.js) - absent for everyone else
           ...(answer.data.hidden === 1 ? { hidden: true } : {}) };
@@ -2150,8 +2169,8 @@ export function accountEg({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS }) {
 /**
  * WITCH1 (bible/06-Systems/Witches-Festival.md): THE WITCHES' FESTIVAL (server-account/src/festival.js) through the one
  * door - the account's cakes and what they bought, a find, a sale by its request id, a town's Hearth Offerings and the
- * four moves on one. Every answer is `call`'s shape, waited for ACCOUNT_ACT_WAIT_MS at most; no session is `no-session`,
- * never a throw.
+ * four moves on one, and cakes or bowls let go (BOUND-DESTROY). Every answer is `call`'s shape, waited for
+ * ACCOUNT_ACT_WAIT_MS at most; no session is `no-session`, never a throw.
  */
 export function accountFestival({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS }) {
   const post = waitedPost({ fetch, storage }, waitMs);
@@ -2164,6 +2183,7 @@ export function accountFestival({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS }
     fill: ({ mapId, buildingKey, character }) => post('/v1/festival/offering/fill', { mapId, buildingKey, character }),
     takeIn: ({ mapId, buildingKey, character }) => post('/v1/festival/offering/take-in', { mapId, buildingKey, character }),
     take: ({ mapId, buildingKey }) => post('/v1/festival/offering/take', { mapId, buildingKey }),
+    discard: (kind, n, rid) => post('/v1/festival/discard', { kind, n, rid }),   // BOUND-DESTROY: cakes or bowls let go, by the press's request id
     me: () => storedSession(storage)?.id ?? null,
     guest: () => (storedSession(storage)?.kind ?? null) === 'guest',
   };
@@ -2177,7 +2197,7 @@ export function accountBattlePass({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS
   const post = waitedPost({ fetch, storage }, waitMs);
   return {
     mine: () => post('/v1/pass/mine', {}),
-    find: (/** @type {string} */ source, /** @type {string} */ rid) => post('/v1/pass/find', { source, rid }),
+    find: (/** @type {string|string[]} */ source, /** @type {string} */ rid) => post('/v1/pass/find', Array.isArray(source) ? { sources: source, rid } : { source, rid }),
     me: () => storedSession(storage)?.id ?? null,
     guest: () => (storedSession(storage)?.kind ?? null) === 'guest',
   };
@@ -2547,6 +2567,7 @@ export function accountProf({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS }) {
     account: () => storedSession(storage)?.id ?? null,
     state: (character) => post('/v1/prof/state', { character }),
     pixels: (character, pixels, dungeons = []) => post('/v1/prof/pixels', { character, pixels, dungeons }),   // PROF2: the dungeon stood in
+    ground: (character, tiles) => post('/v1/prof/ground', { character, tiles }),   // WITNESS-MAP, AUDIT FB1031 W1: the day's witnessed tiles asked
     harvest: (req) => post('/v1/prof/harvest', req),
     spec: (character, profession, rank, spec, from, rid, trial = false) => post('/v1/prof/spec', { character, profession, rank, spec, from, rid, ...(trial ? { trial: true } : {}) }),   // AUDIT 29 A15: `from`, the choice the client saw standing; PERK-TRIAL: `trial`, asked as the choice's free day
     // BAG1: `carry` - the units counted as carried, into the bag or the pack - with what the client holds of it (`held`)
@@ -2598,6 +2619,7 @@ export function accountMarket({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS }) 
   return {
     account: () => storedSession(storage)?.id ?? null,
     read: (req) => post('/v1/market/read', req),
+    stamp: () => post('/v1/market/stamp', {}),
     list: (req) => post('/v1/market/list', req),
     buy: (req) => post('/v1/market/buy', req),
     cancel: (character, listing, rid) => post('/v1/market/cancel', { character, listing, rid }),
@@ -2752,6 +2774,9 @@ export function accountWrits({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS }) {
 /** The service this device talks to. Overridable the same way the
  *  relay is, so a test deployment can be pointed at without a build. */
 export function serviceBase(storage) {
+  // A private run (net/privateServer.js) reaches no account service - an address that never answers, so every call
+  // fails as an unreachable service does and nothing of a private server reaches the realm
+  if (privateRunOn()) return PRIVATE_NO_SERVICE;
   try {
     const v = storage?.getItem?.(SERVICE_KEY);
     return (typeof v === 'string' && /^https:\/\/\S+$/.test(v)) ? v : DEFAULT_ACCOUNT_SERVICE;

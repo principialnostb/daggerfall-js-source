@@ -1,5 +1,4 @@
-// WYRM-RIDER (2026-10-30, the owner: "we need a title thats basd ass for this DRAGON TAMER", "perfect titles", "DONT COUNT
-// ADMINS"): a tamed brass Dwarven Dragon holds Wyrm Rider, a tamed Aetherbright Aether Rider; the earliest tame of each
+// WYRM-RIDER (2026-10-30): a tamed brass Dwarven Dragon holds Wyrm Rider, a tamed Aetherbright Aether Rider; the earliest tame of each
 // look - a developer's never counted - holds its First. Derived from the service's own rows (dragon_mounts) as the Marks of
 // Mastery are - held on the wardrobe, worn, signed into the token - and worn on a metal plate (ui/titleFlame.js plateCss).
 import { test } from 'node:test';
@@ -26,7 +25,7 @@ test('WYRM-RIDER THE LAW: a brass tame holds Wyrm Rider, an Aetherbright Aether 
   assert.deepEqual(masteryMarksOf({ aethers: 1, firstAether: true }), ['aetherrider', 'firstaetherrider']);
   assert.deepEqual(masteryMarksOf({ dragons: 0, aethers: 0, firstTame: true, firstAether: true }), [], 'no dragon, no title');
   assert.deepEqual(masteryMarksOf({ dragons: 0, aethers: 1, firstTame: true }), ['aetherrider'], 'the brass First asks a brass dragon');
-  assert.deepEqual(TITLES.slice(-11, -7) /* PIN MOVED (BLOOD-OF-COLDHARBOUR): Blood of Coldharbour joined the list last */, RIDERS, 'the token\'s vocabulary, after Genesis');   // PIN MOVED (STOREFRONT): the shop's three name visuals and the Folios' three joined the list after them
+  assert.deepEqual(TITLES.slice(-14, -10) /* PIN MOVED (BLOOD-OF-COLDHARBOUR): Blood of Coldharbour joined the list last */, RIDERS, 'the token\'s vocabulary, after Genesis');   // PIN MOVED (STOREFRONT): the shop's three name visuals and the Folios' three joined the list after them
   for (const k of RIDERS) assert.ok(MASTERY_MARKS.includes(k) && WARDROBE.title[k]?.src === 'dragon', k);
   assert.deepEqual(RIDERS.map((k) => TITLE_TEXT[k]), ['Wyrm Rider', 'First Wyrm Rider', 'Aether Rider', 'First Aether Rider']);
   assert.equal(WARDROBE.title.firstwyrmrider.avail, 'closed');

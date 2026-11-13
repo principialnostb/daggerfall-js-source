@@ -170,6 +170,45 @@ jobs:
           mkdir -p site/preview/pistol-lab
           cp -a production/dist-pistol/. site/preview/pistol-lab/
 
+      # THE NEXT RELEASE, TRIED BEFORE IT IS LIVE: the branch the next release gathers on (the repository variable
+      # NEXT_PREVIEW_BRANCH, else the branch named here), built offline only and mounted at /preview/next/. Built with
+      # VITE_OFFLINE_ONLY it reaches no account service and no relay, and keeps its saves, settings and Daggerfall data
+      # in browser storage of its own, so the live game's are never read or written. A branch that cannot do that is
+      # never mounted, and every step may fail without taking the site down (the branch is checked out by name). It is
+      # rebuilt with each deploy of main; run this workflow by hand to refresh it.
+      - name: Checkout the next release
+        id: next
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ vars.NEXT_PREVIEW_BRANCH || 'ccr-6ba9dd61-62ihj7' }}
+          path: next
+
+      - name: Build the next release, offline only
+        id: nextbuild
+        if: steps.next.outcome == 'success' && hashFiles('next/src/world/offlineOnly.js') != ''
+        continue-on-error: true
+        env:
+          VITE_OFFLINE_ONLY: '1'
+        run: npm ci && npm run build
+        working-directory: next
+
+      # The preview carries the release's forge art, about 830 MB built, beside the live site, and Pages publishes the
+      # two together. Once the release is live the site carries that art itself and the preview is it over again, past
+      # 1.8 GB together: it is left out then, with a warning. Both sizes are logged either way.
+      - name: Mount the next release under production site
+        if: steps.nextbuild.outcome == 'success'
+        run: |
+          site=$(du -sb site | cut -f1)
+          next=$(du -sb next/dist | cut -f1)
+          echo "the site is $((site / 1000000)) MB, the next release $((next / 1000000)) MB"
+          if [ $((site + next)) -gt 1800000000 ]; then
+            echo "::warning::the next release is not mounted: the site would be $(((site + next) / 1000000)) MB with it"
+            exit 0
+          fi
+          mkdir -p site/preview/next
+          cp -a next/dist/. site/preview/next/
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

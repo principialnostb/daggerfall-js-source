@@ -9,7 +9,7 @@ import { rotationPart } from '../../combat/climbRig.js';
 import { solveBody } from './bodySolve.js';
 import { kneePole } from './guardWalkBalance.js';
 import { guardStance } from './guardStance.js';
-import { carryClassOf } from './carry.js';   // FIST-STANCE: the fists stand on the two-hander's wide feet
+import { carryClassOf } from './carry.js'; // FIST-STANCE: the fists stand on the two-hander's wide feet
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 const { add, sub, scale, len, norm } = algebra;
 
@@ -30,18 +30,38 @@ const WIDE = Object.freeze([MW_WEAPON_TYPE.LongBladeTwoHand, MW_WEAPON_TYPE.Blun
 
 /** Does this body stand in the stance: a stance weapon drawn (empty hands drawn are fists), on the ground, not travelling. */
 export function guardStands(word) {
-  return !!word?.on && !!word.shown && guardStance(word.mwType === MW_WEAPON_TYPE.None ? MW_WEAPON_TYPE.HandToHand : word.mwType) &&
-    !word.busy && !word.swimming && !word.levitating && !word.spell && word.grounded !== false && !word.running && !(word.speed > 0.1);
+  return (
+    !!word?.on &&
+    !!word.shown &&
+    guardStance(word.mwType === MW_WEAPON_TYPE.None ? MW_WEAPON_TYPE.HandToHand : word.mwType) &&
+    !word.busy &&
+    !word.swimming &&
+    !word.levitating &&
+    !word.spell &&
+    word.grounded !== false &&
+    !word.running &&
+    !(word.speed > 0.1)
+  );
 }
 
 export function createGuardStand(config = GUARD_STAND) {
-  let w = 0, cached = null, level = Number(config.level), t = 0, wide = false, fists = false, calm = 0;
+  let w = 0,
+    cached = null,
+    level = Number(config.level),
+    t = 0,
+    wide = false,
+    fists = false,
+    calm = 0;
   const layer = {
     step(dt, on, word) {
       const active = !!on && guardStands(word);
-      if (active) { fists = carryClassOf(word) === 'fists'; wide = WIDE.includes(word.mwType) || fists; level = wide ? config.level : config.narrow ?? config.level; }
+      if (active) {
+        fists = carryClassOf(word) === 'fists';
+        wide = WIDE.includes(word.mwType) || fists;
+        level = wide ? config.level : (config.narrow ?? config.level);
+      }
       t += Math.max(0, dt);
-      calm = ease(calm, active && fists && !word.blow ? 1 : 0, FIST_BOUNCE.quiet, Math.max(0, dt));   // FIST-BOUNCE
+      calm = ease(calm, active && fists && !word.blow ? 1 : 0, FIST_BOUNCE.quiet, Math.max(0, dt)); // FIST-BOUNCE
       w = ease(w, active ? 1 : 0, config.ease, Math.max(0, dt));
       if (!active && w < 1e-3) w = 0;
     },
@@ -54,27 +74,49 @@ export function createGuardStand(config = GUARD_STAND) {
       const mid = scale(add(at(mats, body.bones.L.thigh), at(mats, body.bones.R.thigh)), 0.5);
       const floor = Math.min(at(mats, body.bones.L.foot)[2], at(mats, body.bones.R.foot)[2]);
       const drop = Math.max(0, mid[2] - (floor + level * body.leg)) * clamp01(w);
-      const bounce = fists ? clamp01(w) * calm : 0;   // FIST-BOUNCE: on the two-hander's legs there is nothing to lower
+      const bounce = fists ? clamp01(w) * calm : 0; // FIST-BOUNCE: on the two-hander's legs there is nothing to lower
       if (drop < 1e-4 && !(bounce > 1e-3)) return null;
       // STAND-LIFE: the narrow stands only - the two-hander's breathes already
-      const L = { ...(fists ? FIST_BOUNCE : STAND_LIFE), ...(/** @type {any} */ (globalThis).__standLife ?? {}) }, live = fists ? bounce : wide ? 0 : clamp01(w) * clamp01(drop / (0.02 * body.leg));
-      const breath = live * L.breath * body.leg * 0.5 * (1 - Math.cos(2 * Math.PI * t / L.breathS));
-      const side = scale(norm(sub(at(mats, body.bones.R.thigh), at(mats, body.bones.L.thigh))), live * L.sway * body.leg * Math.sin(2 * Math.PI * t / L.swayS));
+      const L = { ...(fists ? FIST_BOUNCE : STAND_LIFE), .../** @type {any} */ (globalThis.__standLife ?? {}) },
+        live = fists ? bounce : wide ? 0 : clamp01(w) * clamp01(drop / (0.02 * body.leg));
+      const breath = live * L.breath * body.leg * 0.5 * (1 - Math.cos((2 * Math.PI * t) / L.breathS));
+      const side = scale(
+        norm(sub(at(mats, body.bones.R.thigh), at(mats, body.bones.L.thigh))),
+        live * L.sway * body.leg * Math.sin((2 * Math.PI * t) / L.swayS),
+      );
       const feet = {};
       for (const side of ['L', 'R']) {
-        const b = body.bones[side], hip = at(mats, b.thigh), knee = at(mats, b.calf), ankle = at(mats, b.foot);
-        const R = rotationPart(mats.get(b.foot).a), axes = body.footAxes[side];
-        feet[side] = { at: [...ankle], toe: norm(apply(R, axes.fwd)), up: norm(apply(R, axes.up)),
-          pole: kneePole(hip, knee, apply(R, axes.fwd), len(sub(knee, hip)) + len(sub(ankle, knee))), stance: true, w: 1 };
+        const b = body.bones[side],
+          hip = at(mats, b.thigh),
+          knee = at(mats, b.calf),
+          ankle = at(mats, b.foot);
+        const R = rotationPart(mats.get(b.foot).a),
+          axes = body.footAxes[side];
+        feet[side] = {
+          at: [...ankle],
+          toe: norm(apply(R, axes.fwd)),
+          up: norm(apply(R, axes.up)),
+          pole: kneePole(hip, knee, apply(R, axes.fwd), len(sub(knee, hip)) + len(sub(ankle, knee))),
+          stance: true,
+          w: 1,
+        };
       }
-      return solveBody(skeleton, pose, root, skelMats, { w: 1, hip: { at: [mid[0] + side[0], mid[1] + side[1], mid[2] - drop - breath], keepTurn: true }, feet, legsOnly: true });
+      return solveBody(skeleton, pose, root, skelMats, {
+        w: 1,
+        hip: { at: [mid[0] + side[0], mid[1] + side[1], mid[2] - drop - breath], keepTurn: true },
+        feet,
+        legsOnly: true,
+      });
     },
     slot(inner) {
       if (cached && cached.inner === inner) return cached.fn;
-      cached = { inner, fn: (skeleton, pose, root, skelMats) => {
-        layer.apply(skeleton, pose, root, skelMats);
-        return inner ? inner(skeleton, pose, root, skelMats) : null;
-      } };
+      cached = {
+        inner,
+        fn: (skeleton, pose, root, skelMats) => {
+          layer.apply(skeleton, pose, root, skelMats);
+          return inner ? inner(skeleton, pose, root, skelMats) : null;
+        },
+      };
       return cached.fn;
     },
   };

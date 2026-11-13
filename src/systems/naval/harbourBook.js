@@ -28,6 +28,7 @@
 //
 // Not a DFU member. Ledger A (QUAYS).
 import { findHarbour, offsetHarbour, HARBOUR_REACH } from './shipLife.js';
+import { buildsStamp } from './navalShips.js';
 import { SEA_RING } from '../../world/portSites.js';
 import { TERRAIN_SIZE, sampleKernel, HEIGHTMAP_DIMENSION } from '../../world/terrain/terrainSampler.js';
 import { sampleHeight, isWaterHeight } from '../../world/terrain/terrainTiles.js';
@@ -39,7 +40,8 @@ export const HARBOUR_RETRY_S = 10;
 
 /** FB1020c HARBOUR-REACH: the reach (m) off a town's footprint `rect` that sounds the pixels within SEA_RING of its own -
  *  the ring the port law reads (a town's footprint stands at its pixel's middle, DFU's TerrainHelper's tile origin). */
-export const portRingReach = (rect) => (SEA_RING + 0.5) * TERRAIN_SIZE - Math.max(rect.maxX - rect.minX, rect.maxZ - rect.minZ) / 2;
+export const portRingReach = (rect) =>
+  (SEA_RING + 0.5) * TERRAIN_SIZE - Math.max(rect.maxX - rect.minX, rect.maxZ - rect.minZ) / 2;
 
 /**
  * RPT1026-WORLD FAR-QUAY (a private report, 2026-10-24: sailing from one port to another, no other port's docks stood,
@@ -59,14 +61,17 @@ export const portRingReach = (rect) => (SEA_RING + 0.5) * TERRAIN_SIZE - Math.ma
  *   TerrainDistance 3, has every ring pixel built or dry.
  * Not a DFU member (QUAYS, above).
  */
-export const HARBOUR_TOWN_ORDER = Object.freeze((() => {
-  const out = [];
-  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) out.push(Object.freeze([dx, dy]));
-  for (let dy = -SEA_RING; dy <= SEA_RING; dy++) {
-    for (let dx = -SEA_RING; dx <= SEA_RING; dx++) if (Math.max(Math.abs(dx), Math.abs(dy)) > 1) out.push(Object.freeze([dx, dy]));
-  }
-  return out;
-})());
+export const HARBOUR_TOWN_ORDER = Object.freeze(
+  (() => {
+    const out = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) out.push(Object.freeze([dx, dy]));
+    for (let dy = -SEA_RING; dy <= SEA_RING; dy++) {
+      for (let dx = -SEA_RING; dx <= SEA_RING; dx++)
+        if (Math.max(Math.abs(dx), Math.abs(dy)) > 1) out.push(Object.freeze([dx, dy]));
+    }
+    return out;
+  })(),
+);
 
 /** RPT1026-WORLD FAR-QUAY: each height map's answers, a pixel's at its key - the map never changes under a session. */
 const DRY = new WeakMap();
@@ -84,13 +89,14 @@ const DRY = new WeakMap();
 export function dryPixel(woods, px, py) {
   if (!woods || !(px >= 0 && py >= 0 && px < 1000 && py < 500)) return false;
   let memo = DRY.get(woods);
-  if (!memo) DRY.set(woods, memo = new Map());
+  if (!memo) DRY.set(woods, (memo = new Map()));
   const key = py * 1000 + px;
   let d = memo.get(key);
   if (d !== undefined) return d;
   const k = sampleKernel(woods, px, py, HEIGHTMAP_DIMENSION, false);
   d = true;
-  for (let x = 0; x < HEIGHTMAP_DIMENSION && d; x++) for (let y = 0; y < HEIGHTMAP_DIMENSION && d; y++) d = !isWaterHeight(sampleHeight(Math.fround(k(x, y))));
+  for (let x = 0; x < HEIGHTMAP_DIMENSION && d; x++)
+    for (let y = 0; y < HEIGHTMAP_DIMENSION && d; y++) d = !isWaterHeight(sampleHeight(Math.fround(k(x, y))));
   memo.set(key, d);
   return d;
 }
@@ -105,15 +111,19 @@ export function dryPixel(woods, px, py) {
 export function harbourKnown(built, state, woods, x, z) {
   if (built(x, z)) return true;
   const c = state.compensation;
-  return dryPixel(woods, state.mapOrigin.x + Math.floor((x - c[0]) / TERRAIN_SIZE), state.mapOrigin.y - Math.floor((z - c[2]) / TERRAIN_SIZE));
+  return dryPixel(
+    woods,
+    state.mapOrigin.x + Math.floor((x - c[0]) / TERRAIN_SIZE),
+    state.mapOrigin.y - Math.floor((z - c[2]) / TERRAIN_SIZE),
+  );
 }
 
 /**
  * RPT1026-WORLD FAR-QUAY: a port town as the book is handed it - `t` its town (`{ id, loc, x, y, name?, reach? }`: its
- * location, its map pixel, an isle's own reach), answered as `{ key, name, rect, ready, reach }`: its footprint in the
- * scene NOW (the native rect, locationWorldRect, through the floating origin's localFromWorld) and its readiness at any
- * reach. Moved out of scenes/world.js navalHarbourNear, which now names every port town near the player (a far harbour's
- * first berth can lie within a pixel of another port - Pencart's of Longham - so the nearest town alone never sounded it).
+ * location, its map pixel, an isle's own reach), answered as `{ key, name, rect, ready, reach, groundOver }`: its
+ * footprint in the scene NOW (the native rect, locationWorldRect, through the floating origin's localFromWorld), its
+ * readiness at any reach and its built ground (builtGround). The book is handed every port town near the player: a far
+ * harbour's first berth can lie within a pixel of another port (Pencart's of Longham).
  * AUDIT HOLDINGS O1: the readiness - whether every pixel the harbour's scan reads (the rect grown HARBOUR_REACH) is known:
  * a pixel not built reads as land, so a harbour sounded early found its shore at the streamed world's edge and two
  * players arriving by different roads found different berths and stood different quays; asked only before it is
@@ -126,18 +136,127 @@ export function harbourKnown(built, state, woods, x, z) {
 export const EDGE_IN = 0.01;
 export function harbourOf(t, { state, built, woods }) {
   const r = locationWorldRect(t.loc, t.x, t.y);
-  const [ax, az] = state.localFromWorld(r.minX, r.minZ), [bx, bz] = state.localFromWorld(r.maxX, r.maxZ);
+  const [ax, az] = state.localFromWorld(r.minX, r.minZ),
+    [bx, bz] = state.localFromWorld(r.maxX, r.maxZ);
   const rect = { minX: Math.min(ax, bx), maxX: Math.max(ax, bx), minZ: Math.min(az, bz), maxZ: Math.max(az, bz) };
-  const reach = t.reach ?? HARBOUR_REACH;   // AUDIT CAPTAIN'S SEA H1: an isle port's sounding reaches its shore
+  const reach = t.reach ?? HARBOUR_REACH; // AUDIT CAPTAIN'S SEA H1: an isle port's sounding reaches its shore
   const ready = (r = reach) => {
-    const x0 = rect.minX - r, z0 = rect.minZ - r, sx = rect.maxX - rect.minX + 2 * r, sz = rect.maxZ - rect.minZ + 2 * r;
-    const nx = Math.ceil(sx / 400), nz = Math.ceil(sz / 400);   // under 400 m apart, both edges read: no pixel (819.2 m) between two
+    const x0 = rect.minX - r,
+      z0 = rect.minZ - r,
+      sx = rect.maxX - rect.minX + 2 * r,
+      sz = rect.maxZ - rect.minZ + 2 * r;
+    const nx = Math.ceil(sx / 400),
+      nz = Math.ceil(sz / 400); // under 400 m apart, both edges read: no pixel (819.2 m) between two
     // RPT1026-WORLD FAR-QUAY: the box half-open - its far edges a hair inside it (EDGE_IN): the ring's own far edge is a
     // pixel's edge, and a point ON it was read as the next pixel's, one past the ring the port law reads
-    for (let i = 0; i <= nx; i++) for (let k = 0; k <= nz; k++) if (!harbourKnown(built, state, woods, x0 + Math.min(sx * i / nx, sx - EDGE_IN), z0 + Math.min(sz * k / nz, sz - EDGE_IN))) return false;
+    for (let i = 0; i <= nx; i++)
+      for (let k = 0; k <= nz; k++)
+        if (
+          !harbourKnown(
+            built,
+            state,
+            woods,
+            x0 + Math.min((sx * i) / nx, sx - EDGE_IN),
+            z0 + Math.min((sz * k) / nz, sz - EDGE_IN),
+          )
+        )
+          return false;
     return true;
   };
-  return { key: `port:${t.id}`, name: t.name ?? null, rect, ready, reach };   // SHIP-TAGS: her name, the words a ship bound there is read by
+  const groundOver = (box) => builtGround(state, built, box); // a retry reads whether the ground its sounding read stands
+  return { key: `port:${t.id}`, name: t.name ?? null, rect, ready, reach, groundOver }; // SHIP-TAGS: her name, the words a ship bound there is read by
+}
+
+/** Each object the built ground names, by a number, so a kept reading of the ground holds no pixel the world let go. */
+const groundIds = new WeakMap();
+let lastGroundId = 0;
+const groundIdOf = (thing) => {
+  if (thing === null || (typeof thing !== 'object' && typeof thing !== 'function')) return thing;
+  let found = groundIds.get(thing);
+  if (found === undefined) groundIds.set(thing, (found = ++lastGroundId));
+  return found;
+};
+
+/**
+ * The built ground over a scene box `[minX, minZ, maxX, maxZ]` as it stands: the frame (the compensation and the map
+ * origin a scene point's pixel is read through), then for each pixel the box touches the built pixel there and what the
+ * sea's water law and the ground's height read of it - its tile map, its heights, its ring class, its carved sea. Two
+ * equal answers mean every point in the box reads as it did, so a sounding over it answers as it did.
+ * @param {{ mapOrigin: { x: number, y: number }, compensation: number[] }} state
+ * @param {(x: number, z: number) => any} built @param {number[]} box
+ */
+export function builtGround(state, built, box) {
+  const comp = state.compensation,
+    origin = state.mapOrigin;
+  const out = [comp[0], comp[1], comp[2], origin.x, origin.y];
+  if (!(box[0] <= box[2] && box[1] <= box[3])) return out;
+  const west = Math.floor((box[0] - comp[0]) / TERRAIN_SIZE),
+    east = Math.floor((box[2] - comp[0]) / TERRAIN_SIZE);
+  const south = Math.floor((box[1] - comp[2]) / TERRAIN_SIZE),
+    north = Math.floor((box[3] - comp[2]) / TERRAIN_SIZE);
+  for (let k = south; k <= north; k++) {
+    for (let i = west; i <= east; i++) {
+      const pixel = built(comp[0] + (i + 0.5) * TERRAIN_SIZE, comp[2] + (k + 0.5) * TERRAIN_SIZE);
+      out.push(
+        groundIdOf(pixel ?? null),
+        groundIdOf(pixel?.tilemapBytes),
+        groundIdOf(pixel?.samples),
+        pixel?._stride,
+        groundIdOf(pixel?.deepWaters),
+      );
+    }
+  }
+  return out;
+}
+
+/** Widen `box` to hold scene point (x, z). A point off every finite pixel reads no pixel, so it is left out. */
+function widenBox(box, x, z) {
+  if (!(Number.isFinite(x) && Number.isFinite(z))) return;
+  if (x < box[0]) box[0] = x;
+  if (z < box[1]) box[1] = z;
+  if (x > box[2]) box[2] = x;
+  if (z > box[3]) box[3] = z;
+}
+
+/** The most keep answers a near sounding keeps for its retry, each asked again there. A port whose sounding asks its keep
+ *  more often than this is sounded again at each retry. */
+export const KEEP_ASKS = 8192;
+
+/** What a near sounding over `box` read: the town's footprint, its reach, the hulls' builds, the ground over the box,
+ *  whether it had a keep and the keep's answers in the order asked (`asked`: x, z, answer) - or null for a port that
+ *  cannot name its ground (`groundOver`, harbourOf's) or whose keep was asked past KEEP_ASKS. */
+function groundRead(near, reach, box, keep, asked) {
+  if (typeof near.groundOver !== 'function' || (asked && asked.length > 3 * KEEP_ASKS)) return null;
+  const rect = near.rect;
+  return {
+    box,
+    reach,
+    rect: [rect.minX, rect.minZ, rect.maxX, rect.maxZ],
+    builds: buildsStamp(),
+    ground: near.groundOver(box),
+    keep: !!keep,
+    asked,
+  };
+}
+
+/** Whether a sounding now would get every answer `read` got: the same footprint, reach and hulls, the same ground over
+ *  the box it read, and its keep's same answers where it asked them. A sounding reads nothing else, and the same answers
+ *  lead it to the same questions, so it would give the harbour it gave. */
+function groundHeld(read, near, reach) {
+  if (!read || typeof near.groundOver !== 'function' || read.reach !== reach || read.builds !== buildsStamp())
+    return false;
+  const rect = near.rect,
+    was = read.rect;
+  if (!Object.is(rect.minX, was[0]) || !Object.is(rect.minZ, was[1])) return false;
+  if (!Object.is(rect.maxX, was[2]) || !Object.is(rect.maxZ, was[3])) return false;
+  const keep = near.keep ?? null;
+  if (!!keep !== read.keep) return false;
+  const now = near.groundOver(read.box);
+  if (now.length !== read.ground.length) return false;
+  for (let i = 0; i < now.length; i++) if (!Object.is(now[i], read.ground[i])) return false;
+  const asked = read.asked;
+  for (let i = 0; asked && i < asked.length; i += 3) if (!keep(asked[i], asked[i + 1]) !== !asked[i + 2]) return false;
+  return true;
 }
 
 /**
@@ -145,42 +264,92 @@ export function harbourOf(t, { state, built, woods }) {
  * (harbourKnown). RPT1026-WORLD FAR-QUAY: `harbourNear` may answer a list, a port a town, each sounded as one always was.
  * @param {{
  *   harbourNear: () => ({ key: string, name?: string|null, rect: { minX: number, maxX: number, minZ: number, maxZ: number },
- *     ready?: (reach?: number) => boolean, reach?: number, keep?: ?((x: number, z: number) => boolean) } | null),
- *   isWater: (x: number, z: number, hull: number) => boolean,
- *   ground?: (x: number, z: number) => number,
+ *     ready?: (reach?: number) => boolean, reach?: number, keep?: ?((x: number, z: number) => boolean),
+ *     groundOver?: (box: number[]) => any[] } | null),
+ *   isWater: (x: number, z: number, hull: number) => boolean, ground?: (x: number, z: number) => number,
  * }} deps
  */
 export function createHarbourBook(deps) {
   /** key -> { key, name, harbour (findHarbour's, or null: a port with no shore to berth at), at (when it was sounded),
-   *  far (FB1020c HARBOUR-REACH: whether the port law's ring was sounded) } */
+   *  far (FB1020c HARBOUR-REACH: whether the port law's ring was sounded), read (what its last near sounding read,
+   *  groundRead's, while it has no harbour) } */
   const book = new Map();
 
   /** Sound the port near the player: once its ground is built, and again HARBOUR_RETRY_S after a sounding that found
-   *  no harbour. FB1020c HARBOUR-REACH: a Bay port whose own shore gave none, out to the port law's ring once that ground
-   *  is built. `clock` in seconds. */
+   *  no harbour, if anything that sounding read has changed (groundHeld). FB1020c HARBOUR-REACH: a Bay port whose own
+   *  shore gave none, out to the port law's ring once that ground is built. `clock` in seconds. */
   function step(clock) {
     const near = deps.harbourNear() ?? null;
     if (!near) return;
-    for (const one of Array.isArray(near) ? near : [near]) stepOne(one, clock);   // RPT1026-WORLD FAR-QUAY: every port near
+    for (const one of Array.isArray(near) ? near : [near]) stepOne(one, clock); // RPT1026-WORLD FAR-QUAY: every port near
   }
   /** One port's sounding (step's, for each port the host names). */
   function stepOne(near, clock) {
     const own = near.reach ?? HARBOUR_REACH;
-    const sound = (reach = own, square = false) => findHarbour({ rect: near.rect, isWater: (x, z, h) => deps.isWater(x, z, h), reach, square, keep: near.keep ?? null, ground: deps.ground ?? null });   // AUDIT CAPTAIN'S SEA H1: an isle port's own reach; PORT-SHIPS: its town's keep and the ground
+    /** What the near sounding read, once one is made this step (groundRead's, null where it cannot be kept). */
+    let read;
+    const sound = (reach = own, square = false) => {
+      // the near sounding keeps the box of the points it asks and its keep's answers: a retry tells whether any moved
+      const box = reach === own && !square ? [Infinity, Infinity, -Infinity, -Infinity] : null;
+      const keep = near.keep ?? null,
+        asked = box && keep ? [] : null;
+      const groundAt = deps.ground;
+      const harbour = findHarbour({
+        rect: near.rect,
+        isWater: (x, z, h) => {
+          if (box) widenBox(box, x, z);
+          return deps.isWater(x, z, h);
+        },
+        reach,
+        square,
+        keep: asked
+          ? (x, z) => {
+              const a = keep(x, z);
+              if (asked.length <= 3 * KEEP_ASKS) asked.push(x, z, a ? 1 : 0);
+              return a;
+            }
+          : keep,
+        ground: groundAt
+          ? (x, z) => {
+              if (box) widenBox(box, x, z);
+              return groundAt(x, z);
+            }
+          : null,
+      }); // AUDIT CAPTAIN'S SEA H1: an isle port's own reach; PORT-SHIPS: its town's keep and the ground
+      if (box) read = groundRead(near, own, box, keep, asked);
+      return harbour;
+    };
     const h = book.get(near.key);
-    if (!h) { if (near.ready?.() !== false) book.set(near.key, { key: near.key, name: near.name ?? null, harbour: sound(), at: clock }); }
-    else if (!h.harbour && clock - h.at >= HARBOUR_RETRY_S && near.ready?.() !== false) { h.harbour = sound(); h.at = clock; }
-    const e = book.get(near.key), far = own === HARBOUR_REACH ? portRingReach(near.rect) : 0;
-    if (e && !e.harbour && !e.far && far > own && near.ready?.(far) !== false) { e.harbour = sound(far) ?? sound(far, true); e.far = true; }   // ALDBRUGH-QUAY: and its corners where the round reach finds no shore
+    if (!h) {
+      if (near.ready?.() !== false)
+        book.set(near.key, { key: near.key, name: near.name ?? null, harbour: sound(), at: clock });
+    } else if (!h.harbour && clock - h.at >= HARBOUR_RETRY_S && near.ready?.() !== false) {
+      // ground that reads as it did gives the harbour it gave: no sounding, and the next retry as late as ever
+      if (!groundHeld(h.read, near, own)) h.harbour = sound();
+      h.at = clock;
+    }
+    const e = book.get(near.key),
+      far = own === HARBOUR_REACH ? portRingReach(near.rect) : 0;
+    if (e && read !== undefined) e.read = read;
+    if (e && !e.harbour && !e.far && far > own && near.ready?.(far) !== false) {
+      e.harbour = sound(far) ?? sound(far, true);
+      e.far = true;
+    } // ALDBRUGH-QUAY: and its corners where the round reach finds no shore
+    if (e?.harbour) e.read = null; // a port with a harbour is never sounded again: what it read is let go
   }
   /** The world moved (the floating origin): every harbour's berths, approaches and mouth with it, in place. */
-  function offsetAll(o) { for (const h of book.values()) offsetHarbour(h.harbour, o); }
+  function offsetAll(o) {
+    for (const h of book.values()) offsetHarbour(h.harbour, o);
+  }
   /** A transition, a jump, a load: every harbour forgotten, to be sounded again where the world is next. */
-  function clear() { book.clear(); }
+  function clear() {
+    book.clear();
+  }
   /** The harbours with berths, for the quays - `[{ key, name, harbour }]`. */
   function list() {
     const out = [];
-    for (const h of book.values()) if (h.harbour?.berths?.length) out.push({ key: h.key, name: h.name ?? null, harbour: h.harbour });
+    for (const h of book.values())
+      if (h.harbour?.berths?.length) out.push({ key: h.key, name: h.name ?? null, harbour: h.harbour });
     return out;
   }
   return { step, offsetAll, clear, list, get: (key) => book.get(key), values: () => book.values() };

@@ -465,5 +465,12 @@
  "sail patterns: Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire": "Liso, Palado, Fajado, Cuartelado, Cabrio, Cruz, Bordura, Sotuer",
  "pattern (a sail's)": "diseño",
  "Fleet (the ships page)": "Flota",
- "arms slot (Aura Armory)": "ranura de brazos"
+ "arms slot (Aura Armory)": "ranura de brazos",
+ "Replacements (the pane)": "Sustituciones",
+ "replacement (the player's own picture)": "sustitución",
+ "picture (a texture or sprite)": "imagen",
+ "overhaul (a mod's change)": "reforma",
+ "NPCs": "PNJ",
+ "Skin card (the profile's card)": "tarjeta Skin",
+ "Rejected: (a refusal)": "Rechazado:"
 }

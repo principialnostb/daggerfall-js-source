@@ -122,11 +122,11 @@
 //   POST /v1/board/notice { subject, body, days } | /v1/board/notice/remove { id }       (a developer's)
 // PROF1, the professions - a registered account's character's, behind PROFESSIONS_OPEN (professions.js); `rid` the act's id:
 //   POST /v1/prof/state { character }                                  -> { tracks, today, taken, stores, writs, caps, hunt }   (PROF7: the account's hides today)
-//   POST /v1/prof/pixels { character, pixels: [[x, y]...] }            -> { pixels: [{ x, y, state, climate?, region? }] }
+//   POST /v1/prof/pixels { character, pixels: [[x, y]...] }            -> { pixels: [{ x, y, state, climate?, region? }] }   (WITNESS-MAP, AUDIT FB1031 W3: /v1/prof/ground { character, tiles: [[tx, ty]...] } -> { day, laid, tiles?: [[tx, ty, px]...] })
 //   POST /v1/prof/harvest { character, node, kind, climate, region, act, at, rid, foe? } -> { ok, material, qty, xp, track, today, store, gem?, extra?, extraQty?, hunt? } | { repeat, ... }   (PROF7: a body's `foe`, no ground)
 //        BAG1: { carry: true, held, heldKey?, seen? } lands the goods in the carried count - `held` what the bag and pack
 //        hold of `heldKey`, the count cut to it only when `seen` (the count the client last heard) is the service's own,
-//        decided once a request (prof_carried_gate) - and a Motherlode's strike (PROF2b) the same  -> { ..., carry, carried }
+//        decided once a request (prof_carried_gate) - and a Motherlode's strike (PROF2b) the same  -> { ..., carry, carried }   (BUTCHER-STORES: `butcheryStores`, a body's meat to the Stores)
 //   POST /v1/prof/spec { character, profession, rank, spec, rid }      -> { ok, track, marks?, balance? }
 //   POST /v1/prof/smelt { character, recipe, count, clean?, rid }      -> { ok, recipe, count, own, bought, xp, first?, clean?, track, stores } | { repeat, ... }   (PROF2; PROF4 the burns and saws; PROF7 the loom's cures and weave - a weave's `track` null; PROF11 the mason's bench's cut and mix - `clean` the chisel's, `first` its 500)
 //   POST /v1/prof/craft { character, recipe, clean, name?, heartwood?, dye?, cracked?, mint?, rid } -> { ok, recipe, quality, count, seed, maker, marked, xp, first, heartwood, dye, hand?, pieces, track, stores } | { repeat, ... }   (PROF3 the anvil; PROF4 the workbench; PROF7 the loom and a garment's `dye`; PROF11 the Sculptor's stone decor; PROF9 the fire's dishes and a dish's `hand`; PROF10 the jeweller's bench - a piece's `hand`, a Lapidary's `cracked` gem; JEWEL-KIN the `mint` its client mints, net/productRecord.js craftMintVersion)
@@ -232,7 +232,7 @@
 import {
   createGuest, openSession, resolveSession, closeSession, closeAllSessions,
   devicesOf, accountView, displayName, accountKind,
-  register, login, recover, changePassword, setEmail, overRate, overAccountRate, accountRateFull,
+  register, login, recover, changePassword, setEmail, overRate, overAccountRate, accountRateFull, overAddressRate, overAddressLimit,
   newRecoveryCodes,   // RECOVERY-SET: a new set of codes from the profile
   accountWardrobe, equipTitle, equipAura, equipArmory, equipArmoryKit, equipEffect, equipIcon, equipGlyph, buyInsignia, insigniaPurse, creditPlay, isMuted, mutedUntil,
   duelRecordOf, claimDuel, gateRecordOf, claimGate, legalRefusal,
@@ -240,6 +240,7 @@ import {
   ACCOUNT_MAX, ACCOUNT_WINDOW_S,
 } from './accounts.js';
 import { mintToken, mintRenownOrder, mintGuildOrder, mintGuildOutOrder, mintHomeOrder, mintYardOrder, MAX_TTL_S, TOKEN_V, ID_RE, SEAT_TITLES, CHAPTER_TITLES, TOKEN_MAX_CHARS, TOKEN_BODY_MAX, tokenBodyOf, glyphsInOrder } from '../../src/net/identityToken.js';
+import { mightSigned } from '../../src/net/mightLaw.js';   // EG-MIGHT: the kit's might, its sky in it
 import { ACCOUNT_VERSION, MAX_BODY_BYTES, ROUTES, OPEN_ROUTES, PATREON_OPEN_ROUTES, SAFE_OPEN_ROUTES, STAFF_ROUTES, savePathOf, realmPathOf, poiPathOf, SAVE_MAX_BYTES, SHOT_MAX_BYTES, maintaining, routeDb, d1BookmarkOf, D1_BOOKMARK_RE, d1Overloaded, noteOverload, shedding, REPLICA_ROUTES, replicaDb, REPLICA_ANY, SHED_NO_REPLICA } from './service.js';   // SCALE4d: the routes a read replica may serve, and the session they are served on
 import { poiRolesOf, putPoiAsset, getPoiAsset, savePoiDraft, submitPoi, withdrawPoi, requestRetire, reviewPoi, rollbackPoi, listPoi, poiHistory, poiQueue, poiLiveFeed, poiHeldVersion, poiFeedTag, listShelf, shelfEntry, shelve, unshelve, POI_ASSET_MAX, POI_DRAFT_BODY_MAX, POI_LIVE_ASSET_MAX_AGE_S } from './poi.js';   // POI-1: the POI store - builders draft, an approver decides, the feed is what is live; POI-4b: the library's shelf
 import { listSaves, putCard, putBlob, getBlob, deleteSave, saveCardOf } from './saves.js';
@@ -268,7 +269,7 @@ import { LOST_BODY_MAX } from '../../src/net/lostLaw.js';
 import { sendReport, myReports, reportInbox, readReport, closeReport } from './reports.js';   // PRIVATE-REPORT: a player's private report
 import { REPORT_BODY_BYTES } from '../../src/net/reportLaw.js';
 import { reportRenownXp, renownTrackOf, renownTracksOf, renownCharacterOk } from './renownTracks.js';   // RENOWN1: Renown's track - RENOWN-CHAR: a character's again
-import { firmamentState, setFirmament, respecFirmament, FIRM_STATUS } from './firmament.js';   // FIRM1: the Firmament - a character's passive tree
+import { firmamentState, setFirmament, respecFirmament, firmamentOpenFor, FIRM_STATUS } from './firmament.js';   // FIRM1: the Firmament - a character's passive tree
 import { chaptersOpenFor, readRoll, claimRoll } from './npcRoll.js';   // CHAP1: the Roll - a realm character's standing with Daggerfall's guilds
 import { witnessHall, listHalls, strikeHall } from './npcHalls.js';
 import { witnessTown, claimTownWatch, townsEcon, raidActStatements, strikeTown, auditTowns, townsOpen } from './townEcon.js';   // TOWN-ECON TE2: the players' share
@@ -287,7 +288,7 @@ import { egSink } from './egEconomy.js';   // EG-E1: the Broker's Panoply sink
 import { settleBrokerSale } from './brokerSales.js';   // AUDIT FB1024 (BROKER-RID): a Broker sale asked after by its request id
 import { startsEg } from './egStarts.js';   // EG-F: the start window's preflight
 import { claimLamp } from './lamp.js';
-import { festivalOf, findFestival, buyFestival, festivalTown, setOffering, fillOffering, takeInOffering, takeFromOffering, FEST_STATUS } from './festival.js';   // WITCH1: the Witches' Festival   // LAMP-KEEPER II: I Love Lamp, laid on the row
+import { festivalOf, findFestival, buyFestival, festivalTown, setOffering, fillOffering, takeInOffering, takeFromOffering, discardFestival, FEST_STATUS } from './festival.js';   // WITCH1: the Witches' Festival   // LAMP-KEEPER II: I Love Lamp, laid on the row
 import { passOf, findPass, BATTLE_PASS_STATUS, unlockPass, buyPass } from './battlePass.js';   // STOREFRONT: the Battle Pass - the account's pass and a deed's find; PASS-PANELS: a track opened and an item bought
 import { claimMaul, SEASON_MAUL_STATUS } from './seasonClaim.js';   // AUDIT LANE 5: the Resonant Maul's day
 import { claimQl, QL_STATUS } from './questlines.js';   // QL12: a questline's step claimed - what the service witnessed, paid
@@ -347,7 +348,8 @@ import {
 } from './writs.js';   // PROF6: guild writs, commissions and the guild Stores
 import { contractBoard, postContract, withdrawContract, contractPayStatements, contractPaysOf } from './contracts.js';   // SILVER-WAYS: guild contracts
 import { motherlodesRead, strikeMotherlode, isMotherlodeNode } from './motherlodes.js';   // PROF2b: the Motherlodes
-import { marketRead, marketList, marketBuy, marketCancel, marketOrder, marketFill, marketUnorder, marketCollect, marketReport, marketRemove, marketAuction, marketBid, marketGoldCollect, marketVendor, marketVendors, marketMyVendors, marketRoad } from './market.js';   // PROF5: the market; PROF5b: its auctions; GOLD-MARKET: gold held collected; RPT1026-MARKET: the road alone
+import { profGround } from './witnessTiles.js';   // AUDIT FB1031 W3: the held map's witnessed tiles
+import { marketRead, marketStamp, marketList, marketBuy, marketCancel, marketOrder, marketFill, marketUnorder, marketCollect, marketReport, marketRemove, marketAuction, marketBid, marketGoldCollect, marketVendor, marketVendors, marketMyVendors, marketRoad } from './market.js';   // PROF5: the market; PROF5b: its auctions; GOLD-MARKET: gold held collected; RPT1026-MARKET: the road alone
 import {
   listRealm, createRealm, customsRealm, joinRealm, checkpointRealm, getRealmBlob, leaveRealm, deleteRealm, undoRealm,
   realmMintFacts, grantCustomsPass, REALM_CHARACTERS_MAX, REALM_MAX_BYTES, objectBytesOf,
@@ -374,6 +376,9 @@ import { staffMessagesFor, staffMessageOk } from './staffMessage.js';   // STAFF
 import { hiddenToken, takeHiddenSeen } from './staffHidden.js';   // STAFF-PANEL5-HIDDEN: a hidden staff member's token, and a private home it entered
 import { HIDDEN_SEEN_PATH, HIDDEN_SEEN_MAX_BYTES, HIDDEN_SEEN_SIG_HEADER } from '../../src/net/hiddenSeen.js';
 import { discordSigned, discordInteraction, DISCORD_BODY_MAX } from './discord.js';
+import { pdaRouteOf, answerPdaRoute } from './pdaRoutes.js';
+import { isJournalPath, journalDoor } from './journalDoor.js';   // the journal's Activity: its own door, no session
+import { discordLinkView } from './pdaLink.js';   // the account card's Discord row   // the Discord PDA's routes the game and Discord's picture fetch call
 import { guildShopOf, buyGuildWare, guildArmsOf } from './guildShop.js';   // GUILD-SHOP: the guild shop, in silver; every guild's arms by its tag
 import { submitGuildLogo, withdrawGuildLogo, clearGuildLogo, guildLogoBytes } from './guildLogos.js';   // GUILD-LOGO: a guild's own logo, reviewed on Discord
 import { GUILD_LOGO_BODY_MAX, guildLogoPathOf } from '../../src/net/guild/guildLogoLaw.js';   // SAFE8: the moderators' queue in Discord
@@ -389,6 +394,8 @@ import {
 import { SHOP_OPEN_ROUTES, SHOP_WEBHOOK_PATH, SHOP_HOOK_MAX_BYTES, shopDoor, shopCardOf, closeStale } from './shop.js';   // SHOP: the shop's doors, and its card on the account read
 import { aurumCardOf, buyWare, AURUM_STATUS, aurumOpenFor } from './aurum.js';   // AURUM: the balance, the day's deals and a ware bought
 import { claimCache, AURUM_CACHE_STATUS } from './aurumCache.js';   // AURUM-CACHES: a cache claimed
+import { devGrantItem, DEV_GRANT_PATH, DEV_GRANT_STATUS } from './devToybox.js';   // the toybox's grant, a developer's
+import { devStageEvent, DEV_EVENT_PATH, DEV_EVENT_STATUS } from './devEvents.js';   // the toybox's events, a developer's
 
 // THIS MODULE EXPORTS `default` AND NOTHING ELSE, and that is a
 // runtime requirement rather than a preference: in a module Worker
@@ -476,7 +483,7 @@ const POST_STATUS = Object.freeze({ 'no-post': 404, 'post-no-item': 409, 'post-c
 const REALM_STATUS = Object.freeze({
   ...JUDGE_STATUS,   // INT3/INT4
   'no-realm-character': 404, 'no-data': 404, lease: 409, seq: 409, 'too-many-characters': 409, auth: 401,   // SESSION-SIGN E3: a checkpoint's session gone
-  'customs-never-online': 403, 'customs-other-account': 403, 'customs-already': 409, 'no-storage': 503,   // CUSTOMS-ELSEWHERE: the other account's
+  'customs-never-online': 403, 'customs-other-account': 403, 'customs-already': 409, 'no-storage': 503, server: 503,   // CUSTOMS-ELSEWHERE: the other account's
   'trade-spent': 409,   // REALM P2.1: a trade's sid another pair settled
   'guild-master-leaves': 409,   // AUDIT REALM L1-F7: a guildmaster deleted hands the guild over first
   'guild-treasury': 409,   // AUDIT REALM2 S8: and a lone one empties the treasury first
@@ -828,6 +835,12 @@ const service = {
       });
     }
 
+    // Above every answer that can reach D1: the public siege read below and a junk token's session read have no bound of their own.
+    const address = request.headers.get('cf-connecting-ip');
+    // the journal's Activity reaches us through Discord's proxy, so every player shares a few addresses: its door
+    // limits each player by Discord id instead (journalDoor.js), and a request no one vouches for by address
+    if (!isJournalPath(path) && (overAddressRate(address, nowS) || await overAddressLimit(env.ADDRESS_LIMIT, address))) return no('rate', 429, origin);
+
     // SEAT2a part three: THE DEPLOY BLACKOUT'S QUESTION (Seats-Arc 17) - public, as the health is: whether any battle is
     // live or starts within thirty minutes, and the latest end among them. It names no guild.
     if (path === '/v1/seats/sieges/live') {
@@ -887,7 +900,7 @@ const service = {
     const realmSlot = realmPathOf(path);   // REALM P1: a realm character's save, matched as a save slot is
     const poiPath = poiPathOf(path);   // POI-1: the POI store's paths, matched the same way
     const logoPath = guildLogoPathOf(path);   // GUILD-LOGO: a guild's logo, by its id
-    if (!ROUTES.has(path) && !slot && !realmSlot && !poiPath && !logoPath) return no('not-found', 404, origin);
+    if (!ROUTES.has(path) && !slot && !realmSlot && !poiPath && !logoPath && !pdaRouteOf(path) && !isJournalPath(path)) return no('not-found', 404, origin);
 
     if (!env.DB) return no('no-database', 503, origin);
     // ADMIT-LINE (admit.js): A SIGN-IN TAKES ITS PLACE IN THE LINE before it costs the database a statement - the open
@@ -920,6 +933,11 @@ const service = {
     const ctx = { db, primary: env.DB, subtle, rand, nowS };   // SCALE4g: `primary` the binding, for a read-then-store a session must not make (board.js)
 
     try {
+      // THE JOURNAL'S ACTIVITY (journalDoor.js): Discord's proxy vouches for the player, so no session is read
+      if (isJournalPath(path)) {
+        const exec = /** @type {any} */ (held).exec;
+        return await journalDoor({ ...ctx, bucket: env.SAVES, self: url.origin }, env, request, path, typeof exec?.waitUntil === 'function' ? { later: (p) => exec.waitUntil(p) } : {});
+      }
       // PATREON-LINK: THE THREE DOORS A BROWSER AND PATREON KNOCK AT. No session: each is proven by what it carries
       // (patreon.js says what, and why the link asks before it writes). Answered before the JSON ladder below, because
       // none of them is JSON going in - a callback is a GET a person reads, the confirm a form, and the webhook a body
@@ -1034,7 +1052,7 @@ const service = {
         // AUDIT SAFE DISCORD-4: what may follow the answer (the order to the relay's door) waits on the Worker's waitUntil,
         // never on Discord's three seconds
         const exec = /** @type {any} */ (held).exec;
-        return json(await discordInteraction(ctx, env, interaction, typeof exec?.waitUntil === 'function' ? { later: (p) => exec.waitUntil(p) } : {}), 200, origin);
+        return json(await discordInteraction({ ...ctx, bucket: env.SAVES, self: url.origin }, env, interaction, typeof exec?.waitUntil === 'function' ? { later: (p) => exec.waitUntil(p) } : {}), 200, origin);   // a logo set from Discord: its picture into R2, its address the service's own
       }
 
       // STAFF-PANEL1 (staff.js): THE STAFF PANEL'S DOORS. None takes a game session - a game secret opens no staff door and a
@@ -1098,6 +1116,14 @@ const service = {
       if (body === undefined && path === '/v1/realm/lineage') return no('lineage-too-large', 413, origin);
       if (body === undefined && path === '/v1/homes/decor/batch') return no('too-large', 413, origin);   // DECOR-BATCH: past 128 KiB, before a session is read
       if (!body) return no('body', 400, origin);
+      // THE PDA'S OPEN ROUTES need no session: the map's picture, which Discord fetches. Bounded per address, as a logo is.
+      const pdaRoute = pdaRouteOf(path);
+      if (pdaRoute?.open) {
+        const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+        if (overAccountRate(`pda:${ip}`, nowS, POI_OPEN_MAX, ACCOUNT_WINDOW_S)) return no('rate', 429, origin);
+        const r = await answerPdaRoute({ ...ctx, db: env.DB, bucket: env.SAVES, self: url.origin }, env, path, null, body, request);
+        return r instanceof Response ? r : json(r.json, r.status, origin);
+      }
       // YARD-SHED (2026-10-06, the service down - "D1 DB is overloaded. Requests queued for too long."): A TOWN'S YARDS NEED
       // NO SESSION. Their answer is every caller's alike, any guest's to read, and the two reads a session costs were most
       // of the database's day - so they are answered here, from the isolate's kept cells (yardCells.js yardCellsKept),
@@ -1354,6 +1380,9 @@ const service = {
         // INT7: AND THAT REALM CHARACTER'S ARMS, `wa` - the most reach of its judged pack's lawful weapons and its bow
         // (realm.js realmMintFacts), every referee's clip of a blow between players. Absent before its first judged checkpoint.
         const wa = facts.wa;
+        // EG-MIGHT: AND ITS MIGHT, `mg` - its judged kit's, its sky in it (realm.js realmMintFacts `km`; net/mightLaw.js
+        // mightSigned), what an Elite Breach's purse grows by. Absent before its first judged checkpoint since EG-MIGHT.
+        const mg = rc ? mightSigned(facts.km) : null;
         // PVP-VILLAIN-KEEP: AND ITS VILLAIN METER, `vl` (realm.js realmMintFacts) - the relay seeds the referee's meter from it
         // ARENA4: AND THE ACCOUNT'S ARENA RATING this season, for a registered account - the hall queues by it (net/arena/arenaLaw.js
         // pairQueue), off the signature, never a word of the client's. A guest's token carries none (a guest is not queued).
@@ -1370,7 +1399,7 @@ const service = {
         // AUDIT LEGACY III O1: AND WHICH REALM CHARACTER (`ci`, beside a 1 alone) - the relay stamps it on a wedding's frames,
         // so each half names the character its player saw. Kept when a house is left unsaid: the widest token without a
         // house is under TOKEN_MAX_CHARS with it (test/auditlegacy3)
-        const signed = { s: who.player.id, n: nameWorn.name, k: accountKind(who.player), ...wardrobe, mu, lv, ...(guild ?? {}), rc, ...(rc ? { ci: body.character } : {}), ...(ar !== undefined ? { ar } : {}), ...(cl != null ? { cl } : {}), ...(wa ? { wa } : {}), ...(fz ? { fz } : {}), ...(rc && facts.vl > 0 ? { vl: facts.vl } : {}) };
+        const signed = { s: who.player.id, n: nameWorn.name, k: accountKind(who.player), ...wardrobe, mu, lv, ...(guild ?? {}), rc, ...(rc ? { ci: body.character } : {}), ...(ar !== undefined ? { ar } : {}), ...(cl != null ? { cl } : {}), ...(wa ? { wa } : {}), ...(mg != null ? { mg } : {}), ...(fz ? { fz } : {}), ...(rc && facts.vl > 0 ? { vl: facts.vl } : {}) };
         let token = await mintToken(house ? { ...signed, ...house } : signed, key, { subtle, nowS });
         // the token's own bounds (identityToken.js TOKEN_MAX_CHARS, and AUDIT LEGACY III O11 the relay hello's TOKEN_BODY_MAX):
         // a house that would take it past either is left unsaid, never the rest
@@ -1420,12 +1449,13 @@ const service = {
         // service's config and clock, which is why it alone takes env.
         // AURA-FAST: every read below is its own and asks D1 in the same breath - one after another they were some twenty
         // round trips, and the account card and the Collections page waited on all of them in turn
-        const [duels, gates, raids, serpents, dragons, sds, stars, ketch, renown, marks, worn, purse, devices, patreon, shop, pass, aurum] = await Promise.all([
+        const [duels, gates, raids, serpents, dragons, sds, stars, ketch, renown, marks, worn, purse, devices, patreon, shop, pass, aurum, discord] = await Promise.all([
           duelRecordOf(ctx, who.player.id), gateRecordOf(ctx, who.player.id), raidRecordOf(ctx, who.player.id), serpentRecordOf(ctx, who.player.id),
           dragonRecordOf(ctx, who.player.id), sdRecordOf(ctx, who.player.id), starRecordOf(ctx, who.player.id), ketchRecordOf(ctx, who.player.id),
           renownTracksOf(ctx, who.player.id), marksCardOf(ctx, who.player, env), withSeatTitles(ctx, who.player, env), insigniaPurse(ctx, who.player),
           devicesOf(ctx, who.player.id), patreonCardOf(who.player, env, { subtle, rand, nowS, origin: url.origin }),
           shopCardOf(who.player, env, { subtle, rand, nowS, origin: url.origin }), passOf(ctx, who.player, env), aurumCardOf(ctx, who.player, env),
+          discordLinkView(ctx, who.player),
         ]);
         return json({
           // DUEL1: and the duelling record, counted off the results (the profile card's K/D); WB5b: and the gates closed
@@ -1441,6 +1471,7 @@ const service = {
           shop,   // SHOP: the wares, what is held, and a Buy link each
           pass: 'error' in pass ? null : pass,   // STOREFRONT: the season's card - a guest's, or none, null
           aurum,   // AURUM: the balance, the day's wares, the week's deeds - a guest's null
+          discord,   // the Discord PDA's link: whether linked, as whom, and whether this account may link
         }, 200, origin);
       }
 
@@ -1655,7 +1686,7 @@ const service = {
       if (path === '/v1/dragon/claim' && request.method === 'POST') {
         // DRAGON4: A DWARVEN DRAGON'S RECEIPT, CARRIED HERE BY THE ACCOUNT IT NAMES, with the character that fought it. The relay
         // signed it at the kill (src/net/dragon/dragonReceipt.js); the session says who is asking, never the body, and dragons.js
-        // `claimDragon` holds the rest - the signature, the account, one row a (watch, account), the device's hoard, the tame.
+        // `claimDragon` holds the rest - the signature, the account, one row a (watch, place, account), the device's hoard, the tame.
         const r = await claimDragon(ctx, who.player, { receipt: body.receipt, character: body.character, cid: body.cid ?? null }, await gatePublicKey(env, subtle));
         if (r.error) return json({ error: r.error, ...(r.why ? { why: r.why } : {}) }, r.error === 'no-gate-key' ? 503 : r.error === 'not-yours' ? 403 : 400, origin);
         if (r.recorded === true) await grantSpoils(ctx.db, who.player.id);   // INT5: a signed win's spoils, the budget's fill
@@ -2189,6 +2220,7 @@ const service = {
         const act = {
           '/v1/prof/state': () => profState(ctx, who.player, env, body),
           '/v1/prof/pixels': () => profPixels(ctx, who.player, env, body),
+          '/v1/prof/ground': () => profGround(ctx, who.player, env, body),   // WITNESS-MAP: the held map's witnessed ground, a day's tiles (witnessTiles.js)
           // PROF2b: a Motherlode is struck through the harvest's own route - its node names it (motherlodes.js)
           '/v1/prof/harvest': () => (isMotherlodeNode(body?.node) ? strikeMotherlode(ctx, who.player, env, body) : harvestNode(ctx, who.player, env, body)),
           '/v1/prof/motherlodes': () => motherlodesRead(ctx, who.player, env, body),   // PROF2b: today's three
@@ -2322,6 +2354,7 @@ const service = {
         const mctx = { ...ctx, bucket: env.SAVES };   // GOLD-MARKET: a gold buy or collect moves a realm record, in R2
         const act = {
           '/v1/market/read': () => marketRead(ctx, who.player, env, body),
+          '/v1/market/stamp': () => marketStamp(ctx),
           '/v1/market/list': () => marketList(mctx, who.player, env, body),   // MARKET-ANY: a pack's piece moves its seller's record
           '/v1/market/buy': () => marketBuy(mctx, who.player, env, body),
           '/v1/market/cancel': () => marketCancel(ctx, who.player, env, body),
@@ -2400,6 +2433,7 @@ const service = {
           '/v1/festival/offering/fill': async () => fillOffering(ctx, who.player, body, env),
           '/v1/festival/offering/take-in': async () => takeInOffering(ctx, who.player, body),
           '/v1/festival/offering/take': async () => takeFromOffering(ctx, who.player, body, env),
+          '/v1/festival/discard': async () => discardFestival(ctx, who.player, body),   // BOUND-DESTROY: cakes or bowls let go, any day
         }[path];
         if (!act) return no('not-found', 404, origin);
         const r = await act();
@@ -2452,11 +2486,11 @@ const service = {
       }
 
       if (path === '/v1/aurum/cache') {
-        // AURUM-CACHES (bible/06-Systems/Aurum.md section 3a): AN AURUM CACHE CLAIMED - one ledger line a cache an account,
-        // under the day's bound (aurumCache.js claimCache)
+        // AN AURUM CACHE CLAIMED - one ledger line a cache an account a UTC week (aurumCache.js claimCache); a refusal
+        // carries when the week turns as `at`, the refusals' word for when an act may come again
         if (request.method !== 'POST') return no('method', 405, origin);
         const r = await claimCache(ctx, who.player, body, env);
-        if ('error' in r) return json({ error: r.error }, AURUM_CACHE_STATUS[/** @type {keyof typeof AURUM_CACHE_STATUS} */ (r.error)] ?? 400, origin);
+        if ('error' in r) return json({ error: r.error, ...('until' in r ? { at: r.until } : {}) }, AURUM_CACHE_STATUS[/** @type {keyof typeof AURUM_CACHE_STATUS} */ (r.error)] ?? 400, origin);
         return json(r, 200, origin);
       }
 
@@ -2561,6 +2595,23 @@ const service = {
         return r.error ? no(r.error, PASS_STATUS[r.error] ?? 400, origin) : json(r, 200, origin);
       }
 
+      // The toybox's grant: a developer's own game session sends a piece it made through the server's post (devToybox.js)
+      //   POST /v1/dev/item/grant { spec, to? } -> { ok, post, item, to: { account, name, self }, playing }
+      if (path === DEV_GRANT_PATH) {
+        if (request.method !== 'POST') return no('method', 405, origin);
+        const granted = await devGrantItem(ctx, who.player, env, body);
+        if (!('error' in granted)) return json(granted, 200, origin);
+        return json({ error: granted.error, ...(granted.findings ? { findings: granted.findings } : {}) }, DEV_GRANT_STATUS[granted.error] ?? 400, origin);
+      }
+
+      // The toybox's events: a developer's own game session stages an invasion or a dragon attack (devEvents.js)
+      //   POST /v1/dev/event { kind, city: { rg, loc, px, py, nm }, family? } -> { ok, event }
+      if (path === DEV_EVENT_PATH) {
+        if (request.method !== 'POST') return no('method', 405, origin);
+        const staged = await devStageEvent(ctx, who.player, env, body);
+        return 'error' in staged ? no(staged.error, DEV_EVENT_STATUS[staged.error] ?? 400, origin) : json(staged, 200, origin);
+      }
+
       // STAFF-PANEL5-FREEZE (staffFreeze.js): THE PLAYER'S OWN STAFF CHAT THREAD - read, and a line of theirs in it
       if (STAFF_CHAT_ROUTES.includes(path)) {
         if (request.method !== 'POST') return no('method', 405, origin);
@@ -2647,6 +2698,13 @@ const service = {
         }
         const r = path === '/v1/mail/read' ? await readLetter(ctx, who.player, env, body.id) : await deleteLetter(ctx, who.player, body.id);
         return 'error' in r ? no(r.error, 404, origin) : json(r, 200, origin);
+      }
+
+      // THE DISCORD PDA's routes behind a session: the link code, the link's state, and each PDA module's own
+      // (pdaRoutes.js). A route that needs a registered account says so itself.
+      if (pdaRoute) {
+        const r = await answerPdaRoute({ ...ctx, bucket: env.SAVES, self: url.origin }, env, path, who.player, body, request);
+        return r instanceof Response ? r : json(r.json, r.status, origin);
       }
 
       // SERVER-POST (2026-10-08, Mac: "an ingame server mailbox that goes next to the hourglass in the pause menu ... First
@@ -2833,7 +2891,7 @@ const service = {
       // account's as its Renown is.
       if (path.startsWith('/v1/realm')) {
         const me = who.player.id;
-        const rctx = { ...ctx, bucket: env.SAVES };
+        const rctx = { ...ctx, bucket: env.SAVES, firmOpen: firmamentOpenFor(who.player, env) };   // AUDIT POTION-MIGHT A5: the sky's switch, the kit's might reads the tree
         const answer = (r, ok = 200) => (r.error ? no(r.error, REALM_STATUS[r.error] ?? 400, origin) : json(r, ok, origin));
         if (path === '/v1/realm') {
           if (request.method !== 'GET') return no('method', 405, origin);

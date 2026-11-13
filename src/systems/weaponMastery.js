@@ -34,64 +34,95 @@ import { SKILLS, skillModOf } from './skills.js';
 import { SKILL_SOFT_CAP } from './skillSoftcap.js';
 import { isOnlinePage } from './online/onlineLane.js';
 import { sigilDueling } from './sigil/sigil.js';
-import { SCHOOL_POTENCY_PER_POINT, fightingClimb } from './spell/spellPower.js';   // CLIMB-PAST's one number: a point past 100 is 1%; MENTOR2: the climb fought with
-import { registerWeaponBlowMod } from './entityMods.js';
-import { blowRoom } from './powerCeiling.js';   // POWER-CEILING: the blow's one product
+import { fightingClimb } from './spell/spellPower.js'; // MENTOR2: the climb fought with (CLIMB-PAST's one number, a point past 100 1%, is powerBlows.js's)
+import { registerWeaponBlowMod, registerWeaponRollAdd } from './entityMods.js';
+import { blowRoom } from './powerCeiling.js'; // POWER-CEILING: the blow's one product
 import { registerSwingPaceMod } from '../characters/weaponStates.js';
-import { swingFamily } from '../combat/swingLaw.js';   // AUDIT MARTIAL L2 F3: the swing's family, no record built
+import { swingFamily } from '../combat/swingLaw.js'; // AUDIT MARTIAL L2 F3: the swing's family, no record built
 import { techniqueFamily } from '../combat/technique/techniqueRoster.js';
-import { healthShare } from '../combat/healthShare.js';   // FIELD BUGS 2026-10-18f RELAY-SHARE: a body's share of its health, the one law
 
-/** Each effective point of a weapon's climb past 100 is this much more of what it does (BAL9b's per point). */
-export const WEAPON_POTENCY_PER_POINT = SCHOOL_POTENCY_PER_POINT;
-/** The Axe's and the Blunt Weapon's: twice that, on their half of a foe's health. */
-export const WEAPON_HALF_PER_POINT = 2 * WEAPON_POTENCY_PER_POINT;
-/** The line between the two halves: a share of the foe's health. */
-export const WEAPON_HALF_LINE = 0.5;
-/** WEAPON-GEAR: the percent each point of gear on a weapon skill adds to its blow (0.44: a sheet of 872, trained 200
- *  and 672 on it, is the climb's 40 + 296 = x4.36, the top mob was shown). */
-export const WEAPON_GEAR_PER_POINT = 0.44;
-/** WEAPON-GEAR: the most percent gear adds (727 points) - with the axe's 80, the ceiling's mastery top of 400. */
-export const WEAPON_GEAR_PCT_MOST = 320;
+// AUDIT POTION-MIGHT D8: the climb's and the gear's numbers, in their one home (powerBlows.js) - the account's judge reads them
+import { WEAPON_POTENCY_PER_POINT, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST } from './powerBlows.js';
+export { WEAPON_POTENCY_PER_POINT, WEAPON_GEAR_PER_POINT, WEAPON_GEAR_PCT_MOST };
 
 /** The skill a blow is struck with, by its family (combat/technique/techniqueRoster.js techniqueFamily - an RRI class's
  *  own included): the bare hand Hand-to-Hand, the Thunderlock Archery (it is scored on it). Null for anything else. */
 const SKILL_OF_FAMILY = Object.freeze({
-  longBlade: SKILLS.LongBlade, shortBlade: SKILLS.ShortBlade, axe: SKILLS.Axe, blunt: SKILLS.BluntWeapon,
-  archery: SKILLS.Archery, thunderlock: SKILLS.Archery, handToHand: SKILLS.HandToHand,
+  longBlade: SKILLS.LongBlade,
+  shortBlade: SKILLS.ShortBlade,
+  axe: SKILLS.Axe,
+  blunt: SKILLS.BluntWeapon,
+  archery: SKILLS.Archery,
+  thunderlock: SKILLS.Archery,
+  handToHand: SKILLS.HandToHand,
 });
-export const blowSkillOf = (weapon) => (weapon ? SKILL_OF_FAMILY[techniqueFamily(weapon) ?? ''] ?? null : SKILLS.HandToHand);
+export const blowSkillOf = (weapon) =>
+  weapon ? (SKILL_OF_FAMILY[techniqueFamily(weapon) ?? ''] ?? null) : SKILLS.HandToHand;
 
-/** The effective points of `skill`'s CLIMB past 100 that pay for `entity` now (0 to 40): mine, online, not the beast -
- *  MENTOR2: the mentored climb while mentoring. */
+/** The effective points of `skill`'s CLIMB past 100 that pay for `entity` now (0 to 40): mine, online, the beast's
+ *  claws too - MENTOR2: the mentored climb while mentoring. */
 export function weaponClimb(entity, skill, { online = isOnlinePage() } = {}) {
-  if (!online || !entity?.isPlayer || entity.peer || entity.isInBeastForm || !Number.isInteger(skill)) return 0;
+  if (!online || !entity?.isPlayer || entity.peer || !Number.isInteger(skill)) return 0;
   const c = fightingClimb(entity, skill);
   return c > SKILL_SOFT_CAP ? c - SKILL_SOFT_CAP : 0;
 }
 
-/** The struck foe's share of its health - null where this machine cannot know it: a body the relay runs, its health here
- *  a placeholder nothing empties (world/gate/gateBoss.js bossStandIn `relayHealth` - the Warden, his crystals and host,
- *  the Remnant, the Elite Gates' court, the sea serpent), with no word of its own heard. AUDIT MARTIAL L3 F2: read as
- *  full, the hammer took its x1.8 on every blow of a boss fight and the axe never its own. FIELD BUGS 2026-10-18f
- *  RELAY-SHARE: the one law (combat/healthShare.js) - such a body now reads the relay's own word of its health (its
- *  stand-in's owner's reader), so each half pays its own there too, and the mean only where no word is heard. */
-const shareOf = healthShare;
-/** WEAPON-GEAR (2026-10-27, mob: "Bow and weapon fix"; Martial-Specialisations.md section 4): the climb above reads the
+/** WEAPON-GEAR (2026-10-27; Martial-Specialisations.md section 4): the climb above reads the
  *  trained skill, so gear bought a weapon no damage while the fists' roll read it whole. So each point of gear on a
- *  weapon skill adds 0.44% to its blow, from the first point (GEAR-ADDS, mob: "they should both just stack
- *  additively", "help the begingin"): the percent here, 0 to 320. Online, mine, never the fists. */
+ *  weapon skill adds 0.44% to its blow, from the first point (GEAR-ADDS): the percent here, 0 to 320. Online, mine, never the fists. */
 export function weaponGearPct(entity, skill, { online = isOnlinePage() } = {}) {
-  if (!online || !entity?.isPlayer || entity.peer || entity._mentor || entity.isInBeastForm || !Number.isInteger(skill) || skill === SKILLS.HandToHand) return 0;
+  if (
+    !online ||
+    !entity?.isPlayer ||
+    entity.peer ||
+    entity._mentor ||
+    entity.isInBeastForm ||
+    !Number.isInteger(skill) ||
+    skill === SKILLS.HandToHand
+  )
+    return 0;
   const gear = skillModOf(entity, skill);
   return gear > 0 ? Math.min(WEAPON_GEAR_PCT_MOST, gear * WEAPON_GEAR_PER_POINT) : 0;
 }
 
 /** The percent MY blow with `weapon` at `target` lands harder for its skill (0 for a blow it does not pay) - the climb's
- *  past 100 and, WEAPON-GEAR, its gear's, added. */
+ *  past 100 and, WEAPON-GEAR, its gear's, added. A blow takes the climb's percent and GEAR-ROLL's roll instead
+ *  (weaponMasteryBlow at a foe, combat/duelCombat.js at a player); this reading stays for the tests that pin the old law. */
 export function weaponPastPct(weapon, attacker, target, opts = {}) {
   const skill = blowSkillOf(weapon);
   return climbPastPct(skill, attacker, target, opts) + weaponGearPct(attacker, skill, opts);
+}
+
+/** The climb's percent alone, by the weapon's family - a blow between players takes it with the gear's roll
+ *  (combat/duelCombat.js `wp` and `gr`), as a blow at a foe does (weaponMasteryBlow). */
+export function weaponClimbPct(weapon, attacker, target, opts = {}) {
+  return climbPastPct(blowSkillOf(weapon), attacker, target, opts);
+}
+
+/** Gear on a weapon skill rolled into a blow at a foe the way the fists' gear is. Gear on
+ *  Hand-to-Hand raises the skill the fists' roll is read off (combat/formulas.js handToHandMinDamage / MaxDamage:
+ *  skill / 10 + 1 to skill / 5 + 1), so the fists' roll grew with every point, while a weapon kept its own small roll and
+ *  took 0.44% a point of it: at 800 a sheet, 200 trained and 600 worn, fists landed about twice the best weapon's damage
+ *  a second and three times a dagger's. Now a weapon's gear points add the fists' rule over the points alone - points /
+ *  10 to points / 5 more damage, rolled - to its blow, in place of their percent, so every family's blow carries the
+ *  same gear roll over its own and the families sit near the fists. The same gate as the percent (weaponGearPct): online,
+ *  mine, no mentor, never the beast, never the fists (theirs is in their roll). [min, max], or null for none. */
+export function weaponGearRoll(entity, weapon, { online = isOnlinePage() } = {}) {
+  if (!weapon) return null;
+  const skill = blowSkillOf(weapon);
+  if (
+    !online ||
+    !entity?.isPlayer ||
+    entity.peer ||
+    entity._mentor ||
+    entity.isInBeastForm ||
+    !Number.isInteger(skill) ||
+    skill === SKILLS.HandToHand
+  )
+    return null;
+  const points = skillModOf(entity, skill);
+  if (!(points > 0)) return null;
+  return [Math.floor(points / 10), Math.floor(points / 5)];
 }
 
 /** MARTIAL2's own: the percent the trained climb past 100 makes a blow, by the weapon's family. */
@@ -99,34 +130,71 @@ function climbPastPct(skill, attacker, target, opts) {
   const climb = weaponClimb(attacker, skill, opts);
   if (!(climb > 0)) return 0;
   switch (skill) {
-    case SKILLS.LongBlade: case SKILLS.Archery: return climb * (WEAPON_POTENCY_PER_POINT * 100);
-    case SKILLS.Axe: case SKILLS.BluntWeapon: {
-      const share = shareOf(target);
-      if (share === null) return climb * (WEAPON_POTENCY_PER_POINT * 100);   // the line unread: the halves' mean (x1.4), the sword's own
-      return (skill === SKILLS.Axe ? share < WEAPON_HALF_LINE : share >= WEAPON_HALF_LINE) ? climb * (WEAPON_HALF_PER_POINT * 100) : 0;
-    }
-    default: return 0;
+    case SKILLS.LongBlade:
+    case SKILLS.Archery:
+    case SKILLS.Axe:
+    case SKILLS.BluntWeapon:
+      // one rate on every blow: a half-only bonus averaged under a sword's over a whole kill
+      return climb * (WEAPON_POTENCY_PER_POINT * 100);
+    default:
+      return 0;
   }
+}
+
+/** The climb's percent on a blow at a PLAYER (combat/duelCombat.js `wp`). Between players every
+ *  family's climb pays the same - each effective point past 100 1% harder on every blow (x1.4 at 200), the Axe and the
+ *  Blunt Weapon with no half line (a player's health is the referee's) - save the Short Blade's, which pays in its swing
+ *  there as at a foe (weaponMasteryPace), and the fists', which is in their roll. */
+export function weaponPvpClimbPct(weapon, attacker, opts = {}) {
+  const skill = blowSkillOf(weapon);
+  if (skill === SKILLS.HandToHand || skill === SKILLS.ShortBlade || !Number.isInteger(skill)) return 0;
+  const climb = weaponClimb(attacker, skill, opts);
+  return climb > 0 ? climb * (WEAPON_POTENCY_PER_POINT * 100) : 0;
 }
 
 /** The fraction a percent of a blow leaves, carried to the next, by weapon (or by my fists). */
 let _carry = new WeakMap();
+/** What the gear on the weapon's skill adds to the WEAPON'S OWN ROLL (combat/pcaao.js
+ *  pcaaoWeaponAttackDamage, combat/formulas.js weaponAttackDamage), as the fists' gear sits in theirs - so every system
+ *  over the weapon's roll and its blow (the damage affixes and their gems, an heirloom, the sets, the sigil, the
+ *  climb, the loot powers and imprints, the stars, the crit) multiplies it as it multiplies the fists'. At a foe: weaponGearRoll's span, rolled on `rolls`.
+ *  Between players: the duel stub's (combat/duelCombat.js resolveDuelStrike, `duelGearAdd`), rolled on its sheet. */
+export function weaponGearAdd(attacker, weapon, target, rolls = Math.random) {
+  if (!weapon) return 0;
+  if (attacker?.peer) return Math.max(0, Math.trunc(Number(attacker.duelGearAdd) || 0));
+  if (!target || target.isPlayer || target.warded || sigilDueling()) return 0;
+  const roll = weaponGearRoll(attacker, weapon);
+  return roll ? roll[0] + Math.floor(rolls() * (roll[1] + 1 - roll[0])) : 0;
+}
+
 /** THE BLOW: my blow at a foe, its skill past 100 - the fraction carried, never past the blow's whole. */
 export function weaponMasteryBlow(weapon, damage, attacker, target, info = null) {
-  if (!(damage > 0) || !attacker?.isPlayer || attacker.peer || !target || target.isPlayer || target.warded || sigilDueling()) return damage;
-  const pct = blowRoom(weaponPastPct(weapon, attacker, target), 'mastery');   // POWER-CEILING
-  if (!(pct > 0)) return damage;
+  if (
+    !(damage > 0) ||
+    !attacker?.isPlayer ||
+    attacker.peer ||
+    !target ||
+    target.isPlayer ||
+    target.warded ||
+    sigilDueling()
+  )
+    return damage;
+  // The gear's roll is in the weapon's own roll now (weaponGearAdd), so the climb's percent rides over both
+  const geared = damage;
+  const pct = blowRoom(weaponClimbPct(weapon, attacker, target), 'mastery'); // POWER-CEILING
+  if (!(pct > 0)) return geared;
   const key = weapon ?? attacker;
-  const exact = (damage * pct) / 100 + (_carry.get(key) ?? 0);
+  const exact = (geared * pct) / 100 + (_carry.get(key) ?? 0);
   const more = Math.floor(exact + 1e-9);
-  if (!info?.estimate) _carry.set(key, Math.max(0, exact - more));   // AUDIT MARTIAL L2 F7: the Stats page's estimate keeps nothing
-  return damage + more;
+  if (!info?.estimate) _carry.set(key, Math.max(0, exact - more)); // AUDIT MARTIAL L2 F7: the Stats page's estimate keeps nothing
+  return geared + more;
 }
 
 /** THE PACE: a short blade's swing, its skill past 100 - 1% quicker a point. `w` the swing reader's answer
  *  (combat/swingLaw.js readSwing), read here only once a climb would pay (AUDIT MARTIAL L2 F3). */
 export function weaponMasteryPace(ctx, w) {
-  if (sigilDueling()) return 0;
+  // The Short Blade's pace is its whole climb between players too (weaponPvpClimbPct pays it no
+  // blow), so it holds in a refereed fight; the paths' paces still sleep there. Never past SWING_FRAME_MIN.
   const climb = weaponClimb(ctx?.entity, SKILLS.ShortBlade);
   if (!(climb > 0)) return 0;
   return (w ? w.family : swingFamily(ctx)) === 'shortBlade' ? climb * (WEAPON_POTENCY_PER_POINT * 100) : 0;
@@ -134,7 +202,10 @@ export function weaponMasteryPace(ctx, w) {
 
 export const WEAPON_MASTERY = 'weaponMastery';
 registerWeaponBlowMod(WEAPON_MASTERY, weaponMasteryBlow);
+registerWeaponRollAdd(weaponGearAdd);
 registerSwingPaceMod(WEAPON_MASTERY, weaponMasteryPace);
 
 /** Tests only: no fraction carried. */
-export function _resetWeaponMasteryForTests() { _carry = new WeakMap(); }
+export function _resetWeaponMasteryForTests() {
+  _carry = new WeakMap();
+}

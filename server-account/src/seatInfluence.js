@@ -379,8 +379,9 @@ export async function creditSeatWrit({ db, nowS }, player, env, { character, key
 export async function agreedGateRegions(db, days) {
   const out = new Map();
   if (!days.length) return out;
+  // the days as ONE bound list: D1 takes at most 100 bound values a statement, and a week's gates can name more game days
   const { results = [] } = await db.prepare(`SELECT day, region, COUNT(*) AS n FROM gate_kills
-    WHERE region IS NOT NULL AND day IN (${days.map(() => '?').join(', ')}) GROUP BY day, region`).bind(...days).all();
+    WHERE region IS NOT NULL AND day IN (SELECT value FROM json_each(?1)) GROUP BY day, region`).bind(JSON.stringify(days)).all();
   const best = new Map();
   for (const r of results) {
     const d = Number(r.day), n = Number(r.n);

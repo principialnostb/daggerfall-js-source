@@ -120,8 +120,8 @@
   {
     "name": "Q10-budget-after-scan",
     "file": "server/src/index.js",
-    "old": "      const budget = tokenGate(this._roomWho, now, WHO_ROOM_HZ_MAX);\n      this._roomWho = budget.bucket;\n      if (!budget.pass) return;\n      const target = this._idFirst(id, ws);\n      if (!target) return;",
-    "new": "      const target = this._idFirst(id, ws);\n      if (!target) return;\n      const budget = tokenGate(this._roomWho, now, WHO_ROOM_HZ_MAX);\n      this._roomWho = budget.bucket;\n      if (!budget.pass) return;",
+    "old": "      const budget = tokenGate(this._roomWho, now, WHO_ROOM_HZ_MAX);\n      this._roomWho = budget.bucket;\n      if (!budget.pass) return;\n      const target = this._idFirst(id, ws);\n      if (!target || ghostHides(target[1], a)) return;",
+    "new": "      const target = this._idFirst(id, ws);\n      if (!target || ghostHides(target[1], a)) return;\n      const budget = tokenGate(this._roomWho, now, WHO_ROOM_HZ_MAX);\n      this._roomWho = budget.bucket;\n      if (!budget.pass) return;",
     "tests": [
       "test/net/slam9.test.js",
       "test/net/slam6.test.js",

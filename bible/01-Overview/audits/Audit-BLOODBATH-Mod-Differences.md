@@ -117,7 +117,7 @@ Do not describe “groups off” as full restoration of the supplied original. A
 - added: `src/combat/weapon/attackSeries.js`
 - added: `src/combat/weapon/axeViewPlacement.js`
 - changed: `src/combat/weapon/weaponRig.js`
-- added: `src/firstVisitPins.js`
+- added: `src/firstVisitPins.js` (DELETED: main moved it to `scripts/firstVisitPins.mjs`)
 - changed: `src/formats/morrowind/mwAnim.js`
 - added: `src/formats/morrowind/mwBetterBodies.js`
 - added: `src/formats/morrowind/mwBetterBodiesPaths.js`

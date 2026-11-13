@@ -35,7 +35,9 @@ import { flatBatchAabb, localAabb, transformedAabb } from '../render/frustum.js'
 import { floraSwayOf } from '../systems/wind/windDrive.js';
 import { footGroundAt, footRectsAt, modelFootParts } from './homeYards.js';
 import { FOREST_HIDDEN_LOCATION_TYPES, populatesWanderingNpcs, tamrielLandsOn } from './shared.js';
-import { landGroundSet } from '../world/tamriel/tamrielLands.js';   // TESA-LANDS: a zone's dress of its ground
+import { landGroundSet, landsNine } from '../world/tamriel/tamrielLands.js';   // TESA-LANDS: a zone's dress of its ground
+import { SKYRIM_FLORA_ARCHIVE, SKYRIM_HANGING_RECORDS } from '../world/tamriel/skyrimFlora.js';   // Skyrim crossed plants + hanging moss
+import { isSkyrimMossRock, standSkyrimFlora } from '../world/tamriel/skyrimFloraMesh.js';
 import { standLandProps, landFeetOff } from '../world/lands/landProps.js';   // TESA-LANDS: and its landmarks stood, its flats off their feet
 import { climateNeighbourIn } from '../world/tamriel/tamrielGround.js';
 import { getLocationTerrainTileOrigin, setLocationTiles, WORLD_MAP_TILE_DIM } from '../world/terrain/terrainTiles.js';
@@ -74,7 +76,7 @@ import { seatFlora, standsOnGround, warmFlora } from './floraSeat.js';   // FLOR
 import { isWardenTown } from '../systems/wagon/wagonWarden.js';
 import { isWodShrub, rockSeatDrop, WOD_ROCK_SITES, wodLightPosition, wodLightProperties } from '../world/worldOfDaggerfall/wodLocationObjects.js';
 import { isYardTown } from '../systems/merchantYards.js';
-import { keyResolver, StaticBatchBuilder } from '../render/staticBatch.js';
+import { keyResolver, StaticBatchBuilder, TOWN_SHADOW_CELL } from '../render/staticBatch.js';
 import { knownCriminal } from '../systems/standing.js';
 import { layoutLocationSteps, RMB_SIDE } from '../world/locationLayout.js';   // IC-STUTTER: a town laid out a block a step; SOLITUDE-RELIEF: a block's side
 import { legalRepOf } from '../systems/court.js';
@@ -169,7 +171,7 @@ export function createPixelBuild(host) {
    *   uploadRecordFrame: Function, flatAnims: any, unionBox: (b: number[]) => void }} g
    * @param {{ batches: any[], forestGroups: Map<string, any>, coverItems: any[], lptHandles: any[], lptGroups: any[] }} out
    */
-  async function standFlatGroups(g, { batches, forestGroups, coverItems, lptHandles, lptGroups }) {
+  async function standFlatGroups(g, { batches, forestGroups, coverItems, lptHandles, lptGroups, skyrimPlants, hangHosts }) {
     let lptPathMask = null;   // LPT-FIT: the pixel's path tiles, made at its first fitted tree
     // FB1020c TRUNK-FIT: THE PIXEL'S SOLID THINGS, measured before any tree is stood - a fountain, a well, a crate, a statue:
     // PROP-BODIES' own bodies (world/propBodies.js flatBody, each foot off its own picture) of every flat of no nature
@@ -199,6 +201,17 @@ export function createPixelBuild(host) {
       // while one stands). AUDIT 05b A12: the choice is every host's one (world/naturePicture.js - a location's, a yard's)
       const { sib, proto: lpt, far, plain, key: rkey } = await naturePicture({ door: lowPolyTrees, seasons: host.seasonsActive ? seasons : null, renderer, uploadRecord: g.uploadRecord }, t, archive, record);
       coverItems.push(...flatBodies(t, archive, record, plain, centers, { tree: g.natureSet.has(archive) && isTreeRecord(g.natureBase(archive), record) }));   // PROP-BODIES: the record's own, whichever picture stands
+      // Skyrim ground plants are three crossed cards (not a camera billboard); trees/rocks host hanging moss
+      if (archive === SKYRIM_FLORA_ARCHIVE) {
+        skyrimPlants.push({ record, centers, size: plain });
+        if (isCoverFlat(archive, record, plain)) coverItems.push(...centers.flatMap((center) => coverProxies(center, plain, { tree: false })));
+        continue;
+      }
+      const base = g.natureBase(archive) ?? archive;
+      const asTree = g.natureSet.has(archive) && isTreeRecord(base, record);
+      if (g.natureSet.has(archive) && (asTree || isSkyrimMossRock(base, record))) {
+        for (const center of centers) hangHosts.push({ c: center, h: plain.h, tree: asTree });
+      }
       if (far) {
         lowPolyTrees.acquire(far); lptHandles.push(far);   // AUDIT LPT B5: held until the pixel goes
         const scales = new Float32Array(centers.length), wild = new Uint8Array(centers.length);
@@ -475,7 +488,7 @@ export function createPixelBuild(host) {
     // transform rides the build's own awaits) into one mesh per pixel,
     // one draw call per texture. The gates (whose mesh swaps) and the
     // mills (whose rotor turns) stay individual draws.
-    const staticBuilder = new StaticBatchBuilder({ windows: windowKeys(renderer) });   // WL1: its windows' glass measured in the merge's own slices
+    const staticBuilder = new StaticBatchBuilder({ windows: windowKeys(renderer), shadowColumns: TOWN_SHADOW_CELL });   // WL1: its windows' glass measured in the merge's own slices; and its shadow columns, which the near maps draw
     const resolveTexKey = keyResolver(texRemap);
     const ownTexKey = keyResolver(NO_CLIMATE_REMAP);   // ARENA1: a climate-free model (RuntimeMaterials, ApplyClimate 0) wears its own pictures in the merge
     const statics = [];   // AUDIT PRECIP HOST-7: the merge's models in its order - a re-skin merges them again through its table
@@ -1233,8 +1246,24 @@ export function createPixelBuild(host) {
     // AUDIT PRECIP HOST-7: the groups stood by the one function a re-skin stands them by (standFlatGroups, above)
     const { groups, wild: wildFlats, places } = groupFlats(flatLog, flatLog.map((f) => [f.archive, f.record]));
     placeTrees(flatLog, flatLog.map((f) => f.archive), places);
+    const skyrimPlants = [], hangHosts = [];
     await standFlatGroups({ px, py, groups, wild: wildFlats, natureSet, natureBase, tilemap, paths, vergeNet, uploadRecord, uploadRecordFrame, flatAnims, unionBox },
-      { batches, forestGroups, coverItems, lptHandles, lptGroups });
+      { batches, forestGroups, coverItems, lptHandles, lptGroups, skyrimPlants, hangHosts });
+    // Crossed ground plants; HangingMoss only in the Reach (from trees, rock flats, spires)
+    const skyrimReach = landsNine(px, py)[4]?.key === 'skyrimReach';
+    if (skyrimPlants.length || (skyrimReach && (hangHosts.length || landStood?.set.props?.length))) {
+      // Hanging records are never cover picks, so standFlatGroups never uploads them
+      if (skyrimReach && SKYRIM_HANGING_RECORDS.length) {
+        const hangTex = await getTexture(SKYRIM_FLORA_ARCHIVE);
+        for (const hangRecord of SKYRIM_HANGING_RECORDS) {
+          if (hangRecord < hangTex.recordCount) uploadRecord(SKYRIM_FLORA_ARCHIVE, hangRecord);
+        }
+      }
+      standSkyrimFlora(skyrimPlants, skyrimReach ? hangHosts : [], skyrimReach ? landStood?.set.props : null, px, py, {
+        addStatic: (mesh, at, own) => addStatic(mesh, at, own),
+        unionBox,
+      });
+    }
     const groupBatches = batches.slice(), groupForest = new Set(forestGroups.keys()), groupCover = coverItems.length;
     // BANTHA1: THE JUNGLE'S TREES STAND - a species a batch of its far picture (the owner's tree drawn once from the
     // side, systems/jungleTreesAssets.js), each tree's own scale on its corner, and its 3D tree near the eye (the pixel's
@@ -1397,15 +1426,11 @@ export function createPixelBuild(host) {
     // EV6: the pixel's models sort by MESH at build - one archetype's
     // placements draw back to back and the VAO shadow skips the rebind.
     models.sort((a, b) => a._order - b._order);
-    // PERF-EXT23 (2026-09-25, the players: "fps issues in the exterior but
-    // fine in the interior", "me too my friend.. don't know why. I got a
-    // RX6600"): THE TAIL BREATHES TOO. The merge and createMesh's spheres ran
-    // after the last breath above in one piece - on a synthetic city pixel
-    // 45-60 ms of ONE frame, on a town 6-26 ms, for every town, city and WoD
-    // pixel streamed in. The merge now yields a model's copy, a range of the
-    // sphere's passes and a texture group at a time, and hands createMesh the
-    // spheres it measured, so createMesh walks nothing again. Same arrays,
-    // same spheres, byte for byte; the pixel publishes a few frames later.
+    // THE TAIL BREATHES TOO. Run in one piece after the last breath above, the merge and createMesh's spheres take
+    // 45-60 ms of one frame on a synthetic city pixel, and 6-26 ms on a town's. The merge yields a model's copy, a
+    // range of the sphere's passes and a texture group at a time, and hands createMesh the spheres it measured.
+    // createMesh still measures the shadow columns' spheres itself, in one piece, until the merge hands those over
+    // too. Same arrays, same spheres, byte for byte; the pixel publishes a few frames later.
     const staticMerged = await staticBuilder.finishSliced(() => breather.breathe());   // PERF4
     const staticBatch = staticMerged ? renderer.createMesh(staticMerged, { bounds: staticMerged.bounds }) : null;
     made.staticBatch = staticBatch;   // BUILD-FAIL1
@@ -1695,14 +1720,15 @@ export function createPixelBuild(host) {
     const flatsTurn = pics.some((pic, j) => pic[0] !== sk.log[j].archive || pic[1] !== sk.log[j].record);
     const law = `climate:${p.townClimate}.${pixelSeason}`, turns = remapLawOf(p.texRemap) !== law;
     const lawOf = (c) => (a, r) => applyClimate(a, r, c, pixelSeason);
-    const made = { mesh: undefined, batches: [], forestGroups: new Map(), coverItems: [], lptHandles: [], lptGroups: [] };
+    // hangHosts / skyrimPlants: standFlatGroups pushes into them; without them a snow re-skin throws on every nature tree
+    const made = { mesh: undefined, batches: [], forestGroups: new Map(), coverItems: [], lptHandles: [], lptGroups: [], skyrimPlants: [], hangHosts: [] };
     let traded = false;
     try {
       // THE BUILDINGS' SEASON: the table, the merge drawn through it, the homes' looks, the mills' bodies
       let table = turns ? await reskinRemap(p.texRemap, law, lawOf, pipeline) : p.texRemap;
       if (table !== p.texRemap && sameTable(table, p.texRemap)) table = p.texRemap;   // a season that swaps nothing here: the table, the merge and every draw's cache stand
       if (table !== p.texRemap && sk.statics) {
-        const merge = new StaticBatchBuilder({ windows: windowKeys(renderer) }), resolve = keyResolver(table), own = keyResolver(NO_CLIMATE_REMAP);
+        const merge = new StaticBatchBuilder({ windows: windowKeys(renderer), shadowColumns: TOWN_SHADOW_CELL }), resolve = keyResolver(table), own = keyResolver(NO_CLIMATE_REMAP);
         for (const [cpu, local, isOwn, nm] of sk.statics) { merge.add(cpu, local, isOwn ? own : resolve, nm); await breather.breathe(); }
         const merged = await merge.finishSliced(() => breather.breathe());   // PERF-EXT23: a unit a breath, as the build's
         made.mesh = merged ? renderer.createMesh(merged, { bounds: merged.bounds }) : null;

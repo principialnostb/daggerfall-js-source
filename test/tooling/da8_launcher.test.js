@@ -39,7 +39,7 @@ test('DA8: the updater transport installs BEFORE play - check, download (shown),
   s = run(s, { type: 'progress', percent: 62.4, transferred: 2.9e6, total: 4.6e6 });
   let v = L.viewOf(s);
   assert.equal(v.status, 'Downloading v0.1.4684');
-  assert.deepEqual(v.progress, { percent: 62.4, label: '2.9 of 4.6 MB' });
+  assert.deepEqual(v.progress, { percent: 62.4, label: '2.9 of 4.6 MB', transferred: 2.9e6, total: 4.6e6 });
   assert.equal(v.play.enabled, false, 'DA10: Play waits for the update');
   assert.deepEqual(v.statusActions.map((a) => a.id), ['play-now'], 'the one way past it: play now, update at quit');
   assert.ok(!v.statusActions[0].primary, 'and it is NOT the default - Enter does not skip the update');
@@ -204,7 +204,8 @@ test('DA8: the shell - a sandboxed window on its own origin, two words of bridge
   // PIN MOVED: AUDIT BR5 - and the logo by its one name, the game's own file (src/assets/branding), packed beside the page
   assert.match(main, /const LAUNCHER_LOGO = app\.isPackaged \? path\.join\(LAUNCHER_DIR, 'dfo-online\.png'\) : path\.join\(__dirname, '\.\.', 'src', 'assets', 'branding', 'dfo-online\.png'\);/);
   assert.match(serve, /: parts\.length === 1 && parts\[0\] === 'dfo-online\.png'\s*\? LAUNCHER_LOGO/);
-  assert.deepEqual(JSON.parse(rd('app/package.json')).build.files.find((f) => f?.from === '../src/assets/branding'), { from: '../src/assets/branding', to: 'launcher', filter: ['dfo-online.png'] });
+  assert.ok(JSON.parse(rd('app/package.json')).build.files.includes('launcher/**'), 'packed beside the page');
+  assert.match(rd('scripts/desktopRelease.mjs'), /\{ from: 'src\/assets\/branding\/dfo-online\.png', to: 'app\/launcher\/dfo-online\.png' \}/, 'copied there from the game\'s own file');
   assert.match(serve, /if \(p !== MENU_PAD && p !== LAUNCHER_LOGO && !p\.startsWith\(LAUNCHER_DIR \+ path\.sep\)\) return new Response\('forbidden', \{ status: 403 \}\);/, 'the same traversal law as dist/ - DA12: the pad module by its one name the only exception');
   assert.match(main, /if \(url\.host === 'launcher'\) return serveLauncherFile\(parts\);/);
   // the IPC hears ONLY the launcher's window, and a link is a NAME

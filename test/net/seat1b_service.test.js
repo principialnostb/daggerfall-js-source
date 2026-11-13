@@ -211,6 +211,9 @@ test('SEAT1b GATE KILLS: a claim names its region; a kill counts 300 for the war
   // day's agreement itself is asked
   assert.equal((await agreedGateRegions(svc.env.DB, [days[1]])).has(days[1]), false, 'a level top agrees on nothing');
   assert.equal((await agreedGateRegions(svc.env.DB, [days[0]])).get(days[0]), 21);
+  // a week's gates can name more game days than D1's 100 bound values a statement (the chapters' week-5 Turning threw on it)
+  const many = [days[0], ...Array.from({ length: 150 }, (_, i) => days[0] - 1000 - i)];
+  assert.equal((await agreedGateRegions(svc.env.DB, many)).get(days[0]), 21, 'past 100 days the list still answers');
   await kill(others[1], days[2], 30);
   // the week's cap: four agreed kills, 900
   for (const d of days.slice(2)) { await kill(gm, d, 21); for (const o of others.slice(2, 4)) await kill(o, d, 21); }

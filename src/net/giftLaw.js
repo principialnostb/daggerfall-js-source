@@ -8,6 +8,14 @@
 /** Every gift: its Aurum and the Aura Armory pieces it gives. */
 export const GIFTS = Object.freeze({
   thanks: Object.freeze({ aurum: 500, armory: Object.freeze(['crystalspurs']) }),
+  // An apology for downtime: Aurum alone, to every registered account
+  maintenance: Object.freeze({ aurum: 500, armory: Object.freeze([]) }),
+  // One account's extra, on top of `maintenance`
+  maintenanceplus: Object.freeze({ aurum: 1000, armory: Object.freeze([]) }),
+  // An apology for server issues: Aurum alone, to every registered account
+  outage: Object.freeze({ aurum: 200, armory: Object.freeze([]) }),
+  // An apology for a denial-of-service attack: Aurum alone, to every registered account
+  ddos: Object.freeze({ aurum: 500, armory: Object.freeze([]) }),
 });
 const GIFT_RE = /^[a-z]{3,24}$/;
 /** The gift keys a row holds - `players.gifts`, known ones alone, each once. Pure. */

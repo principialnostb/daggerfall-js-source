@@ -465,7 +465,7 @@ test('SHIPMATES THE CREW\'S BARS: a green bar a crewman - the party\'s one green
   assert.ok(byClass(layer, 'dfnaval-crew').every((n) => n.style.display === 'none'), 'covered: all hidden');
   destroyNavalHud();
   // the world's side
-  assert.match(WORLD, /navalTags\(proj, view, mwv\.eye\);[^\n]*\n\s+navalCrewBars\(proj, view, mwv\.eye\);/);
+  assert.match(WORLD, /navalTags\(proj, view, mwv\.eye, clientW, clientH\);[^\n]*\n\s+navalCrewBars\(proj, view, mwv\.eye, clientW, clientH\);/);
   assert.match(WORLD, /for \(const f of _mode\(\) === 'exterior' \? exteriorFoes\.foes : _insidePool\(\)\) \{[^\n]*\n\s+const feet = f\.ai\?\.feet;\n\s+if \(!isShipmate\(f\) \|\| !feet \|\| !f\.entity\) continue;/);   // PIN MOVED (CREW-COMPANIONS): indoors and underground, my companions' bars
   assert.match(WORLD, /if \(crewSight\.blocked\(player\.collider, eye, key, head\)\) continue;/);
   assert.match(WORLD, /const crewSight = createSightCache\(\);/);

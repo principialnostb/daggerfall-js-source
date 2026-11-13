@@ -6,33 +6,69 @@
  *  unityBundle.mipLevelFor picks - so a picture that carries no mips (a shipped PNG) is fitted to the texture detail at
  *  the size an attached bundle's would be. Pure: the page and the shipped pack's decode worker both read it. */
 export function mipFitSize(width, height, maxSize = Infinity) {
-  let w = width, h = height;
-  while (Math.max(w, h) > maxSize && (w > 1 || h > 1)) { w = Math.max(1, w >> 1); h = Math.max(1, h >> 1); }
+  let w = width,
+    h = height;
+  while (Math.max(w, h) > maxSize && (w > 1 || h > 1)) {
+    w = Math.max(1, w >> 1);
+    h = Math.max(1, h >> 1);
+  }
   return [w, h];
+}
+
+/** A picture (`{ width, height, colors }` or `{ data }`) shrunk in its proportions until neither side passes `limit` - a
+ *  GPU's MAX_TEXTURE_SIZE - or the picture itself where it fits. A replacement of any size is taken; this keeps a
+ *  device from refusing it. */
+export function fitToTextureLimit(picture, limit) {
+  if (!(limit > 0) || !picture?.width || (picture.width <= limit && picture.height <= limit)) return picture;
+  const scale = limit / Math.max(picture.width, picture.height);
+  const pixels = picture.colors ?? picture.data;
+  const bytes = new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength);
+  const width = Math.min(limit, Math.max(1, Math.round(picture.width * scale)));
+  const height = Math.min(limit, Math.max(1, Math.round(picture.height * scale)));
+  const fitted = resampleRgba({ width: picture.width, height: picture.height, data: bytes }, width, height);
+  const { data: _source, ...rest } = picture;
+  return { ...rest, width: fitted.width, height: fitted.height, colors: fitted.data };
 }
 
 /** Box-filter an RGBA picture to w x h (alpha-weighted, so a sprite's clear edge does not bleed dark). */
 export function resampleRgba(img, w, h) {
-  w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
+  w = Math.max(1, Math.round(w));
+  h = Math.max(1, Math.round(h));
   const { width: sw, height: sh, data: src } = img;
   if (sw === w && sh === h) return { width: w, height: h, data: src };
   const out = new Uint8ClampedArray(w * h * 4);
-  const fx = sw / w, fy = sh / h;
+  const fx = sw / w,
+    fy = sh / h;
   for (let y = 0; y < h; y++) {
-    const y0 = y * fy, y1 = y0 + fy;
+    const y0 = y * fy,
+      y1 = y0 + fy;
     for (let x = 0; x < w; x++) {
-      const x0 = x * fx, x1 = x0 + fx;
-      let r = 0, g = 0, b = 0, a = 0, area = 0;
+      const x0 = x * fx,
+        x1 = x0 + fx;
+      let r = 0,
+        g = 0,
+        b = 0,
+        a = 0,
+        area = 0;
       for (let sy = Math.floor(y0); sy < Math.min(sh, Math.ceil(y1)); sy++) {
         const wy = Math.min(sy + 1, y1) - Math.max(sy, y0);
         for (let sx = Math.floor(x0); sx < Math.min(sw, Math.ceil(x1)); sx++) {
           const wgt = wy * (Math.min(sx + 1, x1) - Math.max(sx, x0));
-          const i = (sy * sw + sx) * 4, al = src[i + 3] * wgt;
-          r += src[i] * al; g += src[i + 1] * al; b += src[i + 2] * al; a += al; area += wgt;
+          const i = (sy * sw + sx) * 4,
+            al = src[i + 3] * wgt;
+          r += src[i] * al;
+          g += src[i + 1] * al;
+          b += src[i + 2] * al;
+          a += al;
+          area += wgt;
         }
       }
       const o = (y * w + x) * 4;
-      if (a > 0) { out[o] = r / a; out[o + 1] = g / a; out[o + 2] = b / a; }
+      if (a > 0) {
+        out[o] = r / a;
+        out[o + 1] = g / a;
+        out[o + 2] = b / a;
+      }
       const alpha = area ? a / area : 0;
       out[o + 3] = alpha >= 127.5 ? 255 : alpha < 8 ? 0 : alpha;
     }

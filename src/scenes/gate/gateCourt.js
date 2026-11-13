@@ -27,6 +27,7 @@ import { CourtCrystalRenderer, CRYSTAL_PROGRAMS, crystalGrowth, CRYSTAL_GROW_MS,
 import { GateFxRenderer, GATE_FX_PROGRAMS, fxBurstOf, meteorFall, FX_BURST_MS, FX_BURSTS_MAX, FX_KINDS, FX_LIGHT_MS } from '../../render/gate/gateFx.js';   // WB9e: his blows seen landing
 import { relight } from '../../render/lightId.js';   // LIGHT-ID: a burst's slot handed to the next burst - its flash another light
 import { setBatchHitFlash } from '../../systems/hitFlash.js';   // WB13d: his body struck flashes, as every foe's does
+import { invasionLaugh } from '../../systems/toybox/invasionRun.js';   // the risen lord's laugh, the invasion's own
 import { tierColour } from '../../render/spoilsGlow.js';   // WB9f: a piece's landing sparks in its tier's colour
 import { RARITIES } from '../../systems/loot/lootRarity.js';
 import { GatePassRenderer, GATE_PASS_PROGRAMS, gateSpinRate } from '../../render/gate/gatePass.js';   // WBX2: the portal's fire is the gate's own
@@ -559,6 +560,12 @@ export function createGateCourt({
    *  swings and cries) EG_MIX.peerDb under itself while I stand here, as THE SPIRE MIX has it (systems/eliteGates/egMix.js
    *  `peers`), so a crowd's blows sit under his cues rather than summing with them. The scope is handed in only when
    *  no place holds it, and taken back only while it is still this one: the Spire's is never touched. */
+  /** The invasion lord's laugh as he wakes: heard in this court alone, since only the court's own screens run it.
+   *  Answers whether it played (no one-shot door: his roar instead). */
+  const bossLaugh = () => {
+    if (typeof audio?.playOneShot !== 'function') return false;
+    try { return invasionLaugh((clip, vol, pitch) => audio.playOneShot(clip, vol, pitch)) > 0; } catch { return false; }   // a sound is never the fight
+  };
   const peersDown = (run) => (typeof audio?.scaled === 'function' ? audio.scaled(egDbGain(EG_MIX.peerDb), run) : run());
   function peersHeard(inCourt) {
     const held = peerSoundScope();
@@ -697,7 +704,7 @@ export function createGateCourt({
       wakeHeard = true;
       if (t < s.openUntil + WAKE_LATE_MS && !s.fell && s.wrath == null) {
         const b = bossOf(s), ep = P.md ? P.aspect.epithet : '';
-        sound(BOSS_CUES.roar, s, t, null);
+        if (!bossLaugh()) sound(BOSS_CUES.roar, s, t, null);   // his roar's own bark, laughed with the invasion lord's echoes
         beat = { kind: 'wake', at: t, until: t + TITLE_HOLD_MS, kicker: b.title, main: b.name, sub: ep ? `${ep.charAt(0).toUpperCase()}${ep.slice(1)}` : '' };
       }
     }

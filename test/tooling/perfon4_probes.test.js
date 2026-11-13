@@ -8,8 +8,8 @@
 // plugins each probe's server is built with: the online lane no longer refuses `?shot` (and refuses all else it did),
 // the account base takes the local service and nothing else new, the hook reads the session and the way book where they
 // stand. The files are named here so `npm run test:changed` picks this file for a change to any of them:
-// src/systems/buildBreather.js, src/render/labGrass.js, src/net/accountClient.js, src/systems/online/onlineLane.js,
-// src/scenes/world.js.
+// src/systems/buildBreather.js, src/render/labGrass.js, src/scenes/travelView.js, src/net/accountClient.js,
+// src/systems/online/onlineLane.js, src/scenes/world.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -17,7 +17,7 @@ import { FRAME_PROBE_EDITS, editsPlugin, probeTransforms } from '../../tools/fra
 import { ONLINE_PROBE_EDITS, probePlugins, crowdsOf } from '../../tools/onlineFrameProbe.mjs';
 
 const src = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
-const NEEDLE_FILES = ['src/systems/buildBreather.js', 'src/render/labGrass.js', 'src/net/accountClient.js', 'src/systems/online/onlineLane.js', 'src/scenes/world.js'];
+const NEEDLE_FILES = ['src/systems/buildBreather.js', 'src/render/labGrass.js', 'src/scenes/travelView.js', 'src/net/accountClient.js', 'src/systems/online/onlineLane.js', 'src/scenes/world.js'];
 /** A file as the online probe's page server serves it: every transform its server is built with, in order. */
 const served = (file) => probePlugins().reduce((code, pl) => pl.transform(code, `/repo/${file}?v=1`) ?? code, src(file));
 
@@ -39,7 +39,7 @@ test('PERF-ON4: every probe edit\'s needle stands in its file, once - the frame 
     assert.throws(() => plugin.transform(`${code}\n// ${row.edits[0][0]}`, `/x/${row.file}`), /needle found 2 times/, `${row.file}: a doubled needle is refused (AUDIT PERF-ON4 F7)`);
     assert.equal(plugin.transform(code, `/x/other${row.file}`), null, `${row.file}: a path that only contains it is another file`);
   }
-  assert.equal(n, 6, 'six edits in all');
+  assert.equal(n, 7, 'seven edits in all');
   assert.equal(editsPlugin('t', FRAME_PROBE_EDITS).transform('x', '/x/src/main.js'), null, 'a file no row names is left alone');
 });
 

@@ -1,0 +1,29 @@
+[
+  {
+    "name": "DRAGON-HOARD-one-magic-piece",
+    "file": "src/systems/dragon/dragonSpoils.js",
+    "old": "export const DRAGON_MAGIC_PIECES = 2;",
+    "new": "export const DRAGON_MAGIC_PIECES = 1;",
+    "tests": [
+      "test/net/dragon/dragonhoard.test.js"
+    ]
+  },
+  {
+    "name": "DRAGON-HOARD-no-gem",
+    "file": "src/systems/gems.js",
+    "old": "abyss: 2, dragon: 1 });",
+    "new": "abyss: 2 });",
+    "tests": [
+      "test/net/dragon/dragonhoard.test.js"
+    ]
+  },
+  {
+    "name": "DRAGON-HOARD-the-gem-unlisted",
+    "file": "src/systems/dragon/dragonSpoils.js",
+    "old": "    ...s.gems.map((gem) => ({ kind: 'item', item: gem, tier: 'common' })),\n",
+    "new": "",
+    "tests": [
+      "test/net/dragon/dragonhoard.test.js"
+    ]
+  }
+]

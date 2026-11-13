@@ -1,0 +1,20 @@
+[
+  {
+    "name": "MASTER-WALLED-never-said",
+    "file": "src/ui/professions/masterBox.js",
+    "old": "      walled: workable ? Math.max(0, (workable(c.key) | 0) - (goods(c.key) | 0) - have) : 0,",
+    "new": "      walled: 0,",
+    "tests": [
+      "test/ui/professions/masterart_ui.test.js"
+    ]
+  },
+  {
+    "name": "MASTER-WALLED-the-goods-share-counted-as-walled",
+    "file": "src/ui/professions/masterBox.js",
+    "old": "      walled: workable ? Math.max(0, (workable(c.key) | 0) - (goods(c.key) | 0) - have) : 0,",
+    "new": "      walled: workable ? Math.max(0, (workable(c.key) | 0) - have) : 0,",
+    "tests": [
+      "test/ui/professions/masterart_ui.test.js"
+    ]
+  }
+]

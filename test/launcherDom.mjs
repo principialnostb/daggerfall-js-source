@@ -136,9 +136,9 @@ function parse(html, doc) {
 
 /**
  * The launcher page, booted: { doc, $, sent, show(view) } - `sent` every act the page sent the shell, `show` a view
- * delivered as the shell delivers it.
+ * delivered as the shell delivers it. `now`, when given, is the page's clock (Date.now) in milliseconds.
  */
-export function bootLauncher() {
+export function bootLauncher({ now } = {}) {
   const doc = { listeners: {}, activeElement: null };
   const html = readFileSync(new URL('../app/launcher/index.html', import.meta.url), 'utf8');
   doc.documentElement = parse(html, doc);
@@ -153,7 +153,7 @@ export function bootLauncher() {
   const sent = [];
   let onView = null;
   const bridge = { onView: (cb) => { onView = cb; }, act: (action, arg) => sent.push(arg === undefined || arg === null ? [action] : [action, arg]) };
-  const ctx = vm.createContext({ window: { daggerLauncher: bridge }, document: doc, JSON, String, Object, Math, Map, Number, Symbol });
+  const ctx = vm.createContext({ window: { daggerLauncher: bridge }, document: doc, JSON, String, Object, Math, Map, Number, Symbol, ...(now ? { Date: { now } } : {}) });
   vm.runInContext(readFileSync(new URL('../app/launcher/launcher.js', import.meta.url), 'utf8'), ctx, { filename: 'launcher.js' });
   return { doc, $: (id) => doc.getElementById(id), sent, show: (v) => onView(v) };
 }

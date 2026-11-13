@@ -51,7 +51,7 @@
   },
   {
    "file": "src/systems/starfall/starfallNight.js",
-   "has": "export const nightDayOfYear = (n) => dayOfYearFromMinutes(Math.floor(skyClassicMinutes(",
+   "has": "dayOfYearFromMinutes(Math.floor(skyClassicMinutes(n * STAR_HOUR_MS + STAR_FALLS_MS[0])));",
    "clock": "sky",
    "why": "the Starfall's Witches' Night - a star night whose dusk lands on the sky calendar's Witches Festival, the Heart-Star's (STAR1)"
   },
@@ -244,6 +244,18 @@
    "has": "sampleWeatherIndoors(Math.floor(playerTicker.classicMinutes),",
    "clock": "event",
    "why": "the weather's pace"
+  },
+  {
+   "file": "src/scenes/exterior.js",
+   "has": "renderer.setWet(wetGround.tick({ minutes: playerTicker.classicMinutes,",
+   "clock": "event",
+   "why": "the ground wets and dries at the weather's pace"
+  },
+  {
+   "file": "src/scenes/world.js",
+   "has": "renderer.setWet(wetGround.tick({ minutes: playerTicker.classicMinutes,",
+   "clock": "event",
+   "why": "the ground wets and dries at the weather's pace"
   },
   {
    "file": "src/scenes/exterior.js",
@@ -488,7 +500,7 @@
    "why": "a banishment's term - no first offence warned to a banished one (WATCH-KNOWS)"
   },
   {
-   "file": "src/scenes/world.js",
+   "file": "src/scenes/professionsHost.js",
    "has": "hour: () => Math.floor((((skyMinutes() % 1440) + 1440) % 1440) / 60),",
    "clock": "sky",
    "why": "the sound host's hour"
@@ -848,7 +860,7 @@
   },
   {
    "file": "src/systems/loot/lootPowers.js",
-   "has": "case 'moon': if (isNight(skyMinutes())) pct += p.pct + (group === 'animal' ? p.beast : 0); break;",
+   "has": "if (isNight(skyMinutes())) pct += p.pct + (group === 'animal' ? p.beast : 0);",
    "clock": "sky",
    "why": "a moon power's night"
   },
@@ -911,6 +923,18 @@
    "has": "export const errandWorldNow = () => errandWorldMinute(trustedWorldMinutes(), sharedClockHeardMark(), _monotonic());",
    "clock": "event",
    "why": "OFFLINE-ROAD: a sworn one abroad keeps the world's time, held to the session's monotonic time since the welcome (AUDIT FB1021 L3-1)"
+  },
+  {
+   "file": "src/systems/revenant/revenantRemoteLaw.js",
+   "has": "export const worldMinuteAt = (/** @type {number} */ ms) => Math.floor(sharedClassicMinutes(ms));",
+   "clock": "event",
+   "why": "an expedition's errand is timed in the world's minutes - set out, on the road and back at the same minute for the player, the journal in Discord and the service"
+  },
+  {
+   "file": "src/systems/revenant/revenantRemoteLaw.js",
+   "has": "export const wallSecondOf = (/** @type {number} */ minute) => Math.ceil(wallMsForClassicMinutes(minute) / 1000);",
+   "clock": "event",
+   "why": "an errand's return as a wall-clock second, for the journal's timers and the service's minute that brings it back"
   },
   {
    "file": "src/systems/worldTick.js",
@@ -1029,8 +1053,8 @@
    "count": 2
   },
   {
-   "file": "src/scenes/world.js",
-   "has": "hour: exhibitionFor(worldMinutes()), ran: _arenaHourRun",
+   "file": "src/scenes/worldShotHooks.js",
+   "has": "hour: exhibitionFor(worldMinutes()),",
    "clock": "event",
    "why": "ARENA2: the hour's exhibition, run once an hour"
   },
@@ -1322,6 +1346,12 @@
    "has": "export const shopNow = () => (sharedClockOn() ? wallMsForClassicMinutes(worldMinutes()) : Date.now());",
    "clock": "event",
    "why": "the shop's now (AUDIT-STOREFRONT III B8) - the daily wares' UTC day, a ware's window and the season's, on the relay's instant, so every device says Buy at the instant the service sells"
+  },
+  {
+   "file": "src/scenes/aurumCacheHost.js",
+   "has": "const cofferWeekNow = () => aurumWeekOf(Math.floor((sharedClockOn() ? wallMsForClassicMinutes(worldMinutes()) : Date.now()) / 1000));",
+   "clock": "event",
+   "why": "the coffer's UTC week, on the relay's instant, so every device fills an emptied coffer again at the Monday the service pays it again"
   }
  ]
 }

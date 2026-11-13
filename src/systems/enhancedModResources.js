@@ -28,7 +28,10 @@ export const modResourceSignature = () => JSON.stringify([
   [...records.values()].map(pack=>[pack.id,pack.revision||0]).sort(),
 ]);
 
-export function setModGroupEnabled(id, enabled) { const next={...disabled,[id]:enabled}; write(stateKey,next); Object.assign(disabled,next); resourcesChanged=true; }
+// The mod settings keep their answers by generation; a group switch moves the answers enabledModValue gives.
+let groupsVersion = 0;
+export const modGroupsVersion = () => groupsVersion;
+export function setModGroupEnabled(id, enabled) { const next={...disabled,[id]:enabled}; write(stateKey,next); Object.assign(disabled,next); resourcesChanged=true; groupsVersion++; }
 export function initEnhancedModResources() {
   if (pending) return pending;
   pending=(async()=>{

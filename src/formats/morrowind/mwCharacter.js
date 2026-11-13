@@ -9,7 +9,7 @@
 
 import { deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
-import { particleSystemOf, affineInverse } from './mwParticles.js';   // MAC-Q: a part's particle systems, off the same walk; MWNPC9: a creature node's rest undone
+import { particleSystemOf, affineInverse } from './mwParticles.js'; // MAC-Q: a part's particle systems, off the same walk; MWNPC9: a creature node's rest undone
 import { affineMul } from './mwAffine.js';
 import { buildSkeleton, skeletonSpaceMatrices, poseSkeleton, skinPost, GRAPH_ROOT } from './mwSkin.js';
 
@@ -151,7 +151,10 @@ export function findNodeByName(nif, name) {
     // (mwNifMesh.js:"RULE 58 (2): RootCollisionNode"), and carry an `includeHidden` escape
     // hatch besides. This function produces a NODE.
     //
-    if (String(rec.name || '').toLowerCase() === want) { found = { rec, parents }; return; }
+    if (String(rec.name || '').toLowerCase() === want) {
+      found = { rec, parents };
+      return;
+    }
     if (!rec.children) return;
     const chain = [...parents, rec];
     for (const child of rec.children) if (child >= 0) walk(child, chain);
@@ -201,7 +204,7 @@ export function nodeTransformOf(nif, name) {
 const affineOf = (rec) => {
   const a = new Float32Array(9);
   const s = rec.scale ?? 1;
-  for (let i = 0; i < 9; i++) a[i] = (rec.rotation ? rec.rotation[i] : (i % 4 === 0 ? 1 : 0)) * s;
+  for (let i = 0; i < 9; i++) a[i] = (rec.rotation ? rec.rotation[i] : i % 4 === 0 ? 1 : 0) * s;
   const t = rec.translation || [0, 0, 0];
   return { a, t: [t[0], t[1], t[2]] };
 };
@@ -227,11 +230,11 @@ export function bindPart(skeleton, partNif, opts = {}) {
   // MAC-Q: the file's PARTICLE SYSTEMS come out of the same walk, into
   // their own list - a flame is not a batch and a batch is not a flame.
   const sink = [];
-  const batches = flattenNif(partNif, { underNode: opts.underNode, excludeNode: opts.excludeNode, effects: sink });   // WS1
+  const batches = flattenNif(partNif, { underNode: opts.underNode, excludeNode: opts.excludeNode, effects: sink }); // WS1
   const effects = [];
   for (const bundle of sink) {
     const d = particleSystemOf(partNif, bundle);
-    if (d) effects.push(Object.assign(d, { parentRef: bundle.parentRef ?? -1 }));   // MWNPC9: the node it hangs under
+    if (d) effects.push(Object.assign(d, { parentRef: bundle.parentRef ?? -1 })); // MWNPC9: the node it hangs under
   }
   const skinned = [];
   const attached = [];
@@ -256,12 +259,10 @@ export function bindPart(skeleton, partNif, opts = {}) {
     // not the file root. `skin.transform` and `shapeTransform` belong to that
     // source bind frame, so fold them into the retargeted inverse binds and clear
     // them on the rebound batch; otherwise the source offset is applied twice.
-    const sourceRestMats = retargetRef === undefined
-      ? null
-      : skeletonSpaceMatrices(sourceSkeleton, new Map(), skin.skeletonRoot);
-    const sourcePost = retargetRef === undefined
-      ? null
-      : skinPost({ ...skin, rootBone: skin.skeletonRoot }, sourceSkeleton, null);
+    const sourceRestMats =
+      retargetRef === undefined ? null : skeletonSpaceMatrices(sourceSkeleton, new Map(), skin.skeletonRoot);
+    const sourcePost =
+      retargetRef === undefined ? null : skinPost({ ...skin, rootBone: skin.skeletonRoot }, sourceSkeleton, null);
     // RULE 40: an absent actor bone normally skips its influences. A foreign cloak
     // is different: its own bones are attached to the chest, preserving the complete
     // source bind pose relative to the skin root. Names that do exist on the actor
@@ -310,12 +311,17 @@ export function bindPart(skeleton, partNif, opts = {}) {
       translation: [0, 0, 0],
       scale: 1,
     });
-    batch.skin = retargetRef === undefined
-      ? { ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT }
-      : {
-          ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT,
-          transform: identityTransform(), shapeTransform: identityTransform(),
-        };
+    batch.skin =
+      retargetRef === undefined
+        ? { ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT }
+        : {
+            ...skin,
+            bones,
+            skeletonRoot: GRAPH_ROOT,
+            rootBone: GRAPH_ROOT,
+            transform: identityTransform(),
+            shapeTransform: identityTransform(),
+          };
     skinned.push(batch);
   }
   let attachRef = null;
@@ -333,17 +339,23 @@ export function bindPart(skeleton, partNif, opts = {}) {
     boneOffset = boneOffsetOf(partNif);
   }
   return {
-    skinned, attached, attachRef, boneOffset,
+    skinned,
+    attached,
+    attachRef,
+    boneOffset,
     missingBones: [...missingBones],
     retargetedBones: [...retargetedBones],
-    retargetTarget: retargetRef === undefined ? null : skeleton.nodes.get(retargetRef)?.name ?? null,
+    retargetTarget: retargetRef === undefined ? null : (skeleton.nodes.get(retargetRef)?.name ?? null),
     effects,
   };
 }
 
 /** MWNPC9: the debug shapes a creature's model carries ("Tri Bip01 ..."), which OpenMW strips from a creature's
  *  object root before it draws (animation.cpp setObjectRoot - RemoveTriBipVisitor, for a creature alone). */
-export const isTriBip = (name) => String(name || '').toLowerCase().startsWith('tri bip');
+export const isTriBip = (name) =>
+  String(name || '')
+    .toLowerCase()
+    .startsWith('tri bip');
 
 /**
  * MWNPC9 (bible/04-Characters/Morrowind-NPCs.md section 14): A CREATURE'S MODEL, BOUND TO ITS OWN SKELETON. A
@@ -368,7 +380,11 @@ export function bindCreatureModel(skeleton, nif) {
     return { attachRef: ref, pre: at ? affineInverse(at) : null };
   };
   const dropped = [];
-  const keep = (b) => { if (!isTriBip(b.name)) return true; dropped.push(b.name); return false; };
+  const keep = (b) => {
+    if (!isTriBip(b.name)) return true;
+    dropped.push(b.name);
+    return false;
+  };
   return {
     skinned: bound.skinned.filter(keep),
     rigid: bound.attached.filter(keep).map((batch) => ({ batch, ...onNode(batch.parentRef) })),

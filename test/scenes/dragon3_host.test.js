@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createDragonHost, DRAGON_TARGET, DRAGON_IN_RESEND_MS, DRAGON_IN_RETRY_MS, DRAGON_HIT_GAP_MS, DRAGON_NOTICE_WAIT_MS, DRAGON_SCALE, REMAINS_WASH } from '../../src/scenes/dragonHost.js';
+import { createDragonHost, DRAGON_TARGET, DRAGON_IN_RESEND_MS, DRAGON_IN_RETRY_MS, DRAGON_HIT_GAP_MS, DRAGON_NOTICE_WAIT_MS, DRAGON_SCALE, REMAINS_WASH, inDragonBox } from '../../src/scenes/dragonHost.js';
 import { installDwarvenDragon } from '../../src/characters/dwarvenDragon.js';
 import { createDragonLink } from '../../src/net/dragon/dragonLink.js';
 import { isDragonOmen, dragonTimes, DRAGON_BRAIN_V, pixelCentreNative, DRAGON_REMAINS_MS } from '../../src/net/dragon/dragonLaw.js';
@@ -126,6 +126,24 @@ test('DRAGON3 host: MY BLOWS ON IT - a shaft on its body is the dragon\'s door a
   assert.equal(hits(S).length, 2, 'its ward turns it');
 });
 
+test('DRAGON3 host: STANDING IN ITS HITBOX every swing meets it, whatever my view says; outside it the view still rules; aloft none (mutants: the box unread; a box that holds everything)', () => {
+  const S = screen(TT.landAt + 1000, [0, -1]);
+  S.st({ md: 1, mu: S.t + 12_000, legs: [lineLeg(S.t - 100, 0, [0, 0, 0], [0, 0, 0], 0)] });
+  S.word({ k: 'md', m: 1, at: S.t - 100, until: S.t + 12_000 });
+  S.run(50);
+  const weapon = { strikingWeapon: null, resolveHit: (foes, _p, canSee) => foes.filter((f) => { const c = canSee(f); return c.inView && c.dist <= 3; }).map((foe) => ({ foe, damage: 40 })) };
+  const blind = () => false;   // its nearest skin behind my eye
+  assert.equal(S.host.swing(weapon, [SITE.sx / M, 1.6, SITE.sz / M - 1], [0, 0, 1], blind), true, 'inside: it meets');
+  assert.equal(S.host.swing(weapon, [SITE.sx / M + 5, 1.6, SITE.sz / M + 5], [0, 0, 1], blind), true, 'in a corner of the box');
+  assert.equal(S.host.swing(weapon, [SITE.sx / M, 1.6, SITE.sz / M - 6.5], [0, 0, 1], blind), false, 'outside: the view rules');
+  assert.equal(S.host.swing(weapon, [SITE.sx / M, 1.6, SITE.sz / M - 6.5], [0, 0, 1], () => true), true, 'and in view within reach');
+  assert.equal(inDragonBox([0, 0, 0], { c: [0, 0, 0], ax: [1, 0, 0], ay: [0, 1, 0], az: [0, 0, 1], h: [1, 1, 1] }), true);
+  assert.equal(inDragonBox([0, 1.5, 0], { c: [0, 0, 0], ax: [1, 0, 0], ay: [0, 1, 0], az: [0, 0, 1], h: [1, 1, 1] }), false, 'over it');
+  S.st({ md: 0, legs: [lineLeg(S.t - 100, 0, [0, 0, 0], [0, 0, 0], 0)] });
+  S.run(50);
+  assert.equal(S.host.swing(weapon, [SITE.sx / M, 1.6, SITE.sz / M - 1], [0, 0, 1], blind), false, 'aloft: none, as the cell would refuse it');
+});
+
 test('DRAGON3 host: THE BAR - its name, health and mode; MOVE when the blow it winds up holds my feet, none when it does not (mutants: MOVE never)', () => {
   const S = screen(TT.landAt + 1000, [10, 10]);
   S.st({ h: 400 });
@@ -173,10 +191,11 @@ test('DRAGON3 world: the host\'s wiring - its sites, link and host made online; 
     '|| !!dragonSky?.swing(weaponRig.playerWeapon, cam.pos, lookFwd, makeInView(proj, view, multiply))) {',
     'const navalHostileNear = () => !!naval?.hostileNear() || !!dragonSky?.near();',
     "if (dragonSky && _mode() === 'exterior') livePersonBatches.push(...dragonSky.batches());",
-    "if (dragonSky && _mode() === 'exterior') { try { dragonSky.drawMarks(); }",
+    "if (_mode() === 'exterior') { try { dragonSky?.drawMarks(); invasionField.drawMarks(); }",
     'dragonSky?.onlineFrame();', 'dragonSky?.away(!onlineOn);',   // PIN MOVED (AUDIT DRAGON): its frame and away the sky's (createDragonSky)
-    "dragonSky = params.has('online') ? createDragonSky({", 'bayScan: () => (warmGateScan(), _gateScan), theatres: () => theatreGates,',
-    "street: () => (modes?.mode ?? 'exterior') === 'exterior' && playerSpawned, barBlocked: () => _serpentBarUp, barHidden: () => gamePaused() || !!townTalk.hudHidden, drawBar: drawGateBossBar,",
+    "dragonSky = params.has('online') || toyboxLocalBuild() ? createDragonSky({", 'bayScan: () => { warmGateScan(); return _gateScan; }, theatres: () => theatreGates,',
+    "street: () => (modes?.mode ?? 'exterior') === 'exterior' && playerSpawned, barBlocked: () => _serpentBarUp || !!invasionField?.barUp?.(), drawBar: drawGateBossBar,",
+    'barHidden: () => gamePaused() || !!townTalk.hudHidden, local:',
   ]) assert.ok(w.includes(wired), wired);
   const o = readFileSync('src/net/online.js', 'utf8');
   assert.match(o, /if \(primary\) this\.dragonOk = relaySupportsDragon\(relayV\);/);
@@ -201,4 +220,20 @@ test('AUDIT DRAGON the sky made whole (HOST-SPLIT): its online frame ticks its c
   assert.deepEqual([drawn.at(-1), calls.leave.at(-1)], [null, true], 'away: the bar put away, offline its fight forgotten');
   const w = hostText('src/scenes/world.js');
   assert.ok(!w.includes('_dragonBarUp') && !w.includes('const dragonFrame') && !w.includes('createDragonLink('), 'the world host holds none of its state');
+});
+
+test('DRAGON GUARDS: while its fight is on my street the city guards spare the walkers, as in a raid; off the street and away, they keep the law again', async () => {
+  const { createDragonSky } = await import('../../src/scenes/dragonHost.js');
+  let street = true, fight = true;
+  const fake = { tick: () => {}, frame: () => fight, leave: () => {}, bar: () => ({ name: 'D', title: '', hp: 0.5, max: 1, ph: 1, md: 0, fell: null, gone: null, atk: null, n: 1, mu: 0, lv: 0, t: 0 }) };
+  const sky = createDragonSky({ bayScan: () => null, theatres: () => [], street: () => street, barBlocked: () => false, drawBar: () => {}, now: () => 0, makeHost: () => fake });
+  assert.equal(sky.fightHere(), false);
+  sky.onlineFrame();
+  assert.equal(sky.fightHere(), true, 'its fight on my street');
+  fight = false; sky.onlineFrame();
+  assert.equal(sky.fightHere(), false, 'out of its reach');
+  fight = true; sky.onlineFrame(); street = false; sky.onlineFrame();
+  assert.equal(sky.fightHere(), false, 'off the street');
+  street = true; sky.onlineFrame(); sky.away(true);
+  assert.equal(sky.fightHere(), false, 'away');
 });

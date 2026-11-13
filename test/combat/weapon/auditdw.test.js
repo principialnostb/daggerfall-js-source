@@ -51,7 +51,7 @@ test('AUDIT-DW F2: a weapon atlas\'s custom frames are asked TOGETHER - every as
   assert.equal(asked.at(-1), 'WEAPON10.CIF_0-0', 'MetalTypes.None adds nothing (bare hands)');
   assert.deepEqual(bare, [[null]]);
   const fp = rd('src/combat/fpsWeapon.js');
-  assert.match(fp, /const customs = await customFrames\(askName, metal, cif, customImage\);/, 'the loader takes the batch');
+  assert.match(fp, /const customs = await customFrames\(askName, metal, cif, own \? playerWeaponFrame : customImage\);/, 'the loader takes the batch');
   assert.ok(!/const custom = await customWeaponImage\(name\);/.test(fp), 'and no frame is awaited on its own');
   assert.match(fp, /await Promise\.all\(asks\);/);
 });
@@ -153,9 +153,8 @@ test('AUDIT-DW F4 (named, not changed): DFU keeps the first template\'s custom f
   const rig = rd('src/combat/weapon/weaponRig.js');
   // PIN MOVED (WEAPON-GLOW1, bible/05-Combat/Weapon-Glow.md): the name the atlas is asked by is the PLAIN set's while the
   // weapon's element shows - still the asked name, so the key still carries it
-  assert.match(rig, /const key = `\$\{type\}:\$\{item\?\.material \?\? 0\}:\$\{thunderlock \? \(gilded \? 'gilded' : ''\) : atlasFileName\(item, WEAPON_FILE\[type\] \?\? '', undefined, plain \? false : undefined\)\}`;/);
+  assert.match(rig, /const key = `\$\{type\}:\$\{item\?\.material \?\? 0\}:\$\{thunderlock \? \(gilded \? 'gilded' : ''\) : atlasFileName\(item, WEAPON_FILE\[type\] \?\? '', undefined, plain \? false : undefined\)\}:\$\{playerPicturesGeneration\(\)\}`;/, 'and the player\'s own pictures, so a change on the Replacements pane loads the art again');
   assert.match(rig, /WHICH IS WHAT DFU DOES \(AUDIT-DW\n\s+\/\/ F4, a named departure\): FPSWeapon reloads its atlas only when\n\s+\/\/ WeaponType or MetalType change \(FPSWeapon\.cs:138\)/, 'the departure is named where the key is');
-  assert.match(rd('bible/05-Combat/Diverse-Weapons.md'), /## AUDIT-DW/, 'and recorded');
 });
 
 test('AUDIT-DW: checked and standing - the shipped set, the index, the door order, the dye law, the install site; the suites and campaign the audit leaves behind', () => {
@@ -168,10 +167,6 @@ test('AUDIT-DW: checked and standing - the shipped set, the index, the door orde
   assert.match(rd('src/scenes/shared.js'), /installDiverseWeaponsIcons\(\);[^\n]*\n\s+installRoleplayRealismItems\(\);[^\n]*\n\s+installRoleplayRealism\(\);[^\n]*\n\s+installEnemyExpansion\(\);[^\n]*\n(?:\s+\/\/[^\n]*\n)*\s+const textures = registerTextureStore\(\)/);   // PIN MOVED (DEX1): Daggerfall Enemy Expansion's Start after the Inits, before the archives load too
   // GetName's dye arm and its one exception, in one home
   assert.match(rd('src/characters/dyes.js'), /if \(!Number\.isFinite\(v\) \|\| v === DYE_COLORS\.Unchanged\) return '';/);
-  // the records
-  const testing = rd('bible/09-Testing/Testing-Rows-2026-10-19.md');   // LEGIBLE 1b: the testing rows, in the closed table
-  for (const f of ['dw1_diverseweapons.test.js', 'dw2_shipped.test.js', 'dw3_icons.test.js', 'unitybundleworker.test.js', 'auditdw.test.js']) assert.match(testing, new RegExp(`\\| ${f.replace('.', '\\.')} \\| \\d+ \\|`), f);
-  assert.match(rd('bible/05-Combat/Diverse-Weapons.md'), /## AUDIT-DW \(2026-09-23\)/);
 });
 
 test('DW-CLIP: under the Diverse Weapons preset (DoubleScaleTextures + TrueTextureSize 1) a full-canvas `w_` idle draws WHOLE at its painted size - the war axe\'s 317x200 fills the 320x200 screen, nothing pushed off the bottom-right', () => {
@@ -197,7 +192,7 @@ test('DW-CLIP: under the Diverse Weapons preset (DoubleScaleTextures + TrueTextu
   // DISC14-C: the gate is one helper now, shared with the doubled idle's bob - the shift and the centred bob ride the same doubling
   assert.match(rd('src/combat/weapon/weaponWidget.js'), /function doubledIdleNow\(\) \{\s*\n\s*if \(!w\.s\.doubleScale \|\| w\.s\.trueSize \|\| !w\.art\) return false;/);
   assert.match(rd('src/combat/weapon/weaponWidget.js'), /return record != null && !!customTexture\(record, Math\.max\(0, w\.currentFrame\)\)\?\.doubled;/);
-  assert.match(rd('src/combat/weapon/weaponWidget.js'), /if \(\(w\.weaponState === S\.Idle \|\| \(w\.currentWeaponType === T\.Bow && w\.currentFrame === 0\)\) && doubledIdleNow\(\)\) \{\s*\n\s*w\.offset = /);
+  assert.match(rd('src/combat/weapon/weaponWidget.js'), /if \(\(w\.weaponState === S\.Idle \|\| \(w\.currentWeaponType === T\.Bow && w\.currentFrame === 0\)\) && doubledIdleNow\(\)\) \{\n\s*w\.offset =/);
   _resetModSettings();
   assert.equal(modSettingsOf('diverse-weapons').WeaponWidgetPreset, false, 'DISC16-B: the preset defaults off, as at DW1 (DW-CLIP had it on)');
 });

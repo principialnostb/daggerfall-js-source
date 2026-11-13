@@ -1,0 +1,77 @@
+[
+  {
+    "name": "TOWN-CELLS-1-the-columns-never-built",
+    "file": "src/render/staticBatch.js",
+    "old": "    } else if (this.shadowColumns > 0) {",
+    "new": "    } else if (false) {",
+    "tests": [
+      "test/render/towncells.test.js",
+      "test/scenes/audit_precip_host7.test.js"
+    ]
+  },
+  {
+    "name": "TOWN-CELLS-2-x-before-z",
+    "file": "src/render/staticBatch.js",
+    "old": "      const k = Number.isFinite(x) && Number.isFinite(z) ? (z - minZ) * wide + (x - minX) : last;",
+    "new": "      const k = Number.isFinite(x) && Number.isFinite(z) ? (x - minX) * deep + (z - minZ) : last;",
+    "tests": [
+      "test/render/towncells.test.js"
+    ]
+  },
+  {
+    "name": "TOWN-CELLS-3-the-last-cell-dropped",
+    "file": "src/render/staticBatch.js",
+    "old": "(x - minX) : last;",
+    "new": "(x - minX) : 0;",
+    "tests": [
+      "test/render/towncells.test.js"
+    ]
+  },
+  {
+    "name": "TOWN-CELLS-4-the-buffer-not-a-unit",
+    "file": "src/render/staticBatch.js",
+    "old": "  yield; // the buffer's allocation is a unit of its own",
+    "new": "",
+    "tests": [
+      "test/render/towncells.test.js"
+    ]
+  },
+  {
+    "name": "TOWN-CELLS-5-the-far-cascade-by-cell",
+    "file": "src/render/shadowPass.js",
+    "old": "    const byCell = vp !== this.sunVP[SHADOW_CASCADES.length - 1];",
+    "new": "    const byCell = true;",
+    "tests": [
+      "test/render/towncells.test.js"
+    ]
+  },
+  {
+    "name": "TOWN-CELLS-6-the-near-maps-by-sub-mesh",
+    "file": "src/render/shadowPass.js",
+    "old": "    const byCell = vp !== this.sunVP[SHADOW_CASCADES.length - 1];",
+    "new": "    const byCell = false;",
+    "tests": [
+      "test/render/towncells.test.js",
+      "test/render/la_audit.test.js"
+    ]
+  },
+  {
+    "name": "TOWN-CELLS-7-the-pixel-merge-without-columns",
+    "file": "src/scenes/pixelBuild.js",
+    "old": "const staticBuilder = new StaticBatchBuilder({ windows: windowKeys(renderer), shadowColumns: TOWN_SHADOW_CELL });",
+    "new": "const staticBuilder = new StaticBatchBuilder({ windows: windowKeys(renderer) });",
+    "tests": [
+      "test/render/towncells.test.js",
+      "test/world/perf4.test.js"
+    ]
+  },
+  {
+    "name": "TOWN-CELLS-8-the-re-skin-without-columns",
+    "file": "src/scenes/pixelBuild.js",
+    "old": "const merge = new StaticBatchBuilder({ windows: windowKeys(renderer), shadowColumns: TOWN_SHADOW_CELL })",
+    "new": "const merge = new StaticBatchBuilder({ windows: windowKeys(renderer) })",
+    "tests": [
+      "test/scenes/audit_precip_host7.test.js"
+    ]
+  }
+]

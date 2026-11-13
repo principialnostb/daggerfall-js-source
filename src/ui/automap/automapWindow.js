@@ -166,6 +166,7 @@ import { bindings } from '../input.js';
 import { getBinding } from '../../systems/inputActions.js';
 import { normalizeCode, keyboardModifiers, checkSetModifiers } from '../../systems/dialogShortcuts.js';
 import { audio } from '../../systems/audio.js';
+import { readKeptView, writeKeptView } from './automapViewKeep.js';
 import { SOUND } from '../../systems/soundClips.js';
 import {
   VIEW_2D, VIEW_3D, CAMERA_FAR, ZOOM_SPEED, ZOOM_SPEED_MOUSE_WHEEL,
@@ -356,6 +357,18 @@ let _gridIcon = null;        // null (never toggled) | '2d' | '3d'
  */
 export function signalAutomapReset() { _resetSignal = true; }
 
+// A dungeon's map opens the way it was closed, not re-centred on the
+// player. A host with no `deps.viewKey` (a building) keeps the re-centring.
+const VIEW_STORE = 'dfo.automapViews';
+let _camKey = null;     // the dungeon the live `_cam` was last shown for
+const validCam = (cam) => Array.isArray(cam?.pos) && cam.pos.length === 3 && cam.pos.every(Number.isFinite)
+  && (cam.viewMode === VIEW_2D || cam.viewMode === VIEW_3D);
+/** The view a dungeon's map was last closed on, or null. */
+export function keptAutomapView(key) {
+  const kept = readKeptView(VIEW_STORE, key);
+  return validCam(kept?.cam) ? kept : null;
+}
+
 /** Probe surface: the live persistent camera, or null before any open. */
 export const automapCameraState = () => _cam;
 export const automapBackground = () => _background;
@@ -363,7 +376,7 @@ export const automapRenderMode = () => _renderMode;
 /** Tests and a fresh session: forget everything the singleton kept. */
 export function resetAutomapWindowState() {
   _cam = null; _background = 'original'; _renderMode = 'Cutout'; _resetSignal = false;
-  _gridIcon = null;
+  _gridIcon = null; _camKey = null;
 }
 
 // The micro-map version counter is MODULE-level: uploadTexture
@@ -600,6 +613,19 @@ export class AutomapWindow {
     // PLAYER.
     const mainPos = p?.eye ?? p?.feet ?? [0, 0, 0];
     const playerPos = p?.feet ?? mainPos;
+    const viewKey = this.deps.viewKey ?? null;
+    const kept = viewKey && _camKey === viewKey && !_resetSignal && _cam
+      ? { cam: _cam, renderMode: _renderMode }
+      : keptAutomapView(viewKey);
+    _camKey = viewKey;
+    if (kept) {
+      _cam = { ...kept.cam };
+      if (RENDER_MODES.includes(kept.renderMode)) _renderMode = kept.renderMode;
+      // the slice level keeps its own setting (:567-572)
+      if (!getBool('Map', 'AutomapRememberSliceLevel') || !Number.isFinite(_cam.slicingBiasY)) _cam.slicingBiasY = DEFAULT_SLICING_BIAS_Y;
+      _resetSignal = false;
+      return;
+    }
     if (!_cam) {
       // Setup's one-time arm (:519-527): the transforms are built and
       // the slice bias goes to default.
@@ -658,6 +684,7 @@ export class AutomapWindow {
   onPop() {
     if (!_cam) return;
     _cam = _cam.viewMode === VIEW_2D ? saveCameraTransformViewFromTop(_cam) : saveCameraTransformView3D(_cam);
+    writeKeptView(VIEW_STORE, this.deps.viewKey ?? null, { cam: _cam, renderMode: _renderMode });
   }
 
   _click() { audio.playOneShot(SOUND.ButtonClick, 1); }

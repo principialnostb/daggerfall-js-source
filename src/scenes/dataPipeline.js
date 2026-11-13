@@ -18,7 +18,7 @@ import { isInteriorGlassArchive, interiorGlassMask, interiorWindowOf } from '../
 import { isEmissive, FIRE_WALLS_ARCHIVE, FIRE_WALL_COLOR, FIRE_WALL_SCALE } from '../world/emissiveTextures.js';   // TextureReader's auto-emissive table (lit lanterns, fireplaces, fire daedra)
 import { dfMeshToModel } from '../world/meshReader.js'; import { patchSeams } from '../world/arch3dSeams.js';   // DUNGEON-SEAMS (one line: the cites below stand)
 import { fetchBytes, texName } from './shared.js';
-import { decodedTexture, preloadTextureArchive, isVendorArchive, vendorTextureStandIn, setTextureDeriveContext, textureTierEpoch, textureTiersSettled, vendorCutout } from '../systems/textureReplacement.js';   // M-TEX: user-supplied textures override the classic ones; AUDIT VE R1: the tiers' epoch
+import { decodedTexture, hasPlayerReplacement, hasTextureReplacement, preloadTextureArchive, isVendorArchive, vendorTextureStandIn, setTextureDeriveContext, textureTierEpoch, textureTiersSettled, vendorCutout } from '../systems/textureReplacement.js';   // M-TEX: user-supplied textures override the classic ones; AUDIT VE R1: the tiers' epoch
 import { classicRecordRgba } from '../formats/derivedTexture.js';   // WD2: a mod sprite rebuilt from the player's own record
 import { setDfLookPalette } from '../world/dfLook.js';   // DF-LOOK: the port's own painted pictures in this palette's colours
 import { customModelBuilt, customAliasFor, aliasSubMeshes, customModelNeeds } from '../world/customModels.js';   // DS1: models no ARCH3D carries; WD3: a classic model with its pictures swapped
@@ -318,7 +318,10 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
     // DEX2: A FRAME'S OWN EMISSION MAP - TextureReplacement.GetMobileBillboardMaterial imports a frame's `_Emission`
     // beside its albedo and lights it white (a mod's glowing enemy: Daggerfall Enemy Expansion's Will-o'-wisp, 1610, and
     // Hell Hound, 1614). Only beside an imported frame, as there: a classic frame has no map to import.
-    const lit = swapFrame ? decodedTexture(archive, record, frame, 'Emission') : null;
+    // A frame the player replaced (the Replacements pane) leaves the mod's map, painted for the mod's picture, and glows
+    // from the player's own where the mod lit it - as DFU lights a frame with no map of its own.
+    const own = !!swapFrame && hasPlayerReplacement(archive, record, frame);
+    const lit = !swapFrame ? null : own ? (hasTextureReplacement(archive, record, frame, 'Emission') ? color32 : null) : decodedTexture(archive, record, frame, 'Emission');
     // F49: the auto-emissive arm follows the FRAME - DFU builds a
     // material per frame, and a torch's every frame is self-lit. The
     // billboard path looks the mask up under this same composite key.

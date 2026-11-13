@@ -241,7 +241,8 @@ test('DEX2 a readOnly picture on its way is asked once at a time, and one that w
 test('DEX2 the install registers the pictures at Start, whatever the switch; a frame\'s emission map rides beside it in the pipeline (by source)', () => {
   assert.match(rd('src/systems/enemyExpansion/dexInstall.js'), /registerCustomEnemyName\([^\n]*\n {2}installDexSprites\(\);/, 'in the ALWAYS half, beside the names');
   const pipe = rd('src/scenes/dataPipeline.js');
-  assert.match(pipe, /const lit = swapFrame \? decodedTexture\(archive, record, frame, 'Emission'\) : null;/, 'only beside an imported frame');
+  assert.match(pipe, /const lit = !swapFrame \? null : own \? \(hasTextureReplacement\(archive, record, frame, 'Emission'\) \? color32 : null\) : decodedTexture\(archive, record, frame, 'Emission'\);/,
+    'only beside an imported frame; a frame the player replaced glows from its own picture where the mod lit it (replacements_dex.test.js)');
   assert.match(pipe, /if \(lit\) \{\s*\n\s*renderer\.uploadEmissionTexture\(archive, key, lit, \{ white: true, replacement: true \}\);/, 'under the frame\'s own key, lit white');
 });
 

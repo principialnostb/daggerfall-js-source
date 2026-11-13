@@ -1,15 +1,14 @@
 // @ts-check
-// STAFF-EVENT THE REWARD (2026-10-24, mob: "what should we do for the mini bosses drop for loot?", "something like dagons
-// leaderboard", "but not his ghear", "build that base", "but we will tweak the drop table"): A STAFF EVENT'S SPOILS -
+// STAFF-EVENT THE REWARD (2026-10-24): A STAFF EVENT'S SPOILS -
 // what one fighter's part in an event pays when its mini boss first falls, rolled from the relay's receipt. Design:
 // bible/11-Multiplayer/Staff-Events.md section 9.
 //
 // PER PLAYER, AND THE SEED'S OWN - the gate's spoils' law (systems/gate/gateSpoils.js) and a town's thanks' makers
 // (systems/raidSpoils.js): the receipt the relay signs for each earner (net/staffEvent/staffEventReceipt.js `e1`) carries
 // a seed (`c`) and the earner's rank on the board (`r`), and everything here is rolled on `seededRng(c)`. NONE OF DAGON'S
-// OWN: no Sigil Stone, no Regalia, no Dragonfire Oath, nothing gilded.
+// OWN: no Sigil Stone, no Regalia, no Dragonfire Oath. An invasion's receipt pays its boss's roll (toybox/invasionRewards.js).
 //
-// THE DROP TABLE IS STAFF_SPOILS_TABLE, the one place to tweak it (mob: "we will tweak the drop table").
+// THE DROP TABLE IS STAFF_SPOILS_TABLE, the one place to tweak it.
 //
 // GIVEN ONCE A RECEIPT, straight into the pack, through the spoils pool a town's thanks use (scenes/spoilsPool.js under
 // RAID_SPOILS_KEYS, keyed `sev:<id>` - never a raid's `raid:<key>`): the relay hands the same receipt again after a
@@ -20,6 +19,7 @@ import { seededRng } from './wind/wind.js';
 import { spoilsBase, magicOrBetter } from './gate/gateSpoils.js';
 import { applyRarity, lastPass, techniquePass } from './loot/lootRarity.js';
 import { t } from './textManager.js';
+import { rollInvasionReward } from './toybox/invasionRewards.js';
 
 /**
  * THE DROP TABLE - every number the reward pays, here alone.
@@ -54,7 +54,7 @@ function piece(lv, tier, rolls) {
   const item = spoilsBase(lv, rolls);
   applyRarity(item, tier, rolls);
   item.isIdentified = true;
-  return { item, tier: item.rarity ?? tier };   // a Legendary with no record for its kind falls to Rare: read back off the item
+  return { item, tier: item.rarity ?? tier }; // a Legendary with no record for its kind falls to Rare: read back off the item
 }
 
 /**
@@ -69,26 +69,50 @@ export function rollStaffSpoils(seed, level, rank) {
   const gold = Math.round(T.goldPerLevel * lv * (0.8 + 0.4 * rolls()));
   const pieces = T.everyone.map((least) => piece(lv, atLeast(rolls, least), rolls));
   if (rank >= 1) for (const least of T.top) pieces.push(piece(lv, atLeast(rolls, least), rolls));
-  if (rank === 1) pieces.push(piece(lv, rolls() < T.first.legendary ? 'legendary' : atLeast(rolls, T.first.least), rolls));
-  lastPass(pieces.map((p) => p.item), rolls);   // LOOT2: the ladder's last pass, after every piece
-  techniquePass(pieces.map((p) => p.item), rolls);   // TECH1: a weapon's technique - LAST of all
+  if (rank === 1)
+    pieces.push(piece(lv, rolls() < T.first.legendary ? 'legendary' : atLeast(rolls, T.first.least), rolls));
+  lastPass(
+    pieces.map((p) => p.item),
+    rolls,
+  ); // LOOT2: the ladder's last pass, after every piece
+  techniquePass(
+    pieces.map((p) => p.item),
+    rolls,
+  ); // TECH1: a weapon's technique - LAST of all
   return { gold, pieces };
 }
 
 /** The spoils as the spoils pool hands them over (scenes/spoilsPool.js's pieces): each item, then the gold. Pure. */
 export function staffSpoilsList(/** @type {number} */ seed, /** @type {number} */ level, /** @type {number} */ rank) {
   const s = rollStaffSpoils(seed, level, rank);
-  return [...s.pieces.map((p) => ({ kind: 'item', item: p.item, tier: p.tier })), { kind: 'gold', gold: s.gold, tier: 'common' }];
+  return [
+    ...s.pieces.map((p) => ({ kind: 'item', item: p.item, tier: p.tier })),
+    { kind: 'gold', gold: s.gold, tier: 'common' },
+  ];
+}
+
+/** AN INVASION'S REWARD as the spoils pool hands it over: the one piece its boss pays, rolled off the receipt's seed
+ *  alone, so every device mints the same piece. No gold and no staff table: the boss's roll is the whole reward. Pure. */
+export function invasionSpoilsList(/** @type {number} */ seed, /** @type {number} */ level) {
+  const item = rollInvasionReward(seededRng(seed >>> 0), { level });
+  return [{ kind: 'item', item, tier: item.rarity ?? 'rare' }];
 }
 
 /**
  * A RECEIPT'S SPOILS INTO THE PACK (scenes/world.js onRaidReceipt, for an `e1`): through `pool` (the town's thanks'
  * pool) under `lock` (the world's spoils lock), at `level`, once a receipt and account.
+ * An invasion's receipt (`tb` 1) rolls the invasion's reward in place of the staff table, once a receipt as the table is.
  * @param {{ grant: (o: any) => any }} pool @param {(f: () => any) => Promise<any>} lock
- * @param {{ v: string, s: string, c: number, r: number }} c the receipt's claims (readStaffReceipt) @param {number} level
+ * @param {{ v: string, s: string, c: number, r: number, tb?: number }} c the receipt's claims (readStaffReceipt) @param {number} level
  */
 export function grantStaffSpoils(pool, lock, c, level) {
   const lv = Math.max(1, Math.floor(Number(level) || 1));
-  return lock(() => pool.grant({ day: staffSpoilsDay(c.v), acct: c.s, roll: () => staffSpoilsList(c.c, lv, c.r), text: STAFF_SPOILS_TEXT.granted() }))
-    .catch((e) => console.warn('[sev] spoils', e?.message ?? e));
+  return lock(() =>
+    pool.grant({
+      day: staffSpoilsDay(c.v),
+      acct: c.s,
+      roll: () => (c.tb === 1 ? invasionSpoilsList(c.c, lv) : staffSpoilsList(c.c, lv, c.r)),
+      text: STAFF_SPOILS_TEXT.granted(),
+    }),
+  ).catch((e) => console.warn('[sev] spoils', e?.message ?? e));
 }

@@ -1,35 +1,8 @@
-# CODE MAP - where things live, and where a new file goes
+# Code Map
 
-Opened 2026-10-16 (TIDY1). A teammate's read of the tree: the directories are not documented and do not make sense,
-things are placed where they lie, and nobody knows where anything is. Mac: *"Well I wanna take this on"*, then
-*"Do everything"*.
-
-This page is the map. `test/tooling/tidy1_codemap.test.js` holds it to the tree both ways: every directory under `src/` that
-holds code is in the table below, and the table names no directory that is gone. A change that adds a directory
-adds its row here.
-
-## Why
-
-Measured 2026-10-16 on main (f87572c5):
-
-| Where | Files | Loose (not in a subfolder) |
-|---|---|---|
-| `src/systems/` | 651 | 530 |
-| `src/ui/` | 371 | 369 |
-| `src/world/` | 214 | 214 |
-| `src/net/` | 174 | 174 |
-| `src/scenes/` | 141 | 141 |
-| `test/` | 3,349 | 3,282 |
-| `tools/` | 2,500 | 414 |
-
-Before this page there was no map. `Home.md`'s "Repo layout" named four of the fourteen `src/` directories, no
-folder under `src/` had a README, and `01-Overview/` held 274 pages, 263 of them dated records (field bugs, audits, handoffs),
-so "Overview" is a log rather than an overview. `src/systems/` holds features that obviously belong together and
-were never put together: 19 `travel*` modules, 16 `arena*`, 13 `item*`, 9 `loot*`. It also holds app plumbing
-(`appStorage.js`, `appRoot.js`, `audio.js`) beside the game's law.
-
-Host splitting (`Host-Split.md`) does not fix this, and it can make it worse. It takes code out of the four hosts,
-and what it takes out lands loose in `src/scenes/` or `src/systems/`.
+Where things live, and where a new file goes. `test/tooling/tidy1_codemap.test.js` holds this page to the tree both
+ways: every directory under `src/` that holds code has a row below, and no row names a directory that is gone. A
+change that adds a directory adds its row here.
 
 ## The map
 
@@ -41,8 +14,8 @@ and what it takes out lands loose in `src/scenes/` or `src/systems/`.
 | `server/` | The relay (a Cloudflare Worker, one Durable Object `Room` per room): the wire's authority. `server/src/index.js` is its host. |
 | `server-account/` | The account service (a Cloudflare Worker): accounts, and what the realm keeps between sessions - guilds, boards, ladders. `migrations/` are D1 migrations - applied, never edited. |
 | `app/` | The desktop app's Electron shell (`main.cjs`, preloads, packaging). |
-| `bible/` | The design record, one folder a section (`01-Overview/` to `12-Enhanced-AI/`). `Home.md` is the index and its Process rules bind every change. `01-Overview/` holds the overview pages - this map, `Port-Doctrine.md`, `Port-Ledger.md`, `Host-Split.md` - and files its dated records by kind: `audits/` (every audit and review), `bugs/` (the field-bug passes, the bug lists, the incident), `handoffs/` (hand-offs, integrations, the dated asks and status snapshots). |
-| `test/` | Every test, in the folder of the layer it tests and, there, its feature's folder (`test/systems/arena/`) - mapped below. `bible/09-Testing/Testing.md` has one row per file, by its name. |
+| `bible/` | The design reference, one folder a section (`01-Overview/` to `12-Enhanced-AI/`). `Home.md` is the index and holds the rules that bind every change. |
+| `test/` | Every test, in the folder of the layer it tests and, there, its feature's folder (`test/systems/arena/`) - mapped below. |
 | `tools/` | Developer tools run by hand or by the suite: probes, bakes, gates, the mutation lists (`tools/mutants/`). |
 | `scripts/` | Build, release and bake scripts run by npm and CI (`buildTag`, `desktopRelease`, `updateNumber`, the `bake*` scripts). |
 | `public/` | Vite's static root, copied into the build as-is: art, sound, fonts, the mods' assets. No game data (`Port-Doctrine.md`). |
@@ -60,6 +33,7 @@ and what it takes out lands loose in `src/scenes/` or `src/systems/`.
 | `src/characters/` | People and creatures: bodies and rigs, outfits and dyes, enemies, NPC builders. |
 | `src/combat/` | Combat law: FormulaHelper's port, weapons, hits, spells in the hand. |
 | `src/formats/` | The readers for Daggerfall's (and Morrowind's) file formats. Exact to DFU's (`Port-Doctrine.md`, Scope). |
+| `src/journalKit/` | The entry the Discord journal's Cabinet kit is bundled from (`tools/journalKit.mjs`): the game's own painters, outside the game's own windows. |
 | `src/net/` | Online: the client's link to the relay, the wire, and the law both ends run. The relay imports from here. |
 | `src/player/` | The player's body in the world: motor, camera, first-person views, seats. |
 | `src/poi/` | Points of interest: the editor's document, its import and export, and the feed the game stands. |
@@ -80,6 +54,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | Feature | Its folders under `src/` |
 |---|---|
 | Abyss Dungeon (super dungeons) | `systems/superDungeon/`, `net/superDungeon/`, `world/superDungeon/`, `render/superDungeon/`, `scenes/superDungeon/`, `ui/superDungeon/` |
+| Ambient life (birds, bats, small animals) | `systems/ambientLife/` - and loose: `render/ambientLifePass.js`, `scenes/ambientLifeHost.js` |
 | Arena | `systems/arena/`, `net/arena/`, `world/arena/`, `scenes/arena/`, `ui/arena/` |
 | Automap | `systems/automap/`, `ui/automap/` |
 | Blood | `combat/blood/` |
@@ -105,7 +80,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | First-person weapon | `combat/weapon/` |
 | Foraging | `systems/foraging/` |
 | Grammar (translations) | `systems/grammar/` |
-| Guilds | `systems/guild/`, `net/guild/` |
+| Guilds | `systems/guild/`, `net/guild/`, `ui/guild/` |
 | Guns | `combat/gun/` |
 | Herald (the world events on Discord) | `net/herald/` - and each event's own: `net/gate/gateHerald.js`, `net/serpent/serpentHerald.js`, `net/superDungeon/sdHerald.js`, `net/eliteGates/egHerald.js` |
 | Home decorating | `systems/decor/`, `scenes/decor/` |
@@ -147,7 +122,6 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | Regions | `systems/region/` |
 | Resting | `systems/rest/` |
 | Revenant | `systems/revenant/`, `ui/revenant/` |
-| Rewrite Engine rig | `characters/rewrite/` |
 | Roads | `world/road/` |
 | Roleplay Realism | `systems/roleplayRealism/` |
 | Roleplay Realism: Items | `systems/roleplayRealismItems/` |
@@ -201,7 +175,6 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/characters/ownModels/` | The port's own 3D models: heads, armour, clothing, weapons. |
 | `src/characters/paperdoll/` | The paperdoll. |
 | `src/characters/pieces/` | The voxel pieces a character is built from (heads, bodies, armour, weapons). |
-| `src/characters/rewrite/` | project-final's Rewrite Engine rig, vendored byte for byte (`test/characters/rig.test.js`). |
 
 #### `src/combat/`
 
@@ -247,6 +220,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/net/sea/` | The Eltheric Ocean's ventures (`03-World/Eltheric-Ocean.md` SEA-BOUNTY, SEA-SEASON, SHIP-PVP): the bounty board's and the season boards' law, a wreck's prize, the open sea's guns refereed - online - the law both ends run. |
 | `src/net/serpent/` | The sea serpent, the sea's world boss (`11-Multiplayer/Sea-Serpent.md`) - online - the law both ends run. |
 | `src/net/dragon/` | The Dwarven Dragon, the sky's world boss (`11-Multiplayer/Dwarven-Dragon.md`) - online - the law both ends run (its watch, its path, its brain, its receipt) and the relay's seed of a watch (`dragonSeed.js`). |
+| `src/net/invasion/` | A toybox invasion's fight (`11-Multiplayer/Toybox.md`) - online and offline - the brain the relay's cell and the offline cell both run, and its words on the wire. |
 | `src/net/siege/` | Sieges of a seat - online - the law both ends run. |
 | `src/net/starfall/` | The Starfall, the Witches' Festival's fallen stars (`11-Multiplayer/Starfall.md`) - online - the law both ends run: the night and its stars, the defense's ledger, the receipt. |
 | `src/net/superDungeon/` | The Abyss Dungeon, the super dungeons (`11-Multiplayer/Super-Dungeons-Look.md`) - online - the law both ends run. |
@@ -288,8 +262,8 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/scenes/eliteGates/` | The Elite Breach (`11-Multiplayer/Elite-Gates.md`, `Elite-Gates-Look.md`, `Elite-Gates-Ascent.md`) - the hosts' wiring: the client, the call and the arch, the fight, the spans, the circle's host and its swap, the look drawn. |
 | `src/scenes/gate/` | The Oblivion Gate, the world boss on the shared clock (`11-Multiplayer/World-Bosses.md`) - the hosts' wiring. |
 | `src/scenes/ketch/` | The Sky-Ketch (`11-Multiplayer/Sky-Ketch.md`, `Sky-Ketch-Look.md`) - the hosts' wiring: her sky over Daggerfall and the anchor-lift, the deck host, the fight on the deck and the bridge, the client that boards her. |
-| `src/scenes/livingWorld/` | The living world in the hosts (`06-Systems/Living-World-II.md`): indoors, the roads, the watch, the deep's remains. |
-| `src/scenes/naval/` | Ships and the sea in the hosts: the naval host, the crew, the flames; the world's packet lanes, the Bay's and the sea's past it (`worldLanes.js`). |
+| `src/scenes/livingWorld/` | The living world in the hosts (`06-Systems/Living-World-II.md`): indoors, the roads, the books kept across frames, the watch, the deep's remains. |
+| `src/scenes/naval/` | Ships and the sea in the hosts: the naval host, the crew, the flames; the world's packet lanes, the Bay's and the sea's past it (`worldLanes.js`), and their packets about the player handed to the naval host (`laneShips.js`). |
 | `src/scenes/quest/` | Quests - the hosts' wiring. |
 | `src/scenes/starfall/` | The Starfall (`11-Multiplayer/Starfall.md`) - the hosts' wiring: the stars on a screen, their defense on the camp law, and a held star's rewards. |
 | `src/scenes/superDungeon/` | The Abyss Dungeon, the super dungeons (`11-Multiplayer/Super-Dungeons-Look.md`) - the hosts' wiring. |
@@ -299,6 +273,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 
 | Folder | What lives there |
 |---|---|
+| `src/systems/ambientLife/` | The creatures outdoors (`07-Rendering/Ambient-Life.md`): who stands by climate, hour and weather, the birds, the runners and the insects, and the instances the pass draws. |
 | `src/systems/arena/` | The Arena's law (`11-Multiplayer/Arena.md`): the bout, its fighters and moves, the ladder and the league, the board and score, the herald, the crowd and the replay. |
 | `src/systems/automap/` | The automap's law: the model, its floors, and what a click picks. |
 | `src/systems/bounty/` | The bounty board's law: the board, the journal and the reward. |
@@ -338,6 +313,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/systems/quest/` | The quest machine: the parser, its tables, actions and conditions. |
 | `src/systems/questlines/` | The questlines over the quest machine (`06-Systems/Questlines-Arc.md`): the objective sheets and branch patches by family, the actions, the rewards, the acts feed and the elite foe's act (`qlEliteFoe.js`, which the dungeon host hands its place - AUDIT QUESTLINES ACTS-8), the questlines, their runner and the guilds' ladders - the law. |
 | `src/systems/region/` | A region's conditions, hubs and power - the law. |
+| `src/systems/replacements/` | The player's own pictures (`10-UI/Replacements.md`): what can be replaced and its originals, the rules a picture or CIF must keep, the store, the doors the game's readers ask, Import and Export, and the checks a file meets before it is read. |
 | `src/systems/rest/` | Resting: the rest window, its supplies and its warning - the law. |
 | `src/systems/revenant/` | The Revenant: the feud, its companions (their kit, their errands abroad, their stars), its art, personality, voice, trophy and fate. |
 | `src/systems/roleplayRealism/` | The Roleplay Realism mod - the law. |
@@ -352,11 +328,12 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/systems/soundscape/` | The world heard (`08-Audio/Audio.md` SOUNDSCAPE, SEA-SCORE): the deck's air at sea, the shore's, the wild's and the town's on land, the sea's songs at a helm, the beds made off the main thread and the port's clips loaded - the law. |
 | `src/systems/spell/` | Spells: effects, the spell maker, power and the impact's sound. |
 | `src/systems/starfall/` | The Starfall (`11-Multiplayer/Starfall.md`) - the law: the covens and the night's coven, the night's stars over the gate's scan, the Witches' Night; the coven's waves, masters and circles, the star's law on a player's screen, every word it says and its sounds; Starfall Glass and a held star's spoils. |
-| `src/systems/starts/` | Where a character's story begins (`06-Systems/Alternate-Starts-Arc.md` START1, START2): the starts' registry, each province's start dungeon ranked, the start quests' Places, and the start quests themselves (`quests/`). |
+| `src/systems/starts/` | Where a character's story begins (`06-Systems/Alternate-Starts-Arc.md`): the starts' registry, each province's start dungeon ranked, the start quests' Places, and the start quests themselves (`quests/`). |
 | `src/systems/studioArt/` | The studio (`07-Rendering/Studio-Art.md`): the game's artists' own pictures (`public/art/studio/`) on the texture door, and the slots they paint. |
 | `src/systems/superDungeon/` | The Abyss Dungeon's law (`11-Multiplayer/Super-Dungeons-Look.md`): the site, the omen, the score, the spoils, the rift's sound and the slots kept on the device. |
 | `src/systems/survival/` | Survival: needs, camping, food, rest, exposure. |
 | `src/systems/talk/` | Talking to people: topics, sessions, macros - the law. |
+| `src/systems/toybox/` | The developer's toybox (`11-Multiplayer/Toybox.md`): its law, the forge's pieces, the ghost, the invasion and dragon attack's cities, run, marks, news, rewards and offline runner. |
 | `src/systems/town/` | A town's population, seats and watch. |
 | `src/systems/travel/` | Travel's law: the trip, routes and paths, pace, the autopilot, ports, far places and the dungeons on the way. |
 | `src/systems/upkeep/` | Upkeep: a horse's care and a wagon's wear (`06-Systems/Horse-Care.md`, `06-Systems/Wagon-Upkeep.md`) - the law. |
@@ -412,6 +389,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/ui/starfall/` | The Starfall on screen: a fallen star's tracker, the master's bar and the star's colours. |
 | `src/ui/superDungeon/` | The Abyss Dungeon on screen: the title card, the Remnant's bar, the marks and the map mark. |
 | `src/ui/touch/` | The touch layer: buttons, gestures, look - its windows. |
+| `src/ui/toybox/` | The developer's toybox on screen: the window, its popups, the item forge and the box whose names open above it. |
 | `src/ui/town/` | A town on screen: its sheet, its quarters, its marks and the door to its map. |
 | `src/ui/travel/` | Travel's windows: the travel map, its options, paths and junctions, pace, the pop-up and the HUD. |
 | `src/ui/vendor/` | A vendor's page, tab and map mark - its windows. |
@@ -451,7 +429,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 
 ### The tests, `test/`
 
-TIDY5 filed the suite as the code is filed: a test goes in the folder of the layer whose code it tests most - what it
+The suite is filed as the code is: a test goes in the folder of the layer whose code it tests most - what it
 imports, three to one over what it reads - and, where that layer has the feature's folder, in the same folder there.
 `test/systems/arena/` holds the arena's law tests beside `src/systems/arena/`; `test/net/arena/` its wire's. Five
 folders are not a layer of `src/`:
@@ -460,7 +438,7 @@ folders are not a layer of `src/`:
 |---|---|
 | `test/server/` | The relay's and the account Worker's own tests (`server/`, `server-account/`, their migrations). |
 | `test/tooling/` | The tools, the scripts, the desktop shell and CI's workflows: the move tool (`tidy1_movetool.test.js`; the tree it left, `tidy1_codemap.test.js`), the shards, the release, the installers. |
-| `test/bible/` | The bible's own laws: `manifest.test.js` (unique test names, and Testing.md's closed file table, LEGIBLE 1b), `audit18_bible_docs.test.js` (the docs' cites, counts and index), and the D1-NEAR record's pins. The other gates CLAUDE.md names run from the folder of what they read: `test/tooling/` (citeanchor, mutantdrift), `test/scenes/` (citedrift), `test/systems/` (ledger). |
+| `test/bible/` | The bible's own laws: `manifest.test.js` (unique test names, no file table in Testing.md) and `audit18_bible_docs.test.js` (paths the bible names exist, the open-flags list, no merge markers). |
 | `test/tree/` | Laws over the whole tree: every module loads, no temporal dead zone, the shaders evaluate. |
 | `test/fixtures/` | Data the tests read. Not tests. |
 
@@ -488,9 +466,9 @@ mutation tables - walks `test/` recursively, so a new folder needs nothing regis
    alone so far) and `src/tools/paperdoll/` (a lab and its skin).
 4. **A new folder takes its row** in its layer's table ("The feature folders, layer by layer") in the same change. The
    test fails until it does.
-5. **A new record** - an audit, a field-bugs pass, a hand-off - goes in its kind's folder under `01-Overview/`
-   (`audits/Audit-X.md`, `bugs/Field-Bugs-<date>.md`, `handoffs/`), and the index names it by that path.
-   `test/bible/audit18_bible_docs.test.js` finds a record by its name in any of them, so a name is one page.
+5. **Something reaches it.** A module under `src/` that no page, relay, worker, app, script or tool imports runs only
+   in its own tests. `node tools/unreached.mjs` lists them, and `test/tooling/unreached.test.js` fails on one unless
+   `tools/unreachedBaseline.json` stages it with its reason.
 
 ## How a file moves
 
@@ -505,7 +483,7 @@ A file that moves to another depth keeps its roots: its own folder (`dirname(fil
 (`new URL('../' + p, ...)`), a template's folder, an `import.meta.glob` pattern's folder. `--dry-run` says what it
 would change. The rules:
 
-- **A move changes the directory, never the name.** The bible's cites by file name alone (CITE-ANCHOR's basename form) keep
+- **A move changes the directory, never the name.** The bible's cites by file name alone (the basename form of a cite anchor) keep
   resolving, and `git log --follow` keeps the history.
 - **One feature a change.** A move is reviewable when it is one cluster; the diff is mechanical and should read as
   such.
@@ -513,7 +491,7 @@ would change. The rules:
   needs nothing:
   - a sweep that does not recurse (`readdirSync('src/systems')`): it stops seeing a file that leaves and passes on
     what is left - make it recurse. A sweep behind a helper or a constant (`jsIn('src/net')`) the tool cannot see: grep
-    for `readdirSync` over the old directory too (AUDIT TIDY found five);
+    for `readdirSync` over the old directory too;
   - a negative pin quoting a spelling its moved subject no longer has (`!src.includes("from './x.js'")`): it passes on
     anything - spell it at any depth, `from '(?:\.\.?\/)+(?:[\w-]+\/)*x\.js'`;
   - a quoted `./x.js` outside the folder `x.js` moved to, or one the files a pin names spell two ways;
@@ -522,7 +500,7 @@ would change. The rules:
     hand it are spelled from where it stood;
   - a path that named nothing where its file stood, in a folder that stands: a gone file a negative pin names
     (`!existsSync(new URL('../src/ui/gone.js', ...))`) is re-based by hand, a fixture's text is left;
-  - a glob a move empties: a workflow's `paths:` (`src/ui/intro*.js` lost the intro modules to `src/ui/intro/`), an
+  - a glob a move empties: a workflow's `paths:` , an
     `import.meta.glob` in a module that stays;
   - a file that finds the tree from its own folder and moved up, or reads `import.meta.dirname` with no `join` to
     raise it.
@@ -542,23 +520,3 @@ would change. The rules:
 - **After a merge of main**, a branch written before a move still names the old paths: `node tools/moveModule.mjs
   --fixup` rewrites each to where the ledger (`tools/moveLedger.json`) says the file went.
 - **The gates run as for any change** (CLAUDE.md, "Before a push").
-
-## The plan
-
-Proposed as six steps, one pull request each. Mac: *"Do everything"* - and the steps that touch the relay became one
-change, because each would have been its own `RELAY_VERSION` and its own deploy that drops every connected player:
-one bump (world211 - world209 on the branch, renumbered past main's at the merge) for all of them is one reconnect, not five.
-
-| Step | What | Status |
-|---|---|---|
-| TIDY1 | This map, its test, the move tool, and the pilot: Come Sail Away's ten modules (`comeSailAway*` and `csaBoatMenu.js`) into `src/systems/comeSailAway/` - a cluster the relay's bundle does not touch. | Done |
-| TIDY2 | Every layer of `src/` into feature folders - what was proposed as TIDY2, TIDY2b, TIDY3 and TIDY4 - 762 modules into 134 folders, each a feature's three or more modules in one layer (the tables above). First every test that swept a `src/` folder without recursing was made to recurse, and the module counts count the folders. The relay's files moved under one `RELAY_VERSION`, world211. | Done |
-| TIDY5 | `test/`: the 3,242 test files (3,234, and the 8 main added before the merge) out of one folder into the layers' and the features' folders (`### The tests`, above). Every list of tests walks `test/` recursively; the manifest keys a file by its name, and holds the names unique. | Done |
-| TIDY6 | `01-Overview/`'s dated records apart from its overview pages - 265 at the time: `audits/` (149), `bugs/` (108), `handoffs/` (8). The overview pages are 13: this map, the doctrine, the ledger and the host split among them, and Home.md's three index pages (`Page-Index.md`, `Active-Arcs.md`, `Audit-Log.md` - AUDIT TIDY DOC-11 put the log back beside the other two). The root's lab pages stay where they are: GitHub Pages serves each at its path (`/sky.html`), with no redirects, and the labs are deployed to be opened on a phone - moving them would break every link to one. | Done |
-
-**Layer first, then feature** - the question the plan left open, settled by doing it. The arena's code spans five
-layers (16 modules in `src/systems/`, 6 in `src/net/`, 5 in `src/world/`, 3 in `src/scenes/`, 4 in `src/ui/`). A
-feature-first tree (`src/features/arena/` holding all of them) puts a feature in one place, but the bundles that
-must never pull UI in (the relay, the account Worker) would then need a rule inside every feature folder instead of
-one at the layer. Layer first is what the tree already did (`src/systems/naval/`, `src/systems/quest/`), and the
-tool makes a later change of mind cheap.

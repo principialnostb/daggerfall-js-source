@@ -6,7 +6,7 @@ import '../../modsOff.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { crossingWayAt, createCrossingGate, crossingTarget, crossingRows, crossingWords, createCrossLand, CROSS_DAYS, CROSS_CHECK_S, CROSS_REFUSED } from '../../../src/systems/naval/etherCrossing.js';
+import { crossingWayAt, createCrossingGate, crossingTarget, crossingRows, crossingWords, createCrossLand, CROSS_DAYS, CROSS_CHECK_S, CROSS_REFUSED, HOME_AGAIN_CHECKS } from '../../../src/systems/naval/etherCrossing.js';
 import { createCaptainLedger, ETHER_CHARTED_MAX, ETHER_HARVEST_KEEP, newEther, newLog, logLines } from '../../../src/systems/naval/captainLedger.js';
 import { createEtherHost, SIGHT_PX, HARVEST_REACH_PX, HARVEST_CASKS, STRAND_YIELD, HARVEST_DAYS, STRAND_SITE, CHART_BUY_PX, CHART_BUY_PRICE, PAPERS_CHANCE, PAPERS_PX } from '../../../src/scenes/etherHost.js';
 import { veilhaven, landfall, HOME_WATERS, VEIL_X, isleOfCell, islesNear, LEAGUE_PX, ETHER_BOX, etherDepthAt, CROSS_LAND_PX } from '../../../src/world/ethericSea.js';
@@ -73,6 +73,24 @@ test('ETHER-CROSSING the ways: out in the crossing waters, home in the Veil, non
   m.asked('out'); j.arrived = 2;
   assert.equal(m.offer('out', j), false, 'refused in them, an arrival in the same waters asks nothing new');
   assert.equal(createCrossingGate().offer('out', null), true, 'Travel Options off: as it was');
+  // the Veil is the way home: a journey stopped in it, by any hand, is asked; under way still nothing
+  const hj = { isTravelActive: true, arrived: 0 }, v = createCrossingGate();
+  assert.equal(v.offer('home', hj), false, 'under way in the Veil: not asked');
+  assert.equal(v.offer('home', hj), false, 'still under way: not asked');
+  hj.isTravelActive = false;
+  assert.equal(v.offer('home', hj), true, 'stopped in the Veil, no arrival: asked');
+  // a 'home' turned down is asked again after HOME_AGAIN_CHECKS checks in the Veil, not only once she has left it
+  const a = createCrossingGate();
+  assert.equal(a.offer('home'), true);
+  a.asked('home');
+  for (let i = 1; i < HOME_AGAIN_CHECKS; i++) assert.equal(a.offer('home'), false, 'turned down: not asked at once');
+  assert.equal(a.offer('home'), true, 'a minute on in the Veil: asked again');
+  a.asked('home'); a.offer(null);
+  assert.equal(a.offer('home'), true, 'left and come back to: asked at once, as before');
+  // 'out' is untouched: turned down, never asked again in the same waters
+  const o = createCrossingGate();
+  o.asked('out');
+  for (let i = 0; i < HOME_AGAIN_CHECKS * 2; i++) assert.equal(o.offer('out'), false, 'out: kept till left');
 });
 
 test('ETHER-CROSSING the voyage: three days; out to the open water off Veilhaven, home to the waters she set sail from, else the Bay\'s mouth; the question and the landfall in words (mutants: the days, the targets, the rows)', () => {
@@ -136,7 +154,7 @@ test('ETHER-CROSSING by source: asked at a helm in the exterior with no window u
   assert.equal(createCrossLand((x, y) => !(x === 0 && y === 0), 4)(0, 0), 0, 'on land: none');
   assert.equal(createCrossLand(island, 2)(10, 10), Infinity, 'past its reach');
   assert.equal(CROSS_LAND_PX, 20);
-  assert.match(readFileSync(new URL('../../../src/systems/naval/etherCrossing.js', import.meta.url), 'utf8'), /if \(Math\.max\(Math\.abs\(dx\), Math\.abs\(dy\)\) === r && !seaPixel\(px \+ dx, py \+ dy\)\) \{ d = r; break ring; \}/, 'each ring\'s own pixels, asked once');
+  assert.match(readFileSync(new URL('../../../src/systems/naval/etherCrossing.js', import.meta.url), 'utf8'), /if \(Math\.max\(Math\.abs\(dx\), Math\.abs\(dy\)\) === r && !seaPixel\(px \+ dx, py \+ dy\)\) \{\n\s*d = r;\n\s*break ring;\n\s*\}/, 'each ring\'s own pixels, asked once');
 });
 
 test('ETHER-SEA the ledger\'s record: isles charted once each (the log\'s islands), a legend\'s day, a strand\'s day (the newest kept), the way out, the crossings, the legends heard - kept whole by the save and cleaned field by field (mutants: each field, the bounds)', () => {

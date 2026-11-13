@@ -7,7 +7,7 @@ export const BATTLEAXE_REFERENCE = Object.freeze({
   tip: 37.1843376159668,
 });
 // Detailed Skyrim source spans: Y 98.69747161865234, X 35.46467590332031.
-export const BATTLEAXE_LENGTH = BATTLEAXE_REFERENCE.width * 98.69747161865234 / 35.46467590332031;
+export const BATTLEAXE_LENGTH = (BATTLEAXE_REFERENCE.width * 98.69747161865234) / 35.46467590332031;
 export const BATTLEAXE_TIP = BATTLEAXE_REFERENCE.pommel + BATTLEAXE_LENGTH;
 // Full-length ready stance: leave the head well ahead of the upper hand.
 // Edge toward the player: remove the previous quarter-turn that presented the broad blade face.

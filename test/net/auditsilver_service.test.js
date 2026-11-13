@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { standService, T0 } from '../accountDb.mjs';
+import { standService, T0, clockPicksLodes } from '../accountDb.mjs';
 import { mintRaidReceipt } from '../../src/net/raid/raidReceipt.js';
 import { mintReceipt } from '../../src/net/gate/gateReceipt.js';
 import { mintWatchReceipt } from '../../src/net/watchReceipt.js';
@@ -251,7 +251,7 @@ async function lodeRig(extra = {}) {
     raw.prepare(`INSERT INTO prof_tracks (player, char_id, profession, xp, updated_at) VALUES (?, ?, 'mining', ?, ?)`).run(w.id, w.character, xpForRank(MOTHERLODE_RANK), _now);
     return w;
   };
-  const read = (who) => s.call('/v1/prof/motherlodes', { character: who.character }, who.secret);
+  const read = async (who) => { await clockPicksLodes(s); return s.call('/v1/prof/motherlodes', { character: who.character }, who.secret); };
   const watch = (who, lode, nowS) => mintWatchReceipt({ s: who.id, x: lode.x, y: lode.y, c: 4242 }, s.gateKey, { subtle, nowS });
   const strike = async (who, lode, { at = _now - 2, watchAt = at, ...extra2 } = {}) => s.call('/v1/prof/harvest', {
     character: who.character, node: lode.key, kind: 'ore', act: { glints: glintsMax(MOTHERLODE_TIER), clean: true }, at, rid: rid(),

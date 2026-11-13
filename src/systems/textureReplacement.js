@@ -24,9 +24,9 @@
 // music.
 
 import { getBool } from './settings/settings.js';
-import { toColor32 } from '../formats/color32Order.js';   // ROAD-H H4: the one door a decoded PNG crosses into the port's texel convention
-import { dyeToken } from '../characters/dyes.js';   // DW3: GetName's dye arm - the key carries the dye a caller asks with
-import { isTouchDevice } from '../ui/touch/touchDevice.js';   // IOS-BUDGET: a touch browser that keeps deviceMemory to itself is an iOS tab
+import { toColor32 } from '../formats/color32Order.js'; // ROAD-H H4: the one door a decoded PNG crosses into the port's texel convention
+import { dyeToken } from '../characters/dyes.js'; // DW3: GetName's dye arm - the key carries the dye a caller asks with
+import { isTouchDevice } from '../ui/touch/touchDevice.js'; // IOS-BUDGET: a touch browser that keeps deviceMemory to itself is an iOS tab
 
 /** TextureReplacement.cs:39-47, in declaration order. Albedo is the
  *  default and carries NO suffix, which is why it leads. */
@@ -111,7 +111,7 @@ export const textureKey = (archive, record, frame = 0, map = 'Albedo', dye = nul
 
 let _index = new Map();
 let _load = null;
-let _looseGen = 0;   // VE2: bumps with every pick or clear - a picture built from the loose tier keys on it
+let _looseGen = 0; // VE2: bumps with every pick or clear - a picture built from the loose tier keys on it
 
 /** Register a picked set; `load(fileName)` resolves to bytes. */
 export function setTextureReplacements(fileNames, load) {
@@ -125,7 +125,7 @@ export function setTextureReplacements(fileNames, load) {
     // music, but textures have no format preference to rank by - one
     // extension only - so a duplicate name IS the same texture twice
     // and keeping the first is stable and enough.
-    const key = textureKey(e.archive, e.record, e.frame, e.map, e.dye);   // DW3: the dye rides the key
+    const key = textureKey(e.archive, e.record, e.frame, e.map, e.dye); // DW3: the dye rides the key
     if (!_index.has(key)) _index.set(key, e);
   }
   const wasLoad = _load;
@@ -161,6 +161,65 @@ export async function looseTextureBytes(archive, record, frame = 0, map = 'Albed
 }
 /** Bumps with every loose pick and clear: what a cache of pictures built from the loose tier keys on. */
 export const looseTextureGeneration = () => _looseGen;
+
+// ---- THE PLAYER'S OWN REPLACEMENTS, chosen picture by picture (ui/replacementsPane.js) ----------------------------
+//
+// They outrank every overhaul, pack and mod, and answer with Replace Game Artwork off: the player chose each by hand.
+// One chosen for a dye (a metal: `233_12-0_Daedric`) answers that dye; one chosen with none answers every other dye of
+// its record, as a stand-in does (standInDye). It replaces the plain picture alone; an overhaul's normal map stays.
+let _player = new Map(); // textureKey with the entry's dye, no map -> its entry
+
+/** Register the player's replacements: [{ archive, record, frame?, dye?, stamp, box?, load }], `load()` resolving to PNG
+ *  bytes, `dye` the metal it is for (null for every one), `stamp` naming the version (a picture chosen again is decoded
+ *  again) and `box` the size the game draws it at, which a bigger picture stands as. Answers how many are registered. */
+export function setPlayerReplacements(entries) {
+  const was = _player;
+  _player = new Map();
+  for (const entry of entries ?? []) {
+    if (!Number.isFinite(entry?.archive) || !Number.isFinite(entry?.record) || typeof entry.load !== 'function')
+      continue;
+    const frame = Number(entry.frame ?? 0);
+    const dye = entry.dye ?? null;
+    const key = textureKey(entry.archive, entry.record, frame, 'Albedo', dye);
+    _player.set(key, {
+      archive: Number(entry.archive),
+      record: Number(entry.record),
+      frame,
+      map: 'Albedo',
+      dye,
+      fileName: `replacement:${key}`,
+      src: `replacement:${key}:${entry.stamp ?? 0}`,
+      box:
+        entry.box?.width > 0 && entry.box?.height > 0
+          ? { width: Number(entry.box.width), height: Number(entry.box.height) }
+          : null,
+      load: entry.load,
+    });
+  }
+  if (!sameEntries(was, _player)) tierChanged();
+  return _player.size;
+}
+export const playerReplacementCount = () => _player.size;
+/** The player has chosen a picture for this record and frame (for this dye, or for every dye with none). */
+export const hasPlayerReplacement = (archive, record, frame = 0, dye = null) =>
+  _player.has(textureKey(archive, record, frame, 'Albedo', dye));
+/** The size the game draws the player's picture for this record, frame and dye at, or null. */
+export const playerReplacementBox = (archive, record, frame = 0, dye = null) =>
+  _player.get(textureKey(archive, record, frame, 'Albedo', dye))?.box ?? null;
+/** The records of `archive` the player replaced (frame 0): what a ground tile set lays over itself. */
+export function playerRecordsOf(archive) {
+  const records = new Set();
+  for (const entry of _player.values())
+    if (entry.archive === Number(archive) && entry.frame === 0) records.add(entry.record);
+  return [...records].sort((first, second) => first - second);
+}
+/** The player's entry that answers a lookup key: the one for the dye it asks with, else the one for every dye. */
+function playerOf(key) {
+  if (!_player.size) return null;
+  const [archivePart, recordFramePart, ...suffixes] = key.split('_');
+  if (suffixes.some((suffix) => TEXTURE_MAPS.includes(suffix))) return null;
+  return _player.get(key) ?? _player.get(`${archivePart}_${recordFramePart}`) ?? null;
+}
 
 // ---- SURV2: THE PORT'S OWN VENDORED ART ------------------------------
 //
@@ -203,8 +262,13 @@ const _vendor = new Map();
 export function addVendorTextures(entries) {
   let n = 0;
   for (const e of entries ?? []) {
-    if (!Number.isFinite(e?.archive) || !Number.isFinite(e?.record) || (typeof e.load !== 'function' && typeof e.build !== 'function')) continue;
-    const map = e.map ?? 'Albedo';   // RRI1: a mod's helmet mask registers under TextureMap.Mask
+    if (
+      !Number.isFinite(e?.archive) ||
+      !Number.isFinite(e?.record) ||
+      (typeof e.load !== 'function' && typeof e.build !== 'function')
+    )
+      continue;
+    const map = e.map ?? 'Albedo'; // RRI1: a mod's helmet mask registers under TextureMap.Mask
     const key = textureKey(e.archive, e.record, e.frame ?? 0, map, e.dye ?? null);
     // STUDIO1 (bible/07-Rendering/Studio-Art.md): THE STUDIO'S PICTURE HOLDS ITS KEY, whichever registers first, and keeps
     // what it covers (`under`): the art registered before it, or after it (a ship's painted stand-in registers when her
@@ -212,10 +276,28 @@ export function addVendorTextures(entries) {
     // doll, decoded only when asked (`lazy`) - and its picture stands in for the studio's that will not load, and gives
     // the studio's picture its size and scale (entryColor32): a picture of any size stands as big as the one it covers.
     const prev = _vendor.get(key);
-    const entry = { archive: Number(e.archive), record: Number(e.record), frame: Number(e.frame ?? 0), map, dye: e.dye ?? null, gate: typeof e.gate === 'function' ? e.gate : null, lazy: e.lazy === true, fileName: e.fileName ?? key, load: e.load ?? null, build: typeof e.build === 'function' ? e.build : null, standIn: e.standIn === true, yields: e.yields === true, offset: e.offset ?? null, studio: e.studio === true, under: null, readOnly: e.readOnly === true, cutout: e.cutout === true };   // WD2: `build(ctx)` - a picture DERIVED from the player's own classic records (formats/derivedTexture.js), never a file   // FIELD-GUN4: a WORN stand-in needs a place on the doll, which only its registration knows; AUDIT-DW F1: `lazy` - decoded per record when asked, never by the archive's preload
+    const entry = {
+      archive: Number(e.archive),
+      record: Number(e.record),
+      frame: Number(e.frame ?? 0),
+      map,
+      dye: e.dye ?? null,
+      gate: typeof e.gate === 'function' ? e.gate : null,
+      lazy: e.lazy === true,
+      fileName: e.fileName ?? key,
+      load: e.load ?? null,
+      build: typeof e.build === 'function' ? e.build : null,
+      standIn: e.standIn === true,
+      yields: e.yields === true,
+      offset: e.offset ?? null,
+      studio: e.studio === true,
+      under: null,
+      readOnly: e.readOnly === true,
+      cutout: e.cutout === true,
+    }; // WD2: `build(ctx)` - a picture DERIVED from the player's own classic records (formats/derivedTexture.js), never a file   // FIELD-GUN4: a WORN stand-in needs a place on the doll, which only its registration knows; AUDIT-DW F1: `lazy` - decoded per record when asked, never by the archive's preload
     if (prev?.studio && !entry.studio) {
       coverWith(prev, entry);
-      dropDecoded(key);   // decoded again with what it covers
+      dropDecoded(key); // decoded again with what it covers
       n++;
       continue;
     }
@@ -223,7 +305,7 @@ export function addVendorTextures(entries) {
     _vendor.set(key, entry);
     n++;
   }
-  if (n) tierChanged();   // AUDIT VE R1: a scene's archives are asked again
+  if (n) tierChanged(); // AUDIT VE R1: a scene's archives are asked again
   return n;
 }
 export const vendorTextureCount = () => _vendor.size;
@@ -233,22 +315,25 @@ export const vendorTextureCount = () => _vendor.size;
  *  draws its texels under half alpha as holes (render/renderer.js uploadTexture `{ cutout: true }`, RW1) whoever uploads
  *  it - a model's build, a place's hold, the remake after an eviction - as the game draws a tree's flat. Frame 0, its
  *  albedo. @param {number} archive @param {number} record */
-export const vendorCutout = (archive, record) => _vendor.get(textureKey(archive, record, 0, 'Albedo', null))?.cutout === true;
+export const vendorCutout = (archive, record) =>
+  _vendor.get(textureKey(archive, record, 0, 'Albedo', null))?.cutout === true;
 /** STUDIO1: a studio entry takes `under` as the art it covers, and what the archive is from it. */
 function coverWith(studio, under) {
   if (!under) return;
   studio.under = under;
   if (under.standIn) studio.standIn = true;
   if (under.lazy) studio.lazy = true;
-  if (under.readOnly) studio.readOnly = true;   // AUDIT DEX B5
+  if (under.readOnly) studio.readOnly = true; // AUDIT DEX B5
   studio.offset ??= under.offset ?? null;
 }
 /** STUDIO1: the records of `archive` the studio paints (frame 0, the plain picture) - what a tile set built outside
  *  this door asks (systems/dfmodTextures.js dfmodGroundLayers: the ground's records are laid in a set, not uploaded
  *  one by one). */
 export function studioRecordsOf(archive) {
-  const a = Number(archive), out = [];
-  for (const e of _vendor.values()) if (e.studio && e.archive === a && e.frame === 0 && e.map === 'Albedo' && e.dye == null) out.push(e.record);
+  const a = Number(archive),
+    out = [];
+  for (const e of _vendor.values())
+    if (e.studio && e.archive === a && e.frame === 0 && e.map === 'Albedo' && e.dye == null) out.push(e.record);
   return out.sort((x, y) => x - y);
 }
 
@@ -259,14 +344,24 @@ export function studioRecordsOf(archive) {
 const _holds = new Set();
 export function holdTextureTiers(promise, atMost) {
   let timer = null;
-  const held = Promise.race([Promise.resolve(promise).catch(() => {}), new Promise((r) => { timer = setTimeout(r, atMost); })])
-    .then(() => { clearTimeout(timer); _holds.delete(held); });
+  const held = Promise.race([
+    Promise.resolve(promise).catch(() => {}),
+    new Promise((r) => {
+      timer = setTimeout(r, atMost);
+    }),
+  ]).then(() => {
+    clearTimeout(timer);
+    _holds.delete(held);
+  });
   _holds.add(held);
   return held;
 }
 /** What an archive's first load waits for, or null when nothing is on its way (the load then takes no extra turn). */
 export const textureTiersSettled = () => (_holds.size ? Promise.all([..._holds]) : null);
-export function clearVendorTextures() { _vendor.clear(); tierChanged(); }   // AUDIT VE R1: the sweep lets their pictures go
+export function clearVendorTextures() {
+  _vendor.clear();
+  tierChanged();
+} // AUDIT VE R1: the sweep lets their pictures go
 /** An archive that exists ONLY as vendored art (no ARENA2 file), which
  *  is what sends the pipeline down the stand-in branch instead of
  *  fetching TEXTURE.###.
@@ -279,7 +374,16 @@ export function clearVendorTextures() { _vendor.clear(); tierChanged(); }   // A
  *  it (every wall and floor drawn from archive 50) would have come
  *  back as a 1x1 nothing. The archive number cannot tell you; only the
  *  registration can, so it says. */
-export const isVendorArchive = (archive) => { for (const e of _vendor.values()) if (e.standIn && e.archive === Number(archive)) return true; return false; };
+export const isVendorArchive = (archive) => {
+  for (const e of _vendor.values()) if (e.standIn && e.archive === Number(archive)) return true;
+  return false;
+};
+/** Every archive the port's own art stands in for whole (no classic file), with its first picture's file name. */
+export function standInArchives() {
+  const archives = new Map();
+  for (const e of _vendor.values()) if (e.standIn && !archives.has(e.archive)) archives.set(e.archive, e.fileName);
+  return [...archives].sort((a, b) => a[0] - b[0]).map(([archive, fileName]) => ({ archive, fileName }));
+}
 /** One past the highest RECORD vendored for an archive, off the
  *  REGISTRY and not the decoded map - a PNG that has not been fetched
  *  yet, or would not decode, must not shrink the archive underneath a
@@ -294,7 +398,7 @@ export function vendorRecordCount(archive) {
  *  takes each record's frames until one is missing). At least one: a record is its frame 0. The stand-in answered 1 for
  *  every record, which no vendored art had needed until a mod's enemies walked - a mobile drawn from a stand-in never
  *  animated. Kept per archive until a registration moves the tiers. */
-const _frameCounts = new Map();   // archive -> { gen, counts: Map(record -> frames) }
+const _frameCounts = new Map(); // archive -> { gen, counts: Map(record -> frames) }
 export function vendorFrameCount(archive, record) {
   const a = Number(archive);
   let held = _frameCounts.get(a);
@@ -306,7 +410,11 @@ export function vendorFrameCount(archive, record) {
       frames.get(e.record).add(e.frame);
     }
     const counts = new Map();
-    for (const [r, set] of frames) { let n = 0; while (set.has(n)) n++; counts.set(r, n); }
+    for (const [r, set] of frames) {
+      let n = 0;
+      while (set.has(n)) n++;
+      counts.set(r, n);
+    }
     held = { gen: _tierGen, counts };
     _frameCounts.set(a, held);
   }
@@ -348,7 +456,8 @@ export function topDownRgba(decoded) {
 const vendorEntryOf = (archive, record, map = 'Albedo') => {
   const bare = _vendor.get(textureKey(archive, record, 0, map));
   if (bare) return bare;
-  for (const e of _vendor.values()) if (e.archive === Number(archive) && e.record === Number(record) && e.frame === 0 && e.map === map) return e;
+  for (const e of _vendor.values())
+    if (e.archive === Number(archive) && e.record === Number(record) && e.frame === 0 && e.map === map) return e;
   return null;
 };
 /** THUNDERLOCK-ART (AUDIT SD III; Mac: "The thunderlock/ammo also doesnt recieve proper artwork in slots like the
@@ -363,13 +472,30 @@ const standInDye = (archive, record, frame, map, dye) => {
   if (!dyeToken(dye) || _vendor.has(textureKey(archive, record, frame, map, dye))) return dye;
   const bare = _vendor.get(textureKey(archive, record, frame, map));
   if (!bare?.standIn) return dye;
-  for (const e of _vendor.values()) if (e.archive === bare.archive && e.record === bare.record && e.frame === bare.frame && e.map === bare.map && e.dye != null && !e.studio) return dye;   // STUDIO1: a studio picture of one dye makes no dyed set of a stand-in
+  for (const e of _vendor.values())
+    if (
+      e.archive === bare.archive &&
+      e.record === bare.record &&
+      e.frame === bare.frame &&
+      e.map === bare.map &&
+      e.dye != null &&
+      !e.studio
+    )
+      return dye; // STUDIO1: a studio picture of one dye makes no dyed set of a stand-in
   return null;
 };
 const decodedOf = (archive, record) => {
   const bare = _decoded.get(textureKey(archive, record, 0));
   if (bare) return bare;
-  for (const [k, e] of _vendor) if (e.archive === Number(archive) && e.record === Number(record) && e.frame === 0 && e.map === 'Albedo' && _decoded.has(k)) return _decoded.get(k);
+  for (const [k, e] of _vendor)
+    if (
+      e.archive === Number(archive) &&
+      e.record === Number(record) &&
+      e.frame === 0 &&
+      e.map === 'Albedo' &&
+      _decoded.has(k)
+    )
+      return _decoded.get(k);
   return null;
 };
 /** AUDIT DEX B5: a record's size, scale and box - its decoded picture's, or what a readOnly picture let go kept of it
@@ -379,7 +505,15 @@ const measuredOf = (archive, record) => {
   if (d) return d;
   const bare = _released.get(textureKey(archive, record, 0));
   if (bare) return bare;
-  for (const [k, e] of _vendor) if (e.archive === Number(archive) && e.record === Number(record) && e.frame === 0 && e.map === 'Albedo' && _released.has(k)) return _released.get(k);
+  for (const [k, e] of _vendor)
+    if (
+      e.archive === Number(archive) &&
+      e.record === Number(record) &&
+      e.frame === 0 &&
+      e.map === 'Albedo' &&
+      _released.has(k)
+    )
+      return _released.get(k);
   return null;
 };
 /** AUDIT DEX B5: A PICTURE ON ITS WAY - a readOnly frame let go once on the GPU and asked again (its GPU copy evicted).
@@ -388,19 +522,30 @@ const measuredOf = (archive, record) => {
  *  empty, never for a key the GPU still holds - the frame's emission map first, so the albedo never lands without it
  *  (the pipeline uploads a frame's map beside its albedo only, scenes/dataPipeline.js uploadRecordFrame). One a frame,
  *  one ask at a time; a picture that will not decode is asked no more until the tiers move (tierChanged). */
-const _pending = new Map();   // textureKey -> its placeholder
+const _pending = new Map(); // textureKey -> its placeholder
 const CLEAR_TEXEL = new Uint8ClampedArray(4);
 function pendingPicture(archive, record, frame) {
   const key = textureKey(archive, record, frame);
   let p = _pending.get(key);
   if (!p) {
     let asking = false;
-    p = Object.freeze({ width: 1, height: 1, colors: CLEAR_TEXEL, pending: () => {
-      if (asking) return;
-      asking = true;
-      const lit = _vendor.has(textureKey(archive, record, frame, 'Emission')) ? preloadTextureRecord(archive, record, frame, 'Emission') : Promise.resolve(null);
-      lit.then(() => preloadTextureRecord(archive, record, frame)).then((c32) => { if (c32) asking = false; });
-    } });
+    p = Object.freeze({
+      width: 1,
+      height: 1,
+      colors: CLEAR_TEXEL,
+      pending: () => {
+        if (asking) return;
+        asking = true;
+        const lit = _vendor.has(textureKey(archive, record, frame, 'Emission'))
+          ? preloadTextureRecord(archive, record, frame, 'Emission')
+          : Promise.resolve(null);
+        lit
+          .then(() => preloadTextureRecord(archive, record, frame))
+          .then((c32) => {
+            if (c32) asking = false;
+          });
+      },
+    });
     _pending.set(key, p);
   }
   return p;
@@ -409,22 +554,25 @@ export function vendorTextureStandIn(archive) {
   const recordCount = vendorRecordCount(archive);
   // STUDIO1: a studio picture over a stand-in answers the stand-in's size (`box`), as a classic file answers its record's
   // for a pack's bigger picture - a billboard stands as big, a doll piece fits its box
-  const size = (record) => { const d = measuredOf(archive, record); return d ? (d.box ?? { width: d.width, height: d.height }) : { width: 1, height: 1 }; };   // AUDIT DEX B5: a picture let go keeps its size
+  const size = (record) => {
+    const d = measuredOf(archive, record);
+    return d ? (d.box ?? { width: d.width, height: d.height }) : { width: 1, height: 1 };
+  }; // AUDIT DEX B5: a picture let go keeps its size
   return {
     vendor: true,
-    archive: Number(archive),   // WD2: billboardSize reads `t.archive` to lay a mod's xml scale on (billboardXml.js) - a stand-in without it lost every one
+    archive: Number(archive), // WD2: billboardSize reads `t.archive` to lay a mod's xml scale on (billboardXml.js) - a stand-in without it lost every one
     recordCount,
-    getSize: (record) => (record >= 0 && record < recordCount ? size(record) : { width: 0, height: 0 }),   // TextureFile.getSize's own out-of-range answer
+    getSize: (record) => (record >= 0 && record < recordCount ? size(record) : { width: 0, height: 0 }), // TextureFile.getSize's own out-of-range answer
     // WD2: TextureFile.getScale's own shape, `{ width, height }` - rmbFlats' scaledBillboardSize reads those two, and the
     // `{ x, y }` this answered made every stand-in flat NaN-sized. A mod texture carries no classic record scale: zero
     // (MeshReader.GetBillboardMesh then leaves the size at the picture's own, and the xml scale is laid on after).
-    getScale: (record) => measuredOf(archive, record)?.recordScale ?? { width: 0, height: 0 },   // DS1: a built stand-in may carry its classic record's scale
+    getScale: (record) => measuredOf(archive, record)?.recordScale ?? { width: 0, height: 0 }, // DS1: a built stand-in may carry its classic record's scale
     // FIELD-GUN4: a classic record carries its own paper-doll offset
     // and this one has nowhere else to get one, so the registration
     // supplies it. Zero stays the answer for art that is never worn -
     // every icon door measures from its own rect and never asks.
     getOffset: (record) => vendorEntryOf(archive, record ?? 0)?.offset ?? { x: 0, y: 0 },
-    getFrameCount: (record) => vendorFrameCount(archive, record),   // DEX2: a record's own frames (a mobile's walk), never one for all
+    getFrameCount: (record) => vendorFrameCount(archive, record), // DEX2: a record's own frames (a mobile's walk), never one for all
     getWidth: (record) => size(record).width,
     getHeight: (record) => size(record).height,
     // FIELD-GUN4 (Mac, from play: "The paperdoll doesn't equip the
@@ -449,13 +597,25 @@ export function vendorTextureStandIn(archive) {
     // the other way round - the same HT3 fork the sprite itself just
     // paid, one pipeline over, and the reason it is resolved HERE is
     // that only this function knows which order it is holding.
-    getDFBitmap: (record, frame = 0) => { const d = decodedOf(archive, record), m = d ?? measuredOf(archive, record); return { ...(m ? { width: m.width, height: m.height } : size(record)), data: null, rgba: topDownRgba(d), record, frame }; },   // STUDIO1: the picture's own size beside its own texels; AUDIT DEX B5: and which picture it is, for getColor32
+    getDFBitmap: (record, frame = 0) => {
+      const d = decodedOf(archive, record),
+        m = d ?? measuredOf(archive, record);
+      return {
+        ...(m ? { width: m.width, height: m.height } : size(record)),
+        data: null,
+        rgba: topDownRgba(d),
+        record,
+        frame,
+      };
+    }, // STUDIO1: the picture's own size beside its own texels; AUDIT DEX B5: and which picture it is, for getColor32
     /** STUDIO1: the box a studio picture over a stand-in is drawn in - the stand-in's own size - or null. */
     getBox: (record) => measuredOf(archive, record)?.box ?? null,
     // AUDIT DEX B5: the upload's fallback for a frame decodedTexture had no picture of - a readOnly one let go and asked
     // again is on its way (pendingPicture), never another record's picture standing in for it under its key for good
     getColor32: (bitmap) => {
-      const r = bitmap?.record ?? 0, f = bitmap?.frame ?? 0, key = textureKey(archive, r, f);
+      const r = bitmap?.record ?? 0,
+        f = bitmap?.frame ?? 0,
+        key = textureKey(archive, r, f);
       if (_vendor.get(key)?.readOnly) return _decoded.get(key) ?? pendingPicture(archive, r, f);
       return decodedOf(archive, r) ?? null;
     },
@@ -501,7 +661,8 @@ export const bundleBudgetGb = (nav = globalThis.navigator, win = globalThis.wind
   if (reported > 0) return reported;
   return isTouchDevice(win) ? IOS_TAB_GB : 8;
 };
-export const bundleBudgetBytes = (nav = globalThis.navigator, win = globalThis.window) => Math.round(Math.min(1536, 192 * bundleBudgetGb(nav, win)) * 1024 * 1024);
+export const bundleBudgetBytes = (nav = globalThis.navigator, win = globalThis.window) =>
+  Math.round(Math.min(1536, 192 * bundleBudgetGb(nav, win)) * 1024 * 1024);
 let _bundleBytes = 0;
 let _budgetWarned = false;
 export const bundleDecodedBytes = () => _bundleBytes;
@@ -511,13 +672,24 @@ export const bundleDecodedBytes = () => _bundleBytes;
 export function setBundleTextures(entries) {
   const was = _bundle;
   _bundle = new Map();
-  _budgetWarned = false;   // DFMOD3
+  _budgetWarned = false; // DFMOD3
   for (const e of entries ?? []) {
     if (!Number.isFinite(e?.archive) || !Number.isFinite(e?.record) || typeof e.image !== 'function') continue;
     const map = e.map ?? 'Albedo';
     const key = textureKey(e.archive, e.record, e.frame ?? 0, map, e.dye ?? null);
-    if (_bundle.has(key)) continue;   // the first attached mod that carries a name keeps it
-    _bundle.set(key, { archive: Number(e.archive), record: Number(e.record), frame: Number(e.frame ?? 0), map, dye: e.dye ?? null, fileName: e.fileName ?? key, src: e.src ?? null, image: e.image, lazy: e.lazy === true, rect: e.rect ?? null });
+    if (_bundle.has(key)) continue; // the first attached mod that carries a name keeps it
+    _bundle.set(key, {
+      archive: Number(e.archive),
+      record: Number(e.record),
+      frame: Number(e.frame ?? 0),
+      map,
+      dye: e.dye ?? null,
+      fileName: e.fileName ?? key,
+      src: e.src ?? null,
+      image: e.image,
+      lazy: e.lazy === true,
+      rect: e.rect ?? null,
+    });
   }
   // AUDIT VE R1: the doors were put back (a switch, an add-on, a registration landing) - which is not the same as their
   // pictures changing. This used to let go of EVERY mod picture decoded, while a scene preloads an archive once: a switch
@@ -530,9 +702,9 @@ export function setBundleTextures(entries) {
 export const bundleTextureCount = () => _bundle.size;
 /** A bundle texture's paperdoll `<rect>` ({ x, y, width, height } in the doll's own pixels), or null. */
 export function textureReplacementRect(archive, record, frame = 0, map = 'Albedo', dye = null) {
-  dye = standInDye(archive, record, frame, map, dye);   // THUNDERLOCK-ART: the port's own art takes no dye
+  dye = standInDye(archive, record, frame, map, dye); // THUNDERLOCK-ART: the port's own art takes no dye
   const key = textureKey(archive, record, frame, map, dye);
-  if (_index.has(key) || vendorOf(key)) return null;
+  if (playerOf(key) || _index.has(key) || vendorOf(key)) return null;
   return _bundle.get(key)?.rect ?? null;
 }
 
@@ -540,11 +712,14 @@ export function textureReplacementRect(archive, record, frame = 0, map = 'Albedo
  *  (DET's, the RMB Resource Pack's, Rosy's) - steps aside where the player's own replacement answers the same record
  *  (a loose file or an attached .dfmod: the real peer mod's own picture, which the stand-in only stands in for). */
 const ownPick = (key) => textureReplacementEnabled() && (_index.has(key) || _bundle.has(key));
-const vendorOf = (key) => { const v = _vendor.get(key); return v && !(v.yields && ownPick(key)) ? v : null; };
-const entryFor = (key) => _index.get(key) ?? vendorOf(key) ?? _bundle.get(key) ?? null;
+const vendorOf = (key) => {
+  const v = _vendor.get(key);
+  return v && !(v.yields && ownPick(key)) ? v : null;
+};
+const entryFor = (key) => playerOf(key) ?? _index.get(key) ?? vendorOf(key) ?? _bundle.get(key) ?? null;
 
 export function clearTextureReplacements() {
-  _looseGen++;   // VE2
+  _looseGen++; // VE2
   const had = _index.size > 0 || _load !== null;
   _index = new Map();
   _load = null;
@@ -560,43 +735,60 @@ export function clearTextureReplacements() {
 // that answers its key now has that source, so a switch never draws a stale picture and never costs a picture whose
 // source still answers. A decode that lands after its entry stopped answering - a mod switched off while an area loads
 // (R8) - is dropped where it lands.
-const _decodedFrom = new Map();     // textureKey -> the source its picture was decoded from
-const _released = new Map();        // AUDIT DEX B5: textureKey -> { src, width, height, box, recordScale } - a readOnly picture the upload path took and the CPU let go
-const _bundleBytesOf = new Map();   // DFMOD3: textureKey -> the bytes a mod's decoded picture holds against the budget
+const _decodedFrom = new Map(); // textureKey -> the source its picture was decoded from
+const _released = new Map(); // AUDIT DEX B5: textureKey -> { src, width, height, box, recordScale } - a readOnly picture the upload path took and the CPU let go
+const _bundleBytesOf = new Map(); // DFMOD3: textureKey -> the bytes a mod's decoded picture holds against the budget
 const srcOf = (e) => e?.src ?? e?.fileName ?? null;
 /** The entry whose picture a key answers with now - entryFor's order, behind Replace Game Artwork where the tier is:
  *  the loose pick (DFU reads the loose folder before any mod), else the port's own (unless it yields to the player's
  *  pick; it answers with the gate shut too), else the mods'. A vendored entry's own switch is read at lookup
  *  (decodedTexture). */
-const liveEntry = (key) => {
+const liveEntry = (key) => playerOf(key) ?? entryBelowPlayer(key);
+/** The entry that answers a key when the player has chosen nothing for it. */
+const entryBelowPlayer = (key) => {
   const on = textureReplacementEnabled();
   return (on && _load ? _index.get(key) : null) ?? vendorOf(key) ?? (on ? _bundle.get(key) : null) ?? null;
 };
 /** The picture decoded for a key from `entry`, or null - a picture decoded from anything else is not this entry's. */
-const decodedFrom = (key, entry) => (entry && _decodedFrom.get(key) === srcOf(entry) ? _decoded.get(key) ?? null : null);
+const decodedFrom = (key, entry) =>
+  entry && _decodedFrom.get(key) === srcOf(entry) ? (_decoded.get(key) ?? null) : null;
 /** AUDIT DEX B5: `entry`'s readOnly picture went to the GPU and its CPU copy was let go - an archive's preload decodes it
  *  no more (preloadTextureArchive); a draw that finds its GPU copy gone asks it again (pendingPicture). */
 const releasedFrom = (key, entry) => !!entry && _released.get(key)?.src === srcOf(entry);
 /** AUDIT DEX B5: the upload path has taken a readOnly picture - the CPU copy goes, the measure stays. */
 function release(key, entry, c32) {
-  _released.set(key, { src: srcOf(entry), width: c32.width, height: c32.height, box: c32.box ?? null, recordScale: c32.recordScale ?? null });
+  _released.set(key, {
+    src: srcOf(entry),
+    width: c32.width,
+    height: c32.height,
+    box: c32.box ?? null,
+    recordScale: c32.recordScale ?? null,
+  });
   dropDecoded(key);
 }
 function dropDecoded(key) {
   _decoded.delete(key);
   _decodedFrom.delete(key);
   const b = _bundleBytesOf.get(key);
-  if (b !== undefined) { _bundleBytes -= b; _bundleBytesOf.delete(key); }
+  if (b !== undefined) {
+    _bundleBytes -= b;
+    _bundleBytesOf.delete(key);
+  }
 }
 function putDecoded(key, entry, c32) {
   dropDecoded(key);
-  _released.delete(key);   // AUDIT DEX B5: decoded again - its picture is here, not only on the GPU
+  _released.delete(key); // AUDIT DEX B5: decoded again - its picture is here, not only on the GPU
   _decoded.set(key, c32);
   _decodedFrom.set(key, srcOf(entry));
-  if (entry.image) { const b = c32.width * c32.height * 4; _bundleBytesOf.set(key, b); _bundleBytes += b; }   // DFMOD3: what it holds
+  if (entry.image) {
+    const b = c32.width * c32.height * 4;
+    _bundleBytesOf.set(key, b);
+    _bundleBytes += b;
+  } // DFMOD3: what it holds
 }
 /** Some tier still registers an entry of the picture's source for its key (behind the gate or not, yielding or not). */
-const sourceRegistered = (key, src) => [_vendor.get(key), _index.get(key), _bundle.get(key)].some((e) => e && srcOf(e) === src);
+const sourceRegistered = (key, src) =>
+  [playerOf(key), _vendor.get(key), _index.get(key), _bundle.get(key)].some((e) => e && srcOf(e) === src);
 /** Two registrations of a tier answer the same keys from the same sources. */
 function sameEntries(a, b) {
   if (a.size !== b.size) return false;
@@ -609,8 +801,8 @@ let _tierGen = 0;
 function tierChanged() {
   _tierGen++;
   for (const [k, src] of [..._decodedFrom]) if (!sourceRegistered(k, src)) dropDecoded(k);
-  for (const [k, r] of [..._released]) if (!sourceRegistered(k, r.src)) _released.delete(k);   // AUDIT DEX B5
-  _pending.clear();   // AUDIT DEX B5: a picture that would not decode is asked again under the new tiers
+  for (const [k, r] of [..._released]) if (!sourceRegistered(k, r.src)) _released.delete(k); // AUDIT DEX B5
+  _pending.clear(); // AUDIT DEX B5: a picture that would not decode is asked again under the new tiers
 }
 /** AUDIT VE R1: what a scene's decoded archives are current with - every tier's registrations and Replace Game Artwork.
  *  A scene preloads an archive's pictures once; when this moves, its next ask of the archive decodes what answers now,
@@ -621,12 +813,17 @@ export const textureTierEpoch = () => `${_tierGen}:${textureReplacementEnabled()
 /** Synchronous, and for the same reason music's is: the upload path
  *  has to know which branch it is on before it can proceed. */
 export function hasTextureReplacement(archive, record, frame = 0, map = 'Albedo', dye = null) {
-  dye = standInDye(archive, record, frame, map, dye);   // THUNDERLOCK-ART: the port's own art takes no dye
+  dye = standInDye(archive, record, frame, map, dye); // THUNDERLOCK-ART: the port's own art takes no dye
   const key = textureKey(archive, record, frame, map, dye);
+  return !!playerOf(key) || answersBelowPlayer(key);
+}
+/** A key is answered by an overhaul, a pack or a mod: the port's own art behind its own switch, the rest behind Replace
+ *  Game Artwork. */
+function answersBelowPlayer(key) {
   const v = vendorOf(key);
-  if (v) return !v.gate || v.gate() === true;   // DW3: a gated entry answers only while its switch is on
+  if (v) return !v.gate || v.gate() === true; // DW3: a gated entry answers only while its switch is on
   if (!textureReplacementEnabled()) return false;
-  return _index.has(key) || _bundle.has(key);   // DFMOD1: an attached bundle's texture answers too
+  return _index.has(key) || _bundle.has(key); // DFMOD1: an attached bundle's texture answers too
 }
 
 /**
@@ -634,10 +831,10 @@ export function hasTextureReplacement(archive, record, frame = 0, map = 'Albedo'
  * not load is a cosmetic failure with the classic art right behind it.
  */
 export async function textureReplacementBytes(archive, record, frame = 0, map = 'Albedo', dye = null) {
-  dye = standInDye(archive, record, frame, map, dye);   // THUNDERLOCK-ART: the port's own art takes no dye
+  dye = standInDye(archive, record, frame, map, dye); // THUNDERLOCK-ART: the port's own art takes no dye
   if (!hasTextureReplacement(archive, record, frame, map, dye)) return null;
   const entry = entryFor(textureKey(archive, record, frame, map, dye));
-  if (entry?.build || entry?.image) return null;   // WD2: a derived picture has no file to hand over - it is built, never loaded; DFMOD1: nor has a bundle's
+  if (entry?.build || entry?.image) return null; // WD2: a derived picture has no file to hand over - it is built, never loaded; DFMOD1: nor has a bundle's
   const load = entry?.load ?? _load;
   if (!entry || !load) return null;
   try {
@@ -691,7 +888,7 @@ export async function textureReplacementBytes(archive, record, frame = 0, map = 
 // the PNG raster order it states as its contract (the seasons door
 // takes the same conversion from the same module for the same reason -
 // AUDIT 62 F26).
-const _decoded = new Map();   // textureKey -> { width, height, colors } in getColor32 (bottom-up) order
+const _decoded = new Map(); // textureKey -> { width, height, colors } in getColor32 (bottom-up) order
 
 /** WD2: what a `build` entry derives from - the host pipeline's own
  *  classic textures (`classicRgba(archive, record, frame)` answers a
@@ -699,48 +896,71 @@ const _decoded = new Map();   // textureKey -> { width, height, colors } in getC
  *  scenes/dataPipeline.js when a pipeline is made; null until then, and a
  *  build asked without one is refused (its classic art is not here). */
 let _deriveContext = null;
-export function setTextureDeriveContext(ctx) { _deriveContext = ctx ?? null; }
+export function setTextureDeriveContext(ctx) {
+  _deriveContext = ctx ?? null;
+}
 /** FAR-FLORA: the pipeline's classic reads, for a reader of the player's art outside a build (render/farFlora.js: the trees'
  *  colour and size on the horizon) - null until a pipeline is up. */
 export const textureDeriveContext = () => _deriveContext;
 /** DS1: a built picture may carry the classic record scale it is to be
  *  sized by (`scale: { width, height }`, TextureFile.getScale's shape) - a
  *  stand-in for a classic sprite stands as big as that sprite does. */
-const withRecordScale = (c32, picture) => { if (picture?.scale) c32.recordScale = picture.scale; return c32; };
+const withRecordScale = (c32, picture) => {
+  if (picture?.scale) c32.recordScale = picture.scale;
+  return c32;
+};
 /** An entry's picture in the port's color32 contract - a vendored PNG
  *  decoded, or (WD2) a derived one built - or null when it has none.
  *  H4: both cross into color32 HERE, at the door, never at the upload sites. */
-async function entryColor32(entry, decode) {
+async function entryColor32(entry, decode, derive = null) {
   // STUDIO1: a studio picture that covers art - the art's picture first, which stands in for the studio's that will not
   // load (a hole where a ship's deck was is no fallback), and whose size and scale the studio's takes (`box`,
   // `recordScale` - vendorTextureStandIn answers them)
   if (entry.studio && entry.under) {
-    const base = await pictureColor32(entry.under, decode).catch(() => null);
-    const own = await pictureColor32(entry, decode).catch((e) => { console.warn(`[texture] ${entry.fileName} would not decode - the picture it covers is drawn:`, e?.message ?? e); return null; });
+    const base = await pictureColor32(entry.under, decode, derive).catch(() => null);
+    const own = await pictureColor32(entry, decode, derive).catch((e) => {
+      console.warn(`[texture] ${entry.fileName} would not decode - the picture it covers is drawn:`, e?.message ?? e);
+      return null;
+    });
     if (!own) return base;
-    if (base) { own.box = { width: base.width, height: base.height }; if (base.recordScale && !own.recordScale) own.recordScale = base.recordScale; }
+    if (base) {
+      own.box = { width: base.width, height: base.height };
+      if (base.recordScale && !own.recordScale) own.recordScale = base.recordScale;
+    }
     return own;
   }
-  return pictureColor32(entry, decode);
+  return pictureColor32(entry, decode, derive);
 }
-/** One entry's own picture in the port's color32 contract. */
-async function pictureColor32(entry, decode) {
+/** One entry's own picture in the port's color32 contract. A built one reads the pipeline's classic art, else `derive`'s
+ *  where a reader outside a game hands one (the Replacements pane, before any pipeline is up). */
+async function pictureColor32(entry, decode, derive = null) {
   if (entry.build) {
-    if (!_deriveContext) throw new Error(`${entry.fileName}: derived from classic art and no pipeline is up to read it`);
-    const picture = await entry.build(_deriveContext);
+    const context = _deriveContext ?? derive;
+    if (!context) throw new Error(`${entry.fileName}: derived from classic art and no pipeline is up to read it`);
+    const picture = await entry.build(context);
     return picture ? withRecordScale(toColor32(picture), picture) : null;
   }
-  if (entry.image) {   // DFMOD1: a bundle's texture, decoded in its worker, top-down like a PNG
-    if (_bundleBytes >= bundleBudgetBytes()) {   // DFMOD3: the budget is spent - the classic art draws
-      if (!_budgetWarned) { _budgetWarned = true; console.warn(`[texture] texture mods reached their memory budget (${Math.round(bundleBudgetBytes() / 1048576)} MB) - further mod pictures draw classic this session; lower Texture detail to fit more`); }
+  if (entry.image) {
+    // DFMOD1: a bundle's texture, decoded in its worker, top-down like a PNG
+    if (_bundleBytes >= bundleBudgetBytes()) {
+      // DFMOD3: the budget is spent - the classic art draws
+      if (!_budgetWarned) {
+        _budgetWarned = true;
+        console.warn(
+          `[texture] texture mods reached their memory budget (${Math.round(bundleBudgetBytes() / 1048576)} MB) - further mod pictures draw classic this session; lower Texture detail to fit more`,
+        );
+      }
       return null;
     }
     const img = await entry.image();
-    return img ? toColor32(img) : null;   // AUDIT VE R8: counted against the budget where it is kept (putDecoded), not here
+    return img ? toColor32(img) : null; // AUDIT VE R8: counted against the budget where it is kept (putDecoded), not here
   }
   const bytes = await (entry.load ?? _load)(entry.fileName);
   if (!bytes || !bytes.byteLength) return null;
-  return toColor32(await decode(bytes));
+  const c32 = toColor32(await decode(bytes));
+  // The player's bigger picture stands as big as the original it replaces (a stand-in measures its records by `box`)
+  if (entry.box && (entry.box.width !== c32.width || entry.box.height !== c32.height)) c32.box = { ...entry.box };
+  return c32;
 }
 
 /** The browser decode. Injectable because node has none of this, and
@@ -781,17 +1001,17 @@ export async function preloadTextureArchive(archive, { decode = decodePng, concu
   // SURV2: the port's own art, ungated; then the loose pick and an attached bundle's, behind the gate - AUDIT VE R1: each
   // key decoded from the ONE entry that answers it now (decodedTexture's), and only if its picture is not that entry's
   const keys = new Set();
-  for (const tier of [_vendor, _index, _bundle]) for (const [k, e] of tier) if (e.archive === a) keys.add(k);
+  for (const tier of [_player, _vendor, _index, _bundle]) for (const [k, e] of tier) if (e.archive === a) keys.add(k);
   const todo = [];
   for (const key of keys) {
     const entry = liveEntry(key);
-    if (entry && !entry.lazy && !decodedFrom(key, entry) && !releasedFrom(key, entry)) todo.push([key, entry]);   // AUDIT DEX B5: nor one the GPU holds alone
+    if (entry && !entry.lazy && !decodedFrom(key, entry) && !releasedFrom(key, entry)) todo.push([key, entry]); // AUDIT DEX B5: nor one the GPU holds alone
   }
   const one = async ([key, entry]) => {
     try {
-      const c32 = await entryColor32(entry, decode);   // WD2: a PNG decoded or a picture derived
+      const c32 = await entryColor32(entry, decode); // WD2: a PNG decoded or a picture derived
       if (!c32) return;
-      if (srcOf(liveEntry(key)) !== srcOf(entry)) return;   // AUDIT VE R8: switched away while it decoded - it lands nowhere
+      if (srcOf(liveEntry(key)) !== srcOf(entry)) return; // AUDIT VE R8: switched away while it decoded - it lands nowhere
       putDecoded(key, entry, c32);
       done++;
     } catch (e) {
@@ -799,38 +1019,52 @@ export async function preloadTextureArchive(archive, { decode = decodePng, concu
     }
   };
   let next = 0;
-  const lane = async () => { while (next < todo.length) await one(todo[next++]); };
+  const lane = async () => {
+    while (next < todo.length) await one(todo[next++]);
+  };
   await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, todo.length)) }, lane));
   return done;
 }
 
-const _decoding = new Map();   // textureKey -> Promise<color32 | null>, the asks in flight
+const _decoding = new Map(); // textureKey -> Promise<color32 | null>, the asks in flight
 /** AUDIT-DW F1: ONE record's replacement, decoded on demand - the ask
  *  GetItemImage makes (ItemHelper.cs:458) when an icon is drawn. Any
  *  entry, lazy or not; idempotent; the asks in flight for a key share
  *  one fetch; never throws. Answers the color32, or null when nothing
  *  is registered for the key, it is gated off, or it would not decode.
  *  The gate is read here too, so a gated-off icon costs no fetch. */
-export function preloadTextureRecord(archive, record, frame = 0, map = 'Albedo', dye = null, { decode = decodePng } = {}) {
-  dye = standInDye(archive, record, frame, map, dye);   // THUNDERLOCK-ART: the port's own art takes no dye
+export function preloadTextureRecord(
+  archive,
+  record,
+  frame = 0,
+  map = 'Albedo',
+  dye = null,
+  { decode = decodePng } = {},
+) {
+  dye = standInDye(archive, record, frame, map, dye); // THUNDERLOCK-ART: the port's own art takes no dye
   const key = textureKey(archive, record, frame, map, dye);
-  const entry = liveEntry(key);   // AUDIT VE R1: the entry that answers now - decodedTexture's
-  if (decodedFrom(key, entry)) return Promise.resolve(decodedNow(key));   // AUDIT DEX B5: answered, not taken - the upload's read is decodedTexture's
+  const entry = liveEntry(key); // AUDIT VE R1: the entry that answers now - decodedTexture's
+  if (decodedFrom(key, entry)) return Promise.resolve(decodedNow(key)); // AUDIT DEX B5: answered, not taken - the upload's read is decodedTexture's
   if (!entry || !hasTextureReplacement(archive, record, frame, map, dye)) return Promise.resolve(null);
-  const ask = `${key}\n${srcOf(entry)}`;   // the asks in flight share one fetch - for one source
+  const ask = `${key}\n${srcOf(entry)}`; // the asks in flight share one fetch - for one source
   if (!_decoding.has(ask)) {
-    _decoding.set(ask, (async () => {
-      try {
-        const c32 = await entryColor32(entry, decode);   // WD2
-        if (!c32) return null;
-        if (srcOf(liveEntry(key)) !== srcOf(entry)) return null;   // AUDIT VE R8: switched away while it decoded
-        putDecoded(key, entry, c32);
-        return decodedNow(key);
-      } catch (e) {
-        console.warn(`[texture] ${entry.fileName} would not decode:`, e?.message ?? e);
-        return null;
-      } finally { _decoding.delete(ask); }
-    })());
+    _decoding.set(
+      ask,
+      (async () => {
+        try {
+          const c32 = await entryColor32(entry, decode); // WD2
+          if (!c32) return null;
+          if (srcOf(liveEntry(key)) !== srcOf(entry)) return null; // AUDIT VE R8: switched away while it decoded
+          putDecoded(key, entry, c32);
+          return decodedNow(key);
+        } catch (e) {
+          console.warn(`[texture] ${entry.fileName} would not decode:`, e?.message ?? e);
+          return null;
+        } finally {
+          _decoding.delete(ask);
+        }
+      })(),
+    );
   }
   return _decoding.get(ask);
 }
@@ -841,18 +1075,23 @@ export function preloadTextureRecord(archive, record, frame = 0, map = 'Albedo',
  *  and upload either without knowing which it got. Null means "draw the
  *  classic". */
 export function decodedTexture(archive, record, frame = 0, map = 'Albedo', dye = null) {
-  dye = standInDye(archive, record, frame, map, dye);   // THUNDERLOCK-ART: the port's own art takes no dye
+  dye = standInDye(archive, record, frame, map, dye); // THUNDERLOCK-ART: the port's own art takes no dye
   const key = textureKey(archive, record, frame, map, dye);
   const pic = decodedNow(key);
   // AUDIT DEX B5: a readOnly picture is the GPU's once the upload path has it (DFU's readOnly import) - the CPU copy goes
-  if (pic) { const e = liveEntry(key); if (e?.readOnly) release(key, e, pic); }
+  if (pic) {
+    const e = liveEntry(key);
+    if (e?.readOnly) release(key, e, pic);
+  }
   return pic;
 }
 /** The picture a key answers with now, kept where it is - decodedTexture's answer without its read (AUDIT DEX B5). */
 function decodedNow(key) {
+  const own = playerOf(key);
+  if (own) return decodedFrom(key, own);
   const v = vendorOf(key);
   // AUDIT VE R1/R8: the picture of the entry that answers now, never a stale one
-  if (v) return (!v.gate || v.gate() === true) ? decodedFrom(key, liveEntry(key)) : null;   // SURV2: the port's own, ungated - DW3: unless its registration gates it
+  if (v) return !v.gate || v.gate() === true ? decodedFrom(key, liveEntry(key)) : null; // SURV2: the port's own, ungated - DW3: unless its registration gates it
   if (!textureReplacementEnabled()) return null;
   return decodedFrom(key, liveEntry(key));
 }
@@ -863,6 +1102,55 @@ function decodedNow(key) {
 export function decodedTextureTopDown(archive, record, frame = 0, map = 'Albedo', dye = null) {
   const d = decodedTexture(archive, record, frame, map, dye);
   return d ? { width: d.width, height: d.height, rgba: topDownRgba(d) } : null;
+}
+
+/** Every picture an overhaul, a pack or a mod answers now, as undyed plain-picture keys (`233_5-0`): what lies under
+ *  the player's own replacements. One pass over the tiers. */
+export function picturesCoveredBelowPlayer() {
+  const covered = new Set();
+  for (const tier of [_vendor, _index, _bundle])
+    for (const [key, entry] of tier)
+      if (entry.map === 'Albedo' && answersBelowPlayer(key))
+        covered.add(textureKey(entry.archive, entry.record, entry.frame));
+  return covered;
+}
+/** The entry an overhaul, a pack or a mod draws a record's plain picture from: the dye's own entry, else its undyed
+ *  one, else its first dyed one. Null where the classic record draws. */
+function entryCoveringBelowPlayer(archive, record, frame, dye = null) {
+  const dyed = dye ? textureKey(archive, record, frame, 'Albedo', dye) : null;
+  if (dyed && answersBelowPlayer(dyed)) return entryBelowPlayer(dyed);
+  const bare = textureKey(archive, record, frame);
+  if (answersBelowPlayer(bare)) return entryBelowPlayer(bare);
+  for (const tier of [_vendor, _index, _bundle])
+    for (const [key, entry] of tier)
+      if (
+        entry.archive === Number(archive) &&
+        entry.record === Number(record) &&
+        entry.frame === Number(frame) &&
+        entry.map === 'Albedo' &&
+        answersBelowPlayer(key)
+      )
+        return entryBelowPlayer(key);
+  return null;
+}
+/** The picture the player's replacement covers - an overhaul's, a pack's or a mod's - as a top-down RGBA
+ *  `{ width, height, data }`, or null where the classic record draws. Decoded apart from the draw's own pictures, so the
+ *  Replacements pane never moves what the world holds. Never throws. */
+export async function pictureBelowPlayer(
+  archive,
+  record,
+  frame = 0,
+  { decode = decodePng, dye = null, derive = null } = {},
+) {
+  const entry = entryCoveringBelowPlayer(archive, record, frame, dye);
+  if (!entry) return null;
+  try {
+    const color32 = await entryColor32(entry, decode, derive);
+    return color32 ? { width: color32.width, height: color32.height, data: topDownRgba(color32) } : null;
+  } catch (e) {
+    console.warn(`[texture] ${entry.fileName} would not decode for the Replacements pane:`, e?.message ?? e);
+    return null;
+  }
 }
 
 export const decodedTextureCount = () => _decoded.size;

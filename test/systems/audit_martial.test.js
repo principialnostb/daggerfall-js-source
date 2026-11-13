@@ -267,7 +267,7 @@ test('AUDIT MARTIAL L1 L6 / L2 F2: a signature\'s HUD chip makes nothing a frame
 
 test('AUDIT MARTIAL L1 N1, L1 N3, L4 N3: a follow-up owed a body the relay runs shows its number; "blows and arrows" where arrows pay; Blackjack\'s "twice" is its number; Hallowed Strike\'s mace says its +25 to hit (mutants: the number in the record\'s branch alone; Blackjack\'s times moved)', () => clean(() => {
   const powers = src('src/systems/martialPowers.js');
-  const shown = powers.indexOf('  if (!f?.dead) showFollowUp(n, word, entity);'), branch = powers.indexOf('  if (f) { if (!f.dead) door.hurtFoe(f, n); return; }');
+  const shown = powers.indexOf('  if (!f?.dead) showFollowUp(n, word, entity);'), branch = powers.indexOf('if (f) {\n    if (!f.dead) door.hurtFoe(f, n);\n    return;\n  }');
   assert.ok(shown >= 0 && branch > shown, 'the number before the record\'s branch (the loot\'s again, ROSE-SEEN)');
   const W = (id) => MP.martialWords(id);
   assert.match(W('blademaster').passive, /blows or arrows/); assert.match(W('cutthroat').passive, /blows and arrows/);
@@ -297,7 +297,7 @@ test('AUDIT MARTIAL L3 F1: an OLDER BUILD\'s save keeps the permanent choice - t
   assert.equal(none.martialPath, null, 'a newer save says null for none - the mirror is never asked');
 }));
 
-test('AUDIT MARTIAL L3 F2 / L2 F1: a body the relay runs reads no half line - its health a placeholder - so the Axe and the Blunt Weapon past 100 each pay the plain potency there (x1.4 at 200, the halves\' mean); an ordinary foe keeps its halves (mutants: the placeholder read as full)', () => clean(() => {
+test('AUDIT MARTIAL L3 F2 / L2 F1: the Axe and the Blunt Weapon past 100 pay the plain potency (x1.4 at 200) at every body - a relay\'s placeholder, a wounded foe, a fresh one (mutants: a half line put back)', () => clean(() => {
   const axe = fighter([AX], 200), hammer = fighter([BL], 200);
   const boss = bossStandIn({ mobile: 31 }, 'the Warden');
   const at = (p, w, foe) => WM.weaponPastPct(w, p, foe, { online: true });
@@ -305,8 +305,8 @@ test('AUDIT MARTIAL L3 F2 / L2 F1: a body the relay runs reads no half line - it
   assert.equal(at(hammer, weapon(WEAPONS.Warhammer), boss), 40);
   const wounded = realFoe(ORC); wounded.health = Math.floor(wounded.maxHealth * 0.2);
   const fresh = realFoe(ORC);
-  assert.deepEqual([at(axe, weapon(WEAPONS.War_Axe), wounded), at(axe, weapon(WEAPONS.War_Axe), fresh)], [80, 0]);
-  assert.deepEqual([at(hammer, weapon(WEAPONS.Warhammer), wounded), at(hammer, weapon(WEAPONS.Warhammer), fresh)], [0, 80]);
+  assert.deepEqual([at(axe, weapon(WEAPONS.War_Axe), wounded), at(axe, weapon(WEAPONS.War_Axe), fresh)], [40, 40]);
+  assert.deepEqual([at(hammer, weapon(WEAPONS.Warhammer), wounded), at(hammer, weapon(WEAPONS.Warhammer), fresh)], [40, 40]);
 }));
 
 test('AUDIT MARTIAL L3 F3 / EVENT-RULES: Grit regrows health HELD in the court whose law holds regeneration (WBX6) - half a round, none just after a hurt - its fatigue whole; outside it, both whole (mutants: the court unread; the pause unread)', () => clean(() => {
@@ -512,7 +512,7 @@ test('AUDIT MARTIAL L4 L4 / L4 L6 / L4 N1 / L4 N2: the martial ask is never the 
 
 // ── LANE 5: what the pins could not fail ────────────────────────────────────────────────────────────────────────────
 
-test('AUDIT MARTIAL L5 H1: BAL10\'S FISTS WHERE THEY RUN - both cores\' OUTER calls (calculateAttackDamage, PCAAO\'s pcaaoAttackDamage) lay the blow modifiers over a bare-handed blow whole (a +7 probe, the same roll), with the host\'s word that the foe had not noticed me; never the beast\'s fists, never a foe\'s (mutants: either core\'s result discarded; the overhaul\'s host word dropped)', () => clean(() => {
+test('AUDIT MARTIAL L5 H1: BAL10\'S FISTS WHERE THEY RUN - both cores\' OUTER calls (calculateAttackDamage, PCAAO\'s pcaaoAttackDamage) lay the blow modifiers over a bare-handed blow whole (a +7 probe, the same roll), with the host\'s word that the foe had not noticed me; the beast\'s claws too, never a foe\'s (mutants: either core\'s result discarded; the overhaul\'s host word dropped)', () => clean(() => {
   const me = fighter([HH], 100);
   const calls = [];
   const stock = (who, at, unaware = false) => calculateAttackDamage(who, at, { weapon: null, rolls: () => 0.3, unaware });
@@ -527,9 +527,11 @@ test('AUDIT MARTIAL L5 H1: BAL10\'S FISTS WHERE THEY RUN - both cores\' OUTER ca
     calls.length = 0;
     const beast = fighter([HH], 100); beast.isInBeastForm = true;
     stock(beast, realFoe(ORC)); over(beast, realFoe(ORC));
+    assert.deepEqual(calls, [[true, false], [true, false]], 'the beast\'s claws too');
+    calls.length = 0;
     const thug = realFoe(143);
     stock(thug, me); over(thug, me);
-    assert.deepEqual(calls, [], 'never the beast, never a foe');
+    assert.deepEqual(calls, [], 'never a foe');
   } finally { registerWeaponBlowMod('audit-fist-probe', null); }
 }));
 
@@ -647,7 +649,10 @@ test('AUDIT MARTIAL L5 H5: NEVER AT A PLAYER, NEVER THE WARD, NEVER IN A REFEREE
     const ctx = { entity: dirk, weaponType: WEAPON_TYPES.LongBlade, usingRightHand: true };
     assert.equal(swingPacePct(ctx, readSwing(ctx)), 40);
     setSigilDueling(true);
-    assert.equal(swingPacePct(ctx, readSwing(ctx)), 0, 'a duel: no pace');
+    assert.equal(swingPacePct(ctx, readSwing(ctx)), 40, 'PVP-EVEN: a duel keeps the Short Blade\'s pace, its whole climb between players');
+    const bz = held(pathFighter('berserker', 200), weapon(WEAPONS.War_Axe)); bz.health = 1;
+    const bctx = { entity: bz, weaponType: 12, usingRightHand: true };
+    assert.equal(swingPacePct(bctx, readSwing(bctx)), 0, 'a duel: no path\'s pace');
     setSigilDueling(false);
     registerSwingPaceMod('audit-slow', () => -30);
     try { assert.equal(swingPacePct(ctx, readSwing(ctx)), 40, 'a modifier answering less than nothing slows nothing'); } finally { registerSwingPaceMod('audit-slow', null); }
@@ -737,7 +742,7 @@ test('AUDIT MARTIAL L5 M4 / L5 M6: THE RIDERS\' GUARDS AND THE NUMBER TOLD - a f
   assert.deepEqual(d3.hurts, [['o', Math.round(hit.damage / 2)]], 'the swing tells the weighed blow');
 }));
 
-test('AUDIT MARTIAL L5 M6: THE STATS PAGE\'S FISTS read the blow modifiers as the cores do, and the beast\'s claws none (mutants: the estimate\'s modifiers unread; the claws read)', () => clean(() => {
+test('AUDIT MARTIAL L5 M6: THE STATS PAGE\'S FISTS read the blow modifiers as the cores do, and the beast\'s claws too (mutants: the estimate\'s modifiers unread; the claws unread)', () => clean(() => {
   const p = fighter([HH], 100);
   const base = computeCombatStats(p, { weapon: null, core: 'classic' });
   registerWeaponBlowMod('audit-sheet-probe', (w, d) => (w === null ? d + 7 : d));
@@ -747,7 +752,7 @@ test('AUDIT MARTIAL L5 M6: THE STATS PAGE\'S FISTS read the blow modifiers as th
     const beast = fighter([HH], 100); beast.isInBeastForm = true;
     const b0 = JSON.stringify(computeCombatStats(beast, { weapon: null, core: 'classic' }));
     registerWeaponBlowMod('audit-sheet-probe', null);
-    assert.equal(JSON.stringify(computeCombatStats(beast, { weapon: null, core: 'classic' })), b0, 'the claws: none');
+    assert.notEqual(JSON.stringify(computeCombatStats(beast, { weapon: null, core: 'classic' })), b0, 'the claws read them too');
   } finally { registerWeaponBlowMod('audit-sheet-probe', null); }
 }));
 

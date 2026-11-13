@@ -43,7 +43,7 @@ test('AUDIT 68 X2-release-tag-commit: a new release tag is cut at the built comm
   // REL4: the one step that attaches anything is the publish job's draft
   const attach = wf.slice(wf.indexOf('- name: Stage the release as a draft, every file attached'), wf.indexOf('- name: Publish it whole'));
   // PIN MOVED (REL8): the release is named for the player's update (comments between) - the tag and the commit as ever
-  assert.match(attach, /\n {10}tag_name: \$\{\{ needs\.version\.outputs\.tag \}\}\n(?: {10}#[^\n]*\n)* {10}name: \$\{\{ needs\.version\.outputs\.update != '' && format\('Update \{0\}', needs\.version\.outputs\.update\) \|\| needs\.version\.outputs\.tag \}\}\n {10}target_commitish: \$\{\{ github\.sha \}\}\n/,
+  assert.match(attach, /\n {10}tag_name: \$\{\{ needs\.version\.outputs\.tag \}\}\n(?: {10}#[^\n]*\n)* {10}name: \$\{\{ needs\.version\.outputs\.update != '' && format\('Update \{0\}', needs\.version\.outputs\.update\) \|\| needs\.version\.outputs\.tag \}\}\n {10}target_commitish: \$\{\{ steps\.host\.outputs\.target \}\}\n/,
     'without target_commitish GitHub cuts the tag at main\'s head at upload time');
   const uses = wf.split('\n').filter((l) => l.includes('${{ inputs.release_tag }}'));
   assert.ok(uses.length > 0, 'the input is still read');
@@ -52,7 +52,7 @@ test('AUDIT 68 X2-release-tag-commit: a new release tag is cut at the built comm
   }
 });
 
-/** The dev server's arena2 middleware over a fake ARENA2 folder - its two mounts. */
+/** The dev server's arena2 middleware over a fake ARENA2 folder - its three mounts. */
 async function devMounts(fake) {
   process.env.ARENA2_PATH = fake;
   const viteConfig = (await import(`../../vite.config.js?audit68=${Date.now()}`)).default;
@@ -100,7 +100,7 @@ test('AUDIT 68 X2 (books): the BOOKS fallback finds DFU\'s own lowercase `books`
   writeFileSync(join(fake, 'books', 'bok00002.txt'), 'a lowercase book');
   try {
     const mounts = await devMounts(fake);
-    assert.equal(mounts.length, 2, 'both doors');
+    assert.equal(mounts.length, 3, 'root, /play, and /2d-playground doors');
     for (const [mount, fn] of mounts) {
       assert.deepEqual(await serve(fn, '/BOK00002.TXT'), { status: 200, body: 'a lowercase book' }, `${mount}: the books folder and its file, whatever their case`);
       assert.deepEqual(await serve(fn, '/BOK00003.TXT'), { status: 404, body: 'not found' }, `${mount}: a book not there is still a 404`);

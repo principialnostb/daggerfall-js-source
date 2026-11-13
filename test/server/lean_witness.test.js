@@ -101,12 +101,12 @@ test('LEAN-WITNESS the schema: world_witness carries `late`, witness_confirmed k
   assert.ok(raw.prepare('PRAGMA table_info(world_witness)').all().some((c) => c.name === 'late' && c.notnull === 1 && c.dflt_value === '0'),
     'a later rebuild of world_witness carries `late` (migration 0135\'s header)');
   const triggers = Object.fromEntries(raw.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'world_witness'").all().map((t) => [t.name, t.sql]));
-  assert.deepEqual(Object.keys(triggers).sort(), ['witness_lean_fixed', 'witness_lean_in', 'witness_lean_out']);
+  assert.deepEqual(Object.keys(triggers).sort(), ['ground_confirmed_in', 'witness_lean_fixed', 'witness_lean_in', 'witness_lean_out']);   // the confirmed ground's trigger, migration 0212
   assert.deepEqual(raw.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'witness_confirmed' ORDER BY name").all().map((t) => t.name),
     ['witness_confirmed_moved', 'witness_confirmed_turned']);
   const kinds = `IN (${LEAN_KINDS.map((k) => `'${k}'`).join(', ')})`;
   assert.deepEqual(LEAN_KINDS, ['npchall', 'seat']);
-  for (const [name, t] of Object.entries(triggers)) {
+  for (const [name, t] of Object.entries(triggers).filter(([n]) => n.startsWith('witness_lean_'))) {
     assert.ok(t.includes(kinds), `${name} names the lean kinds`);
     if (name !== 'witness_lean_fixed') assert.ok(t.includes(`WHERE n = ${WITNESS.confirm} ORDER BY at, account LIMIT 1`), `${name} confirms at the law's count`);
   }

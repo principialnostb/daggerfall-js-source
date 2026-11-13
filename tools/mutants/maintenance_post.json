@@ -1,0 +1,20 @@
+[
+  {
+    "name": "MAINTENANCE-the-ledger-not-once",
+    "file": "tools/sendServerPost.mjs",
+    "old": "INSERT OR IGNORE INTO aurum_ledger (account, kind, ref, amount, day, at)\nSELECT p.id, 'gift', ${sqlText(gift)}, ${g.aurum}",
+    "new": "INSERT INTO aurum_ledger (account, kind, ref, amount, day, at)\nSELECT p.id, 'gift', ${sqlText(gift)}, ${g.aurum}",
+    "tests": [
+      "test/server/maintenance_post.test.js"
+    ]
+  },
+  {
+    "name": "MAINTENANCE-the-extra-to-everyone",
+    "file": "tools/sendServerPost.mjs",
+    "old": "who = `handle IS NOT NULL${handles ? ` AND handle_lc IN (${inList(postHandles(handles))})` : ''}`,",
+    "new": "who = `handle IS NOT NULL`,",
+    "tests": [
+      "test/server/maintenance_post.test.js"
+    ]
+  }
+]

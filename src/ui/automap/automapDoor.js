@@ -29,10 +29,11 @@
 // "no map".
 // ═══════════════════════════════════════════════════════════════════
 
-import { heldMapWorn } from '../map/mapSkin.js';   // MAP-TOGGLE: the skin AND the player's switch
+import { heldMapWorn } from '../map/mapSkin.js'; // MAP-TOGGLE: the skin AND the player's switch
 import { AutomapWindow, preloadAutomapArt, automapArtLoaded } from './automapWindow.js';
 import { HeldMapWindow } from '../heldMap.js';
-import { noteFirstUse } from '../../systems/tutorials.js';   // TUT1: the first touch of a system pops its tutorial page
+import { noteFirstUse } from '../../systems/tutorials.js'; // TUT1: the first touch of a system pops its tutorial page
+import { liveDungeonAutomapKey } from '../../systems/automap/automap.js';
 
 export { preloadAutomapArt };
 
@@ -59,14 +60,16 @@ export function automapDoorReady() {
  * without its art - so the hosts' `if (win)` guards keep meaning.
  */
 export function createAutomapWindow(deps = {}) {
-  noteFirstUse('automap');   // TUT1
+  noteFirstUse('automap'); // TUT1
+  // the dungeon the map keeps its view for; a building's map keeps none
+  deps = { ...deps, viewKey: deps.viewKey ?? (deps.insideBuilding ? null : liveDungeonAutomapKey()) };
   // `document` for the reason every fork before this one gives: node
   // drives these hosts headless and keeps the canvas window rather than
   // getting a special case written for it.
   if (heldMapWorn()) {
     return new HeldMapWindow({
       where: deps.where ?? (() => ({ insideDungeon: !deps.insideBuilding, insideBuilding: !!deps.insideBuilding })),
-      holder: deps.holder ?? null,   // MW-MAP1: the Morrowind arm's hands lane, where the host has an arm (combat/weapon/weaponRig.js sheetHolderOf)
+      holder: deps.holder ?? null, // MW-MAP1: the Morrowind arm's hands lane, where the host has an arm (combat/weapon/weaponRig.js sheetHolderOf)
       automap: {
         record: deps.record,
         model: () => deps.model ?? null,
@@ -74,11 +77,12 @@ export function createAutomapWindow(deps = {}) {
         startMarker: deps.startMarker ?? null,
         insideBuilding: !!deps.insideBuilding,
         title: deps.title ?? deps.dungeonName ?? '',
-        party: deps.party ?? null,   // DISC23-A: the party members whose bodies stand in this level (the classic 3D arm ignores it)
-        portals: deps.portals ?? null,   // TP-SEEN: every teleporter in the level (the classic 3D arm ignores it)
-        fires: deps.fires ?? null,   // REST3: the dungeon's own campfires (the classic 3D arm ignores them)
-        echoes: deps.echoes ?? null,   // ECHO1: where a chain moved something out of sight (the classic 3D arm ignores them)
-        quests: deps.quests ?? null,   // GUIDE8: the Exact tier's quest marks (the classic 3D arm ignores them)
+        viewKey: deps.viewKey ?? null, // the dungeon whose view the sheet keeps
+        party: deps.party ?? null, // DISC23-A: the party members whose bodies stand in this level (the classic 3D arm ignores it)
+        portals: deps.portals ?? null, // TP-SEEN: every teleporter in the level (the classic 3D arm ignores it)
+        fires: deps.fires ?? null, // REST3: the dungeon's own campfires (the classic 3D arm ignores them)
+        echoes: deps.echoes ?? null, // ECHO1: where a chain moved something out of sight (the classic 3D arm ignores them)
+        quests: deps.quests ?? null, // GUIDE8: the Exact tier's quest marks (the classic 3D arm ignores them)
       },
     });
   }

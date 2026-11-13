@@ -1,0 +1,281 @@
+[
+  {
+    "name": "LANES-KEPT-seeds-never-drawn-again",
+    "file": "src/systems/naval/seaLanes.js",
+    "old": "  if (kept.voyage !== voyage || !kept.seeds) {",
+    "new": "  if (!kept.seeds) {",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-count-unheeded",
+    "file": "src/systems/naval/seaLanes.js",
+    "old": "  if (book.count !== count) {",
+    "new": "  if (false) {",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-a-way-home-unreversed",
+    "file": "src/systems/naval/seaLanes.js",
+    "old": "  if (!back) reversedWays.set(pts, (back = [...pts].reverse()));",
+    "new": "  if (!back) reversedWays.set(pts, (back = [...pts]));",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-legs-off-by-one",
+    "file": "src/systems/naval/seaLanes.js",
+    "old": "    const seg = legs[i];",
+    "new": "    const seg = legs[i - 1];",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-pools-capped-low",
+    "file": "src/systems/naval/navalShips.js",
+    "old": "  const kept = Math.min(level, POOL_LEVEL_TOP);",
+    "new": "  const kept = Math.min(level, 6);",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-legs-measured-every-call",
+    "file": "src/systems/naval/seaLanes.js",
+    "old": "    legLengths.set(pts, legs);\n",
+    "new": "",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-first-drawn-every-list",
+    "file": "src/systems/naval/seaLanes.js",
+    "old": "  const first = laneBook(lane).first;",
+    "new": "  const first = packetOf(lane);",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-packets-drawn-every-call",
+    "file": "src/systems/naval/seaLanes.js",
+    "old": "  return (book.packets[k] ??= { drawn: packetOf(lane, k, count), voyage: NaN, seeds: null, id: '' });",
+    "new": "  return { drawn: packetOf(lane, k, count), voyage: NaN, seeds: null, id: '' };",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-way-home-reversed-every-call",
+    "file": "src/systems/naval/seaLanes.js",
+    "old": "  if (!back) reversedWays.set(pts, (back = [...pts].reverse()));",
+    "new": "  if (!back) back = [...pts].reverse();",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "LANES-KEPT-pools-filtered-every-draw",
+    "file": "src/systems/naval/navalShips.js",
+    "old": "  if (!pool) byLevel.set(kept, (pool = drawPool(faction, kept)));",
+    "new": "  if (!pool) pool = drawPool(faction, kept);",
+    "tests": [
+      "test/systems/naval/lanes_kept.test.js"
+    ]
+  },
+  {
+    "name": "FEED-KEPT-legs-whatever-the-frame",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "    if (!kept || !sameFrame(kept.laid, laid)) {",
+    "new": "    if (!kept) {",
+    "tests": [
+      "test/systems/naval/laneships_feed.test.js"
+    ]
+  },
+  {
+    "name": "FEED-KEPT-legs-laid-every-list",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "      sceneLegs.set(pts, (kept = { laid, out, home: [...out].reverse() }));",
+    "new": "      kept = { laid, out, home: [...out].reverse() };",
+    "tests": [
+      "test/systems/naval/laneships_feed.test.js"
+    ]
+  },
+  {
+    "name": "FEED-KEPT-ports-named-every-list",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "    if (!named) portNames.set(port, (named = { key: `port:${port.id}`, name: port.name }));",
+    "new": "    if (!named) named = { key: `port:${port.id}`, name: port.name };",
+    "tests": [
+      "test/systems/naval/laneships_feed.test.js"
+    ]
+  },
+  {
+    "name": "FEED-KEPT-frame-without-its-row",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "  state.mapOrigin.y,\n",
+    "new": "",
+    "tests": [
+      "test/systems/naval/laneships_feed.test.js"
+    ]
+  },
+  {
+    "name": "FEED-KEPT-frame-without-its-column",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "  state.mapOrigin.x,\n",
+    "new": "",
+    "tests": [
+      "test/systems/naval/laneships_feed.test.js"
+    ]
+  },
+  {
+    "name": "FEED-KEPT-frame-without-the-offset-down",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "  state.compensation[2],\n",
+    "new": "",
+    "tests": [
+      "test/systems/naval/laneships_feed.test.js"
+    ]
+  },
+  {
+    "name": "FEED-KEPT-frame-without-the-offset-across",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "  state.compensation[0],\n",
+    "new": "",
+    "tests": [
+      "test/systems/naval/laneships_feed.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-whatever-its-fields",
+    "file": "src/scenes/travelView.js",
+    "old": "      if (kept?.fields === fields) rewriteMark(kept.record, mark, at);",
+    "new": "      if (kept) rewriteMark(kept.record, mark, at);",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-made-every-frame",
+    "file": "src/scenes/travelView.js",
+    "old": "      if (kept?.fields === fields) rewriteMark(kept.record, mark, at);",
+    "new": "      if (false) rewriteMark(kept.record, mark, at);",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-a-key-twice-one-record",
+    "file": "src/scenes/travelView.js",
+    "old": "      if (kept?.frame === markFrame) {",
+    "new": "      if (false) {",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-the-place-unwritten",
+    "file": "src/scenes/travelView.js",
+    "old": "  record.x = at?.x ?? 0;\n",
+    "new": "",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-the-badge-unwritten",
+    "file": "src/scenes/travelView.js",
+    "old": "  record.badge = mark.badge ?? null;\n",
+    "new": "",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-the-card-unwritten",
+    "file": "src/scenes/travelView.js",
+    "old": "  if (mark.tip) record.tip = mark.tip;\n",
+    "new": "",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-the-skull-unwritten",
+    "file": "src/scenes/travelView.js",
+    "old": "  if (mark.skull) record.skull = mark.skull;\n",
+    "new": "",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-the-skull-uncounted",
+    "file": "src/scenes/travelView.js",
+    "old": "  (mark.skull ? 256 : 0);",
+    "new": "  0;",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-DOTS-the-canvas-always-read",
+    "file": "src/scenes/travelView.js",
+    "old": "    route.length < 2\n",
+    "new": "    false\n",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-DOTS-one-point-reads-the-canvas",
+    "file": "src/scenes/travelView.js",
+    "old": "    route.length < 2\n",
+    "new": "    route.length < 1\n",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-absent-keys-never-let-go",
+    "file": "src/scenes/travelView.js",
+    "old": "    if (markRecords.size > distinct)\n",
+    "new": "    if (false)\n",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-MARKS-KEPT-kept-while-the-view-is-off",
+    "file": "src/scenes/travelView.js",
+    "old": "      if (markRecords.size) markRecords.clear();\n",
+    "new": "",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-DOTS-the-canvas-read-whatever-is-handed",
+    "file": "src/scenes/travelView.js",
+    "old": "          w: (clientW >= 0 ? clientW : deps.canvas?.clientWidth) || Infinity,\n",
+    "new": "          w: deps.canvas?.clientWidth || Infinity,\n",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  },
+  {
+    "name": "TV-DOTS-a-handed-nothing-read-again",
+    "file": "src/scenes/travelView.js",
+    "old": "          h: (clientH >= 0 ? clientH : deps.canvas?.clientHeight) || Infinity,\n",
+    "new": "          h: (clientH > 0 ? clientH : deps.canvas?.clientHeight) || Infinity,\n",
+    "tests": [
+      "test/scenes/tv_marks_kept.test.js"
+    ]
+  }
+]

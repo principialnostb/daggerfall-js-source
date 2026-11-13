@@ -24,7 +24,7 @@ import { MELEE_DISTANCE } from '../characters/enemy/enemyMotor.js';   // single 
 import { CLASSIC_TO_UNITY_RATIO } from '../player/motor.js';   // C15 knockback units
 import { rand } from '../formats/dfRandom.js';
 import { enchantChanceToHitMod, doItemEnchantmentPayloads, PAYLOAD, isEnchantedItem, entityImprovedAdrenalineRush } from '../systems/enchantments.js';   // E1: the enchantment channels + the Strikes payload; AUDIT 39: ImprovesTalents' adrenaline flag lives in the fold's bag   // the monster multi-attack reflex gate (F2)
-import { entityArmorMod, entityWeightMult, weaponDamageMods, weaponBlowMods } from '../systems/entityMods.js';   // RF1: one read per channel - DFU's enchantment channel and every enhancement fold, summed there
+import { entityArmorMod, entityWeightMult, weaponDamageMods, weaponBlowMods, weaponRollWithGear, takeWeaponWearShare } from '../systems/entityMods.js';   // RF1: one read per channel - DFU's enchantment channel and every enhancement fold, summed there
 import { liveStat } from '../systems/statMods.js';   // S14: fortify-aware stat reads
 import { skillValue, SKILLS } from '../systems/skills.js';
 import { noteSkillChallenge } from '../systems/skillSoftcap.js';   // SOFTCAP1: the foe a blow was traded with, for the real-use law
@@ -415,8 +415,8 @@ export function calculateSuccessfulHit(attacker, target, chanceToHitMod, struckB
 
 // ---- CalculateHandToHandAttackDamage ----
 /** BAL10 (bible/05-Combat/Balance-Arc.md section 16; the owner chose "Fix fists' missing bonuses"): AND THE PORT'S BLOW
- *  MODIFIERS, as the weapon path reads them at its tail (weaponAttackDamage, below) - a player's fists, never the beast's
- *  claws (BAL6 balanced the curse on its own claws and their metal). `info` is the host's word, the weapon path's own. */
+ *  MODIFIERS, as the weapon path reads them at its tail (weaponAttackDamage, below) - a player's fists and
+ *  the beast's claws alike (the martial paths keep their own beast gate). `info` is the host's word, the weapon path's own. */
 export function handToHandAttackDamage(attacker, target, damageMod, isPlayer, rolls = Math.random, info = undefined) {
   const h2h = skillValue(attacker, SKILLS.HandToHand);
   const min = handToHandMinDamage(h2h);
@@ -433,7 +433,7 @@ export function handToHandAttackDamage(attacker, target, damageMod, isPlayer, ro
   // path's material modifier stands, after Strength and before the enemy-type term
   if (isPlayer) damage += clawMetalDamage(attacker);
   damage += bonusOrPenaltyByEnemyType(attacker, target);
-  if (isPlayer && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info);   // BAL10: the fists' blow modifiers - the Firmament's fist stars, the sets, the loot, the paths
+  if (isPlayer) damage = weaponBlowMods(null, damage, attacker, target, info);   // BAL10: the fists' blow modifiers - the Firmament's fist stars, the sets, the loot, mastery, the paths; the beast's claws too
   return damage;
 }
 
@@ -479,7 +479,7 @@ export function silverDoubles(target) {
  *  NOTHING in the codebase mints - as this arm's fallback. */
 export function weaponAttackDamage(attacker, target, damageMod, weapon, rolls = Math.random, weaponAnimTime = 0, info = undefined) {
   const wMin = baseDamageMin(weapon), wMax = baseDamageMax(weapon);
-  let damage = weaponDamageMods(weapon, wMin + Math.floor(rolls() * (wMax + 1 - wMin))) + damageMod;   // RF1: the weapon's own modifiers over ITS roll, before the swing's mods
+  let damage = weaponDamageMods(weapon, weaponRollWithGear(wMin + Math.floor(rolls() * (wMax + 1 - wMin)), attacker, weapon, target, rolls)) + damageMod;   // the gear on its skill rides in the roll (weaponMastery.js weaponGearAdd)   // RF1: the weapon's own modifiers over ITS roll, before the swing's mods
   if (!target.isPlayer && isSkeletalTarget(target)) {   // DEX4b: a mod's skeletal enemy too
     if ((weapon.flags & 0x10) === 0) damage = Math.trunc(damage / 2);   // edged-weapon rule
     if (weapon.material === 2 && silverDoubles(target)) damage *= 2;    // Silver (RVN2: unless a veto keeps it plain)
@@ -571,28 +571,29 @@ export function damageEquipment(attacker, target, damage, weapon, struckBodyPart
   // OF THE BURNING GATE WEARS NOTHING. His body is a stand-in the relay judges (world/gate/gateBoss.js bossStandIn carries
   // `spareGear`), a fight measured in hundreds of blows, and it broke weapons it was never meant to. A departure (Ledger
   // A, WB): every other foe wears the gear as DFU's does, and the override below is never asked for him either.
+  const ownShare = takeWeaponWearShare();   // read on every blow, so a miss never leaves it for the next
   if (target?.spareGear) return;
   // PCO1: the registered override first (the mod's DamageEquipment,
   // which wears gear on a fist's blow too, so no `!weapon` gate here).
   const o = _overrides.get('damageEquipment');
   if (o && o(attacker, target, damage, weapon, struckBodyPart, { rolls, say }) !== undefined) return;
   if (!weapon || damage <= 0) return;
-  const hit = (item, owner) => {
+  const hit = (item, owner, damage) => {   // the damage this piece wears by
     // RR1: ApplyConditionDamageThroughPhysicalHit's own override slot (FormulaHelper.cs:1123-1128) - "Only return if override returns true"
     if (_overrides.get('applyConditionDamageThroughPhysicalHit')?.(item, owner, damage, { say, rolls }) === true) return;
     let amount = Math.trunc((10 * damage + 50) / 100);
     if (amount === 0 && dice100(20, rolls())) amount = 1;
     lowerCondition(item, dfuBlowWear(amount, rolls), owner, say);   // BALANCE1: DFU's amount, on the port's wear scale; WEAR-TWICE: twice it, WEAR-ONE: once again
   };
-  hit(weapon, attacker);
+  hit(weapon, attacker, Math.trunc(damage * ownShare));   // the gear's part of the blow wears nothing
   const slots = equipTableOf(target);
   const shield = slots[EQUIP_SLOTS.LeftHand];
   const covered = shield ? SHIELD_PARTS.get(shield.templateIndex) ?? [] : [];
-  if (covered.includes(struckBodyPart)) hit(shield, target);
+  if (covered.includes(struckBodyPart)) hit(shield, target, damage);
   else {
     const slot = slotForBodyPart(struckBodyPart);
     const armor = slot !== EQUIP_SLOTS.None ? slots[slot] : null;
-    if (armor) hit(armor, target);
+    if (armor) hit(armor, target, damage);
   }
 }
 

@@ -35,28 +35,35 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { displayName, isMuted } from './accounts.js';
-import { isLogoPress, onLogoPress } from './guildLogos.js';   // GUILD-LOGO: a logo card's two buttons
+import { isLogoPress, onLogoPress, setGuildLogo, guildByWord } from './guildLogos.js'; // a logo card's two buttons, and /mod logo
+import { GUILD_LOGO_MAX_BYTES, GUILD_LOGO_SIDE_MIN, GUILD_LOGO_SIDE_MAX } from '../../src/net/guild/guildLogoLaw.js';
+import { poiImageMetaOf } from '../../src/poi/poiImage.js'; // a refused picture's side and kind, said back
 import { canModerate } from './titles.js';
 import { importPublicKey, ID_RE } from '../../src/net/identityToken.js';
 import { findAccount, strikesLook, pushLaw, strikesOf, isBanned, bannedUntil } from './sanctions.js';
 import { CASE_CLAIM_S, modAct, CLICK_RE } from './safety.js';
 import { usageOf } from './discordCommands.js';
-import { GRANT_CASE_TAB } from './grants.js';   // FOE-BOUNDS: a spawn grants' case is its count's, not the chat reviewer's (read at a card's call, never at load)
-import { LADDER_BAN_AT, ladderMinutes, BAN_FOREVER, banUntil, reportReasonLabel } from '../../src/net/safety/safetyLaw.js';
+import { pdaInteraction } from './pdaRouter.js';
+import { isFrozen } from './staffFreeze.js';
+import { DISCORD_API, DISCORD_POST_MS, DISCORD_USER_AGENT } from './pdaDiscordApi.js'; // the bot's calls share one door's constants
+
+export { DISCORD_API, DISCORD_POST_MS, DISCORD_USER_AGENT };
+import { linkOf } from './pdaLink.js';
+import { GRANT_CASE_TAB } from './grants.js'; // FOE-BOUNDS: a spawn grants' case is its count's, not the chat reviewer's (read at a card's call, never at load)
+import {
+  LADDER_BAN_AT,
+  ladderMinutes,
+  BAN_FOREVER,
+  banUntil,
+  reportReasonLabel,
+} from '../../src/net/safety/safetyLaw.js';
 
 /** The door Discord posts its interactions to (the application's Interactions Endpoint URL). */
 export const DISCORD_INTERACTIONS_PATH = '/v1/discord/interactions';
-/** Discord's API. */
-export const DISCORD_API = 'https://discord.com/api/v10';
 /** The most bytes an interaction's body may be. */
 export const DISCORD_BODY_MAX = 32 * 1024;
 /** How old an interaction's timestamp may be, seconds - an old one replayed is refused. */
 export const DISCORD_SKEW_S = 300;
-/** How long the service waits on Discord's API, ms. */
-export const DISCORD_POST_MS = 8000;
-/** The User-Agent Discord's API asks of every bot (AUDIT SAFE DISCORD-10: "requests that do not have a valid User
- *  Agent specified may be blocked"). */
-export const DISCORD_USER_AGENT = 'DiscordBot (https://github.com/Lattymoy/daggerfall-js-source, 1)';
 /** An answer to a moderator, at most this long (Discord's 2,000, with room). */
 export const SAY_MAX = 1900;
 /** The most of a case's lines a card draws - the newest. */
@@ -75,7 +82,10 @@ const SNOWFLAKE_RE = /^\d{5,25}$/;
 const HEX_KEY_RE = /^[0-9a-f]{64}$/i;
 
 /** Whether the bot may post cards: a channel and its token. @param {any} env */
-export const discordOn = (env) => SNOWFLAKE_RE.test(String(env?.DISCORD_MOD_CHANNEL ?? '')) && typeof env?.DISCORD_BOT_TOKEN === 'string' && env.DISCORD_BOT_TOKEN.length > 0;
+export const discordOn = (env) =>
+  SNOWFLAKE_RE.test(String(env?.DISCORD_MOD_CHANNEL ?? '')) &&
+  typeof env?.DISCORD_BOT_TOKEN === 'string' &&
+  env.DISCORD_BOT_TOKEN.length > 0;
 /** Whether Discord's presses and commands are taken: the application's public key. @param {any} env */
 export const interactionsOn = (env) => HEX_KEY_RE.test(String(env?.DISCORD_PUBLIC_KEY ?? ''));
 
@@ -89,7 +99,12 @@ export function discordModerators(env) {
   return out;
 }
 
-const hexBytes = (h) => new Uint8Array(String(h).match(/../g)?.map((b) => parseInt(b, 16)) ?? []);
+const hexBytes = (h) =>
+  new Uint8Array(
+    String(h)
+      .match(/../g)
+      ?.map((b) => parseInt(b, 16)) ?? [],
+  );
 /** @type {{ raw: string, key: CryptoKey|null }} */
 let heldKey = { raw: '', key: null };
 
@@ -99,31 +114,57 @@ let heldKey = { raw: '', key: null };
  * @param {any} env @param {Uint8Array} bytes @param {unknown} sigHex @param {unknown} stamp @param {{ subtle: SubtleCrypto, nowS: number }} io
  */
 export async function discordSigned(env, bytes, sigHex, stamp, { subtle, nowS }) {
-  if (!interactionsOn(env) || typeof sigHex !== 'string' || !/^[0-9a-f]{128}$/i.test(sigHex) || typeof stamp !== 'string' || !/^\d{1,12}$/.test(stamp)) return false;
+  if (
+    !interactionsOn(env) ||
+    typeof sigHex !== 'string' ||
+    !/^[0-9a-f]{128}$/i.test(sigHex) ||
+    typeof stamp !== 'string' ||
+    !/^\d{1,12}$/.test(stamp)
+  )
+    return false;
   if (Math.abs(nowS - Number(stamp)) > DISCORD_SKEW_S) return false;
-  if (heldKey.raw !== env.DISCORD_PUBLIC_KEY) heldKey = { raw: env.DISCORD_PUBLIC_KEY, key: await importPublicKey(hexBytes(env.DISCORD_PUBLIC_KEY), { subtle }) };
+  if (heldKey.raw !== env.DISCORD_PUBLIC_KEY)
+    heldKey = { raw: env.DISCORD_PUBLIC_KEY, key: await importPublicKey(hexBytes(env.DISCORD_PUBLIC_KEY), { subtle }) };
   if (!heldKey.key) return false;
   const head = new TextEncoder().encode(stamp);
   const signed = new Uint8Array(head.length + bytes.length);
   signed.set(head, 0);
   signed.set(bytes, head.length);
-  try { return await subtle.verify({ name: 'Ed25519' }, heldKey.key, hexBytes(sigHex), signed); } catch { return false; }
+  try {
+    return await subtle.verify({ name: 'Ed25519' }, heldKey.key, hexBytes(sigHex), signed);
+  } catch {
+    return false;
+  }
 }
 
 /** A player's words as a card draws them: one line, no code fence to break out of. @param {unknown} s */
-const plain = (s) => String(s ?? '').replace(/```/g, "'''").replace(/\s+/g, ' ').trim();
+const plain = (s) =>
+  String(s ?? '')
+    .replace(/```/g, "'''")
+    .replace(/\s+/g, ' ')
+    .trim();
 /** Words outside a code block: one line, every markdown mark escaped (DISCORD-9). @param {unknown} s */
 export const md = (s) => plain(s).replace(/([\\`*_~|>#\[\]()<@:-])/g, '\\$1');
 /** A time on the card: Discord's own, in each reader's zone. @param {number} s */
 const when = (s) => `<t:${Math.floor(s)}:f>`;
 /** A length of mute in words. @param {number} m */
-export const minutesWord = (m) => (m % 1440 === 0 ? `${m / 1440} day${m === 1440 ? '' : 's'}` : m % 60 === 0 ? `${m / 60} hour${m === 60 ? '' : 's'}` : `${m} min`);
+export const minutesWord = (m) =>
+  m % 1440 === 0
+    ? `${m / 1440} day${m === 1440 ? '' : 's'}`
+    : m % 60 === 0
+      ? `${m / 60} hour${m === 60 ? '' : 's'}`
+      : `${m} min`;
 /** A ban's end in words. @param {number} until */
 const banWord = (until) => (until >= BAN_FOREVER ? 'for good' : `until ${when(until)}`);
 
 /** What stands against an account now, in words - or null. @param {any} t the target's row @param {number} nowS */
-const standingOf = (t, nowS) => [isBanned(t, nowS) ? `Banned ${banWord(bannedUntil(t))}${t?.ban_reason ? ` (${md(t.ban_reason)})` : ''}` : '',
-  isMuted(t, nowS) ? `Muted until ${when(Number(t.muted_until))}` : ''].filter(Boolean).join('; ') || null;
+const standingOf = (t, nowS) =>
+  [
+    isBanned(t, nowS) ? `Banned ${banWord(bannedUntil(t))}${t?.ban_reason ? ` (${md(t.ban_reason)})` : ''}` : '',
+    isMuted(t, nowS) ? `Muted until ${when(Number(t.muted_until))}` : '',
+  ]
+    .filter(Boolean)
+    .join('; ') || null;
 
 /**
  * A CASE'S CARD - pure, from what the clock read: the case's row, its target's name and row (what stands now), its
@@ -148,39 +189,122 @@ export function caseCard({ c, name, target = null, lines, reasons, notes = [], s
   }
   const fields = [
     { name: 'Player', value: `${md(name) || '?'} (\`${c.target}\`)`, inline: true },
-    { name: 'Reports', value: c.reports ? `${c.reports} (${c.credible} counted)` : spawn ? 'none - the spawn grants\' count opened it' : 'none - the reviewer opened it', inline: true },
-    { name: 'Strikes (90 days)', value: `${strikes} - next: ${strikes >= LADDER_BAN_AT ? 'a ban' : minutesWord(ladderMinutes(strikes))}`, inline: true },
+    {
+      name: 'Reports',
+      value: c.reports
+        ? `${c.reports} (${c.credible} counted)`
+        : spawn
+          ? "none - the spawn grants' count opened it"
+          : 'none - the reviewer opened it',
+      inline: true,
+    },
+    {
+      name: 'Strikes (90 days)',
+      value: `${strikes} - next: ${strikes >= LADDER_BAN_AT ? 'a ban' : minutesWord(ladderMinutes(strikes))}`,
+      inline: true,
+    },
   ];
   const standing = target ? standingOf(target, nowS) : null;
   if (standing) fields.push({ name: 'Now', value: standing.slice(0, 1024), inline: false });
-  if (reasons.length) fields.push({ name: 'Reported for', value: [...new Set(reasons)].map(reportReasonLabel).join(', '), inline: false });
+  if (reasons.length)
+    fields.push({
+      name: 'Reported for',
+      value: [...new Set(reasons)].map(reportReasonLabel).join(', '),
+      inline: false,
+    });
   const said = notes.map(plain).filter(Boolean);
-  if (said.length) fields.push({ name: 'Reporters\' notes', value: `\`\`\`\n${said.join('\n').slice(0, 1000)}\n\`\`\``, inline: false });
+  if (said.length)
+    fields.push({
+      name: "Reporters' notes",
+      value: `\`\`\`\n${said.join('\n').slice(0, 1000)}\n\`\`\``,
+      inline: false,
+    });
   if (c.ai_state === 'done' && c.ai_category) {
     const shadow = c.ai_mode === 'shadow' ? 'SHADOW - nothing was done on it. ' : '';
-    fields.push({ name: 'Reviewer', value: `${shadow}${c.ai_category}, severity ${c.ai_severity}, ${Math.round(Number(c.ai_confidence) * 100)}% sure${c.ai_line_at != null ? ' (the line marked !)' : ''}: ${md(c.ai_reason)}`.slice(0, 1024), inline: false });
-  } else if (spawn) fields.push({ name: 'Spawn grants', value: 'what the relay or players\' games counted against this account\'s foes (the lines above) - the chat reviewer did not read it. A moderator decides.', inline: false });
-  else if (c.ai_state === 'done') fields.push({ name: 'Reviewer', value: `${c.ai_mode === 'shadow' ? 'SHADOW - ' : ''}found nothing against the code.`, inline: false });
-  else if (c.ai_state === 'failed') fields.push({ name: 'Reviewer', value: 'could not read this case - read it yourself.', inline: false });
-  if (c.auto) fields.push({ name: 'Done automatically', value: c.auto === 'reports' ? 'Muted 30 min - three reports that count.' : 'Muted 30 min - the reviewer\'s verdict, read twice.', inline: false });
-  const color = c.status !== 'open' ? 0x808080 : (c.ai_severity ?? 0) >= 3 ? 0xd03030 : (c.ai_severity ?? 0) === 2 ? 0xe08020 : 0x3070d0;
+    fields.push({
+      name: 'Reviewer',
+      value:
+        `${shadow}${c.ai_category}, severity ${c.ai_severity}, ${Math.round(Number(c.ai_confidence) * 100)}% sure${c.ai_line_at != null ? ' (the line marked !)' : ''}: ${md(c.ai_reason)}`.slice(
+          0,
+          1024,
+        ),
+      inline: false,
+    });
+  } else if (spawn)
+    fields.push({
+      name: 'Spawn grants',
+      value:
+        "what the relay or players' games counted against this account's foes (the lines above) - the chat reviewer did not read it. A moderator decides.",
+      inline: false,
+    });
+  else if (c.ai_state === 'done')
+    fields.push({
+      name: 'Reviewer',
+      value: `${c.ai_mode === 'shadow' ? 'SHADOW - ' : ''}found nothing against the code.`,
+      inline: false,
+    });
+  else if (c.ai_state === 'failed')
+    fields.push({ name: 'Reviewer', value: 'could not read this case - read it yourself.', inline: false });
+  if (c.auto)
+    fields.push({
+      name: 'Done automatically',
+      value:
+        c.auto === 'reports'
+          ? 'Muted 30 min - three reports that count.'
+          : "Muted 30 min - the reviewer's verdict, read twice.",
+      inline: false,
+    });
+  const color =
+    c.status !== 'open'
+      ? 0x808080
+      : (c.ai_severity ?? 0) >= 3
+        ? 0xd03030
+        : (c.ai_severity ?? 0) === 2
+          ? 0xe08020
+          : 0x3070d0;
   const embed = {
     title: `Case ${c.id}${spawn ? ' (opened by the spawn grants)' : c.source === 'review' ? ' (opened by the reviewer)' : ''}`,
-    description: c.lines_kept === 0 ? 'Its lines were deleted ninety days after it closed.' : shown.length ? `\`\`\`\n${shown.join('\n')}\n\`\`\`` : 'No lines kept.',
+    description:
+      c.lines_kept === 0
+        ? 'Its lines were deleted ninety days after it closed.'
+        : shown.length
+          ? `\`\`\`\n${shown.join('\n')}\n\`\`\``
+          : 'No lines kept.',
     color,
     fields,
-    ...(c.status !== 'open' ? { footer: { text: `${c.status === 'dismissed' ? 'Dismissed' : 'Actioned'} by ${plain(c.resolved_by) || '?'}: ${plain(c.resolution)}` } } : {}),
+    ...(c.status !== 'open'
+      ? {
+          footer: {
+            text: `${c.status === 'dismissed' ? 'Dismissed' : 'Actioned'} by ${plain(c.resolved_by) || '?'}: ${plain(c.resolution)}`,
+          },
+        }
+      : {}),
   };
-  const components = c.status === 'open'
-    ? [{ type: 1, components: Object.entries(CARD_ACTS).map(([k, a]) => ({ type: 2, style: k === 'dis' ? 2 : k === 'b30' ? 4 : 1, label: a.label, custom_id: `safe:${k}:${c.id}` })) }]
-    : [];
+  const components =
+    c.status === 'open'
+      ? [
+          {
+            type: 1,
+            components: Object.entries(CARD_ACTS).map(([k, a]) => ({
+              type: 2,
+              style: k === 'dis' ? 2 : k === 'b30' ? 4 : 1,
+              label: a.label,
+              custom_id: `safe:${k}:${c.id}`,
+            })),
+          },
+        ]
+      : [];
   return { embeds: [embed], components, allowed_mentions: { parse: [] } };
 }
 
 /** DISCORD-CODE: what sendCard needs in the moderators' channel, as Discord's permission bits - to see it, post in it, and
  *  draw a card's embed (editing its own message needs nothing more). The deploy computes the bot's permissions there
  *  and turns red on any missing (tools/discordModCommands.mjs --setup). */
-export const MOD_CHANNEL_NEEDS = Object.freeze([['View Channel', 1n << 10n], ['Send Messages', 1n << 11n], ['Embed Links', 1n << 14n]]);
+export const MOD_CHANNEL_NEEDS = Object.freeze([
+  ['View Channel', 1n << 10n],
+  ['Send Messages', 1n << 11n],
+  ['Embed Links', 1n << 14n],
+]);
 
 /**
  * POST OR EDIT a card in the moderators' channel. Answers `{ id }` (the message's), or what kept it (DISCORD-2):
@@ -197,57 +321,115 @@ export async function sendCard(env, fetchFn, card, messageId = null, { nonce } =
   try {
     const res = await fetchFn(messageId ? `${base}/${messageId}` : base, {
       method: messageId ? 'PATCH' : 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bot ${env.DISCORD_BOT_TOKEN}`, 'user-agent': DISCORD_USER_AGENT },
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
+        'user-agent': DISCORD_USER_AGENT,
+      },
       body: JSON.stringify(!messageId && nonce ? { ...card, nonce, enforce_nonce: true } : card),
       signal: AbortSignal.timeout(DISCORD_POST_MS),
     });
     if (res.status === 404 && messageId) return { gone: true };
-    if (res.status === 429 || res.status >= 500) { console.warn('[discord] the API said', res.status); return { down: true }; }
-    if (!res.ok) { console.warn('[discord] the API refused a card:', res.status); return { refused: res.status }; }
+    if (res.status === 429 || res.status >= 500) {
+      console.warn('[discord] the API said', res.status);
+      return { down: true };
+    }
+    if (!res.ok) {
+      console.warn('[discord] the API refused a card:', res.status);
+      return { refused: res.status };
+    }
     const msg = await res.json().catch(() => null);
     const id = typeof msg?.id === 'string' ? msg.id : messageId;
     return id ? { id } : { down: true };
-  } catch (e) { console.warn('[discord] the API', /** @type {any} */ (e)?.message ?? e); return { down: true }; }
+  } catch (e) {
+    console.warn('[discord] the API', /** @type {any} */ (e)?.message ?? e);
+    return { down: true };
+  }
 }
 
 /** Everything a card is drawn from, read for case `id`. @param {any} db @param {string} id @param {number} nowS */
 export async function cardOf(db, id, nowS) {
   const c = await db.prepare('SELECT * FROM mod_cases WHERE id = ?1').bind(id).first();
   if (!c) return null;
-  const target = await db.prepare('SELECT handle, guest_name, muted_until, banned_until, ban_reason FROM players WHERE id = ?1').bind(c.target).first();
-  const lines = (await db.prepare('SELECT at, sub, name, tab, text FROM mod_case_lines WHERE case_id = ?1 ORDER BY at, sub').bind(id).all())?.results ?? [];
-  const reports = (await db.prepare('SELECT reason, note FROM mod_reports WHERE case_id = ?1 ORDER BY at').bind(id).all())?.results ?? [];
-  return caseCard({ c, name: target ? displayName(target) : '?', target, lines, reasons: reports.map((r) => String(r.reason)), notes: reports.map((r) => r.note).filter(Boolean), strikes: await strikesOf(db, c.target, nowS), nowS });
+  const target = await db
+    .prepare('SELECT handle, guest_name, muted_until, banned_until, ban_reason FROM players WHERE id = ?1')
+    .bind(c.target)
+    .first();
+  const lines =
+    (
+      await db
+        .prepare('SELECT at, sub, name, tab, text FROM mod_case_lines WHERE case_id = ?1 ORDER BY at, sub')
+        .bind(id)
+        .all()
+    )?.results ?? [];
+  const reports =
+    (await db.prepare('SELECT reason, note FROM mod_reports WHERE case_id = ?1 ORDER BY at').bind(id).all())?.results ??
+    [];
+  return caseCard({
+    c,
+    name: target ? displayName(target) : '?',
+    target,
+    lines,
+    reasons: reports.map((r) => String(r.reason)),
+    notes: reports.map((r) => r.note).filter(Boolean),
+    strikes: await strikesOf(db, c.target, nowS),
+    nowS,
+  });
 }
 
 /** An ephemeral answer - the moderator who asked reads it, nobody else; cut at a whole line (DISCORD-13: a cut split a
  *  `<t:...:f>` tag). @param {string} text */
 const say = (text) => {
   let out = '';
-  for (const line of text.split('\n')) { if ((out ? out.length + 1 : 0) + line.length > SAY_MAX) break; out = out ? `${out}\n${line}` : line; }
+  for (const line of text.split('\n')) {
+    if ((out ? out.length + 1 : 0) + line.length > SAY_MAX) break;
+    out = out ? `${out}\n${line}` : line;
+  }
   return { type: 4, data: { content: out || text.slice(0, SAY_MAX), flags: 64, allowed_mentions: { parse: [] } } };
 };
 
-/** The moderator's account for a Discord user, or null - a moderator in the game now, and not banned. */
+/** The moderator's account for a Discord user, or null - a moderator in the game now, and not banned. A user listed in
+ *  DISCORD_MODERATORS is that handle's; any other is the account their PDA link names. */
 async function actorOf(db, env, discordId, nowS) {
   const handle = discordModerators(env).get(String(discordId ?? ''));
-  if (!handle) return null;
-  const row = await db.prepare('SELECT * FROM players WHERE handle_lc = ?1').bind(handle).first();
-  return row && canModerate(row, env) && !isBanned(row, nowS) ? row : null;
+  const row = handle
+    ? await db.prepare('SELECT * FROM players WHERE handle_lc = ?1').bind(handle).first()
+    : (await linkOf(db, discordId))?.player;
+  return row && canModerate(row, env) && !isBanned(row, nowS) && !isFrozen(row, nowS) ? row : null; // a frozen moderator acts in nothing, as in the game
 }
 
 /** The order to the relay's door, pushed after Discord is answered where the Worker allows (DISCORD-4). */
-const pushAfter = (io, env, order) => { const p = pushLaw(env, io.fetchFn, order); if (io.later) io.later(p); return p; };
+const pushAfter = (io, env, order) => {
+  const p = pushLaw(env, io.fetchFn, order);
+  if (io.later) io.later(p);
+  return p;
+};
 
+/** The shape a logo's picture must have, said to a moderator whose picture has not. */
+const LOGO_SHAPE = `The picture must be a square PNG or WebP, ${GUILD_LOGO_SIDE_MIN} to ${GUILD_LOGO_SIDE_MAX} px a side and under ${GUILD_LOGO_MAX_BYTES / 1024} KiB.`;
 /** The words a refusal says to a moderator in Discord. */
 const REFUSED = Object.freeze({
-  'not-moderator': 'You are not a moderator in the game.', protected: 'Moderators cannot be muted or banned.', 'no-player': 'Nobody has that name.',
-  ambiguous: 'More than one guest has that name - use the account id.', 'bad-minutes': 'A mute is 1 to 10080 minutes.', 'bad-days': 'A ban is 0 (for good) to 365 days.',
+  'not-moderator': 'You are not a moderator in the game.',
+  protected: 'Moderators cannot be muted or banned.',
+  'no-player': 'Nobody has that name.',
+  ambiguous: 'More than one guest has that name - use the account id.',
+  'bad-minutes': 'A mute is 1 to 10080 minutes.',
+  'bad-days': 'A ban is 0 (for good) to 365 days.',
   'not-banned': 'That account is not banned.',
   // STAFF-PANEL2-FIX (safety.js modAct)
-  'staff-claimed': 'Another staff member has this case in the staff panel.', 'case-acted': 'Another moderator is acting on this case now.',
-  'case-closed': 'That case is already closed.', 'not-developer': 'Only an Admin can act on a spawn case.',
+  'staff-claimed': 'Another staff member has this case in the staff panel.',
+  'case-acted': 'Another moderator is acting on this case now.',
+  'case-closed': 'That case is already closed.',
+  'not-developer': 'Only an Admin can act on a spawn case.',
   'admin-sanction': 'An Admin set this - only an Admin can lift or shorten it.',
+  // /mod logo
+  'no-guild': 'No guild bears that tag or name.',
+  'logo-fetch': 'Discord did not hand the picture over. Try again.',
+  'no-storage': 'The service has nowhere to keep a picture.',
+  'logo-bytes': LOGO_SHAPE,
+  'logo-type': LOGO_SHAPE,
+  'logo-square': LOGO_SHAPE,
+  'logo-side': LOGO_SHAPE,
 });
 const refusedText = (e) => REFUSED[/** @type {keyof typeof REFUSED} */ (e)] ?? `Refused: ${e}.`;
 /** A case's card as it stands, drawn in place of the pressed one. */
@@ -257,40 +439,79 @@ const redraw = async (ctx, caseId) => ({ type: 7, data: await cardOf(ctx.db, cas
  *  in place. */
 async function onPress(ctx, env, body, actor, io) {
   const m = /^safe:(m30|m1d|m7d|b30|dis):([0-9a-f]{16})$/.exec(String(body?.data?.custom_id ?? ''));
-  if (!m) return say('That button is not one of the safety cards\'.');
+  if (!m) return say("That button is not one of the safety cards'.");
   const [, act, caseId] = m;
   const c = await ctx.db.prepare('SELECT * FROM mod_cases WHERE id = ?1').bind(caseId).first();
   if (!c) return say('That case is gone.');
   if (c.status !== 'open') return redraw(ctx, caseId);
   // THE CLAIM: one press acts; another inside CASE_CLAIM_S is shown the card as it stands
-  const claimed = await ctx.db.prepare('UPDATE mod_cases SET claimed_at = ?2 WHERE id = ?1 AND status = \'open\' AND (claimed_at IS NULL OR claimed_at < ?3)')
-    .bind(caseId, ctx.nowS, ctx.nowS - CASE_CLAIM_S).run();
+  const claimed = await ctx.db
+    .prepare(
+      "UPDATE mod_cases SET claimed_at = ?2 WHERE id = ?1 AND status = 'open' AND (claimed_at IS NULL OR claimed_at < ?3)",
+    )
+    .bind(caseId, ctx.nowS, ctx.nowS - CASE_CLAIM_S)
+    .run();
   if (!claimed?.meta?.changes) return redraw(ctx, caseId);
   const release = () => ctx.db.prepare('UPDATE mod_cases SET claimed_at = NULL WHERE id = ?1').bind(caseId).run();
   const a = CARD_ACTS[/** @type {keyof typeof CARD_ACTS} */ (act)];
   const { nowS } = ctx;
   /** @type {any} */
-  const ask = 'minutes' in a
-    ? { act: 'mute', minutes: a.minutes, resolution: (/** @type {any} */ r) => (r.kept ? `muted (a longer mute stands, until ${when(r.until)})` : `muted ${minutesWord(a.minutes)}`) }
-    : 'days' in a
-      ? { act: 'ban', days: a.days, resolution: (/** @type {any} */ r) => (r.until > banUntil(a.days, nowS) ? `banned (a longer ban stands, ${banWord(r.until)})` : `banned ${a.days} days`) }
-      : { act: 'dismiss' };
+  const ask =
+    'minutes' in a
+      ? {
+          act: 'mute',
+          minutes: a.minutes,
+          resolution: (/** @type {any} */ r) =>
+            r.kept ? `muted (a longer mute stands, until ${when(r.until)})` : `muted ${minutesWord(a.minutes)}`,
+        }
+      : 'days' in a
+        ? {
+            act: 'ban',
+            days: a.days,
+            resolution: (/** @type {any} */ r) =>
+              r.until > banUntil(a.days, nowS)
+                ? `banned (a longer ban stands, ${banWord(r.until)})`
+                : `banned ${a.days} days`,
+          }
+        : { act: 'dismiss' };
   // the interaction's own id is the press's one-time id
   const click = typeof body?.id === 'string' && CLICK_RE.test(body.id) ? body.id : null;
-  const r = await modAct(ctx, actor, env, { ...ask, target: c.target, caseId, click, reason: `case ${caseId}`, actorName: `${displayName(actor)} (Discord)`, from: 'Discord', keepLonger: true },
-    { push: (o) => { pushAfter(io, env, o); } });   // DISCORD-4: handed to `later`, never awaited before the answer
-  if ('error' in r) { await release(); return r.error === 'no-player' ? say('That account is gone.') : say(refusedText(r.error)); }
+  const r = await modAct(
+    ctx,
+    actor,
+    env,
+    {
+      ...ask,
+      target: c.target,
+      caseId,
+      click,
+      reason: `case ${caseId}`,
+      actorName: `${displayName(actor)} (Discord)`,
+      from: 'Discord',
+      keepLonger: true,
+    },
+    {
+      push: (o) => {
+        pushAfter(io, env, o);
+      },
+    },
+  ); // DISCORD-4: handed to `later`, never awaited before the answer
+  if ('error' in r) {
+    await release();
+    return r.error === 'no-player' ? say('That account is gone.') : say(refusedText(r.error));
+  }
   return redraw(ctx, caseId);
 }
 
-
 /** An option of a /mod subcommand, by name. */
-const optionOf = (sub, name) => (Array.isArray(sub?.options) ? sub.options.find((o) => o?.name === name)?.value : undefined);
+const optionOf = (sub, name) =>
+  Array.isArray(sub?.options) ? sub.options.find((o) => o?.name === name)?.value : undefined;
 
 /** A /mod command: lookup, mute, unmute, ban, unban - by an account id, else a player's name (DISCORD-1). A mute or a
  *  ban closes the account's open case as the moderator's act, its card redrawn (DISCORD-11). */
 async function onCommand(ctx, env, body, actor, io) {
   const sub = Array.isArray(body?.data?.options) ? body.data.options[0] : null;
+  if (sub?.name === 'logo') return onLogoCommand(ctx, env, body, sub, actor, io); // a guild's, not a player's
   const who = String(optionOf(sub, 'player') ?? '').trim();
   // AN ID FIRST: an account id is a valid handle, so a name first let a decoy named after an id take the act
   let row = ID_RE.test(who) ? await findAccount(ctx.db, { target: who }) : { error: 'no-player' };
@@ -299,31 +520,154 @@ async function onCommand(ctx, env, body, actor, io) {
   const name = displayName(row);
   const reason = optionOf(sub, 'reason');
   const by = `${displayName(actor)} (Discord)`;
-  const push = (/** @type {string} */ o) => { pushAfter(io, env, o); };   // DISCORD-4: never awaited before the answer
+  const push = (/** @type {string} */ o) => {
+    pushAfter(io, env, o);
+  }; // DISCORD-4: never awaited before the answer
   switch (sub?.name) {
     case 'lookup': {
       const r = await strikesLook(ctx, actor, env, { target: row.id });
       if ('error' in r) return say(refusedText(r.error));
-      const now = [r.bannedUntil ? `banned ${banWord(r.bannedUntil)}${r.banReason ? ` (${md(r.banReason)})` : ''}` : '', r.mutedUntil ? `muted until ${when(r.mutedUntil)}` : ''].filter(Boolean).join('; ') || 'in good standing';
-      const acts = r.history.slice(0, 10).map((h) => `${when(h.at)} ${h.kind}${h.voided ? ' (voided - its case dismissed)' : ''}${h.until ? ` until ${h.until >= BAN_FOREVER ? 'forever' : when(h.until)}` : ''} by ${md(h.by) || '?'}${h.reason ? ` - ${md(h.reason)}` : ''}`);
-      return say([`**${md(name)}** (\`${row.id}\`): ${now}. ${r.strikes} strike${r.strikes === 1 ? '' : 's'} in 90 days; next: ${r.next === 'ban' ? 'a ban' : minutesWord(Number(r.next))}.`, ...acts].join('\n'));
+      const now =
+        [
+          r.bannedUntil ? `banned ${banWord(r.bannedUntil)}${r.banReason ? ` (${md(r.banReason)})` : ''}` : '',
+          r.mutedUntil ? `muted until ${when(r.mutedUntil)}` : '',
+        ]
+          .filter(Boolean)
+          .join('; ') || 'in good standing';
+      const acts = r.history
+        .slice(0, 10)
+        .map(
+          (h) =>
+            `${when(h.at)} ${h.kind}${h.voided ? ' (voided - its case dismissed)' : ''}${h.until ? ` until ${h.until >= BAN_FOREVER ? 'forever' : when(h.until)}` : ''} by ${md(h.by) || '?'}${h.reason ? ` - ${md(h.reason)}` : ''}`,
+        );
+      return say(
+        [
+          `**${md(name)}** (\`${row.id}\`): ${now}. ${r.strikes} strike${r.strikes === 1 ? '' : 's'} in 90 days; next: ${r.next === 'ban' ? 'a ban' : minutesWord(Number(r.next))}.`,
+          ...acts,
+        ].join('\n'),
+      );
     }
-    case 'mute': case 'unmute': {
-      const minutes = sub.name === 'unmute' ? 0 : Number(optionOf(sub, 'minutes') ?? ladderMinutes(await strikesOf(ctx.db, row.id, ctx.nowS)));
+    case 'mute':
+    case 'unmute': {
+      const minutes =
+        sub.name === 'unmute'
+          ? 0
+          : Number(optionOf(sub, 'minutes') ?? ladderMinutes(await strikesOf(ctx.db, row.id, ctx.nowS)));
       // a mute closes the account's open chat case, as the moderator's act (DISCORD-11)
-      const r = await modAct(ctx, actor, env, { act: 'mute', target: row.id, minutes, reason, actorName: by, from: 'Discord', resolution: () => `muted ${minutesWord(minutes)} (/mod)` }, { push });
+      const r = await modAct(
+        ctx,
+        actor,
+        env,
+        {
+          act: 'mute',
+          target: row.id,
+          minutes,
+          reason,
+          actorName: by,
+          from: 'Discord',
+          resolution: () => `muted ${minutesWord(minutes)} (/mod)`,
+        },
+        { push },
+      );
       if ('error' in r) return say(refusedText(r.error));
       return say(minutes ? `${md(name)} is muted for ${minutesWord(minutes)}.` : `${md(name)} can chat again.`);
     }
-    case 'ban': case 'unban': {
+    case 'ban':
+    case 'unban': {
       const days = sub.name === 'unban' ? null : Number(optionOf(sub, 'days') ?? 30);
-      const r = await modAct(ctx, actor, env, days === null ? { act: 'unban', target: row.id, actorName: by, from: 'Discord' }
-        : { act: 'ban', target: row.id, days, reason, actorName: by, from: 'Discord', resolution: (/** @type {any} */ x) => `banned ${banWord(x.until)} (/mod)` }, { push });
+      const r = await modAct(
+        ctx,
+        actor,
+        env,
+        days === null
+          ? { act: 'unban', target: row.id, actorName: by, from: 'Discord' }
+          : {
+              act: 'ban',
+              target: row.id,
+              days,
+              reason,
+              actorName: by,
+              from: 'Discord',
+              resolution: (/** @type {any} */ x) => `banned ${banWord(x.until)} (/mod)`,
+            },
+        { push },
+      );
       if ('error' in r) return say(refusedText(r.error));
       return say(days === null ? `${md(name)} is unbanned.` : `${md(name)} is banned ${banWord(r.until)}.`);
     }
-    default: return say(usageOf('mod'));   // DISCORD-CODE: the declared subcommands, named (discordCommands.js)
+    default:
+      return say(usageOf('mod')); // DISCORD-CODE: the declared subcommands, named (discordCommands.js)
   }
+}
+
+/** The picture's address for the service to read: the file itself when it is already a logo's shape, else Discord's
+ *  media proxy asked for it as a WebP GUILD_LOGO_SIDE_MAX across. A phone re-encodes what it uploads and a full-size
+ *  picture is far past the law, and the Worker has no canvas of its own, so the proxy shrinks them. Pure. */
+export function logoPictureUrl(att) {
+  const small =
+    Number(att?.size) <= GUILD_LOGO_MAX_BYTES &&
+    Number(att?.width) <= GUILD_LOGO_SIDE_MAX &&
+    /^image\/(png|webp)$/.test(String(att?.content_type ?? ''));
+  if (small || typeof att?.proxy_url !== 'string') return String(att?.url ?? '');
+  const sep = att.proxy_url.includes('?') ? '&' : '?';
+  return `${att.proxy_url}${sep}format=webp&width=${GUILD_LOGO_SIDE_MAX}&height=${GUILD_LOGO_SIDE_MAX}`;
+}
+
+/** The picture's bytes, read off Discord at the address logoPictureUrl picks, with the bot's User-Agent - Discord's
+ *  CDN refuses a bare request from a server. Answers `{ bytes }`, or `{ why }` for the moderator: the status Discord
+ *  answered, an empty body, or the error the fetch threw. */
+async function logoBytesOf(att, net) {
+  try {
+    const res = await net.fetchFn(logoPictureUrl(att), {
+      headers: { 'user-agent': DISCORD_USER_AGENT },
+      signal: AbortSignal.timeout(DISCORD_POST_MS),
+    });
+    if (!res.ok) return { why: `status ${res.status}` };
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    return bytes.byteLength ? { bytes } : { why: 'an empty answer' };
+  } catch (e) {
+    return { why: String(/** @type {any} */ (e)?.message ?? e).slice(0, 80) };
+  }
+}
+
+/** Why a picture was refused, in words that say what was seen: its side, its weight or its kind. */
+function logoRefusal(error, bytes) {
+  const meta = poiImageMetaOf(bytes);
+  if (error === 'logo-side' && meta?.w)
+    return `That picture is ${meta.w} px a side. A logo is ${GUILD_LOGO_SIDE_MIN} to ${GUILD_LOGO_SIDE_MAX} px.`;
+  if (error === 'logo-bytes')
+    return `That picture is ${Math.ceil(bytes.byteLength / 1024)} KiB. A logo is under ${GUILD_LOGO_MAX_BYTES / 1024} KiB.`;
+  if (error === 'logo-type') return 'That file is not a PNG or WebP picture.';
+  return refusedText(error);
+}
+
+/** /mod logo: a guild, its tag first and then its name, and a picture Discord holds. A picture that is not square is
+ *  refused on Discord's own measure of it, before any fetch. One past the law's size or side is read through Discord's
+ *  media proxy, shrunk to a logo's side (logoPictureUrl). Then the service sets it as the guild's logo, worn at once
+ *  with no fee and no review, and the answer says what the guild wears now, or what was wrong with the picture. */
+async function onLogoCommand(ctx, env, body, sub, actor, net) {
+  const guild = await guildByWord(ctx.db, String(optionOf(sub, 'guild') ?? ''));
+  if (!guild) return say(refusedText('no-guild'));
+  const att = body?.data?.resolved?.attachments?.[String(optionOf(sub, 'picture') ?? '')];
+  if (!att?.url) return say(refusedText('logo-fetch'));
+  const wide = Number(att.width),
+    tall = Number(att.height);
+  if (!(wide > 0 && tall > 0)) return say('Discord did not read that file as a picture. Send a PNG or WebP.');
+  if (wide !== tall) return say(`That picture is ${wide} by ${tall} px. A logo is square.`);
+  const got = await logoBytesOf(att, net);
+  if (!got.bytes) return say(`Discord did not hand the picture over (${got.why}). Try again.`);
+  const bytes = got.bytes;
+  const worn = await setGuildLogo(
+    { ...ctx, bucket: ctx.bucket ?? env?.SAVES, env },
+    guild.id,
+    bytes,
+    `${displayName(actor)} (Discord)`,
+    actor,
+  );
+  if ('error' in worn) return say(logoRefusal(worn.error, bytes));
+  return say(
+    `${md(guild.name)} <${md(guild.tag)}> wears the new logo.${worn.replaced ? ' The one before is retired.' : ''}`,
+  );
 }
 
 /**
@@ -335,10 +679,23 @@ async function onCommand(ctx, env, body, actor, io) {
  */
 export async function discordInteraction(ctx, env, body, { fetchFn = (u, i) => globalThis.fetch(u, i), later } = {}) {
   if (body?.type === 1) return { type: 1 };
-  const io = { fetchFn, later: later ?? ((p) => { p.catch(() => {}); }) };
+  const io = {
+    fetchFn,
+    later:
+      later ??
+      ((p) => {
+        p.catch(() => {});
+      }),
+  };
+  const pda = await pdaInteraction(ctx, env, body, io); // a player's PDA, answered before the moderators' queue
+  if (pda) return pda;
   const actor = await actorOf(ctx.db, env, body?.member?.user?.id ?? body?.user?.id, ctx.nowS);
-  if (!actor) return say('Only the game\'s moderators can do that - ask a developer to add your Discord id to DISCORD_MODERATORS.');
-  if (body?.type === 3 && isLogoPress(body)) return onLogoPress({ ...ctx, bucket: ctx.bucket ?? env?.SAVES }, body, actor);   // GUILD-LOGO: a guild's logo approved or turned down
+  if (!actor)
+    return say(
+      "Only the game's moderators can do that. Link your account in the PDA, or ask a developer to add your Discord id to DISCORD_MODERATORS.",
+    );
+  if (body?.type === 3 && isLogoPress(body))
+    return onLogoPress({ ...ctx, bucket: ctx.bucket ?? env?.SAVES }, body, actor); // GUILD-LOGO: a guild's logo approved or turned down
   if (body?.type === 3) return onPress(ctx, env, body, actor, io);
   if (body?.type === 2 && body?.data?.name === 'mod') return onCommand(ctx, env, body, actor, io);
   return say('Nothing to do.');

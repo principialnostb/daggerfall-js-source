@@ -264,7 +264,7 @@ test('RELAY-SHARE EVERY BODY THE RELAY RUNS READS ITS WORD: the court\'s Warden 
   assert.match(strip(read('src/scenes/world.js')), /const e = bossStandIn\(\{ mobile: SERPENT_VOICE_ROWS\.dreugh \}, 'the sea serpent', \(\) => serpentHost\?\.healthShare\(\) \?\? null\);/);
 });
 
-test('RELAY-SHARE THE FAMILY on a body the relay runs: Serpent\'s Kiss doubles under half the word; the Axe past 100 pays its own half there (x1.8 under half, the hammer nothing) and the halves\' mean only where no word is heard; Run Them Down under half the word; Gutting Lunge under a quarter of it, its second blow owed to the claim (mutants: each reader its own copy again)', () => {
+test('RELAY-SHARE THE FAMILY on a body the relay runs: Serpent\'s Kiss doubles under half the word; the Axe and the hammer past 100 pay x1.4 there whatever the word; Run Them Down under half the word; Gutting Lunge under a quarter of it, its second blow owed to the claim (mutants: each reader its own copy again)', () => {
   fresh();
   // Serpent's Kiss (the Tsaesci Fang): 8 poison, twice under half - a Legendary's own power, as the imprint's
   const fangRec = LR.legendaryById('tsaesci-fang');
@@ -288,9 +288,9 @@ test('RELAY-SHARE THE FAMILY on a body the relay runs: Serpent\'s Kiss doubles u
   const weapon = (t) => mintCondition(setItemFields({ group: 'Weapons', templateIndex: t, material: 0 }));
   const axe = fighter([SKILLS.Axe]), hammer = fighter([SKILLS.BluntWeapon]);
   const at = (p, w, foe) => WM.weaponPastPct(w, p, foe, { online: true });
-  assert.deepEqual([at(axe, weapon(WEAPONS.War_Axe), relayBody(0.2)), at(axe, weapon(WEAPONS.War_Axe), relayBody(0.8))], [80, 0], 'the Axe under half of the word, x1.8; over it, nothing');
-  assert.deepEqual([at(hammer, weapon(WEAPONS.Warhammer), relayBody(0.2)), at(hammer, weapon(WEAPONS.Warhammer), relayBody(0.8))], [0, 80], 'the hammer the other half');
-  assert.equal(at(axe, weapon(WEAPONS.War_Axe), relayBody(null)), 40, 'no word: the halves\' mean (AUDIT MARTIAL L3 F2)');
+  assert.deepEqual([at(axe, weapon(WEAPONS.War_Axe), relayBody(0.2)), at(axe, weapon(WEAPONS.War_Axe), relayBody(0.8))], [40, 40], 'the Axe x1.4 on either half');
+  assert.deepEqual([at(hammer, weapon(WEAPONS.Warhammer), relayBody(0.2)), at(hammer, weapon(WEAPONS.Warhammer), relayBody(0.8))], [40, 40], 'the hammer x1.4 on either half');
+  assert.equal(at(axe, weapon(WEAPONS.War_Axe), relayBody(null)), 40, 'no word: x1.4 too');
   // Run Them Down (the Thief-Taker's Garb, 4 - test/systems/raid4b_sets.test.js's rig): +8% under half
   fresh(); setSigilOnline(true); setSigilRenown(1);
   const taker = player(); taker.armorValues = new Array(7).fill(100);
@@ -309,8 +309,8 @@ test('RELAY-SHARE THE FAMILY on a body the relay runs: Serpent\'s Kiss doubles u
   setPlayerDoor(null);
 });
 
-test('RELAY-SHARE ONE LAW, SIX READERS: the loot\'s powers, the masteries, the martial and arcane paths, the sets and the techniques\' Headsman\'s Chop (AUDIT FB1018f L3-5) read a body\'s share through combat/healthShare.js alone - none keeps a `health / maxHealth` of its own - and the stand-ins carry the reader they are handed (mutants: a reader\'s copy put back; the stand-in\'s reader unkept)', () => {
-  for (const p of ['src/systems/loot/lootPowers.js', 'src/systems/weaponMastery.js', 'src/systems/martialPowers.js', 'src/systems/arcanePowers.js', 'src/systems/sigil/sigilSetPowers.js', 'src/combat/technique/techniqueBlow.js']) {
+test('RELAY-SHARE ONE LAW, FIVE READERS: the loot\'s powers, the martial and arcane paths, the sets and the techniques\' Headsman\'s Chop (AUDIT FB1018f L3-5) read a body\'s share through combat/healthShare.js alone - none keeps a `health / maxHealth` of its own - and the stand-ins carry the reader they are handed (mutants: a reader\'s copy put back; the stand-in\'s reader unkept)', () => {
+  for (const p of ['src/systems/loot/lootPowers.js', 'src/systems/martialPowers.js', 'src/systems/arcanePowers.js', 'src/systems/sigil/sigilSetPowers.js', 'src/combat/technique/techniqueBlow.js']) {
     const s = strip(read(p));
     assert.match(s, /import \{ healthShare \} from '(?:\.\.\/)+(?:combat\/)?healthShare\.js';/, `${p} reads the one law`);
     assert.doesNotMatch(s, /\.health \/ e\.maxHealth|e\.health < e\.maxHealth \/ 2|e\.health : max\) \/ max/, `${p} keeps no share law of its own`);

@@ -2102,7 +2102,8 @@ test('AUDIT-MAP B1: every way out remembers an open panel\'s toggles - the Close
 
 test('AUDIT-MAP B2/B4: the sprite\'s handler is set before its source, the display face landing repaints once, the middle button\'s autoscroll is shut where the browser reads it', () => {
   const src = read('src/ui/heldMap.js');
-  assert.ok(src.indexOf('sprite.onload = () => this._keyHands(sprite, hands);') < src.indexOf('sprite.src = HELD_MAP_URL;'), 'onload before src - a cached picture cannot land first');
+  const source = src.indexOf('sprite.src = playerPictureUrl(HELD_MAP_PICTURE) ?? HELD_MAP_URL;');
+  assert.ok(source > 0 && src.lastIndexOf('sprite.onload = ', source) > source - 600, 'onload before src - a cached picture cannot land first');
   assert.match(src, /\(fonts\?\.load\?\.\("14px 'Cormorant'"\) \?\? fonts\?\.ready\)\?\.then\?\.\(landed\);/, 'the face is ASKED for (a canvas font never triggers a load), and the sheet repainted when it lands');
   // MAP-FIELD2: the measure cache went with the names - nothing else on
   // the sheet measures text - so the face's landing drops the kept layer
@@ -3504,5 +3505,27 @@ test('MAP-SCALE (FIELD BUGS 2026-10-09e, "icons and text too small on high resol
       const css = read('src/ui/enhanced/enhancedStyle.js');
       assert.match(css, /\.hmroot \{ --hm-ui: 1; \}\n\.hmroot > :not\(\.hmstage\) \{ zoom: var\(--hm-ui, 1\); \}/, 'every piece over the sheet zoomed as one');
     } finally { setPref('mapScale', 'auto'); delete globalThis.innerWidth; delete globalThis.innerHeight; }
+  });
+});
+
+test('the held map: the sheet stays down and hidden until its painting lands, so no ink stands over the world', () => {
+  withDocument(() => {
+    const win = mkWin();
+    win._artIn = false;   // a browser's picture still on its way (a stand-in DOM has none to wait for)
+    for (let i = 0; i < 20; i++) win.tick(0.05);
+    assert.equal(win._phase, 'opening', 'the rise holds while the painting is out');
+    assert.equal(win._chrome.root.style.visibility, 'hidden');
+    win._chrome.sprite.onload();
+    open(win);
+    assert.equal(win._phase, 'map', 'and rises once it lands');
+    assert.equal(win._chrome.root.style.visibility, '');
+    win.dispose();
+  });
+  withDocument(() => {
+    const win = mkWin();
+    win._artIn = false;
+    for (let i = 0; i < 100; i++) win.tick(0.05);
+    assert.equal(win._phase, 'map', 'a painting that never lands holds the map three seconds at most');
+    win.dispose();
   });
 });

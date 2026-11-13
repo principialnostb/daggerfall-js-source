@@ -12,7 +12,7 @@
 //   node tools/sendServerPost.mjs --look <handles> <batch>                                 the dry run's statement
 //   node tools/sendServerPost.mjs --words <subject> <message>                              the words as they will be sent
 //   node tools/sendServerPost.mjs --sql <handles> <batch> <item> <subject> <message>       the send's statement
-//   node tools/sendServerPost.mjs --migration hours-first|tamriel|thanks                   a frozen send's migration
+//   node tools/sendServerPost.mjs --migration hours-first|tamriel|thanks|maintenance|outage|ddos a frozen send's migration
 //
 // `handles` is comma-separated, as the config's lists are; `item` is one of POST_ITEMS - an item is MINTED here by the
 // game's own code (the Hourlock as its drop mints it, src/systems/gilded.js), never typed into a workflow; `message`
@@ -30,12 +30,12 @@ import { isMain } from './lib/isMain.mjs';
 import { HANDLE_RE } from '../src/net/handleShape.js';
 import { POST_BATCH_RE, POST_SENDER, POST_SUBJECT_MAX, POST_BODY_MAX } from '../src/net/postLaw.js';
 import { mintHourlock } from '../src/systems/gilded.js';
-import { GIFTS } from '../src/net/giftLaw.js';   // THANKS-POST: what the update's gift gives
+import { GIFTS, giftOf } from '../src/net/giftLaw.js'; // THANKS-POST: what the update's gift gives
 
 /** THE ITEMS A PIECE MAY HOLD, by name - each minted by the game's own code. `none` a message alone. */
 export const POST_ITEMS = Object.freeze({
   none: () => null,
-  hourlock: () => mintHourlock(),   // the Hourlock, as the Brass Remnant's spoils mint it (GUNS-UNFOUND: a gilded bow since 2026-10-23)
+  hourlock: () => mintHourlock(), // the Hourlock, as the Brass Remnant's spoils mint it (GUNS-UNFOUND: a gilded bow since 2026-10-23)
 });
 /** How many accounts one send may name. */
 export const POST_RECIPIENTS_MAX = 200;
@@ -43,7 +43,8 @@ export const POST_RECIPIENTS_MAX = 200;
 /** HOURS-FIRST: the first send - its name, to whom, what it holds and its words, as migration 0094 sent them. */
 export const HOURS_FIRST = Object.freeze({
   batch: 'hours-first-hourlock',
-  handles: 'aether,ArtemisGodfrey,CycleD0se,Duck,Kobakk,MackyWackyDeeJew,mayaamano,Nirnroot,ofrizz,rosalina,ShikiX3,Temegast,Terra',
+  handles:
+    'aether,ArtemisGodfrey,CycleD0se,Duck,Kobakk,MackyWackyDeeJew,mayaamano,Nirnroot,ofrizz,rosalina,ShikiX3,Temegast,Terra',
   item: 'hourlock',
   subject: "Hour's First",
   body: [
@@ -61,7 +62,8 @@ export const HOURS_FIRST = Object.freeze({
  *  test/tooling/serverpost_send.test.js holds the two equal, and a change to the mint would make every unclaimed gift a forgery
  *  the client refuses - systems/gilded.js validGildedMarks). GUNS-UNFOUND: the Hourlock is a bow now, so this gun is its
  *  gun era's mint (`mintGilded(HOURLOCK_GUN_ERA)`), lawful still. */
-export const HOURS_FIRST_RECORD = "{\"group\":\"Weapons\",\"templateIndex\":560,\"material\":4,\"flags\":0,\"variant\":0,\"message\":0,\"stackCount\":1,\"name\":\"The Hourlock\",\"value\":39740,\"maxCondition\":4800,\"currentCondition\":4800,\"rarity\":\"gilded\",\"gilded\":\"the-hourlock\",\"affixes\":[{\"id\":\"damage\",\"value\":40},{\"id\":\"stat\",\"param\":\"agility\",\"value\":15},{\"id\":\"skill\",\"param\":33,\"value\":30},{\"id\":\"elemental\",\"param\":\"shock\",\"value\":10}],\"isIdentified\":true}";
+export const HOURS_FIRST_RECORD =
+  '{"group":"Weapons","templateIndex":560,"material":4,"flags":0,"variant":0,"message":0,"stackCount":1,"name":"The Hourlock","value":39740,"maxCondition":4800,"currentCondition":4800,"rarity":"gilded","gilded":"the-hourlock","affixes":[{"id":"damage","value":40},{"id":"stat","param":"agility","value":15},{"id":"skill","param":33,"value":30},{"id":"elemental","param":"shock","value":10}],"isIdentified":true}';
 
 /** TAMRIEL-POST (2026-10-28, the owner: "Send a heartfelt, non-ai like message to players in their inbox and attach 10
  *  portal stones"): the Tamriel update's letter, to every registered account, ten Portal Stones in one stack. Migration
@@ -83,7 +85,8 @@ export const TAMRIEL_POST = Object.freeze({
   ].join('\n'),
 });
 /** TAMRIEL-POST: the stones' record as 0188 sends it - `portalStones(10)` that day (systems/gate/gateSpoils.js), frozen. */
-export const TAMRIEL_POST_RECORD = '{"group":"UselessItems2","templateIndex":572,"name":"Portal Stone","value":1250,"maxCondition":1000,"currentCondition":1000,"stackCount":10}';
+export const TAMRIEL_POST_RECORD =
+  '{"group":"UselessItems2","templateIndex":572,"name":"Portal Stone","value":1250,"maxCondition":1000,"currentCondition":1000,"stackCount":10}';
 
 /** THANKS-POST (2026-10-30, the owner: "every current player should be grant 500 free aurem on the update to their inbox
  *  and a free arm armoury aura", with the letter's words to clean up): the Storefront update's letter, to every registered
@@ -106,13 +109,90 @@ export const THANKS_POST = Object.freeze({
   ].join('\n'),
 });
 
+/** The downtime apology's letter, to every registered account standing, naming its gift (500 Aurum, on the account
+ *  already). Its words are frozen: a migration holds this text and never runs again. */
+export const MAINTENANCE_POST = Object.freeze({
+  batch: 'maintenance-apology',
+  gift: 'maintenance',
+  sender: 'The DFO Team',
+  subject: 'Sorry for the downtime',
+  body: [
+    "We're sorry for the maintenance and for the time it kept you out of the game. We know how frustrating it is to sit down to play and not be able to get in.",
+    '',
+    'As an apology, 500 Aurum is on your account now. Spend it in the shop whenever you like.',
+    '',
+    'Thank you for your patience, and for sticking with us.',
+    '',
+    'With love,',
+    'The DFO Team',
+  ].join('\n'),
+});
+/** One account's extra 1000 Aurum on top of the apology's 500, with its own letter. Frozen, as the apology is. */
+export const MAINTENANCE_PLUS_POST = Object.freeze({
+  batch: 'maintenance-apology-plus',
+  gift: 'maintenanceplus',
+  handles: 'MarioTheShiba',
+  sender: 'The DFO Team',
+  subject: 'A little extra, with thanks',
+  body: [
+    'On top of the 500 Aurum from our maintenance apology, an extra 1,000 Aurum is on your account now - 1,500 in all.',
+    '',
+    'Thank you for everything you do for the game.',
+    '',
+    'With love,',
+    'The DFO Team',
+  ].join('\n'),
+});
+
+/** The server issues apology's letter, to every registered account standing, naming its gift (200 Aurum, on the
+ *  account already). Frozen, as the maintenance apology is. */
+export const OUTAGE_POST = Object.freeze({
+  batch: 'server-issues-apology',
+  gift: 'outage',
+  sender: 'The DFO Team',
+  subject: 'Sorry for the server issues',
+  body: [
+    "We're sorry for the recent server issues. We know they got in the way of your time in the game.",
+    '',
+    'As an apology, 200 Aurum is on your account now.',
+    '',
+    'Thank you for your patience while we work on it.',
+    '',
+    'With love,',
+    'The DFO Team',
+  ].join('\n'),
+});
+
+/** The attack apology's letter, to every registered account standing, naming its gift (500 Aurum, on the account
+ *  already). Frozen, as the other apologies are. */
+export const DDOS_POST = Object.freeze({
+  batch: 'ddos-apology',
+  gift: 'ddos',
+  sender: 'The DFO Team',
+  subject: 'Sorry for the attack on our servers',
+  body: [
+    'Our servers were hit by a DDoS attack. We know it kept many of you from playing, and we are sorry.',
+    '',
+    'As an apology, 500 Aurum is on your account now.',
+    '',
+    'Thank you for sticking with us through it.',
+    '',
+    'With love,',
+    'The DFO Team',
+  ].join('\n'),
+});
+
 /** A word as an SQL string, its quotes doubled - nothing in it can end the string. */
 export const sqlText = (/** @type {string} */ s) => `'${String(s).replaceAll("'", "''")}'`;
 
 /** The names a send is to, as `handle_lc` holds them - each a handle's shape, none twice, at least one; or throw. */
 export function postHandles(raw) {
-  const names = String(raw ?? '').split(',').map((h) => h.trim()).filter(Boolean);
-  if (!names.length || names.length > POST_RECIPIENTS_MAX) throw new Error(`not a list of names: 1 to ${POST_RECIPIENTS_MAX} handles, comma-separated`);
+  const names = String(raw ?? '')
+    .split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
+  if (!names.length || names.length > POST_RECIPIENTS_MAX)
+    throw new Error(`not a list of names: 1 to ${POST_RECIPIENTS_MAX} handles, comma-separated`);
   for (const h of names) if (!HANDLE_RE.test(h)) throw new Error(`not a handle: ${JSON.stringify(h)}`);
   return [...new Set(names.map((h) => h.toLowerCase()))];
 }
@@ -120,14 +200,17 @@ export function postHandles(raw) {
 /** A send's name, or throw. */
 export function postBatch(raw) {
   const b = String(raw ?? '').trim();
-  if (!POST_BATCH_RE.test(b)) throw new Error(`not a send's name: ${JSON.stringify(raw)} - lower-case words and hyphens, 3 to 48`);
+  if (!POST_BATCH_RE.test(b))
+    throw new Error(`not a send's name: ${JSON.stringify(raw)} - lower-case words and hyphens, 3 to 48`);
   return b;
 }
 
 /** A piece's words within the post's bounds - `\n` a line break - or throw. */
 export function postWords({ subject, body }) {
   const s = String(subject ?? '').trim();
-  const b = String(body ?? '').replaceAll('\\n', '\n').trim();
+  const b = String(body ?? '')
+    .replaceAll('\\n', '\n')
+    .trim();
   if (!s || s.length > POST_SUBJECT_MAX) throw new Error(`not a subject: 1 to ${POST_SUBJECT_MAX} characters`);
   if (!b || b.length > POST_BODY_MAX) throw new Error(`not a message: 1 to ${POST_BODY_MAX} characters`);
   if (/[\u0000-\u0008\u000b-\u001f\u007f]/.test(s + b)) throw new Error('a control character is not words');
@@ -137,7 +220,8 @@ export function postWords({ subject, body }) {
 /** The item a name mints (its record as JSON), or null for `none`; or throw. */
 export function postItem(raw) {
   const k = String(raw ?? '').trim();
-  if (!Object.hasOwn(POST_ITEMS, k)) throw new Error(`not an item: ${JSON.stringify(raw)} - one of ${Object.keys(POST_ITEMS).join(', ')}`);
+  if (!Object.hasOwn(POST_ITEMS, k))
+    throw new Error(`not an item: ${JSON.stringify(raw)} - one of ${Object.keys(POST_ITEMS).join(', ')}`);
   const rec = POST_ITEMS[k]();
   return rec ? JSON.stringify(rec) : null;
 }
@@ -146,7 +230,8 @@ const inList = (names) => names.map(sqlText).join(', ');
 
 /** THE DRY RUN: each registered account the names find, and whether it already holds this send. */
 export function lookSql(handles, batch) {
-  const names = postHandles(handles), b = postBatch(batch);
+  const names = postHandles(handles),
+    b = postBatch(batch);
   return `SELECT p.handle, p.handle_lc, (SELECT COUNT(*) FROM server_post s WHERE s.to_id = p.id AND s.batch = ${sqlText(b)}) AS sent FROM players p WHERE p.handle IS NOT NULL AND p.handle_lc IN (${inList(names)}) ORDER BY p.handle_lc;`;
 }
 
@@ -157,8 +242,10 @@ export function lookSql(handles, batch) {
  * @param {{ handles: string, batch: string, item: string, subject: string, body: string }} o
  */
 export function sendSql({ handles, batch, item, subject, body, record = null }, { returning = true } = {}) {
-  const names = postHandles(handles), b = postBatch(batch), words = postWords({ subject, body });
-  const rec = record ?? postItem(item);   // a frozen record (HOURS_FIRST_RECORD), or the item's name minted now
+  const names = postHandles(handles),
+    b = postBatch(batch),
+    words = postWords({ subject, body });
+  const rec = record ?? postItem(item); // a frozen record (HOURS_FIRST_RECORD), or the item's name minted now
   return `INSERT OR IGNORE INTO server_post (id, to_id, batch, sender, subject, body, item, sent_at)
 SELECT lower(hex(randomblob(12))), p.id, ${sqlText(b)}, ${sqlText(POST_SENDER)}, ${sqlText(words.subject)}, ${sqlText(words.body)}, ${rec ? sqlText(rec) : 'NULL'}, CAST(strftime('%s', 'now') AS INTEGER)
 FROM players p WHERE p.handle IS NOT NULL AND p.handle_lc IN (${inList(names)})${returning ? '\nRETURNING id, to_id' : ''};`;
@@ -166,7 +253,9 @@ FROM players p WHERE p.handle IS NOT NULL AND p.handle_lc IN (${inList(names)})$
 
 /** HOURS-FIRST: the title's list, off the config (the first send's names are its own, frozen above - this is for the pin
  *  that every one of them holds the title). */
-export function hoursFirstHandles(toml = readFileSync(new URL('../server-account/wrangler.toml', import.meta.url), 'utf8')) {
+export function hoursFirstHandles(
+  toml = readFileSync(new URL('../server-account/wrangler.toml', import.meta.url), 'utf8'),
+) {
   const m = /^HOURS_FIRST_HANDLES = "([^"]*)"$/m.exec(toml);
   if (!m) throw new Error('server-account/wrangler.toml holds no HOURS_FIRST_HANDLES');
   return m[1];
@@ -177,7 +266,8 @@ export const hoursFirstSql = () => sendSql({ ...HOURS_FIRST, record: HOURS_FIRST
 /** TAMRIEL-POST: a send to EVERY registered account standing when it runs - a migration's alone (the workflow names its
  *  accounts, POST_RECIPIENTS_MAX at most); once a send an account, as sendSql's. */
 export function everyoneSql({ batch, sender = POST_SENDER, subject, body, record = null, gift = null }) {
-  const b = postBatch(batch), words = postWords({ subject, body });
+  const b = postBatch(batch),
+    words = postWords({ subject, body });
   return `INSERT OR IGNORE INTO server_post (id, to_id, batch, sender, subject, body, item, sent_at${gift ? ', gift' : ''})
 SELECT lower(hex(randomblob(12))), p.id, ${sqlText(b)}, ${sqlText(sender)}, ${sqlText(words.subject)}, ${sqlText(words.body)}, ${record ? sqlText(record) : 'NULL'}, CAST(strftime('%s', 'now') AS INTEGER)${gift ? `, ${sqlText(gift)}` : ''}
 FROM players p WHERE p.handle IS NOT NULL;`;
@@ -187,7 +277,8 @@ export const tamrielPostSql = () => everyoneSql({ ...TAMRIEL_POST, record: TAMRI
 /** THANKS-POST: THE GIFT, as migration 0202 gives it to every registered account standing - its key on the account, its
  *  Aurum a ledger line (`gift`, once an account by the line's key), and the letter naming it. Each once, run again. */
 export function thanksPostSql() {
-  const g = THANKS_POST.gift, now = "CAST(strftime('%s', 'now') AS INTEGER)";
+  const g = THANKS_POST.gift,
+    now = "CAST(strftime('%s', 'now') AS INTEGER)";
   return `UPDATE players SET gifts = trim(gifts || ' ' || ${sqlText(g)})
 WHERE handle IS NOT NULL AND instr(' ' || gifts || ' ', ${sqlText(` ${g} `)}) = 0;
 INSERT OR IGNORE INTO aurum_ledger (account, kind, ref, amount, day, at)
@@ -196,17 +287,65 @@ FROM players p WHERE p.handle IS NOT NULL;
 ${everyoneSql(THANKS_POST)}`;
 }
 
+/** A gift and its letter: its key on each account, its Aurum a ledger line, and the letter naming it. To every
+ *  registered account standing, or to the accounts `handles` names. Each write is keyed, so a second run adds nothing. */
+export function giftPostSql({ batch, gift, sender, subject, body, handles = null }) {
+  const g = giftOf(gift);
+  if (!g) throw new Error(`not a gift: ${JSON.stringify(gift)}`);
+  const b = postBatch(batch),
+    words = postWords({ subject, body }),
+    now = "CAST(strftime('%s', 'now') AS INTEGER)",
+    who = `handle IS NOT NULL${handles ? ` AND handle_lc IN (${inList(postHandles(handles))})` : ''}`,
+    pwho = who.replaceAll('handle', 'p.handle');
+  return `UPDATE players SET gifts = trim(gifts || ' ' || ${sqlText(gift)})
+WHERE ${who} AND instr(' ' || gifts || ' ', ${sqlText(` ${gift} `)}) = 0;
+INSERT OR IGNORE INTO aurum_ledger (account, kind, ref, amount, day, at)
+SELECT p.id, 'gift', ${sqlText(gift)}, ${g.aurum}, ${now} / 86400, ${now}
+FROM players p WHERE ${pwho};
+INSERT OR IGNORE INTO server_post (id, to_id, batch, sender, subject, body, item, sent_at, gift)
+SELECT lower(hex(randomblob(12))), p.id, ${sqlText(b)}, ${sqlText(sender)}, ${sqlText(words.subject)}, ${sqlText(words.body)}, NULL, ${now}, ${sqlText(gift)}
+FROM players p WHERE ${pwho};`;
+}
+/** The apology's statement: the gift to every registered account, then the one account's extra. */
+export const maintenancePostSql = () => `${giftPostSql(MAINTENANCE_POST)}
+${giftPostSql(MAINTENANCE_PLUS_POST)}`;
+/** The server issues apology's statement: the gift to every registered account. */
+export const outagePostSql = () => giftPostSql(OUTAGE_POST);
+/** The attack apology's statement: the gift to every registered account. */
+export const ddosPostSql = () => giftPostSql(DDOS_POST);
+
 function main(argv) {
-  if (argv[0] === '--names' && argv.length === 2) return void process.stdout.write(`${postHandles(argv[1]).join('\n')}\n`);
+  if (argv[0] === '--names' && argv.length === 2)
+    return void process.stdout.write(`${postHandles(argv[1]).join('\n')}\n`);
   if (argv[0] === '--look' && argv.length === 3) return void process.stdout.write(`${lookSql(argv[1], argv[2])}\n`);
-  if (argv[0] === '--words' && argv.length === 3) return void process.stdout.write(`${JSON.stringify(postWords({ subject: argv[1], body: argv[2] }))}\n`);   // AUDIT SERVER-POST: the dry run shows what will be sent
-  if (argv[0] === '--sql' && argv.length === 6) return void process.stdout.write(`${sendSql({ handles: argv[1], batch: argv[2], item: argv[3], subject: argv[4], body: argv[5] })}\n`);
-  if (argv[0] === '--migration' && argv[1] === 'hours-first' && argv.length === 2) return void process.stdout.write(`${hoursFirstSql()}\n`);
-  if (argv[0] === '--migration' && argv[1] === 'tamriel' && argv.length === 2) return void process.stdout.write(`${tamrielPostSql()}\n`);
-  if (argv[0] === '--migration' && argv[1] === 'thanks' && argv.length === 2) return void process.stdout.write(`${thanksPostSql()}\n`);
-  throw new Error('usage: node tools/sendServerPost.mjs --names <handles> | --look <handles> <batch> | --words <subject> <message> | --sql <handles> <batch> <item> <subject> <message> | --migration hours-first|tamriel|thanks');
+  if (argv[0] === '--words' && argv.length === 3)
+    return void process.stdout.write(`${JSON.stringify(postWords({ subject: argv[1], body: argv[2] }))}\n`); // AUDIT SERVER-POST: the dry run shows what will be sent
+  if (argv[0] === '--sql' && argv.length === 6)
+    return void process.stdout.write(
+      `${sendSql({ handles: argv[1], batch: argv[2], item: argv[3], subject: argv[4], body: argv[5] })}\n`,
+    );
+  if (argv[0] === '--migration' && argv[1] === 'hours-first' && argv.length === 2)
+    return void process.stdout.write(`${hoursFirstSql()}\n`);
+  if (argv[0] === '--migration' && argv[1] === 'tamriel' && argv.length === 2)
+    return void process.stdout.write(`${tamrielPostSql()}\n`);
+  if (argv[0] === '--migration' && argv[1] === 'thanks' && argv.length === 2)
+    return void process.stdout.write(`${thanksPostSql()}\n`);
+  if (argv[0] === '--migration' && argv[1] === 'maintenance' && argv.length === 2)
+    return void process.stdout.write(`${maintenancePostSql()}\n`);
+  if (argv[0] === '--migration' && argv[1] === 'outage' && argv.length === 2)
+    return void process.stdout.write(`${outagePostSql()}\n`);
+  if (argv[0] === '--migration' && argv[1] === 'ddos' && argv.length === 2)
+    return void process.stdout.write(`${ddosPostSql()}\n`);
+  throw new Error(
+    'usage: node tools/sendServerPost.mjs --names <handles> | --look <handles> <batch> | --words <subject> <message> | --sql <handles> <batch> <item> <subject> <message> | --migration hours-first|tamriel|thanks|maintenance|outage|ddos',
+  );
 }
 
 if (isMain(import.meta.url)) {
-  try { main(process.argv.slice(2)); } catch (e) { console.error(e.message); process.exit(1); }
+  try {
+    main(process.argv.slice(2));
+  } catch (e) {
+    console.error(e.message);
+    process.exit(1);
+  }
 }

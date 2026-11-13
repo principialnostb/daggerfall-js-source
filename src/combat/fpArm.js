@@ -2295,6 +2295,7 @@ import { WEAPON_LOOKS_PREF, weaponLookKey } from '../characters/ownModels/localW
 import { ownWeaponModelFor } from '../characters/ownModels/ownWeaponModels.js';   // FIELD-GUN-MW2: the weapons Morrowind does not have - a leaf too
 import { glowUnit } from '../render/weaponGlowGlsl.js';   // WEAPON-GLOW1: the glow's unit off the lens's rows - a leaf
 import { drawnPiece } from '../net/appearanceLaw.js';   // APPEARANCES: a worn piece's look - a leaf
+import { ghostAlpha } from '../systems/toybox/toyboxGhost.js';   // the toybox's ghost: my own arms drawn see-through
 
 const saidArrow = new Set();
 function sayNoArrow(notes) {
@@ -5154,7 +5155,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // _drawWeaponGlows 'hands') while the fists are up: drawn, empty (AUDIT C4: a swap done, no sheet held up before the
   // first person), no spell in them, not on the stone
   let handGlowSpec = null;
-  const handGlowShown = () => (handGlowSpec && !climbHands && !(sheathed && viewMode === 'first') && !spellStance() && wornWeaponKey === EMPTY_HAND_KEY && !(viewMode === 'first' && held) ? handGlowSpec : null);   // WRAPS-AWAY (mob: "keep glow on wrap whern put away"): put away, the body's hands still glow
+  const handGlowShown = () => (handGlowSpec && !climbHands && !(sheathed && viewMode === 'first') && !spellStance() && wornWeaponKey === EMPTY_HAND_KEY && !(viewMode === 'first' && held) ? handGlowSpec : null);   // WRAPS-AWAY: put away, the body's hands still glow
   let torchState = null;
   let torchSource = null;
   let torchGroup = null;
@@ -9094,11 +9095,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // is top-left, so its v runs from the top: 1 - fh/RT down to 1).
       // DISC13-C: the rect is the frame window's, which covers the screen
       // and slides with the widget's own sub-pixel position.
+      const seeThrough = ghostAlpha();   // the toybox's ghost: my own arms see-through
       if (win) {
-        renderer.drawScreenQuad(tex, win.dst, { u0: 0, v0: fh / edge, u1: fw / edge, v1: 0 });
+        if (seeThrough < 1) renderer.drawScreenQuad(tex, win.dst, { u0: 0, v0: fh / edge, u1: fw / edge, v1: 0 }, [1, 1, 1, seeThrough], { blend: true });
+        else renderer.drawScreenQuad(tex, win.dst, { u0: 0, v0: fh / edge, u1: fw / edge, v1: 0 });
         return true;
       }
-      renderer.drawScreenOverlayQuad(tex, pw / edge, ph / edge);
+      renderer.drawScreenOverlayQuad(tex, pw / edge, ph / edge, seeThrough);
       return true;
     },
 

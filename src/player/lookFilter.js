@@ -21,8 +21,8 @@
 // the residual is a delta and rides along. The pitch clamp is applied
 // to the TARGET as :142 does, so the camera never overshoots the range.
 
-import { takeLook } from './lookAround.js';   // LOOK-AROUND: the preview's mouse
-import { getFloat, getInt } from '../systems/settings/settings.js';   // MAC-O2: Controls/WeaponSwingMode, the term the swing suppression was missing
+import { takeLook } from './lookAround.js'; // LOOK-AROUND: the preview's mouse
+import { getFloat, getInt } from '../systems/settings/settings.js'; // MAC-O2: Controls/WeaponSwingMode, the term the swing suppression was missing
 import { PITCH_LIMIT } from './mwCamera.js';
 
 /** PlayerMouseLook.SmoothingMax (:45): the setter clamps to it. */
@@ -50,8 +50,13 @@ export const PITCH_FLOOR = (75 * Math.PI) / 180;
 // FLOOR here. A registered provider answers DFU's limit in DEGREES
 // (down-positive), or null for the owner's PITCH_FLOOR.
 let _floorProvider = null;
-export function setPitchFloorProvider(fn) { _floorProvider = typeof fn === 'function' ? fn : null; }
-export const pitchFloor = () => { const d = _floorProvider?.(); return Number.isFinite(d) ? Math.min((Math.max(d, -90) * Math.PI) / 180, PITCH_FLOOR) : PITCH_FLOOR; };   // AUDIT-RR2 G23: `pitchMax = Mathf.Clamp(value, PitchMin, PitchMax)` (PlayerMouseLook.cs:87-90), PitchMin -90 - a steep bank cannot push the floor past vertical
+export function setPitchFloorProvider(fn) {
+  _floorProvider = typeof fn === 'function' ? fn : null;
+}
+export const pitchFloor = () => {
+  const d = _floorProvider?.();
+  return Number.isFinite(d) ? Math.min((Math.max(d, -90) * Math.PI) / 180, PITCH_FLOOR) : PITCH_FLOOR;
+}; // AUDIT-RR2 G23: `pitchMax = Mathf.Clamp(value, PitchMin, PitchMax)` (PlayerMouseLook.cs:87-90), PitchMin -90 - a steep bank cannot push the floor past vertical
 
 /** GetFrameRateScaledFractionOfProgression (:100-105), verbatim - and
  *  AUDIT 68 S15-lookfilter-nan-dt0: at its two edges. A browser frame
@@ -78,7 +83,9 @@ export function frameSmoothing(smoothing, dt) {
 // .UsingController) the fraction never drops below 0.5. One latch for
 // every filter, set by ui/gamepadInput.js each frame.
 let _controllerLook = false;
-export function setControllerLook(on) { _controllerLook = !!on; }
+export function setControllerLook(on) {
+  _controllerLook = !!on;
+}
 export const controllerLook = () => _controllerLook;
 
 /** WW1: THE FRAME'S LOOK, for a reader that is not the camera. The latch
@@ -88,8 +95,14 @@ export const controllerLook = () => _controllerLook;
  *  Weapon Widget's inertia reads straight: ui/lookSettings.js dfuLookAxes
  *  converts (WIDGET-LOOK, FIELD BUGS 2026-10-03 - read as they were, the
  *  mods' sway was a fourteenth of their own). */
-let _frameYaw = 0, _framePitch = 0;
-export function takeFrameLook() { const v = [_frameYaw, _framePitch]; _frameYaw = 0; _framePitch = 0; return v; }
+let _frameYaw = 0,
+  _framePitch = 0;
+export function takeFrameLook() {
+  const v = [_frameYaw, _framePitch];
+  _frameYaw = 0;
+  _framePitch = 0;
+  return v;
+}
 
 /**
  * MAC-O2 - THE SWING SUPPRESSION, ONE LAW (Mac, 2026-09-16: "Can't
@@ -131,8 +144,11 @@ export function takeFrameLook() { const v = [_frameYaw, _framePitch]; _frameYaw 
  * @param weaponIsBow  ScreenWeapon.WeaponType == WeaponTypes.Bow
  * @param swingMode    Controls/WeaponSwingMode (0 gesture, 1 click, 2 click or hold)
  */
-export function swingSuppressesLook({ swingHeld = false, weaponIsBow = false,
-  swingMode = getInt('Controls', 'WeaponSwingMode', 0, 2) } = {}) {
+export function swingSuppressesLook({
+  swingHeld = false,
+  weaponIsBow = false,
+  swingMode = getInt('Controls', 'WeaponSwingMode', 0, 2),
+} = {}) {
   return !!swingHeld && swingMode === 0 && !weaponIsBow;
 }
 
@@ -140,7 +156,7 @@ export class LookFilter {
   constructor() {
     this.residualYaw = 0;
     this.residualPitch = 0;
-    this.turnYaw = 0;   // AUDIT CLIMB-ARC F13: the game's turns, owed apart from the mouse's look (settle never drops them)
+    this.turnYaw = 0; // AUDIT CLIMB-ARC F13: the game's turns, owed apart from the mouse's look (settle never drops them)
   }
 
   /** SetFacing -> Init (:274-279): lookTarget = lookCurrent - the owed
@@ -175,10 +191,11 @@ export class LookFilter {
   /** ApplyLook's `lookTarget += delta` (:126): the scaled deltas, in
    *  the camera's own units (radians; pitch already inverted). */
   add(dyaw, dpitch) {
-    if (takeLook(dyaw, dpitch)) return;   // LOOK-AROUND: held, the mouse swings the camera, not the actor
+    if (takeLook(dyaw, dpitch)) return; // LOOK-AROUND: held, the mouse swings the camera, not the actor
     this.residualYaw += dyaw;
     this.residualPitch += dpitch;
-    _frameYaw += dyaw; _framePitch += dpitch;   // WW1: the frame's look, latched for the weapon widget
+    _frameYaw += dyaw;
+    _framePitch += dpitch; // WW1: the frame's look, latched for the weapon widget
   }
 
   /**
@@ -187,12 +204,12 @@ export class LookFilter {
    */
   tick(dt, cam, { smoothing = getFloat('Controls', 'MouseLookSmoothingFactor', 0, SMOOTHING_MAX) } = {}) {
     // Clamp the TARGET pitch to the range, then owe only what remains.
-    const targetPitch = Math.max(-pitchFloor(), Math.min(PITCH_LIMIT, cam.pitch + this.residualPitch));   // RR2: a mod's PitchMaxLimit rides the floor   // MAC1: the floor is the owner's, the ceiling the reference's
+    const targetPitch = Math.max(-pitchFloor(), Math.min(PITCH_LIMIT, cam.pitch + this.residualPitch)); // RR2: a mod's PitchMaxLimit rides the floor   // MAC1: the floor is the owner's, the ceiling the reference's
     this.residualPitch = targetPitch - cam.pitch;
-    const s = frameSmoothing(_controllerLook && smoothing < 0.5 ? 0.5 : smoothing, dt);   // GP1: the controller's floor
+    const s = frameSmoothing(_controllerLook && smoothing < 0.5 ? 0.5 : smoothing, dt); // GP1: the controller's floor
     const stepYaw = this.residualYaw * (1 - s);
     const stepPitch = this.residualPitch * (1 - s);
-    cam.yaw += stepYaw + this.turnYaw;   // AUDIT CLIMB-ARC F13: the game's turn, whole
+    cam.yaw += stepYaw + this.turnYaw; // AUDIT CLIMB-ARC F13: the game's turn, whole
     this.turnYaw = 0;
     cam.pitch += stepPitch;
     this.residualYaw -= stepYaw;

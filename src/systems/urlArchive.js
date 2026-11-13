@@ -37,17 +37,20 @@ export function makeVendoredArchive(urls, fetchBytes) {
         // LOAD-HOLD (the owner, 2026-10-28: a scabbard left white on the hip): A FAILED FETCH IS NOT KEPT. The rejected
         // promise stayed in `inflight`, so a file the server refused once (a dev server under load does) answered that
         // refusal to every later load for the session - and the rig's own retries read the same refusal.
-        inflight.set(key, (async () => {
-          try {
-            const entry = table.get(key);
-            const url = typeof entry === 'function' ? await entry() : entry;   // AUDIT-WS: the eager table hands URLs, a lazy one loaders
-            const b = await fetchBytes(url);
-            bytes.set(key, b);
-            return b;
-          } finally {
-            inflight.delete(key);
-          }
-        })());
+        inflight.set(
+          key,
+          (async () => {
+            try {
+              const entry = table.get(key);
+              const url = typeof entry === 'function' ? await entry() : entry; // AUDIT-WS: the eager table hands URLs, a lazy one loaders
+              const b = await fetchBytes(url);
+              bytes.set(key, b);
+              return b;
+            } finally {
+              inflight.delete(key);
+            }
+          })(),
+        );
       }
       return inflight.get(key);
     },

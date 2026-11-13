@@ -174,8 +174,8 @@
   {
     "name": "LIGHT-ID-a-kept-map-asked-under-the-budget",
     "file": "src/render/shadowPass.js",
-    "old": "      if (!fresh && (!minded || rebuilds > 0)) {\n        sig = this._staticSignature(pos, far);\n        if (this._loSlotSig[j * 2] !== sig[0] || this._loSlotSig[j * 2 + 1] !== sig[1]) { draw = true; if (minded) rebuilds--; }",
-    "new": "      if (!fresh && rebuilds > 0) {\n        sig = this._staticSignature(pos, far);\n        if (this._loSlotSig[j * 2] !== sig[0] || this._loSlotSig[j * 2 + 1] !== sig[1]) { draw = true; rebuilds--; }",
+    "old": "      if (!fresh && (!minded || rebuilds > 0)) {\n        if (this._loSlotSig[j * 2] !== sigs[row] || this._loSlotSig[j * 2 + 1] !== sigs[row + 1]) { draw = true; if (minded) rebuilds--; }",
+    "new": "      if (!fresh && rebuilds > 0) {\n        if (this._loSlotSig[j * 2] !== sigs[row] || this._loSlotSig[j * 2 + 1] !== sigs[row + 1]) { draw = true; rebuilds--; }",
     "tests": [
       "test/render/disc15.test.js"
     ]
@@ -192,8 +192,8 @@
   {
     "name": "LIGHT-ID-the-newcomer-to-the-lo-tier-deferred",
     "file": "src/render/shadowPass.js",
-    "old": "      let sig = null, draw = fresh;",
-    "new": "      let sig = null, draw = fresh && (minded ? rebuilds-- > 0 : true);",
+    "old": "      let draw = fresh;\n",
+    "new": "      let draw = fresh && (minded ? rebuilds-- > 0 : true);\n",
     "tests": [
       "test/render/disc15.test.js"
     ]

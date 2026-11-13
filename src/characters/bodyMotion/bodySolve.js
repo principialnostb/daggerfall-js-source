@@ -19,9 +19,31 @@
 // Answers a small report, or null when nothing was posed.
 
 import { wristPole, balanceForearm } from './armAnatomy.js';
-import { trunkInside } from './trunkProfile.js';   // TRUNK-SKIN: the held wrist's elbow kept out of the trunk
-import { solveReach, rotFrames, rotFromTo, rotFraction, rotAxisAngle, handFrame, orthonormal, rotationPart } from '../../combat/climbRig.js';
-import { algebra, clamp01, clamp, transpose, apply, mul, bodyTurn, fromColumns, bodyOf, turnOf, at, RAD } from './bodyKit.js';
+import { trunkInside } from './trunkProfile.js'; // TRUNK-SKIN: the held wrist's elbow kept out of the trunk
+import {
+  solveReach,
+  rotFrames,
+  rotFromTo,
+  rotFraction,
+  rotAxisAngle,
+  handFrame,
+  orthonormal,
+  rotationPart,
+} from '../../combat/climbRig.js';
+import {
+  algebra,
+  clamp01,
+  clamp,
+  transpose,
+  apply,
+  mul,
+  bodyTurn,
+  fromColumns,
+  bodyOf,
+  turnOf,
+  at,
+  RAD,
+} from './bodyKit.js';
 
 const { sub, add, scale, dot, cross, norm, len, lerp3 } = algebra;
 
@@ -41,7 +63,9 @@ export function bodyFrames(body, mats) {
   const M = mul(Rc, mul(transpose(Rr), transpose(body.chestFix)));
   return {
     chest: M,
-    right: [M[0], M[3], M[6]], fwd: [M[1], M[4], M[7]], up: [M[2], M[5], M[8]],
+    right: [M[0], M[3], M[6]],
+    fwd: [M[1], M[4], M[7]],
+    up: [M[2], M[5], M[8]],
     shoulder: { L: at(mats, body.bones.L.upper), R: at(mats, body.bones.R.upper) },
     wrist: { L: at(mats, body.bones.L.hand), R: at(mats, body.bones.R.hand) },
   };
@@ -83,7 +107,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
   // is written as its local; the skeleton is composed once after. (A turn - climbRig.js `turn` - re-composes its whole
   // subtree, and a body's trunk carries most of the tree: turned bone by bone, the hips and the spine were six
   // compositions of the whole skeleton a frame, for every body on the street.)
-  const decided = new Map();   // ref -> its new rig rotation
+  const decided = new Map(); // ref -> its new rig rotation
   const localRot = (ref) => (pose.get(ref) ?? skeleton.nodes.get(ref).rest).rotation;
   /** A bone's rig rotation as the clip's pose stands it: its rotations down from the root (memoised - only the trunk's
    *  path is ever asked, so no whole skeleton is composed for it). */
@@ -92,13 +116,17 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     if (clipRot.has(ref)) return clipRot.get(ref);
     const node = skeleton.nodes.get(ref);
     if (!node) return null;
-    if (ref === rootRef) return IDENT;   // skeletonSpaceMatrices' own space: the root is the frame
+    if (ref === rootRef) return IDENT; // skeletonSpaceMatrices' own space: the root is the frame
     const p = node.parent;
     const R = p != null && p !== rootRef && skeleton.nodes.has(p) ? mul(R0(p), localRot(ref)) : localRot(ref);
     clipRot.set(ref, R);
     return R;
   };
-  const touched = (ref) => { for (let r = ref; r != null && skeleton.nodes.has(r); r = skeleton.nodes.get(r).parent) if (decided.has(r)) return true; return false; };
+  const touched = (ref) => {
+    for (let r = ref; r != null && skeleton.nodes.has(r); r = skeleton.nodes.get(r).parent)
+      if (decided.has(r)) return true;
+    return false;
+  };
   /** The rig rotation `ref` takes under what this pass has decided above it (its own local the clip's). */
   const rotNow = (ref) => {
     if (decided.has(ref)) return decided.get(ref);
@@ -106,21 +134,31 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     return p != null && skeleton.nodes.has(p) && touched(p) ? mul(rotNow(p), localRot(ref)) : R0(ref);
   };
   const order = [];
-  const decide = (ref, Rt) => { if (ref == null || !R0(ref)) return; decided.set(ref, toward(rotNow(ref), Rt, w)); order.push(ref); };
+  const decide = (ref, Rt) => {
+    if (ref == null || !R0(ref)) return;
+    decided.set(ref, toward(rotNow(ref), Rt, w));
+    order.push(ref);
+  };
   // the hips: the pelvis and the thigh-carrying bone turned together, the rest's own build between them kept
   if (plan.hip && !plan.hip.keepTurn) {
     const D = mul(bodyTurn(plan.hip.yaw ?? 0, plan.hip.roll ?? 0, plan.hip.pitch ?? 0), body.hipFix);
-    for (const ref of new Set([bones.pelvis, body.hipBone])) if (ref != null && body.restRot.has(ref)) decide(ref, mul(D, body.restRot.get(ref)));
+    for (const ref of new Set([bones.pelvis, body.hipBone]))
+      if (ref != null && body.restRot.has(ref)) decide(ref, mul(D, body.restRot.get(ref)));
   }
   // the trunk: the chest's turn spread up the spine; then the neck and the collarbones as they stand at rest on it (the
   // clip's own swings of them - an attack clip's, a draw's - would carry the shoulders off the arms' requests)
   // AUDIT BODY-MOTION RIG-4 / DOC-3 / CARRY-10: the upper body is whoever has the arms' - the layer's chest turn, lean
   // and collarbones under a bow's arms swung its hand 18.6 units and 38 degrees off the clip's aim, and turned a long
   // gun's barrel 9 to 14 degrees with the gait's counter-turn
-  const armL = clamp01(plan.armW?.L ?? 1), armR = clamp01(plan.armW?.R ?? 1), armAny = Math.max(armL, armR);
+  const armL = clamp01(plan.armW?.L ?? 1),
+    armR = clamp01(plan.armW?.R ?? 1),
+    armAny = Math.max(armL, armR);
   if (plan.chest) {
-    const own = mul(mul(bodyTurn(plan.chest.yaw ?? 0, plan.chest.roll ?? 0, plan.chest.pitch ?? 0), body.chestFix), body.restRot.get(body.chest));
-    const Rt0 = armAny >= 1 ? own : toward(R0(body.chest), own, armAny);   // the clip's chest where it stands, as far as the clip has the arms
+    const own = mul(
+      mul(bodyTurn(plan.chest.yaw ?? 0, plan.chest.roll ?? 0, plan.chest.pitch ?? 0), body.chestFix),
+      body.restRot.get(body.chest),
+    );
+    const Rt0 = armAny >= 1 ? own : toward(R0(body.chest), own, armAny); // the clip's chest where it stands, as far as the clip has the arms
     const chestNow = rotNow(body.chest);
     const Rt = toward(chestNow, Rt0, w);
     const Q = mul(Rt, transpose(chestNow));
@@ -132,14 +170,23 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     });
     for (const ref of [bones.neck, bones.L.clavicle, bones.R.clavicle]) {
       const parent = ref == null ? null : skeleton.nodes.get(ref).parent;
-      const restOf = ref == null ? null : restRotOf(skeleton, body, ref), restParent = parent == null ? null : restRotOf(skeleton, body, parent);
+      const restOf = ref == null ? null : restRotOf(skeleton, body, ref),
+        restParent = parent == null ? null : restRotOf(skeleton, body, parent);
       const share = ref === bones.L.clavicle ? armL : ref === bones.R.clavicle ? armR : armAny;
-      if (restOf && restParent) decide(ref, toward(rotNow(ref), mul(rotNow(parent), mul(transpose(restParent), restOf)), share));
+      if (restOf && restParent)
+        decide(ref, toward(rotNow(ref), mul(rotNow(parent), mul(transpose(restParent), restOf)), share));
     }
   }
   // the head, level with the world however the trunk sways under it
   if (plan.head && bones.head != null && body.restRot.has(bones.head)) {
-    decide(bones.head, toward(rotNow(bones.head), mul(bodyTurn(plan.head.yaw ?? 0, plan.head.roll ?? 0, plan.head.pitch ?? 0), body.restRot.get(bones.head)), armAny));
+    decide(
+      bones.head,
+      toward(
+        rotNow(bones.head),
+        mul(bodyTurn(plan.head.yaw ?? 0, plan.head.roll ?? 0, plan.head.pitch ?? 0), body.restRot.get(bones.head)),
+        armAny,
+      ),
+    );
   }
   // written as locals, top down (each against its parent's NEW rotation), kept rotations; then composed once
   for (const ref of order) {
@@ -147,10 +194,17 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     const local = pose.get(ref) ?? node.rest;
     const p = node.parent;
     const Rp = p != null && skeleton.nodes.has(p) ? rotNow(p) : null;
-    pose.set(ref, { rotation: orthonormal(Rp ? mul(transpose(Rp), decided.get(ref)) : decided.get(ref)), translation: local.translation, scale: local.scale });
+    pose.set(ref, {
+      rotation: orthonormal(Rp ? mul(transpose(Rp), decided.get(ref)) : decided.get(ref)),
+      translation: local.translation,
+      scale: local.scale,
+    });
   }
   // legsOnly: a plan with no arms reads only the legs and what carries them
-  let mats = plan.legsOnly && !plan.arms ? skelMats(skeleton, pose, rootRef, [bones.L.foot, bones.R.foot]) : skelMats(skeleton, pose, rootRef);
+  let mats =
+    plan.legsOnly && !plan.arms
+      ? skelMats(skeleton, pose, rootRef, [bones.L.foot, bones.R.foot])
+      : skelMats(skeleton, pose, rootRef);
   // the body moved so the hips' middle stands where it was asked: the root's own place, and every matrix under it
   if (plan.hip?.at) {
     const mid = scale(add(at(mats, bones.L.thigh), at(mats, bones.R.thigh)), 0.5);
@@ -175,30 +229,55 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     const sq = plan.trunk?.square ?? 0;
     if (sq > 0) {
       const f0 = bodyFrames(body, mats);
-      if (f0) mats = leanUnder(skeleton, pose, mats, body, f0, { yaw: Math.atan2(f0.fwd[0], f0.fwd[1]) * sq, pitch: 0 }, w, rootRef, skelMats);
+      if (f0)
+        mats = leanUnder(
+          skeleton,
+          pose,
+          mats,
+          body,
+          f0,
+          { yaw: Math.atan2(f0.fwd[0], f0.fwd[1]) * sq, pitch: 0 },
+          w,
+          rootRef,
+          skelMats,
+        );
     }
     // GRIP-ANATOMY: `trunk.collar` - the collarbones held as they stand at rest on the chest, by that share (the owner's
     // video, 2026-10-29: walking with the claymore the right pauldron rose and turned every step - the walk clip swings the
     // right collarbone under hands the carry holds still)
-    if (plan.trunk?.collar > 0) mats = holdCollars(skeleton, pose, mats, body, plan.trunk.collar * w, rootRef, skelMats);
+    if (plan.trunk?.collar > 0)
+      mats = holdCollars(skeleton, pose, mats, body, plan.trunk.collar * w, rootRef, skelMats);
     // ONE-COLLAR (2026-11-07, the owner: running with a one-hander "the shoulder of the sword arm lengthens instead of
     // keeping its shape"; measured: the run clip turns the right collarbone 20-29 degrees and stands the shoulder 15.6
     // units off the chest against 14 standing, the left's 13.4-14): the carried arm's collarbone alone held at rest on the
     // chest - the neck and the clip's other arm (free, or a shield's) left as they are
-    if (plan.collarR > 0) mats = holdCollars(skeleton, pose, mats, body, plan.collarR * w, rootRef, skelMats, ['R'], false);
+    if (plan.collarR > 0)
+      mats = holdCollars(skeleton, pose, mats, body, plan.collarR * w, rootRef, skelMats, ['R'], false);
     const frames = bodyFrames(body, mats);
     const req = frames ? plan.arms({ body, mats, frames, skeleton }) : null;
-    if ((req || plan.externalArms) && frames && plan.trunk) mats = leanUnder(skeleton, pose, mats, body, frames, plan.trunk, w, rootRef, skelMats);
+    if ((req || plan.externalArms) && frames && plan.trunk)
+      mats = leanUnder(skeleton, pose, mats, body, frames, plan.trunk, w, rootRef, skelMats);
     if (req) {
       // HILT-HOLD: a haft held in both hands - the right first, then the left closed on the hilt where the right now
       // holds it, at full weight. Each eased to its own goal by the layer's weight, they parted mid-blend: a run's
       // ground flicker, a blow's return, a run's stop, and the left hand left the hilt.
       const hold = plan.haft && req.L?.at && req.R?.at && req.R.fingers && req.R.palm;
-      const clipL = hold ? clipHand(mats, body) : null;   // HILT-EASE: the left as the clip has it, on the clip's right
+      const clipL = hold ? clipHand(mats, body) : null; // HILT-EASE: the left as the clip has it, on the clip's right
       for (const side of hold ? ['R'] : ['L', 'R']) {
         const h = req[side];
         if (!h || !h.at) continue;
-        const wr = poseHand(skeleton, pose, mats, body, side, h, w, hold ? plan.armTwist?.[side] : null, null, plan.kind);
+        const wr = poseHand(
+          skeleton,
+          pose,
+          mats,
+          body,
+          side,
+          h,
+          w,
+          hold ? plan.armTwist?.[side] : null,
+          null,
+          plan.kind,
+        );
         if (wr) report.reach[side] = len(sub(wr, h.at));
       }
       if (hold) {
@@ -215,13 +294,27 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
         // During a cross-fade the leading hand may still be in the free run's pose.
         // Bring the weapon into the other arm's reach before closing that hand on it.
         for (let pass = 0; grip && k > 0.999 && pass < 2; pass++) {
-          const shoulder = at(mats, body.bones.L.upper), d = sub(grip.at, shoulder), distance = len(d);
+          const shoulder = at(mats, body.bones.L.upper),
+            d = sub(grip.at, shoulder),
+            distance = len(d);
           const reach = body.arms.L * 0.98;
           if (!(distance > reach)) break;
-          const right = body.bones.R, frame = handFrame(mats, right, 'R');
+          const right = body.bones.R,
+            frame = handFrame(mats, right, 'R');
           if (!frame?.fingers || !frame.palm) break;
           const atR = add(at(mats, right.hand), scale(d, reach / distance - 1));
-          poseHand(skeleton, pose, mats, body, 'R', { at: atR, fingers: frame.fingers, palm: frame.palm, pole: req.R.pole, w: 1 }, 1, plan.armTwist?.R, w, plan.kind);
+          poseHand(
+            skeleton,
+            pose,
+            mats,
+            body,
+            'R',
+            { at: atR, fingers: frame.fingers, palm: frame.palm, pole: req.R.pole, w: 1 },
+            1,
+            plan.armTwist?.R,
+            w,
+            plan.kind,
+          );
           mats = skelMats(skeleton, pose, rootRef);
           grip = onRightHand(req.L, req.R, mats, body);
         }
@@ -229,7 +322,10 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
         const L = grip && own ? blendHand(own, grip, k, at(mats, body.bones.L.upper)) : grip;
         // Closing the grip is immediate; returning the elbow to its carry is not.
         // Its clip plane follows the same carry share as the leading arm.
-        const heldL = plan.armTwist && L && own?.pole && L.pole ? { ...L, pole: swingWay(own.pole, L.pole, sub(L.at, at(mats, body.bones.L.upper)), w) } : L;
+        const heldL =
+          plan.armTwist && L && own?.pole && L.pole
+            ? { ...L, pole: swingWay(own.pole, L.pole, sub(L.at, at(mats, body.bones.L.upper)), w) }
+            : L;
         const wr = heldL ? poseHand(skeleton, pose, mats, body, 'L', heldL, 1, plan.armTwist?.L, w, plan.kind) : null;
         if (wr) report.reach.L = len(sub(wr, L.at));
       }
@@ -246,28 +342,44 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
  * skeleton composed again.
  */
 function leanUnder(skeleton, pose, mats, body, frames, trunk, w, rootRef, skelMats) {
-  const yaw = (trunk.yaw ?? 0) * w, pitch = (trunk.pitch ?? 0) * w;
+  const yaw = (trunk.yaw ?? 0) * w,
+    pitch = (trunk.pitch ?? 0) * w;
   if (Math.abs(yaw) < 1e-5 && Math.abs(pitch) < 1e-5) return mats;
   const Q = mul(rotAxisAngle([0, 0, 1], yaw), rotAxisAngle(frames.right, -pitch));
   const shares = TRUNK_SHARE[body.trunk.length] ?? [];
   const leant = new Map();
   body.trunk.forEach((ref, i) => {
-    const node = skeleton.nodes.get(ref), R = turnOf(mats, ref);
+    const node = skeleton.nodes.get(ref),
+      R = turnOf(mats, ref);
     if (!node || !R) return;
     const Rn = mul(ref === body.chest ? Q : rotFraction(Q, shares[i] ?? 0.5), R);
-    const Rp = leant.get(node.parent) ?? (node.parent != null && skeleton.nodes.has(node.parent) ? turnOf(mats, node.parent) : null);
+    const Rp =
+      leant.get(node.parent) ??
+      (node.parent != null && skeleton.nodes.has(node.parent) ? turnOf(mats, node.parent) : null);
     const local = pose.get(ref) ?? node.rest;
-    pose.set(ref, { rotation: orthonormal(Rp ? mul(transpose(Rp), Rn) : Rn), translation: local.translation, scale: local.scale });
+    pose.set(ref, {
+      rotation: orthonormal(Rp ? mul(transpose(Rp), Rn) : Rn),
+      translation: local.translation,
+      scale: local.scale,
+    });
     leant.set(ref, Rn);
   });
   // the head keeps where it looked: squared or leant, the trunk carried it round with the neck (the owner's screenshots,
   // 2026-10-29: "why does the head look off to the side" - the guard clip's head faced ahead over a chest turned 40 degrees)
-  const head = body.bones.head, hn = head == null ? null : skeleton.nodes.get(head);
-  const Rc0 = turnOf(mats, body.chest), Rc1 = leant.get(body.chest);
+  const head = body.bones.head,
+    hn = head == null ? null : skeleton.nodes.get(head);
+  const Rc0 = turnOf(mats, body.chest),
+    Rc1 = leant.get(body.chest);
   if (hn && Rc0 && Rc1 && hn.parent != null && !leant.has(head)) {
-    const Wh = turnOf(mats, head), Wp = leant.get(hn.parent) ?? (turnOf(mats, hn.parent) && mul(mul(Rc1, transpose(Rc0)), turnOf(mats, hn.parent)));
+    const Wh = turnOf(mats, head),
+      Wp = leant.get(hn.parent) ?? (turnOf(mats, hn.parent) && mul(mul(Rc1, transpose(Rc0)), turnOf(mats, hn.parent)));
     const local = pose.get(head) ?? hn.rest;
-    if (Wh && Wp) pose.set(head, { rotation: orthonormal(mul(transpose(Wp), Wh)), translation: local.translation, scale: local.scale });
+    if (Wh && Wp)
+      pose.set(head, {
+        rotation: orthonormal(mul(transpose(Wp), Wh)),
+        translation: local.translation,
+        scale: local.scale,
+      });
   }
   return skelMats(skeleton, pose, rootRef);
 }
@@ -282,18 +394,26 @@ function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats, sides = [
   if (!f) return mats;
   let moved = false;
   const set = (ref, Rp, Rt) => {
-    const node = skeleton.nodes.get(ref), local = pose.get(ref) ?? node.rest;
-    pose.set(ref, { rotation: orthonormal(mul(transpose(Rp), Rt)), translation: local.translation, scale: local.scale });
+    const node = skeleton.nodes.get(ref),
+      local = pose.get(ref) ?? node.rest;
+    pose.set(ref, {
+      rotation: orthonormal(mul(transpose(Rp), Rt)),
+      translation: local.translation,
+      scale: local.scale,
+    });
   };
   /** A bone at rest on its parent standing at `Rp` (rig). */
-  const onRest = (ref, parent, Rp) => mul(Rp, mul(transpose(restRotOf(skeleton, body, parent)), restRotOf(skeleton, body, ref)));
+  const onRest = (ref, parent, Rp) =>
+    mul(Rp, mul(transpose(restRotOf(skeleton, body, parent)), restRotOf(skeleton, body, ref)));
   // SHOULDER-HOLD (2026-10-30, measured on MAO's walk): the collarbones hang from the NECK, which the clip swings - held on it
   // they rode that swing, the shoulders 5 cm back and 6 ahead, the left arm straight and shaking. The neck is laid at rest on
   // its parent first; the head keeps the turn it had in the rig.
-  const neck = body.bones.neck, nn = neck == null || !holdNeck ? null : skeleton.nodes.get(neck);
+  const neck = body.bones.neck,
+    nn = neck == null || !holdNeck ? null : skeleton.nodes.get(neck);
   let Rneck = null;
   if (nn && nn.parent != null && restRotOf(skeleton, body, neck) && restRotOf(skeleton, body, nn.parent)) {
-    const Rpn = turnOf(mats, nn.parent), Rn0 = turnOf(mats, neck);
+    const Rpn = turnOf(mats, nn.parent),
+      Rn0 = turnOf(mats, neck);
     if (Rpn && Rn0) {
       const Wh = body.bones.head != null ? turnOf(mats, body.bones.head) : null;
       Rneck = toward(Rn0, onRest(neck, nn.parent, Rpn), clamp01(k));
@@ -303,10 +423,15 @@ function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats, sides = [
     }
   }
   for (const side of sides) {
-    const B = body.bones[side], ref = B?.clavicle, node = ref == null ? null : skeleton.nodes.get(ref);
+    const B = body.bones[side],
+      ref = B?.clavicle,
+      node = ref == null ? null : skeleton.nodes.get(ref);
     if (!node || node.parent == null || B.upper == null || B.fore == null) continue;
     if (!restRotOf(skeleton, body, ref) || !restRotOf(skeleton, body, node.parent)) continue;
-    const Rp = node.parent === neck && Rneck ? Rneck : turnOf(mats, node.parent), Rc = turnOf(mats, ref), Ru = turnOf(mats, B.upper), Rf = turnOf(mats, B.fore);
+    const Rp = node.parent === neck && Rneck ? Rneck : turnOf(mats, node.parent),
+      Rc = turnOf(mats, ref),
+      Ru = turnOf(mats, B.upper),
+      Rf = turnOf(mats, B.fore);
     if (!Rp || !Rc || !Ru || !Rf) continue;
     const kk = clamp01(k);
     const Rc1 = toward(Rc, onRest(ref, node.parent, Rp), kk);
@@ -331,12 +456,20 @@ function moveSubtree(skeleton, pose, mats, bones, ref, dv) {
     const sp = Math.hypot(parent.a[0], parent.a[3], parent.a[6]) || 1;
     lv = scale(apply(transpose(rotationPart(parent.a)), dv), 1 / sp);
   }
-  pose.set(ref, { rotation: local.rotation, translation: [local.translation[0] + lv[0], local.translation[1] + lv[1], local.translation[2] + lv[2]], scale: local.scale });
+  pose.set(ref, {
+    rotation: local.rotation,
+    translation: [local.translation[0] + lv[0], local.translation[1] + lv[1], local.translation[2] + lv[2]],
+    scale: local.scale,
+  });
   const stack = [ref];
   while (stack.length) {
     const r = stack.pop();
-    const t = mats.get(r)?.t;   // this solve's own composition: its arrays are its own to move
-    if (t) { t[0] += dv[0]; t[1] += dv[1]; t[2] += dv[2]; }
+    const t = mats.get(r)?.t; // this solve's own composition: its arrays are its own to move
+    if (t) {
+      t[0] += dv[0];
+      t[1] += dv[1];
+      t[2] += dv[2];
+    }
     for (const k of bones.children.get(r) ?? []) stack.push(k);
   }
 }
@@ -345,10 +478,14 @@ const _restRots = new WeakMap();
 function restRotOf(skeleton, body, ref) {
   if (body.restRot.has(ref)) return body.restRot.get(ref);
   let per = _restRots.get(skeleton);
-  if (!per) { per = new Map(); _restRots.set(skeleton, per); }
+  if (!per) {
+    per = new Map();
+    _restRots.set(skeleton, per);
+  }
   if (per.has(ref)) return per.get(ref);
   const chain = [];
-  for (let r = ref; r != null && r >= 0 && skeleton.nodes.has(r); r = skeleton.nodes.get(r).parent) chain.push(skeleton.nodes.get(r));
+  for (let r = ref; r != null && r >= 0 && skeleton.nodes.has(r); r = skeleton.nodes.get(r).parent)
+    chain.push(skeleton.nodes.get(r));
   if (!chain.length) return null;
   /** @type {ArrayLike<number>} */
   let R = IDENT;
@@ -366,28 +503,44 @@ function restRotOf(skeleton, body, ref) {
  * not upper - lower - end.
  */
 function reachLimb(skeleton, pose, mats, a, b, c, target, pole, end, hinge = null, anatomy = null) {
-  const nb = skeleton.nodes.get(b), nc = skeleton.nodes.get(c);
+  const nb = skeleton.nodes.get(b),
+    nc = skeleton.nodes.get(c);
   if (!nb || !nc || nb.parent !== a || nc.parent !== b) return null;
-  const S = at(mats, a), E = at(mats, b), W = at(mats, c);
-  const Ra = turnOf(mats, a), Rb = turnOf(mats, b), Rc = turnOf(mats, c), Rp = turnOf(mats, skeleton.nodes.get(a).parent);
+  const S = at(mats, a),
+    E = at(mats, b),
+    W = at(mats, c);
+  const Ra = turnOf(mats, a),
+    Rb = turnOf(mats, b),
+    Rc = turnOf(mats, c),
+    Rp = turnOf(mats, skeleton.nodes.get(a).parent);
   if (!S || !E || !W || !Ra || !Rb || !Rc) return null;
   const sol = solveReach(S, len(sub(E, S)), len(sub(W, E)), target, pole, 0.999);
   // Carry the hinge plane as well as the upper segment. A shortest-arc swing alone
   // leaves the clip's axial roll on the upper arm while the elbow is solved elsewhere.
-  const u0 = norm(sub(E, S)), u1 = norm(sub(sol.mid, S));
-  const n0 = hinge ? apply(Ra, hinge.upper) : cross(u0, norm(sub(W, E))), n1 = cross(u1, norm(sub(sol.end, sol.mid)));
-  const Da = hinge && len(n0) > 1e-5 && len(n1) > 1e-5
-    ? rotFrames(u0, norm(n0), u1, norm(n1)) : rotFromTo(u0, u1);
-  const fore0 = norm(apply(Da, sub(W, E))), fore1 = norm(sub(sol.end, sol.mid));
-  const Db = hinge && len(n1) > 1e-5 && len(hinge.fore) > 1e-5
-    ? rotFrames(fore0, norm(apply(Da, apply(Rb, hinge.fore))), fore1, norm(n1)) : rotFromTo(fore0, fore1);
-  const Ra1 = mul(Da, Ra), Rc0 = mul(Db, mul(Da, Rc));
+  const u0 = norm(sub(E, S)),
+    u1 = norm(sub(sol.mid, S));
+  const n0 = hinge ? apply(Ra, hinge.upper) : cross(u0, norm(sub(W, E))),
+    n1 = cross(u1, norm(sub(sol.end, sol.mid)));
+  const Da = hinge && len(n0) > 1e-5 && len(n1) > 1e-5 ? rotFrames(u0, norm(n0), u1, norm(n1)) : rotFromTo(u0, u1);
+  const fore0 = norm(apply(Da, sub(W, E))),
+    fore1 = norm(sub(sol.end, sol.mid));
+  const Db =
+    hinge && len(n1) > 1e-5 && len(hinge.fore) > 1e-5
+      ? rotFrames(fore0, norm(apply(Da, apply(Rb, hinge.fore))), fore1, norm(n1))
+      : rotFromTo(fore0, fore1);
+  const Ra1 = mul(Da, Ra),
+    Rc0 = mul(Db, mul(Da, Rc));
   let Rb1 = mul(Db, mul(Da, Rb));
   const Rc1 = (end && end(Rc0, mul(Db, Da), sol)) || Rc0;
-  if (anatomy) Rb1 = balanceForearm(Ra1, Rb1, Rc1, fore1, nb.rest.rotation, nc.rest.rotation, anatomy.weight, anatomy.state);
+  if (anatomy)
+    Rb1 = balanceForearm(Ra1, Rb1, Rc1, fore1, nb.rest.rotation, nc.rest.rotation, anatomy.weight, anatomy.state);
   const write = (ref, Rparent, R) => {
     const local = pose.get(ref) ?? skeleton.nodes.get(ref).rest;
-    pose.set(ref, { rotation: orthonormal(Rparent ? mul(transpose(Rparent), R) : R), translation: local.translation, scale: local.scale });
+    pose.set(ref, {
+      rotation: orthonormal(Rparent ? mul(transpose(Rparent), R) : R),
+      translation: local.translation,
+      scale: local.scale,
+    });
   };
   write(a, Rp, Ra1);
   write(b, Ra1, Rb1);
@@ -408,19 +561,24 @@ function poseFoot(skeleton, pose, mats, body, side, f, w) {
   const toe = f.toe ?? [0, 1, 0];
   const out = side === 'R' ? 1 : -1;
   const askedPole = f.pole ? norm(f.pole) : norm(add([toe[0], toe[1], 0], [out * 0.12, 0, 0.02]));
-  const hip = at(mats, limb.thigh), knee = at(mats, limb.calf), axis = norm(sub(A, hip));
+  const hip = at(mats, limb.thigh),
+    knee = at(mats, limb.calf),
+    axis = norm(sub(A, hip));
   const ownPole = sub(sub(knee, hip), scale(axis, dot(sub(knee, hip), axis)));
   const target = lerp3(A, f.at, k);
   const pole = len(ownPole) > 1e-6 ? swingWay(norm(ownPole), askedPole, sub(target, hip), k) : askedPole;
   const ax = body.footAxes[side];
   return reachLimb(skeleton, pose, mats, limb.thigh, limb.calf, limb.foot, lerp3(A, f.at, k), pole, (Rf, _D, sol) => {
     if (!ax || !f.toe) return null;
-    const curToe = norm(apply(Rf, ax.fwd)), curUp = norm(apply(Rf, ax.up));
-    let toeTo = norm(lerp3(curToe, f.toe, k)), upTo = norm(lerp3(curUp, f.up ?? [0, 0, 1], k));
+    const curToe = norm(apply(Rf, ax.fwd)),
+      curUp = norm(apply(Rf, ax.up));
+    let toeTo = norm(lerp3(curToe, f.toe, k)),
+      upTo = norm(lerp3(curUp, f.up ?? [0, 0, 1], k));
     // a foot in the air within the ankle's range of the shin the reach gave it (ANKLE)
     if (f.stance === false && sol) {
       const shin = norm(sub(sol.mid, sol.end));
-      const a = Math.acos(clamp(dot(shin, toeTo), -1, 1)), rest = body.ankleRest?.[side] ?? Math.PI / 2;
+      const a = Math.acos(clamp(dot(shin, toeTo), -1, 1)),
+        rest = body.ankleRest?.[side] ?? Math.PI / 2;
       const want = clamp(a, rest - ANKLE.dorsi * RAD, rest + ANKLE.plantar * RAD);
       const across = sub(toeTo, scale(shin, dot(toeTo, shin)));
       if (want !== a && len(across) > 1e-6) {
@@ -439,10 +597,12 @@ function poseFoot(skeleton, pose, mats, body, side, f, w) {
  *  Null where the right hand cannot be read. */
 export function onRightHand(l, r, mats, body) {
   const limb = body.bones.R;
-  const W = at(mats, limb.hand), fr = handFrame(mats, limb, 'R');
+  const W = at(mats, limb.hand),
+    fr = handFrame(mats, limb, 'R');
   if (!W || !fr?.fingers || !fr.palm) return null;
   const basis = (f, p) => {
-    const x = norm(f), z = norm(sub(p, scale(x, dot(p, x))));
+    const x = norm(f),
+      z = norm(sub(p, scale(x, dot(p, x))));
     return fromColumns(x, cross(z, x), z);
   };
   const M = mul(basis(fr.fingers, fr.palm), transpose(basis(r.fingers, r.palm)));
@@ -453,28 +613,38 @@ export function onRightHand(l, r, mats, body) {
 /** HILT-EASE: the clip's own left hand (`l`: wrist, fingers, palm, elbow's way) and right (`r`) as requests, or null. */
 function clipHand(mats, body) {
   const side = (s) => {
-    const limb = body.bones[s], S = at(mats, limb.upper), E = at(mats, limb.fore), W = at(mats, limb.hand);
+    const limb = body.bones[s],
+      S = at(mats, limb.upper),
+      E = at(mats, limb.fore),
+      W = at(mats, limb.hand);
     const fr = handFrame(mats, limb, s);
     if (!S || !E || !W || !fr?.fingers || !fr.palm) return null;
     const sw = norm(sub(W, S));
     return { at: W, fingers: fr.fingers, palm: fr.palm, pole: norm(sub(E, add(S, scale(sw, dot(sub(E, S), sw))))) };
   };
-  const l = side('L'), r = side('R');
+  const l = side('L'),
+    r = side('R');
   return l && r ? { l, r } : null;
 }
 
 /** HILT-EASE: two hand requests mixed by `k` (0 the first, 1 the second). The hand is turned the shorter way as one
  *  body (the owner's game, 2026-11-05: its fingers and palm mixed apart, the wrist wrung after a blow). */
 function blendHand(a, b, k, shoulder = null) {
-  const way = (u, v) => (u && v ? norm(lerp3(u, v, k)) : v ?? u);
-  const frame = (h) => { const x = norm(h.fingers), z = norm(sub(h.palm, scale(x, dot(h.palm, x)))); return fromColumns(x, cross(z, x), z); };
-  let fingers = way(a.fingers, b.fingers), palm = way(a.palm, b.palm);
+  const way = (u, v) => (u && v ? norm(lerp3(u, v, k)) : (v ?? u));
+  const frame = (h) => {
+    const x = norm(h.fingers),
+      z = norm(sub(h.palm, scale(x, dot(h.palm, x))));
+    return fromColumns(x, cross(z, x), z);
+  };
+  let fingers = way(a.fingers, b.fingers),
+    palm = way(a.palm, b.palm);
   if (a.fingers && a.palm && b.fingers && b.palm) {
     const D = rotFraction(mul(frame(b), transpose(frame(a))), k);
-    fingers = norm(apply(D, a.fingers)); palm = norm(apply(D, a.palm));
+    fingers = norm(apply(D, a.fingers));
+    palm = norm(apply(D, a.palm));
   }
   const at3 = lerp3(a.at, b.at, k);
-  const pole = a.pole && b.pole && shoulder ? swingWay(a.pole, b.pole, sub(at3, shoulder), k) : way(a.pole, b.pole);   // ARC-EASE: the elbow swung about the arm's line
+  const pole = a.pole && b.pole && shoulder ? swingWay(a.pole, b.pole, sub(at3, shoulder), k) : way(a.pole, b.pole); // ARC-EASE: the elbow swung about the arm's line
   return { ...b, at: at3, fingers, palm, pole };
 }
 
@@ -482,7 +652,9 @@ function blendHand(a, b, k, shoulder = null) {
  *  a knee swings round its limb, so its way never lies along the limb, where the reach cannot tell its side (turned the
  *  short way between two near-opposite ways, it crossed the line midway and flipped in a frame). */
 export function swingWay(a, b, axis, k) {
-  const d = norm(axis), pa = sub(a, scale(d, dot(a, d))), pb = sub(b, scale(d, dot(b, d)));
+  const d = norm(axis),
+    pa = sub(a, scale(d, dot(a, d))),
+    pb = sub(b, scale(d, dot(b, d)));
   if (!(len(pa) > 1e-6) || !(len(pb) > 1e-6)) return norm(lerp3(norm(a), norm(b), k));
   const ang = Math.atan2(dot(cross(pa, pb), d), dot(pa, pb));
   return norm(apply(rotAxisAngle(d, ang * k), norm(pa)));
@@ -497,7 +669,9 @@ export function swingWay(a, b, axis, k) {
 function poseHand(skeleton, pose, mats, body, side, h, w, anatomy = null, shape = null, kind = 'male') {
   const limb = body.bones[side];
   const k = clamp01((h.w ?? 1) * w);
-  const S = at(mats, limb.upper), E = at(mats, limb.fore), W = at(mats, limb.hand);
+  const S = at(mats, limb.upper),
+    E = at(mats, limb.fore),
+    W = at(mats, limb.hand);
   if (!(k > 0) || !h.at || !S || !E || !W) return null;
   const sw = norm(sub(W, S));
   const clipElbow = norm(sub(E, add(S, scale(sw, dot(sub(E, S), sw)))));
@@ -506,18 +680,41 @@ function poseHand(skeleton, pose, mats, body, side, h, w, anatomy = null, shape 
   // through nothing and flipped in a frame, and the fingers and the palm, mixed apart, twisted the wrist.
   const ask = h.pole ? norm(h.pole) : null;
   const reach = lerp3(W, h.at, k);
-  let pole = ask && len(clipElbow) > 0.5 ? swingWay(clipElbow, ask, sub(reach, S), k) : ask ?? clipElbow;
+  let pole = ask && len(clipElbow) > 0.5 ? swingWay(clipElbow, ask, sub(reach, S), k) : (ask ?? clipElbow);
   const fr = h.fingers ? handFrame(mats, limb, side) : null;
   if (anatomy && fr) {
-    const F = bodyFrames(body, mats), c = at(mats, body.chest);
-    pole = wristPole(S, reach, h.fingers, len(sub(E, S)), len(sub(W, E)), pole, shape ?? k, F && c ? trunkInside(kind, F, c, body.shoulderWidth) : null);
+    const F = bodyFrames(body, mats),
+      c = at(mats, body.chest);
+    pole = wristPole(
+      S,
+      reach,
+      h.fingers,
+      len(sub(E, S)),
+      len(sub(W, E)),
+      pole,
+      shape ?? k,
+      F && c ? trunkInside(kind, F, c, body.shoulderWidth) : null,
+    );
   }
-  return reachLimb(skeleton, pose, mats, limb.upper, limb.fore, limb.hand, reach, pole, (Rh, D) => {
-    if (!fr) return null;
-    const f0 = norm(apply(D, fr.fingers)), p0 = fr.palm ? norm(apply(D, fr.palm)) : null;
-    const whole = p0 && h.palm ? rotFrames(f0, p0, norm(h.fingers), norm(h.palm)) : rotFromTo(f0, norm(h.fingers));
-    return mul(rotFraction(whole, k), Rh);
-  }, body.armHinge[side], anatomy ? { weight: shape ?? k, state: anatomy } : null);
+  return reachLimb(
+    skeleton,
+    pose,
+    mats,
+    limb.upper,
+    limb.fore,
+    limb.hand,
+    reach,
+    pole,
+    (Rh, D) => {
+      if (!fr) return null;
+      const f0 = norm(apply(D, fr.fingers)),
+        p0 = fr.palm ? norm(apply(D, fr.palm)) : null;
+      const whole = p0 && h.palm ? rotFrames(f0, p0, norm(h.fingers), norm(h.palm)) : rotFromTo(f0, norm(h.fingers));
+      return mul(rotFraction(whole, k), Rh);
+    },
+    body.armHinge[side],
+    anatomy ? { weight: shape ?? k, state: anatomy } : null,
+  );
 }
 
 /**
@@ -533,7 +730,8 @@ function poseHand(skeleton, pose, mats, body, side, h, w, anatomy = null, shape 
  */
 export function gripRequest(mats, body, side, wbRef, { grip = null, wrist = null, blade, edge, pole = null, w = 1 }) {
   const limb = body.bones[side];
-  const hand = mats.get(limb.hand), wb = wbRef == null ? null : mats.get(wbRef);
+  const hand = mats.get(limb.hand),
+    wb = wbRef == null ? null : mats.get(wbRef);
   if (!hand || !wb) return null;
   const fr = handFrame(mats, limb, side);
   if (!fr || !fr.palm) return null;
@@ -542,15 +740,22 @@ export function gripRequest(mats, body, side, wbRef, { grip = null, wrist = null
   if (len(e) < 1e-4) e = sub([0, 0, -1], scale(b, -b[2]));
   e = norm(e);
   const Rwb = fromColumns(e, b, cross(e, b));
-  const Rh = turnOf(mats, limb.hand), Rb = turnOf(mats, wbRef);
-  const relR = mul(transpose(Rh), Rb), relT = apply(transpose(Rh), sub(wb.t, hand.t));
+  const Rh = turnOf(mats, limb.hand),
+    Rb = turnOf(mats, wbRef);
+  const relR = mul(transpose(Rh), Rb),
+    relT = apply(transpose(Rh), sub(wb.t, hand.t));
   const RhWant = mul(Rwb, transpose(relR));
   const inHand = (v) => norm(apply(RhWant, apply(transpose(Rh), v)));
   const off = apply(RhWant, relT);
   const wristAt = wrist ?? sub(grip, off);
   return {
-    at: wristAt, fingers: inHand(fr.fingers), palm: inHand(fr.palm), pole, w,
-    grip: grip ?? add(wristAt, off), frame: { blade: b, edge: e, flat: cross(e, b) },
+    at: wristAt,
+    fingers: inHand(fr.fingers),
+    palm: inHand(fr.palm),
+    pole,
+    w,
+    grip: grip ?? add(wristAt, off),
+    frame: { blade: b, edge: e, flat: cross(e, b) },
   };
 }
 

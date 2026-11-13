@@ -110,7 +110,7 @@ test('PROFILE-SLOTS the section: a tile opens its picker; a choice pointed at is
   assert.equal(locked.onclick(), false);
   assert.equal(pressed.length, before, 'a piece not held is never worn from here');
   assert.equal(told.kit.at(-1), 'a0b00', 'tried on instead');
-  assert.match(find((n) => n.className === 'meta slots-look').textContent, /^Engraved bands .* Buy the eternalarmlets \(armory\) from the shop\.$/, 'its look, and how it is had, under the row');
+  assert.match(find((n) => n.className === 'meta slots-look').textContent, /^Engraved rings .* Buy the eternalarmlets \(armory\) from the shop\.$/, 'its look, and how it is had, under the row');
   const whole = find((n) => n.tag === 'button' && n.children[0]?.textContent === 'Dagonfire: wear the whole set');
   assert.ok(whole, 'the Dagonfire line held whole: its set at once');
   whole.onclick();
@@ -159,7 +159,7 @@ test('PROFILE-SLOTS the head pieces\' tips: the crown\'s flames and the halo\'s 
   assert.ok(tipC >= flameTop - 1e-6 && tipC - flameTop < 0.08, `the crown's tip its flames' (${tipC.toFixed(3)} over ${flameTop.toFixed(3)})`);
   const crownPt = pose.pts[POSE_AT.crown + 1];
   const tipH = /** @type {number} */ (armoryHeadTip(halo));
-  assert.ok(tipH > crownPt + ARMORY_HEAD.eternalhalo.lift && tipH < crownPt + 0.2, `the halo over the crown, its motes with it (${(tipH - crownPt).toFixed(3)} m)`);
+  assert.ok(tipH > crownPt + ARMORY_HEAD.eternalhalo.lift + ARMORY_HEAD.eternalhalo.r * 0.3 && tipH < crownPt + ARMORY_HEAD.eternalhalo.lift + 0.12, `the halo over the crown, its motes with it (${(tipH - crownPt).toFixed(3)} m)`);
   assert.ok(armoryHeadTip({ ...crown, at: [0, 2, 0] }) - tipC > 1.99, 'the wearer\'s feet carry it');
 });
 

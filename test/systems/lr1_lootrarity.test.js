@@ -67,6 +67,7 @@ import { TEST_LOOT, testEntryById, seedTestLoot, TEST_LOOT_BASES } from '../../s
 import { itemNameParts } from '../../src/systems/item/itemInfo.js';   // LR6: what the pack ROW actually prints
 import { templateByIndex } from '../../src/systems/item/itemTemplates.js';   // LR6: the bare-template reading an unidentified item falls back to
 import { snapshotPlayer, restorePlayer } from '../../src/systems/save/save.js';
+import { hostText } from '../hostText.mjs';   // PIN MOVED (HOST-SPLIT TEST-PRESET): the world host whole
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
@@ -525,8 +526,8 @@ test('LR3: the Test Room\'s loot ladder - one door, thirty items (a Magic and a 
   assert.equal(LR.lootRarityOn(), true, 'the door turns the ladder on');
   // LR6: the ladder, plus the unidentified pair - one Rare and one
   // Legendary left on the floor's own reading.
-  assert.equal(added.length, 20 + LR.LEGENDARIES.length + 2 + AETHERIC_RECORDS.length + 1 + 4 + LR.WARDROBE_LEGENDARIES.length + 2 + 2 + 2 + 2 + 1 + 4 + 1 + TECHNIQUE_IDS.length + LR.ARCANE_LEGENDARIES.length + 2 + 2);   // PIN MOVED (KETCH): and the Ketch's two Gilded, last; PIN MOVED (GILDED2): and the world's two Gilded, last; PIN MOVED (BAL9c): and the arcane three; LOOT2: and one Exalted; LOOT14/LOOT15: the wardrobe's two bases at two tiers and its six; LOOT16: a cursed Rare and a cursed Legendary; LOOT20: a socketed Rare and a Ruby; LOOT21: the two Ayleid stones; GILDED1: the Hourlock and its shot; GEM1/GEM2: a three-socket Rare bow and four graded gems; TRUE-CURSE (PIN MOVED): a damned Legendary weapon   // PIN MOVED (TECH1): and one Rare a weapon technique
-  assert.deepEqual(added.filter((i) => i.rarity === 'gilded').map((i) => i.gilded), ['the-hourlock', 'the-dragonfire-oath', 'the-sunken-sovereign', 'volendrungs-echo', 'the-ketchmasters-word'], 'GILDED1: the top rung\'s first record, whole; PIN MOVED (GILDED2): and the world\'s two; PIN MOVED (KETCH): and the Ketch\'s two');
+  assert.equal(added.length, 20 + LR.LEGENDARIES.length + 2 + AETHERIC_RECORDS.length + 1 + 4 + LR.WARDROBE_LEGENDARIES.length + 2 + 2 + 2 + 2 + 1 + 4 + 1 + TECHNIQUE_IDS.length + LR.ARCANE_LEGENDARIES.length + 2 + 2 + 1);   // and Retribution's Call, last; PIN MOVED (KETCH): and the Ketch's two Gilded, last; PIN MOVED (GILDED2): and the world's two Gilded, last; PIN MOVED (BAL9c): and the arcane three; LOOT2: and one Exalted; LOOT14/LOOT15: the wardrobe's two bases at two tiers and its six; LOOT16: a cursed Rare and a cursed Legendary; LOOT20: a socketed Rare and a Ruby; LOOT21: the two Ayleid stones; GILDED1: the Hourlock and its shot; GEM1/GEM2: a three-socket Rare bow and four graded gems; TRUE-CURSE (PIN MOVED): a damned Legendary weapon   // PIN MOVED (TECH1): and one Rare a weapon technique
+  assert.deepEqual(added.filter((i) => i.rarity === 'gilded').map((i) => i.gilded), ['the-hourlock', 'the-dragonfire-oath', 'the-sunken-sovereign', 'volendrungs-echo', 'the-ketchmasters-word', 'retributions-call'], 'GILDED1: the top rung\'s first record, whole; PIN MOVED (GILDED2): and the world\'s two; PIN MOVED (KETCH): and the Ketch\'s two');
   assert.deepEqual(added.filter((i) => i.rarity === 'aetheric').map((i) => i.aetheric), AETHERIC_RECORDS.map((r) => r.id), 'SET6: the nine Regalia pieces, once each; RAID4b: then the raids\' twenty-seven');
   assert.equal(added.filter((i) => i.rarity === 'magic').length, 12);   // LOOT14: and the wardrobe's two
   assert.equal(added.filter((i) => i.rarity === 'rare').length, 16 + TECHNIQUE_IDS.length);   // LOOT16: and the cursed one; LOOT20: and the socketed one; GEM1: and the three-socket bow; PIN MOVED (TECH1): and one a weapon technique
@@ -535,7 +536,7 @@ test('LR3: the Test Room\'s loot ladder - one door, thirty items (a Magic and a 
   for (const it of legs) { const rec = LR.legendaryById(it.legendary); assert.ok(!rec.templates || rec.templates.includes(it.templateIndex), `${rec.id} on a fitting base`); }
   assert.equal(e.items.length, added.length);
   assert.match(read('src/ui/enhanced/enhancedMenu.js'), /TEST_LOOT\.label[\s\S]*?onAction\(`test:\$\{TEST_LOOT\.id\}`\)/, 'the pane\'s card');
-  assert.match(read('src/scenes/world.js'), /if \(testEntry\.loot\) console\.log\(`\[testroom\] loot ladder: \$\{seedTestLoot\(playerEntity\)\.length\} rolled items in the pack`\);/, 'the boot seeds it');
+  assert.match(hostText('src/scenes/world.js'), /if \(testEntry\.loot\) console\.log\(`\[testroom\] loot ladder: \$\{seedTestLoot\(playerEntity\)\.length\} rolled items in the pack`\);/, 'the boot seeds it');
   _resetForTests();
 });
 

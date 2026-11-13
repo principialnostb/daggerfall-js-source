@@ -26,10 +26,24 @@ import { algebra, ease, clamp01, smooth, RAD, bodyOf, bodyKindOf, reflect } from
 import { rotAxisAngle } from '../../combat/climbRig.js';
 import { createGaitState, stepGait, gaitPose, TURN } from './gait.js';
 import { markHeldPose } from './armAnatomy.js';
-import { createLegClock } from './legClock.js';   // LEG-CLOCK: the gait's shown stride on the clip's own feet
-import { createShieldSet } from './shieldSet.js';   // SHIELD-WALK-SET: walking forward, the shield to the side
+import { createLegClock } from './legClock.js'; // LEG-CLOCK: the gait's shown stride on the clip's own feet
+import { createShieldSet } from './shieldSet.js'; // SHIELD-WALK-SET: walking forward, the shield to the side
 import { freshReturnEnabled, setReturnGoal } from './freshReturn.js';
-import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, trunkPush, blendHand, gaitShares, turnAbout, trunkOf } from './carry.js';
+import {
+  carryClassOf,
+  carryHands,
+  CARRY,
+  TWO_HAND_GRIP,
+  TWO_HAND_HAFT,
+  armByAngles,
+  mirrorRequest,
+  hafHand,
+  trunkPush,
+  blendHand,
+  gaitShares,
+  turnAbout,
+  trunkOf,
+} from './carry.js';
 import { meleeFamilyOf, blowName, blowU, blowPose, windFor } from './melee.js';
 import { solveBody, gripRequest, bodyFrames } from './bodySolve.js';
 
@@ -40,7 +54,19 @@ const { add, scale, sub, cross, norm, len, lerp } = algebra;
  *  second) the critically damped spring the carry's gait shares follow the gait's on (AUDIT BODY-MOTION CARRY-6);
  *  `carryRun` the run's share's own, slower: a run's carry stands furthest from the guard (a two-hander's blade turns
  *  some 140 degrees between them), and at `carry` a stop turned it 14 to 29 degrees a frame (RUN-STOP, 2026-10-29). */
-export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, carryRun: 7, sneak: 0.6, blowReturn: 0.5, blowEntry: 0.12 });
+export const MOTION_EASE = Object.freeze({
+  in: 0.14,
+  out: 0.1,
+  outFast: 0.05,
+  armIn: 0.12,
+  armOut: 0.07,
+  cls: 0.14,
+  carry: 14,
+  carryRun: 7,
+  sneak: 0.6,
+  blowReturn: 0.5,
+  blowEntry: 0.12,
+});
 /** HILT-HOLD: seconds off the ground before the layer lets go - a run's ground flicker over uneven street is not a jump,
  *  and the carry let go for it showed the free run's arms under the two-hander. */
 export const AIR_GRACE = 0.2;
@@ -64,14 +90,61 @@ const SHEET_BLADE = Object.freeze({ one: 58, two: 88, wide: 112, spear: 120, dua
  *   guard - { L, R } (radians) the pair's guard: how far each arm is lowered while the other strikes, or null.
  */
 export function sceneInput({
-  forward = 0, strafe = 0, speed = 0, running = false, sneaking = false, yaw = 0, grounded = true, travel = null, carriedYaw = 0,
-  weapon = MW_WEAPON_TYPE.None, hands = 'single', shown = undefined, blow = null, kind = 'male',
-  height = 1, weight = 1, torch = false, shield = false, spell = false, spellHand = false, equip = false, rifle = false, on = true, busy = null, guard = null,
+  forward = 0,
+  strafe = 0,
+  speed = 0,
+  running = false,
+  sneaking = false,
+  yaw = 0,
+  grounded = true,
+  travel = null,
+  carriedYaw = 0,
+  weapon = MW_WEAPON_TYPE.None,
+  hands = 'single',
+  shown = undefined,
+  blow = null,
+  kind = 'male',
+  height = 1,
+  weight = 1,
+  torch = false,
+  shield = false,
+  spell = false,
+  spellHand = false,
+  equip = false,
+  rifle = false,
+  on = true,
+  busy = null,
+  guard = null,
   legPhase = null,
 } = {}) {
   return {
-    on, kind, busy, speed, forward, strafe, running, sneaking, grounded, swimming: false, levitating: false, yaw, travel, carriedYaw,
-    height, weight, mwType: weapon, shown: shown ?? weapon !== MW_WEAPON_TYPE.None, hands, torch, shield, spell, spellHand, equip, rifle, blow, guard,
+    on,
+    kind,
+    busy,
+    speed,
+    forward,
+    strafe,
+    running,
+    sneaking,
+    grounded,
+    swimming: false,
+    levitating: false,
+    yaw,
+    travel,
+    carriedYaw,
+    height,
+    weight,
+    mwType: weapon,
+    shown: shown ?? weapon !== MW_WEAPON_TYPE.None,
+    hands,
+    torch,
+    shield,
+    spell,
+    spellHand,
+    equip,
+    rifle,
+    blow,
+    guard,
     legPhase: Number.isFinite(legPhase) ? legPhase : null,
   };
 }
@@ -90,30 +163,71 @@ const SECTION_OF = Object.freeze({ AttackWindUp: 'windup', AttackRelease: 'relea
  * hold weight. The switch is systems/features.js 'mw-body-motion' (the viewer's - how this machine draws a body).
  */
 export function motionWord({
-  cam = null, third = false, rig = null, built = null, dead = false, hit = false, climb = 0, upper = 'None',
-  attackType = null, reversed = false, hand = null, progress = 0, strength = 1, shown = false, hands = 'single',
-  torch = false, spell = false, spellHand = false, rifle = 0, guard = null,
+  cam = null,
+  third = false,
+  rig = null,
+  built = null,
+  dead = false,
+  hit = false,
+  climb = 0,
+  upper = 'None',
+  attackType = null,
+  reversed = false,
+  hand = null,
+  progress = 0,
+  strength = 1,
+  shown = false,
+  hands = 'single',
+  torch = false,
+  spell = false,
+  spellHand = false,
+  rifle = 0,
+  guard = null,
 } = {}) {
   const mv = (cam && cam.move) || {};
   const kind = bodyKindOf(rig?.settingsSkeleton);
-  const on = !!third && !!kind && !!rig?.ok && !built?.creature && !built?.werewolf && getPref('mwBodyMotion') !== false;
-  const busy = dead ? 'dead' : hit ? 'hit' : climb > 0.02 || cam?.climb ? 'climb' : cam?.seat || cam?.saddle ? 'seat' : null;
+  const on =
+    !!third && !!kind && !!rig?.ok && !built?.creature && !built?.werewolf && getPref('mwBodyMotion') !== false;
+  const busy = dead
+    ? 'dead'
+    : hit
+      ? 'hit'
+      : climb > 0.02 || cam?.climb
+        ? 'climb'
+        : cam?.seat || cam?.saddle
+          ? 'seat'
+          : null;
   const section = SECTION_OF[upper] ?? null;
   return {
-    on, kind, busy,
-    speed: Number(mv.speed) || 0, forward: Number(mv.forward) || 0, strafe: Number(mv.strafe) || 0, running: !!mv.running,
-    sneaking: !!cam?.sneaking, grounded: mv.grounded !== false, swimming: !!mv.swimming, levitating: !!mv.levitating,
+    on,
+    kind,
+    busy,
+    speed: Number(mv.speed) || 0,
+    forward: Number(mv.forward) || 0,
+    strafe: Number(mv.strafe) || 0,
+    running: !!mv.running,
+    sneaking: !!cam?.sneaking,
+    grounded: mv.grounded !== false,
+    swimming: !!mv.swimming,
+    levitating: !!mv.levitating,
     // AUDIT BODY-MOTION GAIT-9 / GAIT-17 / RIG-3 / RIG-6: the ground the body's own steps crossed, the yaw it is DRAWN at
     // (player/motor.js bodyYawFor's - the view's, a climb's easing offset on it), and a deck's turns
-    travel: Array.isArray(mv.travel) ? mv.travel : null, carriedYaw: Number(mv.carriedYaw) || 0,
+    travel: Array.isArray(mv.travel) ? mv.travel : null,
+    carriedYaw: Number(mv.carriedYaw) || 0,
     yaw: Number.isFinite(mv.bodyYaw) ? mv.bodyYaw : (Number(cam?.yaw) || 0) + (Number(mv.bodyYawOff) || 0),
-    height: built?.raceScale?.height ?? 1, weight: built?.raceScale?.weight ?? 1,
-    mwType: rig?.mwType ?? MW_WEAPON_TYPE.None, shown: !!shown, hands, torch: !!torch, spell: !!spell,
-    spellHand: !!spellHand,   // AUDIT SPELL-HAND L3-5: a spell readied in the free (left) hand beside the drawn weapon - that arm is the Spell idle's
+    height: built?.raceScale?.height ?? 1,
+    weight: built?.raceScale?.weight ?? 1,
+    mwType: rig?.mwType ?? MW_WEAPON_TYPE.None,
+    shown: !!shown,
+    hands,
+    torch: !!torch,
+    spell: !!spell,
+    spellHand: !!spellHand, // AUDIT SPELL-HAND L3-5: a spell readied in the free (left) hand beside the drawn weapon - that arm is the Spell idle's
     // SHIELD-RUN: a shield is a piece the body wears on its left arm, at the Shield Bone - the composer names its slot
     // `shield (<record>)` (formats/morrowind/mwItemMap.js composeWornArmor; fitThirdPersonCloak reads it so too)
     shield: !!rig?.arm?.pieces?.some((p) => /^shield\b/.test(p.slot ?? '')),
-    equip: upper === 'Equipping' || upper === 'Unequipping', rifle: rifle > 0.01,
+    equip: upper === 'Equipping' || upper === 'Unequipping',
+    rifle: rifle > 0.01,
     blow: section && attackType ? { type: attackType, reversed: !!reversed, hand, section, progress, strength } : null,
     // AUDIT BODY-MOTION MELEE-11: the pair's guard - each arm's dip while the other strikes (fpArm.js pairDip, radians)
     guard: guard && (guard.L > 0 || guard.R > 0) ? { L: Number(guard.L) || 0, R: Number(guard.R) || 0 } : null,
@@ -124,7 +238,6 @@ export function motionWord({
  *  forearm's thickness. `createBodyMotion({ trunkClear: 0 })` reads a blow's keys alone (the pins). */
 export const TRUNK_CLEAR = 0.29;
 
-
 /** `legs` (LEG-CLOCK): the lower-body layer whose movement clip draws the legs (combat/lowerBodyLayer.js `stridePhase`),
  *  read each step for its stride (the second argument) - a word's own `legPhase` (sceneInput's, the pins') stands before it. */
 export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null) {
@@ -132,14 +245,16 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
   const armTwist = { L: { angle: null, frame: 0, dt: 0 }, R: { angle: null, frame: 0, dt: 0 } };
   let input = sceneInput({ on: false });
   let w = 0;
-  let airT = 0;   // HILT-HOLD: seconds the body has been off the ground
+  let airT = 0; // HILT-HOLD: seconds the body has been off the ground
   const armW = { L: 0, R: 0 };
-  let sneakHand = false;   // SNEAK-GUARD: the one-hander's arm handed to the sneak clip, or on its way back from it
-  let sinceBlow = Infinity;   // BLOW-RETURN: seconds since the clip last had a blow (the layer steps aside for one)
-  let blowAge = 0;   // BLOW-ENTRY: seconds the blow now in the machine has run (the layer steps aside over the first of them)
-  let entryBack = 1;   // BLOW-ENTRY: BLOW-RETURN's share when that blow came - the carry the entry lets go of
+  let sneakHand = false; // SNEAK-GUARD: the one-hander's arm handed to the sneak clip, or on its way back from it
+  let sinceBlow = Infinity; // BLOW-RETURN: seconds since the clip last had a blow (the layer steps aside for one)
+  let blowAge = 0; // BLOW-ENTRY: seconds the blow now in the machine has run (the layer steps aside over the first of them)
+  let entryBack = 1; // BLOW-ENTRY: BLOW-RETURN's share when that blow came - the carry the entry lets go of
   const backOf = (since) => (Number.isFinite(since) ? smooth(since / MOTION_EASE.blowReturn) : 1);
-  let cls = 'free', clsFrom = null, clsMix = 1;
+  let cls = 'free',
+    clsFrom = null,
+    clsMix = 1;
   // THE CARRY'S OWN GAIT SHARES: the gait's (idle, walk, run, sneak) followed by a critically damped spring - the gait's
   // first-order eases start a change at full speed, and the arms with them (AUDIT BODY-MOTION CARRY-6: a run's carry
   // came on 20 to 41 degrees in a frame)
@@ -147,31 +262,48 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
   let body = null;
   let last = null;
   let wasOn = false;
-  let stance = null, stepTime = null, bpNow = null;
-  let lastBlow = null;   // the blow last seen - let go of by its weight when the machine drops it part-way (MELEE-6)
-  let cut = null;        // where a blow that cut the last one begins: that one's hand and trunk as they stood (MELEE-6)
-  let drawn = null;      // the striking hand as last drawn, as a blow's keys read it
-  const legClock = createLegClock();   // LEG-CLOCK
-  const shieldSet = createShieldSet();   // SHIELD-WALK-SET
-  let clockDt = 0, legNow = null;
+  let stance = null,
+    stepTime = null,
+    bpNow = null;
+  let lastBlow = null; // the blow last seen - let go of by its weight when the machine drops it part-way (MELEE-6)
+  let cut = null; // where a blow that cut the last one begins: that one's hand and trunk as they stood (MELEE-6)
+  let drawn = null; // the striking hand as last drawn, as a blow's keys read it
+  const legClock = createLegClock(); // LEG-CLOCK
+  const shieldSet = createShieldSet(); // SHIELD-WALK-SET
+  let clockDt = 0,
+    legNow = null;
   const gaitInput = () => ({
-    speed: input.speed, forward: input.forward, strafe: input.strafe, running: input.running, sneaking: input.sneaking,
-    yaw: input.yaw, grounded: input.grounded, kind: input.kind, travel: input.travel, carriedYaw: input.carriedYaw,
+    speed: input.speed,
+    forward: input.forward,
+    strafe: input.strafe,
+    running: input.running,
+    sneaking: input.sneaking,
+    yaw: input.yaw,
+    grounded: input.grounded,
+    kind: input.kind,
+    travel: input.travel,
+    carriedYaw: input.carriedYaw,
     legM: body ? (body.leg * (input.height || 1)) / MW_UNITS_PER_METER : 1,
-    unitsPerM: MW_UNITS_PER_METER / (input.weight || 1), unitsPerMz: MW_UNITS_PER_METER / (input.height || 1),
-    stance, stepTime, legPhase: legClock.phase(legNow),
+    unitsPerM: MW_UNITS_PER_METER / (input.weight || 1),
+    unitsPerMz: MW_UNITS_PER_METER / (input.height || 1),
+    stance,
+    stepTime,
+    legPhase: legClock.phase(legNow),
   });
   /** THE STANCE the feet stand in: the carry's (CARRY[cls].stand), eased from the class it leaves (AUDIT BODY-MOTION
    *  CARRY-5: switched on the frame, a drawn two-hander threw the feet 11 units and the hips 16 degrees) - the feet step
    *  into it (gait.js) - and a blow's lunge laid on the lead foot, stepped quickly: the left for a right-hand blow, a
    *  guard's own lead (the left) for the fists. */
   function stanceNow(bp) {
-    const a = CARRY[clsFrom]?.stand ?? null, b = CARRY[cls]?.stand ?? null, t = clsFrom ? clsMix : 1;
+    const a = CARRY[clsFrom]?.stand ?? null,
+      b = CARRY[cls]?.stand ?? null,
+      t = clsFrom ? clsMix : 1;
     const mixV = (p, q) => [lerp(p?.[0] ?? 0, q?.[0] ?? 0, t), lerp(p?.[1] ?? 0, q?.[1] ?? 0, t)];
     const st = {
       feet: { L: mixV(a?.feet?.L, b?.feet?.L), R: mixV(a?.feet?.R, b?.feet?.R) },
       toe: { L: lerp(a?.toe?.L ?? 0, b?.toe?.L ?? 0, t), R: lerp(a?.toe?.R ?? 0, b?.toe?.R ?? 0, t) },
-      hipYaw: lerp(a?.hipYaw ?? 0, b?.hipYaw ?? 0, t), lean: lerp(a?.lean ?? 0, b?.lean ?? 0, t),
+      hipYaw: lerp(a?.hipYaw ?? 0, b?.hipYaw ?? 0, t),
+      lean: lerp(a?.lean ?? 0, b?.lean ?? 0, t),
       hipShift: a?.hipShift || b?.hipShift ? mixV(a?.hipShift, b?.hipShift) : null,
     };
     if (bp && bp.step > 0) {
@@ -184,9 +316,13 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
    *  the carry has both arms - or null. */
   function trunkNow() {
     if (!shares.x) return null;
-    const b = trunkOf(cls, shares.x), a = clsFrom && clsMix < 1 ? trunkOf(clsFrom, shares.x) : b, t = clsFrom ? clsMix : 1;
+    const b = trunkOf(cls, shares.x),
+      a = clsFrom && clsMix < 1 ? trunkOf(clsFrom, shares.x) : b,
+      t = clsFrom ? clsMix : 1;
     const k = Math.min(armW.L, armW.R);
-    const yaw = lerp(a.yaw, b.yaw, t) * k, pitch = lerp(a.pitch, b.pitch, t) * k, square = lerp(a.square, b.square, t) * k;
+    const yaw = lerp(a.yaw, b.yaw, t) * k,
+      pitch = lerp(a.pitch, b.pitch, t) * k,
+      square = lerp(a.square, b.square, t) * k;
     const collar = lerp(a.collar, b.collar, t) * k;
     return yaw || pitch || square || collar ? { yaw, pitch, square, collar } : null;
   }
@@ -218,7 +354,9 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
     // the pair's guard: the arm whose fellow strikes lowered at its shoulder, as the mirror lowers the clip's (TWO-HANDS
     // AUDIT - AUDIT BODY-MOTION MELEE-11: laid before the layer, the carry's own arm put it back up)
     if (input.guard && (cls === 'dual' || cls === 'fists')) {
-      for (const side of ['L', 'R']) if (input.guard[side] > 0 && hands[side]) hands[side] = lowered(hands[side], ctx.frames.shoulder[side], ctx.frames.up, input.guard[side]);
+      for (const side of ['L', 'R'])
+        if (input.guard[side] > 0 && hands[side])
+          hands[side] = lowered(hands[side], ctx.frames.shoulder[side], ctx.frames.up, input.guard[side]);
     }
     if (!bp || !(bp.w > 0)) return hands;
     // the blow begun and ended on the striking hand's carry as it stands now (melee.js blowPose's `from` - MELEE-1); one
@@ -226,7 +364,10 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
     const from = carryFrom(hands[bp.side], bp.side, ctx, bp.family === 'fists');
     const keyed = from || cut ? blowPose(bp.family, bp.name, bp.u, bp.side, { start: cut ?? from, end: from }) : null;
     const strike = blowHands(keyed ? { ...bp, ...keyed } : bp, cls, ctx, armW, trunkClear);
-    const out = { L: blendHand(hands.L, strike.L, bp.w * (strike.L ? 1 : 0)), R: blendHand(hands.R, strike.R, bp.w * (strike.R ? 1 : 0)) };
+    const out = {
+      L: blendHand(hands.L, strike.L, bp.w * (strike.L ? 1 : 0)),
+      R: blendHand(hands.R, strike.R, bp.w * (strike.R ? 1 : 0)),
+    };
     drawn = carryFrom(out[bp.side], bp.side, ctx, bp.family === 'fists');
     return out;
   }
@@ -234,27 +375,49 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
   const motion = {
     /** THE CLOCKS, every frame (posed or not): the gait, the layer's weight, the arms', the carry class. */
     step(dt, frame) {
-      for (const state of Object.values(armTwist)) { state.frame++; state.dt = Math.max(0, dt); }
+      for (const state of Object.values(armTwist)) {
+        state.frame++;
+        state.dt = Math.max(0, dt);
+      }
       input = frame ?? sceneInput({ on: false });
       // switched on (third person again, the switch thrown, a body handed on): the gait begun afresh - the last frame it
       // saw may be a minute old (AUDIT BODY-MOTION RIG-5: the heading alone was re-anchored, and a body came back in the
       // walk, the bank and the feet it had left)
       if (input.on && !wasOn) Object.assign(gait, createGaitState());
       wasOn = !!input.on;
-      airT = input.grounded === false ? airT + Math.max(0, dt) : 0;   // HILT-HOLD
+      airT = input.grounded === false ? airT + Math.max(0, dt) : 0; // HILT-HOLD
       // Losing ground contact must not release a weapon held in both hands.
       const haftAir = carryClassOf(input) === 'two' && !input.equip;
       const free = !!input.on && !input.busy && (airT < AIR_GRACE || haftAir) && !input.swimming && !input.levitating;
-      w = ease(w, free ? 1 : 0, free ? MOTION_EASE.in : (input.busy === 'dead' || input.busy === 'hit' ? MOTION_EASE.outFast : MOTION_EASE.out), dt);
-      if (!free && w < 1e-3) { w = 0; last = null; }   // AUDIT BODY-MOTION RIG-9: the card says off once the body is the clip's
+      w = ease(
+        w,
+        free ? 1 : 0,
+        free ? MOTION_EASE.in : input.busy === 'dead' || input.busy === 'hit' ? MOTION_EASE.outFast : MOTION_EASE.out,
+        dt,
+      );
+      if (!free && w < 1e-3) {
+        w = 0;
+        last = null;
+      } // AUDIT BODY-MOTION RIG-9: the card says off once the body is the clip's
       const next = carryClassOf(input);
       // a class changed back while its blend still ran turns the blend about where it stands (AUDIT BODY-MOTION
       // CARRY-13: begun afresh from the class it was leaving, the hands leapt 3.9 units)
       if (next !== cls) {
-        if (clsFrom && next === clsFrom) { clsFrom = cls; cls = next; clsMix = 1 - clsMix; } else { clsFrom = cls; cls = next; clsMix = 0; }
+        if (clsFrom && next === clsFrom) {
+          clsFrom = cls;
+          cls = next;
+          clsMix = 1 - clsMix;
+        } else {
+          clsFrom = cls;
+          cls = next;
+          clsMix = 0;
+        }
       }
       clsMix = ease(clsMix, 1, MOTION_EASE.cls, dt);
-      if (clsMix > 0.999) { clsMix = 1; clsFrom = null; }
+      if (clsMix > 0.999) {
+        clsMix = 1;
+        clsFrom = null;
+      }
       const hands = !input.equip && !input.rifle && cls !== 'clip';
       // SHIELD-RUN (the Discord's "sprinting with my mace and shield out just makes me look incredibly stupid"): a shield
       // on the arm leaves the left arm to the clip, as a torch does - Morrowind's own groups carry a shield; the free
@@ -271,21 +434,36 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
       const sneakArm = cls === 'one' && gait.sneak > 0.5;
       const fistArms = cls === 'fists' && !input.blow && !bpNow;
       for (const side of ['L', 'R']) {
-        const want = hands && !(side === 'L' && (input.torch || shieldArm || freeArm || input.spellHand)) && !(side === 'R' && (sneakArm || (cls === 'fists' && input.shield))) && !fistArms ? 1 : 0;
+        const want =
+          hands &&
+          !(side === 'L' && (input.torch || shieldArm || freeArm || input.spellHand)) &&
+          !(side === 'R' && (sneakArm || (cls === 'fists' && input.shield))) &&
+          !fistArms
+            ? 1
+            : 0;
         // SNEAK-GUARD: the crouch hands the blade over slowly, both ways (at the arm's own ease it turned 59 degrees a frame)
         if (side === 'R') sneakHand = sneakArm || (sneakHand && hands && armW.R < 0.999);
-        armW[side] = ease(armW[side], want, side === 'R' && sneakHand ? MOTION_EASE.sneak : want ? MOTION_EASE.armIn : MOTION_EASE.armOut, dt);
+        armW[side] = ease(
+          armW[side],
+          want,
+          side === 'R' && sneakHand ? MOTION_EASE.sneak : want ? MOTION_EASE.armIn : MOTION_EASE.armOut,
+          dt,
+        );
         if (!want && armW[side] < 1e-3) armW[side] = 0;
       }
       {
-        const sn = clamp01(gait.sneak), target = gaitShares({ move: gait.move, run: clamp01(gait.run) * (1 - sn), sneak: sn });
+        const sn = clamp01(gait.sneak),
+          target = gaitShares({ move: gait.move, run: clamp01(gait.run) * (1 - sn), sneak: sn });
         if (!shares.x || !(dt > 0)) shares.x = { ...target };
         else {
           let sum = 0;
           for (const g of ['idle', 'walk', 'run', 'sneak']) {
             // the spring's exact step - stable at any frame time
             const om = g === 'run' ? MOTION_EASE.carryRun : MOTION_EASE.carry;
-            const d0 = shares.x[g] - target[g], v0 = shares.v[g], e = Math.exp(-om * dt), j = v0 + om * d0;
+            const d0 = shares.x[g] - target[g],
+              v0 = shares.v[g],
+              e = Math.exp(-om * dt),
+              j = v0 + om * d0;
             shares.x[g] = Math.max(0, target[g] + (d0 + j * dt) * e);
             shares.v[g] = (v0 - om * j * dt) * e;
             if (g !== 'run') sum += shares.x[g];
@@ -306,9 +484,14 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
       if (seen && lastBlow && lastBlow.w > 0.05 && (seen.name !== lastBlow.name || seen.u + 0.05 < lastBlow.u)) {
         const m = lastBlow.side === 'L' ? -1 : 1;
         cut = {
-          ...(drawn ?? {}), w: lastBlow.w,
-          chest: [lastBlow.chest[0] * m, lastBlow.chest[1] * m, lastBlow.chest[2]], hip: lastBlow.hip * m,
-          shift: lastBlow.shift, drop: lastBlow.drop, step: lastBlow.step, off: lastBlow.off,
+          ...(drawn ?? {}),
+          w: lastBlow.w,
+          chest: [lastBlow.chest[0] * m, lastBlow.chest[1] * m, lastBlow.chest[2]],
+          hip: lastBlow.hip * m,
+          shift: lastBlow.shift,
+          drop: lastBlow.drop,
+          step: lastBlow.step,
+          off: lastBlow.off,
         };
         seen = blowNow({ start: cut });
       }
@@ -321,28 +504,51 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
       else if (lastBlow && lastBlow.w > 1e-3) lastBlow = { ...lastBlow, w: ease(lastBlow.w, 0, MOTION_EASE.out, dt) };
       else lastBlow = null;
       bpNow = seen ?? lastBlow;
-      if (seen && !(blowAge > 0)) entryBack = backOf(sinceBlow);   // BLOW-ENTRY: the carry as it stood when the blow came
-      sinceBlow = seen ? 0 : sinceBlow + Math.max(0, dt);   // BLOW-RETURN
-      blowAge = seen ? blowAge + Math.max(0, dt) : 0;   // BLOW-ENTRY
+      if (seen && !(blowAge > 0)) entryBack = backOf(sinceBlow); // BLOW-ENTRY: the carry as it stood when the blow came
+      sinceBlow = seen ? 0 : sinceBlow + Math.max(0, dt); // BLOW-RETURN
+      blowAge = seen ? blowAge + Math.max(0, dt) : 0; // BLOW-ENTRY
       stance = stanceNow(bpNow);
       stepTime = bpNow && bpNow.step > 0 && bpNow.w > 0.05 ? TURN.quick : null;
       clockDt += Math.max(0, dt);
-      legNow = Number.isFinite(input.legPhase) ? input.legPhase : legs?.stridePhase?.() ?? null;
+      legNow = Number.isFinite(input.legPhase) ? input.legPhase : (legs?.stridePhase?.() ?? null);
       if (input.on && body) stepGait(gait, gaitInput(), body, dt);
-      shieldSet.step(dt, !!input.on && !!input.shield && !input.blow && !input.busy && ['one', 'free', 'fists'].includes(cls), gait);   // SHIELD-WALK-SET
+      shieldSet.step(
+        dt,
+        !!input.on && !!input.shield && !input.blow && !input.busy && ['one', 'free', 'fists'].includes(cls),
+        gait,
+      ); // SHIELD-WALK-SET
       return w;
     },
     /** THE POSE: the request solved on the skeleton over the clip's (poseAssembly's `motion` slot). */
     apply(skeleton, pose, rootRef, skelMats) {
-      if (!(w > 1e-3)) { last = null; return null; }
+      if (!(w > 1e-3)) {
+        last = null;
+        return null;
+      }
       const measured = bodyOf(skeleton, rootRef, skelMats);
-      if (!measured) { last = null; return null; }
-      if (body !== measured) { body = measured; Object.assign(gait, createGaitState()); legClock.reset(); stepGait(gait, gaitInput(), body, 0); }
+      if (!measured) {
+        last = null;
+        return null;
+      }
+      if (body !== measured) {
+        body = measured;
+        Object.assign(gait, createGaitState());
+        legClock.reset();
+        stepGait(gait, gaitInput(), body, 0);
+      }
       // LEG-CLOCK: the clip's feet as they come, before this layer moves a bone - the left's lead along the facing
       {
-        const fm = skelMats(skeleton, pose, rootRef, [body.bones.L.foot, body.bones.R.foot, body.chest]), F = bodyFrames(body, fm);
-        const fl = fm.get(body.bones.L.foot)?.t, fr = fm.get(body.bones.R.foot)?.t;
-        legClock.measure(F && fl && fr ? ((fl[0] - fr[0]) * F.fwd[0] + (fl[1] - fr[1]) * F.fwd[1] + (fl[2] - fr[2]) * F.fwd[2]) / body.leg : NaN, legNow, clockDt);
+        const fm = skelMats(skeleton, pose, rootRef, [body.bones.L.foot, body.bones.R.foot, body.chest]),
+          F = bodyFrames(body, fm);
+        const fl = fm.get(body.bones.L.foot)?.t,
+          fr = fm.get(body.bones.R.foot)?.t;
+        legClock.measure(
+          F && fl && fr
+            ? ((fl[0] - fr[0]) * F.fwd[0] + (fl[1] - fr[1]) * F.fwd[1] + (fl[2] - fr[2]) * F.fwd[2]) / body.leg
+            : NaN,
+          legNow,
+          clockDt,
+        );
         clockDt = 0;
       }
       const held = ['two', 'wide', 'spear'].includes(cls) && input.on && !input.busy && input.shown;
@@ -360,10 +566,20 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
       // the layer now lets go over MOTION_EASE.blowEntry, as BLOW-RETURN takes it back over blowReturn
       const activeBlow = !!input.blow?.section;
       const entry = activeBlow ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;
-      if (cls === 'free' || !(entry > 1e-3)) { last = null; return null; }
+      if (cls === 'free' || !(entry > 1e-3)) {
+        last = null;
+        return null;
+      }
 
       const gp = gaitPose(gait, gi, body);
-      if (globalThis.__armTrace?.cur) globalThis.__armTrace.cur.g = { ph: +gait.phase.toFixed(3), sh: +gait.shown.toFixed(3), mv: +gait.move.toFixed(3), lag: +gait.lag.toFixed(3), w: +w.toFixed(3) };   // TEMP ARM-TRACE
+      if (globalThis.__armTrace?.cur)
+        globalThis.__armTrace.cur.g = {
+          ph: +gait.phase.toFixed(3),
+          sh: +gait.shown.toFixed(3),
+          mv: +gait.move.toFixed(3),
+          lag: +gait.lag.toFixed(3),
+          w: +w.toFixed(3),
+        }; // TEMP ARM-TRACE
       // BLOW-RETURN (Mac: "after the blow the two-hander stays raised and goes back to neutral instantly"): the layer comes
       // back over the clip's return as slowly as the clip does (combat/blowFlow.js BLOW_FLOW.exit) - stepped aside for the
       // whole blow, it took the carry's hands back the frame the blow ended
@@ -376,11 +592,11 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
         trunk: trunkNow(),
-        collarR: cls === 'one' ? armW.R : 0,   // ONE-COLLAR (bodySolve.js): the sword arm's collarbone held at rest on the chest
-        haft: TWO_HAND_GRIP[cls] != null && (!clsFrom || TWO_HAND_GRIP[clsFrom] != null),   // HILT-HOLD (bodySolve.js)
-        kind: input.kind,   // TRUNK-SKIN: the held wrist's elbow kept out of this body's trunk
+        collarR: cls === 'one' ? armW.R : 0, // ONE-COLLAR (bodySolve.js): the sword arm's collarbone held at rest on the chest
+        haft: TWO_HAND_GRIP[cls] != null && (!clsFrom || TWO_HAND_GRIP[clsFrom] != null), // HILT-HOLD (bodySolve.js)
+        kind: input.kind, // TRUNK-SKIN: the held wrist's elbow kept out of this body's trunk
         armTwist: held ? armTwist : null,
-        hold: w,   // HILT-FULL: the hilt held by the layer's own weight, never a blow's return or a gait's share
+        hold: w, // HILT-FULL: the hilt held by the layer's own weight, never a blow's return or a gait's share
       };
       if (freshReturnEnabled() && cls === 'two' && !activeBlow && sinceBlow < MOTION_EASE.blowReturn + 0.05) {
         const goal = new Map(pose);
@@ -393,7 +609,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
         plan.haft = false;
       }
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
-      shieldSet.apply(skeleton, pose, rootRef, skelMats);   // SHIELD-WALK-SET: over the arm the clip and the layers posed
+      shieldSet.apply(skeleton, pose, rootRef, skelMats); // SHIELD-WALK-SET: over the arm the clip and the layers posed
       last = { gp, bp, report };
       return report;
     },
@@ -406,20 +622,63 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
     weight: () => w,
     /** The gait's stride phase (0..1), its weight and the hips' turn off the facing (radians, as last posed, by the
      *  layer's weight) - what a swinging hip lantern follows. */
-    stride: () => ({ phase: gait.shown, move: gait.move * w, run: gait.run * w, sneak: gait.sneak * w, hipYaw: last?.gp ? last.gp.hip.yaw * w : 0 }),
+    stride: () => ({
+      phase: gait.shown,
+      move: gait.move * w,
+      run: gait.run * w,
+      sneak: gait.sneak * w,
+      hipYaw: last?.gp ? last.gp.hip.yaw * w : 0,
+    }),
     /** The debug card's line and the sheets' blades. */
     status() {
       const gp = last?.gp;
       const mode = !gp ? 'off' : gp.sneak > 0.5 ? 'sneak' : gp.move < 0.5 ? 'stand' : gp.run > 0.5 ? 'run' : 'walk';
       return {
-        w, cls, mode, phase: gait.phase, speed: gait.speed, psi: gait.psi, back: gait.back, bank: gait.bank, stepping: gait.feet.L?.swing?.kind === 'step' ? 'L' : gait.feet.R?.swing?.kind === 'step' ? 'R' : null,
+        w,
+        cls,
+        mode,
+        phase: gait.phase,
+        speed: gait.speed,
+        psi: gait.psi,
+        back: gait.back,
+        bank: gait.bank,
+        stepping: gait.feet.L?.swing?.kind === 'step' ? 'L' : gait.feet.R?.swing?.kind === 'step' ? 'R' : null,
         blow: last?.bp ? `${last.bp.family} u=${last.bp.u.toFixed(2)}` : null,
         label: `${cls} ${mode}${last?.bp ? ` u${last.bp.u.toFixed(2)}` : ` psi${(gait.psi / RAD).toFixed(0)}`}`,
         blade: SHEET_BLADE[cls] ? { R: SHEET_BLADE[cls], L: cls === 'dual' ? SHEET_BLADE[cls] : null } : {},
-        arms: { L: armW.L, R: armW.R },   // AUDIT SPELL-HAND L3-5: each arm's weight under the layer (0: the clip's)
+        arms: { L: armW.L, R: armW.R }, // AUDIT SPELL-HAND L3-5: each arm's weight under the layer (0: the clip's)
       };
     },
-    reset() { for (const state of Object.values(armTwist)) Object.assign(state, { angle: null, frame: 0, dt: 0, seen: null, start: null, world: null, axis: null, worldFrame: null, worldStart: null, axisStart: null }); Object.assign(gait, createGaitState()); w = 0; airT = 0; armW.L = 0; armW.R = 0; sneakHand = false; sinceBlow = Infinity; cls = 'free'; clsFrom = null; clsMix = 1; last = null; shares.x = null; lastBlow = null; cut = null; drawn = null; },
+    reset() {
+      for (const state of Object.values(armTwist))
+        Object.assign(state, {
+          angle: null,
+          frame: 0,
+          dt: 0,
+          seen: null,
+          start: null,
+          world: null,
+          axis: null,
+          worldFrame: null,
+          worldStart: null,
+          axisStart: null,
+        });
+      Object.assign(gait, createGaitState());
+      w = 0;
+      airT = 0;
+      armW.L = 0;
+      armW.R = 0;
+      sneakHand = false;
+      sinceBlow = Infinity;
+      cls = 'free';
+      clsFrom = null;
+      clsMix = 1;
+      last = null;
+      shares.x = null;
+      lastBlow = null;
+      cut = null;
+      drawn = null;
+    },
   };
   return motion;
 }
@@ -433,7 +692,9 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
  */
 /** A hand request turned `angle` radians DOWN about its shoulder `S` (the wrist, every way and the grip with it). */
 function lowered(h, S, up, angle) {
-  const v = sub(h.at, S), ax = cross(v, up), l = len(ax);
+  const v = sub(h.at, S),
+    ax = cross(v, up),
+    l = len(ax);
   if (!(l > 1e-6)) return h;
   return turnAbout(h, S, rotAxisAngle(scale(ax, 1 / l), -angle));
 }
@@ -445,12 +706,22 @@ function lowered(h, S, up, angle) {
 function carryFrom(h, side, ctx, fists) {
   if (!h) return null;
   const { body, frames } = ctx;
-  const C = scale(add(frames.shoulder.L, frames.shoulder.R), 0.5), A = body.arm;
+  const C = scale(add(frames.shoulder.L, frames.shoulder.R), 0.5),
+    A = body.arm;
   const mx = (v) => (side === 'L' ? [-v[0], v[1], v[2]] : v);
-  if (fists) return h.at && h.fingers && h.palm ? { grip: mx(scale(sub(h.at, C), 1 / A)), fingers: mx(h.fingers), palm: mx(h.palm) } : null;
+  if (fists)
+    return h.at && h.fingers && h.palm
+      ? { grip: mx(scale(sub(h.at, C), 1 / A)), fingers: mx(h.fingers), palm: mx(h.palm) }
+      : null;
   if (!h.grip || !h.frame) return null;
-  let grip = h.grip, blade = h.frame.blade, edge = h.frame.edge;
-  if (side === 'L') { grip = add(C, reflect(sub(grip, C), frames.right)); blade = reflect(blade, frames.right); edge = reflect(edge, frames.right); }
+  let grip = h.grip,
+    blade = h.frame.blade,
+    edge = h.frame.edge;
+  if (side === 'L') {
+    grip = add(C, reflect(sub(grip, C), frames.right));
+    blade = reflect(blade, frames.right);
+    edge = reflect(edge, frames.right);
+  }
   return { grip: mx(scale(sub(grip, C), 1 / A)), blade: mx(blade), edge: mx(edge) };
 }
 
@@ -459,7 +730,7 @@ function blowHands(bp, cls, ctx, armW, trunkClear = TRUNK_CLEAR) {
   const C = scale(add(frames.shoulder.L, frames.shoulder.R), 0.5);
   const A = body.arm;
   const X = [1, 0, 0];
-  const right = (v) => (v ? [v[0] * (bp.side === 'L' ? -1 : 1), v[1], v[2]] : null);   // the key back on the right hand
+  const right = (v) => (v ? [v[0] * (bp.side === 'L' ? -1 : 1), v[1], v[2]] : null); // the key back on the right hand
   const gripR = add(C, scale(right(bp.grip), A));
   const out = { L: null, R: null };
   const poleR = norm([0.55, -0.25, -0.65]);
@@ -467,7 +738,13 @@ function blowHands(bp, cls, ctx, armW, trunkClear = TRUNK_CLEAR) {
   if (bp.family === 'fists') {
     req = { at: gripR, fingers: right(bp.fingers), palm: right(bp.palm), pole: poleR, w: 1 };
   } else {
-    req = gripRequest(mats, body, 'R', body.wb, { grip: gripR, blade: right(bp.blade), edge: right(bp.edge), pole: poleR, w: 1 });
+    req = gripRequest(mats, body, 'R', body.wb, {
+      grip: gripR,
+      blade: right(bp.blade),
+      edge: right(bp.edge),
+      pole: poleR,
+      w: 1,
+    });
   }
   if (!req) return out;
   const strike = bp.side === 'L' ? mirrorRequest(req, C, X) : req;
@@ -478,8 +755,10 @@ function blowHands(bp, cls, ctx, armW, trunkClear = TRUNK_CLEAR) {
     let haf = hafHand(req, req.grip, req.frame, TWO_HAND_GRIP[cls], A, slide);
     // TWO-CLEAR: the pair held before the trunk - where the haft hand would close inside it (a claymore's left a third of
     // an arm down the grip, behind the right), both hands go forward by as much as it takes; the keys keep it near none
-    const pelvis = mats.get(body.bones.pelvis ?? body.hipBone)?.t, neck = mats.get(body.bones.neck)?.t;
-    const push = haf && pelvis && neck && bp.side === 'R' ? trunkPush(haf.at, pelvis, neck, frames.fwd, trunkClear * A) : 0;
+    const pelvis = mats.get(body.bones.pelvis ?? body.hipBone)?.t,
+      neck = mats.get(body.bones.neck)?.t;
+    const push =
+      haf && pelvis && neck && bp.side === 'R' ? trunkPush(haf.at, pelvis, neck, frames.fwd, trunkClear * A) : 0;
     if (push > 0) {
       const d = scale(frames.fwd, push);
       req = { ...req, at: add(req.at, d), grip: add(req.grip, d) };
@@ -487,12 +766,23 @@ function blowHands(bp, cls, ctx, armW, trunkClear = TRUNK_CLEAR) {
       haf = hafHand(req, req.grip, req.frame, TWO_HAND_GRIP[cls], A, slide);
     }
     // its elbow out and FORWARD of the chest (TWO-CLEAR: a fixed way back and down, in the rig's frame, folded it into the chest)
-    if (haf) out.L = { ...haf, w: armW.L, pole: norm(add(scale(frames.right, -0.55), add(scale(frames.up, -0.75), scale(frames.fwd, 0.45)))) };
+    if (haf)
+      out.L = {
+        ...haf,
+        w: armW.L,
+        pole: norm(add(scale(frames.right, -0.55), add(scale(frames.up, -0.75), scale(frames.fwd, 0.45)))),
+      };
   } else if (bp.family === 'one' && cls === 'one' && bp.off) {
     const F = { right: frames.right, fwd: frames.fwd, up: frames.up };
     const limb = body.bones[other];
-    const a = len(sub(mats.get(limb.fore).t, mats.get(limb.upper).t)), b = len(sub(mats.get(limb.hand).t, mats.get(limb.fore).t));
-    const arm = armByAngles(other, frames.shoulder[other], F, a, b, { flex: bp.off[0], abduct: bp.off[1], elbow: bp.off[2], twist: 6 });
+    const a = len(sub(mats.get(limb.fore).t, mats.get(limb.upper).t)),
+      b = len(sub(mats.get(limb.hand).t, mats.get(limb.fore).t));
+    const arm = armByAngles(other, frames.shoulder[other], F, a, b, {
+      flex: bp.off[0],
+      abduct: bp.off[1],
+      elbow: bp.off[2],
+      twist: 6,
+    });
     const inward = scale(F.right, other === 'R' ? -1 : 1);
     out[other] = { at: arm.wrist, fingers: norm(arm.fore), palm: norm(inward), pole: arm.pole, w: armW[other] };
   }

@@ -333,16 +333,49 @@ test('BOARD-SIFT the Market\'s Crafted controls: each change - a search, the lea
   findField.value = 'Iron Staff'; findField.oninput();
   await rest(350);
   assert.deepEqual([r.asked.at(-1).recipes, r.asked.at(-1).page], [['staff:pine', 'staff:ironwood'], undefined], 'the Pine Staff its row\'s "Iron Staff", the Ironwood its own name - of the family chosen');
-  // the views' choices let go: Auctions opens on its own
+  // the views' choices let go: Auctions opens on its own - but for the words searched, which go with it
   await view(r, 'Auctions');
-  assert.deepEqual(Object.keys(r.asked.at(-1)).filter((k) => ['page', 'sort', 'recipes', 'quality'].includes(k)), []);
+  assert.deepEqual(Object.keys(r.asked.at(-1)).filter((k) => ['page', 'sort', 'recipes', 'quality'].includes(k)), ['recipes'], 'the search carried');
   assert.deepEqual(r.root().querySelectorAll('select').find((s) => s.getAttribute('aria-label') === 'Order').children.map((o) => o.textContent),
     ['Ending soonest', 'Cheapest first', 'Dearest first', 'Newest first']);
   const af = r.root().querySelectorAll('input').find((n) => n.getAttribute('data-focus') === 'find|auctions');
+  assert.equal(af.value, 'Iron Staff', 'its field holds the words carried');
   af.value = 'wakazashi'; af.oninput();
   await rest(350);
   assert.ok(r.asked.at(-1).recipes.includes('wakizashi:iron'), 'DFU\'s spelling on the row finds the Wakizashi');
   assert.match(r.root().textContent, /No Masterwork of that kind is up for auction\./, 'none found by a search: said of its kind');
+  // Goods searched by name too - the words themselves sent (the pieces' own names, no recipe), and carried
+  await view(r, 'Goods');
+  assert.deepEqual([r.asked.at(-1).find, 'recipes' in r.asked.at(-1)], ['wakazashi', false]);
+  const gf = r.root().querySelectorAll('input').find((n) => n.getAttribute('data-focus') === 'find|goods');
+  assert.equal(gf.value, 'wakazashi');
+  gf.value = 'Long Sword'; gf.oninput();
+  await rest(350);
+  assert.deepEqual([r.asked.at(-1).find, r.asked.at(-1).page], ['long sword', undefined]);
+  // an affix line picked from its list, then the least value it must carry - both sent with the words
+  const affix = r.root().querySelectorAll('select').find((x) => x.getAttribute('aria-label') === 'Affix');
+  assert.equal(affix.children[0].textContent, 'Any affix');
+  assert.ok(affix.children.some((o) => o.value === 'stat:strength' && o.textContent === 'Strength'));
+  choose(affix, 'stat:strength'); await ticks();
+  assert.deepEqual([r.asked.at(-1).affixes, r.asked.at(-1).find], [[{ id: 'stat', param: 'strength', min: 1 }], 'long sword']);
+  const least = r.root().querySelectorAll('input').find((n) => n.getAttribute('data-focus') === 'affix-min|0');
+  least.value = '6'; least.oninput();
+  await rest(350);
+  assert.deepEqual(r.asked.at(-1).affixes, [{ id: 'stat', param: 'strength', min: 6 }]);
+  // three spots, always there, each "Any affix" until picked; a line picked in one is not offered in another
+  const lists = () => r.root().querySelectorAll('select').filter((x) => x.getAttribute('aria-label') === 'Affix');
+  const shown = () => lists().map((x) => x.children.find((o) => o.selected)?.value ?? '');
+  assert.deepEqual(shown(), ['stat:strength', '', ''], 'three spots');
+  assert.ok(!lists()[1].children.some((o) => o.value === 'stat:strength'), 'a line picked is not offered again');
+  choose(lists()[2], 'resist:fire'); await ticks();
+  assert.deepEqual(r.asked.at(-1).affixes, [{ id: 'stat', param: 'strength', min: 6 }, { id: 'resist', param: 'fire', min: 1 }], 'the third spot before the second');
+  choose(lists()[1], 'leech'); await ticks();
+  assert.deepEqual(r.asked.at(-1).affixes.map((x) => x.id), ['stat', 'leech', 'resist']);
+  choose(lists()[0], ''); await ticks();
+  assert.deepEqual(shown(), ['', 'leech', 'resist:fire'], 'a spot let go stays where it is');
+  choose(lists()[1], ''); await ticks();
+  choose(lists()[2], ''); await ticks();
+  assert.equal('affixes' in r.asked.at(-1), false, 'none: nothing asked');
 });
 
 test('BOARD-SIFT the names a recipe\'s piece wears on its row: every crafted recipe found by its own row\'s name - the Warforged in Ebony, the woods in metals, DFU\'s "Wakazashi" (mutant: the shown names unread)', () => {

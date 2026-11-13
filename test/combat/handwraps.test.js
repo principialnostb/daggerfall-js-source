@@ -141,7 +141,7 @@ test('HAND-WRAPS the Stats page: a plain pair reads as the fists, and the wraps\
   try { assert.deepEqual(computeCombatStats(A, { weapon: w, core: 'classic' }).head.byFoe[0].dmg.parts.roll, bare.parts.roll.map((r) => r + 2)); } finally { registerWeaponDamageMod('handwraps-stats', null); }
 });
 
-test('HAND-WRAPS the glow, WRAPS-AURA (mob: "wraps are glowing without the aura on"): wraps glow by the weapon aura alone - no element, no arcane outline - and a blade\'s classic outline is unmoved (mutants: the aura rule dropped; arcane for every classic hand)', () => {
+test('HAND-WRAPS the glow, WRAPS-AURA: wraps glow by the weapon aura alone - no element, no arcane outline - and a blade\'s classic outline is unmoved (mutants: the aura rule dropped; arcane for every classic hand)', () => {
   on();
   const f = fireWraps();
   assert.equal(WG.spriteGlow(f, { on: true }), null, 'an element line: none');
@@ -185,7 +185,7 @@ test('HAND-WRAPS the Morrowind hands: the wraps key as the empty hand; the fists
   rig.readySpell(false); rig.setSheathed(true); run();
   assert.equal(rig.handGlow(), null, 'put away');
   const rigText = read('src/combat/weapon/weaponRig.js');
-  assert.ok(rigText.includes('fpArm.setHandGlow?.(wrapsMeshGlow() ?? (armItem ? null : fistGlow()));'));   // PIN MOVED (ARMORY-FISTS): bare fists wear the kit's weapon piece
+  assert.ok(rigText.includes('fpArm.setHandGlow?.(armItem?.werecreatureClaws ? glowOf(armItem) : (wrapsMeshGlow() ?? (armItem ? null : fistGlow())));'));   // PIN MOVED (ARMORY-FISTS): bare fists wear the kit's weapon piece
   assert.ok(rigText.includes("const wrapsMeshGlow = () => { for (const h of ['R', 'L']) { const w = playerWeapon.wrapsOf(h); const g = w ? meshGlow(w) : null; if (g) return g; } return null; };"), 'either fist\'s pair, the first that glows');
   assert.ok(read('src/render/renderer.js').includes("if (mesh.handGlow) this._drawWeaponGlow(mesh, modelMatrix, skin, charge, 'hands', mesh.handGlow);"));
   on();

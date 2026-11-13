@@ -1319,7 +1319,7 @@ img.fit { image-rendering: pixelated; }   /* AUDIT UI A1: a fitted picture drawn
 .card button.acttitle.actnone { color: var(--dim); }
 /* a piece not held: tried on when pointed at, its way of being had said under the row - never worn from here */
 .card button.acttitle.actaura .actauraword { display: inline-block; }   /* an aura's or a piece's word, painted as its title's (badgeCss) */
-.card button.actarmory.locked.aura-dagonfire, .card button.actarmory.locked.aura-eternal, .card button.actarmory.locked.aura-guild, .card button.actarmory.locked.aura-crystal { opacity: 0.4; border-style: dashed; }   /* AUDIT lane 3 F5: every line's (net/armoryLaw.js ARMORY_LINES) */
+.card button.actarmory.locked.aura-dagonfire, .card button.actarmory.locked.aura-eternal, .card button.actarmory.locked.aura-guild, .card button.actarmory.locked.aura-crystal, .card button.actarmory.locked.aura-tidebound { opacity: 0.4; border-style: dashed; }   /* AUDIT lane 3 F5: every line's (net/armoryLaw.js ARMORY_LINES) */
 .card .slots-look { margin: 4px 0 0; min-height: 2.6em; }
 /* STOREFRONT (2026-10-29): the effects under the stage - the kill effect, the portals, the mount - three tiles, each in
    its effect's own colour; the Mount slot's horse over its choices (ui/mountPreview.js). */
@@ -1345,6 +1345,12 @@ ${effectInkCss()}
 .card a.act { display: inline-flex; align-items: center; text-decoration: none; }
 .card .acctpatreon .acctwearrow { align-items: center; }
 .card .acctpatreonstate { display: inline-flex; align-items: center; font-size: 12.5px; color: var(--dim); }
+/* The Discord PDA's row: the link state quiet as the patron's, and a live code drawn large and spaced so it reads at a
+   glance when typed into Discord on another device. */
+.card .acctdiscord .acctwearrow { align-items: center; }
+.card .acctdiscordstate { display: inline-flex; align-items: center; font-size: 12.5px; color: var(--dim); }
+.card .acctdiscordcode { display: inline-flex; align-items: center; font: 600 18px/1.2 ui-monospace, monospace; letter-spacing: 0.12em; user-select: all; }
+.card .acctdiscord p.meta { margin: 0; }
 /* NAME-AS - THE NAME THE ROOM READS: two of the wardrobe's own buttons in the card's own colour (the chosen one at full
    strength behind the doubled edge, the other dimmed, as a title worn and held), and one quiet line under them saying
    what the other players see - tight under its buttons, where .meta's own foot would part them. */
@@ -2588,12 +2594,12 @@ ${badgeCss()}
 .px-home.px-title .px-menu .doorbtn .px-c { font-size: 14px; }
 .px-home.px-title .px-menu[data-level="top"] { width: min(780px, 100%); gap: 10px 18px; }
 .px-home.px-title .px-menu[data-level="top"] .doorbtn { flex: 1 1 300px; min-height: 76px; padding-top: 8px; padding-bottom: 8px; font-size: 28px; }
-.px-home.px-title .px-menu[data-level="offline"] .px-pagehead,
-.px-home.px-title .px-menu[data-level="offline"] .px-pagenote { flex: 0 0 100%; margin: 0; }
+.px-home.px-title .px-menu:not([data-level="top"]) .px-pagehead,
+.px-home.px-title .px-menu:not([data-level="top"]) .px-pagenote { flex: 0 0 100%; margin: 0; }
 /* the offline level's word and line stand bare on the map, among its own names - a glow of the night under them (Plus's
    alone: DFO Grimoire writes them on its page) */
-:root:not([data-plus-dress="grimoire"]) .px-home.px-title .px-menu[data-level="offline"] .px-pagehead,
-:root:not([data-plus-dress="grimoire"]) .px-home.px-title .px-menu[data-level="offline"] .px-pagenote { text-shadow: 1px 1px 0 #000, 0 0 6px #000, 0 0 14px #000; }
+:root:not([data-plus-dress="grimoire"]) .px-home.px-title .px-menu:not([data-level="top"]) .px-pagehead,
+:root:not([data-plus-dress="grimoire"]) .px-home.px-title .px-menu:not([data-level="top"]) .px-pagenote { text-shadow: 1px 1px 0 #000, 0 0 6px #000, 0 0 14px #000; }
 .px-home.px-title .px-menu .doorbtn.door-back { margin-top: 0; min-height: 50px; font-size: 15px; }
 /* a phone: the two questions one over the other, the games two to a row and the way back under them */
 @media (max-width: 600px) {
@@ -2936,7 +2942,7 @@ ${SUPPORT_MARKS_CSS}
 .px-timerswin .tm-name::before { content: '\\25c6'; position: absolute; left: -14px; top: 50%; transform: translateY(-50%); font-size: 9px;
   line-height: 1; color: var(--tm-kind, #9c937d); }
 .px-timerswin .tm-gate { --tm-kind: ${heraldCss('gate')}; } .px-timerswin .tm-serpent { --tm-kind: ${SERPENT_RING_MAP_CSS}; } .px-timerswin .tm-super { --tm-kind: ${SD_RING_MAP_CSS}; } .px-timerswin .tm-star { --tm-kind: ${STAR_VIOLET_CSS}; } .px-timerswin .tm-ketch { --tm-kind: ${heraldCss('ketch')}; } .px-timerswin .tm-raid { --tm-kind: #f2c46b; } .px-timerswin .tm-battle { --tm-kind: #d98074; }
-.px-timerswin .tm-front { --tm-kind: #8fd17a; } .px-timerswin .tm-seat { --tm-kind: #c08a3e; } .px-timerswin .tm-reset { --tm-kind: #85a8a1; } .px-timerswin .tm-elite { --tm-kind: ${EG_ARCH_RING_CSS}; }
+.px-timerswin .tm-front { --tm-kind: #8fd17a; } .px-timerswin .tm-invasion { --tm-kind: #c25be0; } .px-timerswin .tm-seat { --tm-kind: #c08a3e; } .px-timerswin .tm-reset { --tm-kind: #85a8a1; } .px-timerswin .tm-elite { --tm-kind: ${EG_ARCH_RING_CSS}; }
 .px-timerswin .tm-row.live { background: rgba(192,138,62,0.08); }
 .px-timerswin .tm-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .px-timerswin .tm-name { font-size: 15px; color: #efe8d6; }
@@ -5070,6 +5076,7 @@ ${paceControlsCss('tview')}
   flex-direction: column; border-top: 2px solid rgba(125,116,96,0.35);
   background: rgba(0,0,0,0.25); }   /* PX22: never less than the tabs and one row */
 .pack-shell .packcats { flex: 0 0 auto; }
+.pack-shell .packcats > .sortbtn { display: none; }   /* PACK-SORT: the phone's Sort (the touch-phone rule draws it); the desk's is in the header */
 /* PX22: a 40px tab strip, not 64 - the 24px it gives back is the
    difference between one row of tiles and two at the 660px window. */
 .pack-shell .pack-dock .packtab { min-height: 36px; padding: 2px 14px; }
@@ -5308,6 +5315,10 @@ ${paceControlsCss('tview')}
   .pack-shell .pack-id .dolltoggle { display: inline-block; }
   .pack-shell .pack-dock .packcats .packtabs { display: flex; flex-wrap: nowrap; overflow-x: auto; }
   .pack-shell .pack-dock .packtab { flex: 0 0 auto; }
+  .pack-shell .pack-id .sortbtn { display: none; }   /* PACK-SORT: the header keeps Body and Close in a 360px screen */
+  .pack-shell .pack-dock .packcats { flex-wrap: nowrap; align-items: center; }
+  .pack-shell .pack-dock .packcats .packtabs { flex: 1 1 auto; min-width: 0; }
+  .pack-shell .pack-dock .packcats > .sortbtn { display: inline-block; flex: 0 0 auto; min-width: 0; min-height: 36px; padding: 2px 10px; }
   .pack-shell:not(.showdoll) .wornmap-doll, .pack-shell:not(.showdoll) .wornmap .wornac-total, .pack-shell:not(.showdoll) .wornmap .worntemp-total { display: none; }   /* TEMP-UI: the felt temperature goes with the doll it stands on */
   .pack-shell:not(.showdoll) .charcol .wornmap { grid-template-columns: minmax(0, 1fr) 0 minmax(0, 1fr); column-gap: 6px; }
 }
@@ -5653,6 +5664,7 @@ ${paceControlsCss('tview')}
   justify-content: center; text-align: center; gap: 10px; margin: 0; }
 .loot-win .remotewho { display: flex; flex-direction: column; align-items: center; }
 .loot-win .remoteacts { justify-content: center; padding: 0; }
+.loot-win .remoteacts .sortbtn { min-width: 0; padding-left: 10px; padding-right: 10px; }   /* PACK-SORT: its word's width, so a wagon's three presses keep one row */
 .loot-win .remotewho h3 { font-size: 16px; color: #d8cfae; }
 .loot-win .remotewho .meta { font-size: 12px; letter-spacing: 0.14em; color: #9c937d;
   text-transform: uppercase; margin-top: 6px; }
@@ -6091,6 +6103,7 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
 .hmkeykind { display: inline-flex; align-items: center; gap: 5px; pointer-events: auto; font-size: 11px;
   color: #c5bda2; letter-spacing: 0.08em; text-transform: uppercase; text-shadow: 2px 2px 0 rgba(0,0,0,0.7); }
 .hmkeykind.dim { opacity: 0.4; }
+.hmroot .act.hmkeyflt.dim { opacity: 0.55; }   /* WITNESS-MAP: a switch whose layer this band does not draw */
 .hmkeyrow.off .hmkeykind { opacity: 0.3; }
 .hmkeychip { flex: none; display: block; box-shadow: 0 0 0 1px rgba(0,0,0,0.8); }
 /* OW-WHO: the Players row's word - the row's first cell, so never hidden with the glyphs' words on a phone (the

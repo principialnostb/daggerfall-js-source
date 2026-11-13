@@ -33,6 +33,9 @@ app/release/
 /app/release-mod/
 # DA13: the bundled game's index, written by the release workflow before electron-builder packs it.
 app/game-seed.json
+app/launcher/menuPad.js
+app/launcher/dfo-online.png
+app/launcher/gauntletArt.js
 
 # tools/parity: reproducible from prepare.sh / run.sh. cs/api holds DFU's
 # own sources (kept EXTERNAL per Port-Doctrine); out/ reaches ~2.4GB.
@@ -170,3 +173,8 @@ src/assets/mw/looks/skyrim_steel_battleaxe.png
 /src/assets/mw/looks/enhanced_steel_battleaxe.png
 
 /src/assets/mw/meshes/enhanced_axe_*.nif
+# the private server bundles (scripts/privateRelay.mjs)
+app/private/
+
+# the journal Activity's kit, built from src/ by tools/journalKit.mjs at the account deploy
+server-account/journal/kit/

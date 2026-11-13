@@ -5,13 +5,13 @@
 // the `in`, its blows draped on the land and judged on MY feet (egBlowVerdict), my shafts, spells and swings out to its
 // cell, its bar's model, its voice, its fall and its remains. scenes/world.js wires it; every seam is in `deps` (below,
 // createDragonHost), so it runs in Node. Not a DFU member. Ledger A (DRAGON).
-import { dragonTimes, dragonWatchesAbout, dragonQuietAt, dragonAskEnd, isDragonOmen, dragonLookOf, DRAGON_CLIMB_MS, DRAGON_REMAINS_MS, DRAGON_BRAIN_V, DRAGON_NATIVE_PER_M, DRAGON_LAND_SPAN_MS } from '../net/dragon/dragonLaw.js';
+import { dragonTimes, dragonWatchesAbout, dragonQuietAt, dragonAskEnd, dragonToldAt, isDragonOmen, dragonLookOf, DRAGON_CLIMB_MS, DRAGON_REMAINS_MS, DRAGON_BRAIN_V, DRAGON_NATIVE_PER_M, DRAGON_LAND_SPAN_MS } from '../net/dragon/dragonLaw.js';
 import { planAt, dragonLegAt, roostLeg, climbLeg, DRAGON_BODY_R, DRAGON_BODY_H } from '../net/dragon/dragonBody.js';
 import { DRAGON_BLOWS, DRAGON_BLOW, DRAGON_ADMIT_R, DRAGON_FAN_R, DRAGON_ENGAGE_R, DRAGON_MODE, DRAGON_STATE_SEND_MS } from '../net/dragon/dragonBrain.js';
 import { HIT_KINDS } from '../net/gate/gateBrain.js';
 import { strikeDamage, savedShare } from '../net/gate/gateStrike.js';
 import { egBlowVerdict } from '../net/eliteGates/egShape.js';
-import { cellRoomOfWire } from '../net/wire.js';
+import { cellRoomOfWire, mapPixelOfWire } from '../net/wire.js';
 import { bossStandIn, bossFrame, bossReach, hostCue, gateHitFlash, standInBlowCap } from '../world/gate/gateBoss.js';
 import { wordShare } from '../combat/healthShare.js';
 import { calculateAttackDamage } from '../combat/formulas.js';
@@ -37,6 +37,10 @@ import { createDragonSites } from '../systems/dragon/dragonSite.js';   // AUDIT 
 import { createDragonLink } from '../net/dragon/dragonLink.js';
 import { dragonBarModel } from '../ui/dragonBar.js';
 import { createDragonKeep } from './dragonKeepHost.js';   // DRAGON5b: the tamed dragon where it waits, comes and goes
+import { calledDragons, noteCalledFell } from '../systems/dragon/calledDragons.js';
+import { createLocalDragonFights } from '../systems/dragon/localDragonFights.js';
+import { toyboxMomentNews } from '../systems/toybox/toyboxNews.js';
+import { TB_DRAGON } from '../net/staffEvent/staffEventLaw.js';
 
 /** Its drawn size over its sprite's own (a wingspan near 19 m), how far it is drawn and heard, and the sighting's reach (m). */
 export const DRAGON_SCALE = 1.6;
@@ -54,12 +58,22 @@ export const DRAGON_IN_RETRY_MS = 3000;
 /** DRAGON-HIDDEN: an `ask` for a watch's omen, again this often until it is answered. DRAGON-HIDDEN-TIME: asked from the
  *  watch's start (its landing is nobody's to count), so a landing is heard within this of it, at four asks a minute. */
 export const DRAGON_ASK_RETRY_MS = 15_000;
+/** AUDIT DRAGON-CELL D6: a `null` is asked again from the same pixel after this long (ms) - the relay may not have judged
+ *  my pose there yet, or I asked from a room it could not judge. */
+export const DRAGON_NONE_AGAIN_MS = 60_000;
 /** A fight unheard this long (three of its whole states) is left and asked again (ms). */
 export const DRAGON_HEARD_MS = 3 * DRAGON_STATE_SEND_MS;
 /** A landing seen later than this is neither judged nor heard (ms - the gate's), and a shape lingers this long after (ms). */
 export const DRAGON_LATE_MS = 400;
 export const DRAGON_LINGER_MS = 300;
 /** My blows out: one word each at most this often (the relay hears four a second), the queue's bound. */
+/** Is `point` inside `hitbox` (its centre `c`, its axes `ax`/`ay`/`az`, its half-sizes `h`)? */
+export function inDragonBox(point, hitbox) {
+  const off = [point[0] - hitbox.c[0], point[1] - hitbox.c[1], point[2] - hitbox.c[2]];
+  return [hitbox.ax, hitbox.ay, hitbox.az].every(
+    (axis, k) => Math.abs(off[0] * axis[0] + off[1] * axis[1] + off[2] * axis[2]) <= hitbox.h[k],
+  );
+}
 export const DRAGON_HIT_GAP_MS = 260;
 export const DRAGON_HITS_QUEUED = 8;
 /** A target's id in the shots' field and a missile's marks. */
@@ -105,14 +119,29 @@ export function dragonSkyAt(d, t) {
 /** The dragon a screen draws at `t` - `{w, s, landAt, leaveAt}` - or null: this watch's or the last's, once it has come
  *  down and while its remains may still lie, of an omen its cell has told (`seedOf(w)`, DRAGON-HIDDEN). Pure. */
 export function skyWatchAt(t, seedOf) {
-  for (const w of dragonWatchesAbout(t)) {
+  return skyDragonsAt(t, seedOf)[0] ?? null;
+}
+/** Every dragon a screen may draw at `t`: the told omens' (skyWatchAt's), then each called dragon's (`called`, its omen
+ *  carrying its landing and pixel - dragonLaw.js dragonCalledOf), down and not yet gone. Pure. */
+export function skyDragonsAt(atMs, seedOf, called = []) {
+  const out = [];
+  for (const w of dragonWatchesAbout(atMs)) {
     const s = seedOf(w), o = { w, s };
     if (s == null || !isDragonOmen(o)) continue;
     const p = dragonTimes(o);
-    if (t >= p.landAt && t < p.leaveAt + DRAGON_REMAINS_MS) return { ...p, s };
+    if (atMs >= p.landAt && atMs < p.leaveAt + DRAGON_REMAINS_MS) out.push({ ...p, s });
   }
-  return null;
+  for (const omen of called) {
+    if (!isDragonOmen(omen)) continue;
+    const times = dragonTimes(omen);
+    if (atMs >= times.landAt && atMs < times.leaveAt + DRAGON_REMAINS_MS) out.push({ ...omen, ...times });
+  }
+  return out;
 }
+/** A called dragon's landing is news only this soon after it (ms): a screen that comes later finds it in the timers. */
+export const DRAGON_LAND_NEWS_MS = 5 * 60_000;
+/** A called dragon is kept this long past its leaving (ms): its climb and its remains outlast the hub's book. */
+export const CALLED_KEPT_MS = DRAGON_CLIMB_MS + DRAGON_REMAINS_MS;
 
 /** The shots' and missiles' marks with the dragon's among them, when there is a host (`others` the serpent's). */
 export const dragonBoxesWith = (sky, others) => (sky ? sky.boxes(others) : others);
@@ -127,17 +156,32 @@ export const dragonBoxesWith = (sky, others) => (sky ? sky.boxes(others) : other
 export function createDragonHost(deps) {
   const player = deps.player ?? (() => playerEntity);
   const judged = new Set(), cued = new Set(), heardLand = new Set(), meshes = new Map();
-  let memW = null, lastIn = { w: null, at: -Infinity }, noticed = null, nearSince = null, roarSlot = null;
-  const omens = new Map(), asked = new Map();   // DRAGON-HIDDEN: each watch's seed its cell told (null: none here), and when I last asked
+  let memSite = null, lastIn = { w: null, at: -Infinity }, noticed = null, nearSince = null, roarSlot = null;
+  const omens = new Map(), asked = new Map(), askedFrom = new Map(), toldNoneAt = new Map();   // DRAGON-HIDDEN: each watch's seed its cell told (null: none here), when and where I last asked
   const seedOf = (w) => omens.get(w);
+  const called = new Map();   // the called dragons heard of, by event, kept past the book's end for their climb and remains
+  /** The called omens about now, the book's joined to those kept. */
+  function calledNow(atMs) {
+    for (const omen of deps.called ? deps.called() : calledDragons()) if (omen?.ev) called.set(omen.ev, omen);
+    for (const [eventId, omen] of called) if (atMs >= dragonTimes(omen).leaveAt + CALLED_KEPT_MS) called.delete(eventId);
+    return [...called.values()];
+  }
+  /** DRAGON-CELL: the map pixel I stand on, or null. */
+  const pixelHere = () => { const f = deps.feet?.(); if (!f) return null; const n = deps.native(f[0], f[2]); return mapPixelOfWire(n[0], n[1]); };
   /** DRAGON-HIDDEN: an `ask` for each watch about whose landing is past, until it is answered - down whatever room I
-   *  stand in (AUDIT DRAGON-HIDDEN B1: net/online.js sendDragon - a siege's battle sees the sky too). */
+   *  stand in. DRAGON-CELL: the relay tells a seed only near its omen's cell, so a seed is asked again once I stand outside
+   *  that omen's reach (another omen of the watch may be about me - AUDIT DRAGON-CELL D5), and a null from another pixel,
+   *  or from this one after DRAGON_NONE_AGAIN_MS (a room or a pose the relay could not judge yet - D6). */
   function ask(t) {
+    const here = pixelHere(), key = here ? here.join(',') : '';
     for (const w of dragonWatchesAbout(t)) {
-      if (omens.has(w) || t < dragonQuietAt(w) - DRAGON_LAND_SPAN_MS || t >= dragonAskEnd(w) || t - (asked.get(w) ?? -Infinity) < DRAGON_ASK_RETRY_MS) continue;   // DRAGON-HIDDEN-TIME: from the watch's start, its landing being nobody's to count
-      if (deps.online?.send?.({ k: 'ask', w })) asked.set(w, t);
+      const s = omens.get(w), none = toldNoneAt.get(w);
+      if (s != null && (!here || dragonToldAt({ w, s }, here[0], here[1]))) continue;
+      if (s == null && omens.has(w) && none?.at === key && t - none.t < DRAGON_NONE_AGAIN_MS) continue;
+      if (t < dragonQuietAt(w) - DRAGON_LAND_SPAN_MS || t >= dragonAskEnd(w) || t - (asked.get(w) ?? -Infinity) < DRAGON_ASK_RETRY_MS) continue;   // DRAGON-HIDDEN-TIME: from the watch's start, its landing being nobody's to count
+      if (deps.online?.send?.({ k: 'ask', w })) { asked.set(w, t); askedFrom.set(w, key); }
     }
-    for (const m of [omens, asked]) for (const w of m.keys()) if (!dragonWatchesAbout(t).includes(w)) m.delete(w);
+    for (const m of [omens, asked, askedFrom, toldNoneAt]) for (const w of m.keys()) if (!dragonWatchesAbout(t).includes(w)) m.delete(w);
   }
   let lastPh = 1, lastMd = DRAGON_MODE.air, saidFell = false, saidGone = false, landed = false;
   let hpSeen = null, hurtAt = -Infinity, roomAt = -Infinity, heardHurt = -Infinity;
@@ -154,15 +198,26 @@ export function createDragonHost(deps) {
   const rewards = () => (_rewards ??= createDragonRewards(deps));
   const spell = createSerpentSpell({ player: player(), standIn, land: (_box, d) => hit(d, HIT_KINDS.Spell), cap: () => standInBlowCap(standIn(), lv()) });
 
-  /** A new watch's dragon forgets the last one's: its blows are numbered from one again. */
-  function forget(w) {
-    memW = w; judged.clear(); cued.clear(); heardLand.clear(); meshes.clear();
+  /** A new dragon forgets the last one's: its blows are numbered from one again. */
+  function forget(key) {
+    memSite = key; judged.clear(); cued.clear(); heardLand.clear(); meshes.clear();
     lastPh = 1; lastMd = DRAGON_MODE.air; saidFell = false; saidGone = false; landed = false; hpSeen = null; siteY = null; queue = [];
   }
   /** The site's frame (metres about its native point, x east, z north) and the scene's. */
   const toScene = (sx, sz, x, z) => deps.local(sx + x * DRAGON_NATIVE_PER_M, sz + z * DRAGON_NATIVE_PER_M);
   const toSite = (sx, sz, x, z) => { const n = deps.native(x, z); return [(n[0] - sx) / DRAGON_NATIVE_PER_M, (n[1] - sz) / DRAGON_NATIVE_PER_M]; };
   const scene = (x, z) => toScene(live.site.sx, live.site.sz, x, z);
+  /** Of the dragons about, the one whose site is nearest my feet (the first with no feet), with its site. */
+  function nearest(list, feet) {
+    let best = { d: null, site: null }, bestM = Infinity;
+    for (const dragon of list) {
+      const site = deps.sites.of(dragon);
+      if (!site) continue;
+      const me = feet ? toSite(site.sx, site.sz, feet[0], feet[2]) : [0, 0], away = Math.hypot(me[0], me[1]);
+      if (away < bestM) { best = { d: dragon, site }; bestM = away; }
+    }
+    return best;
+  }
   /** The land under a scene point: the drawn ground, else the site's, else my feet's. */
   function groundY(x, z) {
     const g = deps.ground(x, z);
@@ -208,7 +263,7 @@ export function createDragonHost(deps) {
     if (lastIn.w === d.w && t - lastIn.at < (heard || t >= d.leaveAt ? DRAGON_IN_RESEND_MS : DRAGON_IN_RETRY_MS)) return;   // past its leaving, an `in` only asks whether it lies here
     const cell = cellRoomOfWire(live.site.sx, live.site.sz);
     if (!deps.online?.ready?.(cell)) return;
-    if (deps.online.send({ k: 'in', w: d.w, bv: DRAGON_BRAIN_V, lv: lv(), sx: live.site.sx, sz: live.site.sz }, cell)) lastIn = { w: d.w, at: t };
+    if (deps.online.send({ k: 'in', w: d.w, bv: DRAGON_BRAIN_V, lv: lv(), sx: live.site.sx, sz: live.site.sz, ...(d.ev ? { ev: d.ev } : {}) }, cell)) lastIn = { w: d.w, at: t };   // a called dragon names its event
   }
   /** The words said of its turns, each once; its hurt heard. */
   function tellings(s, t, at) {
@@ -218,7 +273,7 @@ export function createDragonHost(deps) {
     if (s.md !== lastMd && t >= s.ma && !s.fell) { deps.say?.(s.md === DRAGON_MODE.ground ? DRAGON_WORDS.grounded : DRAGON_WORDS.aloft, 4); lastMd = s.md; }
     if (hpSeen !== null && s.hp < hpSeen) { roomAt = t; if (t - heardHurt >= 700) { heardHurt = t; play(cueOf('hurt'), at); } }
     hpSeen = s.hp;
-    if (s.fell && !saidFell) { saidFell = true; if (t - s.fell.at < 5000) { deps.mid?.(DRAGON_WORDS.fell(name), 5); play(cueOf('roar'), at); } }
+    if (s.fell && !saidFell) { saidFell = true; noteCalledFell(live.d?.ev); if (t - s.fell.at < 5000) { deps.mid?.(DRAGON_WORDS.fell(name), 5); play(cueOf('roar'), at); } }
     if (s.fell && !landed && live.act === 'remains') { landed = true; if (t - s.fell.at < 8000) play({ ...cueOf('fall'), pitch: 0.5, volume: 2 }, at); }
     if (s.gone && !s.fell && !saidGone) { saidGone = true; if (t - s.gone < 5000) deps.say?.(DRAGON_WORDS.gone, 4); }
   }
@@ -308,14 +363,15 @@ export function createDragonHost(deps) {
       const t = deps.now();
       _batches.length = 0; _shapes.length = 0; foe = null; box = null; live = null;
       ask(t);
-      const d = skyWatchAt(t, seedOf), site = d ? deps.sites.of(d) : null;
-      if (!d || !site) { if (batch) putAway(); return false; }
-      if (site.w !== memW) forget(site.w);
       const f = deps.feet?.() ?? null;
+      const { d, site } = nearest(skyDragonsAt(t, seedOf, calledNow(t)), f);
+      if (!d || !site) { if (batch) putAway(); return false; }
+      const siteKey = `${site.w}@${site.sx},${site.sz}`;
+      if (siteKey !== memSite) forget(siteKey);
       const o = toScene(site.sx, site.sz, 0, 0), y0 = deps.ground(o[0], o[1]);
       if (Number.isFinite(y0)) siteY = y0;
       const me = f ? toSite(site.sx, site.sz, f[0], f[2]) : null, far = me ? Math.hypot(me[0], me[1]) : Infinity;
-      live = { site, t, mine: false, act: null, pos: null };
+      live = { site, t, mine: false, act: null, pos: null, d };
       let s = deps.link.state();
       if (s.w === d.w && (far > DRAGON_FAN_R + 600 || (!s.fell && !s.gone && t - s.heardAt > DRAGON_HEARD_MS))) { deps.link.leave(); s = deps.link.state(); }
       sayIn(d, s, t, far);
@@ -324,7 +380,7 @@ export function createDragonHost(deps) {
       if (t >= end) { if (batch) putAway(); return false; }
       const p = (mine ? planAt(s.legs, t) : null) ?? dragonSkyAt(d, t);
       const [x, z] = scene(p.x, p.z), pos = [x, groundY(x, z) + Math.max(0, p.a), z];
-      live = { site, t, mine, act: null, pos };
+      live = { site, t, mine, act: null, pos, d };
       const blow = mine ? s.blows.filter((q) => t >= q.at - q.wu && t < q.at + 600).sort((a, b) => a.at - b.at)[0] ?? null : null;
       const ahead = mine ? planAt(s.legs, t + 100) : null;
       const moving = mine && s.md === DRAGON_MODE.ground && p.a < 1 && !!ahead && Math.hypot(ahead.x - p.x, ahead.z - p.z) > 0.05;
@@ -376,7 +432,8 @@ export function createDragonHost(deps) {
      *  reach: true when it connected. */
     swing(playerWeapon, eye, lookDir, inView = null) {
       if (!foe || !playerWeapon?.resolveHit) return false;
-      const canSee = (b) => { const { point, dist } = bossReach(eye, b.ai); return { dist, inView: inView ? inView(point) : true, losClear: true }; };
+      // standing inside its hitbox, its nearest skin is behind my eye and no view test passes: every swing there meets it
+      const canSee = (b) => { if (box && inDragonBox(eye, box.box)) return { dist: 0, inView: true, losClear: true }; const { point, dist } = bossReach(eye, b.ai); return { dist, inView: inView ? inView(point) : true, losClear: true }; };
       let any = false;
       for (const { damage } of playerWeapon.resolveHit([foe], player(), canSee, Math.random, () => 0, null, null)) {
         any = true;
@@ -404,7 +461,7 @@ export function createDragonHost(deps) {
     /** THE CELL'S REFUSAL (the link's, once until the fight is left) said in the player's language - never its `gone` past
      *  the leaving, the answer to an `in` that asked only whether its remains lie there. */
     refused(code) {
-      const d = live ? skyWatchAt(live.t, seedOf) : null;
+      const d = live?.d ?? null;
       if (code === 'gone' && d && live.t >= d.leaveAt) return;
       const text = DRAGON_NO_TEXT[code];
       if (text) deps.mid?.(text, 5);
@@ -415,6 +472,10 @@ export function createDragonHost(deps) {
     tick() { if (deps.takeSpoil) { try { rewards().tick(); } catch (e) { console.warn('[dragon] claims', e?.message ?? e); } } },
     /** DRAGON4: a receipt the relay handed me (the cell at the kill, the hub at a hello) - carried to the account service. */
     receipt: (r) => rewards().receipt(r),
+    /** An unsigned receipt from this machine's own fight (offline): its hoard rolled with no claim. */
+    hoard: (receipt) => rewards().local(receipt),
+    /** The called dragons about now (the local cell's list). */
+    calledNow: () => calledNow(deps.now()),
     /** DRAGON4: the hoard's crash door at a character's stand-up, and the realm save's two hooks. */
     recoverSpoils: (who, inSave = null) => rewards().recover(who, inSave),
     spoilsHeld: (who) => rewards().held(who),
@@ -423,8 +484,9 @@ export function createDragonHost(deps) {
     tames: () => rewards().tames(),
     /** The site this frame's dragon is of (`{w, sx, sz}`), or null - the link folds its words alone. */
     site: () => live?.site ?? null,
-    /** DRAGON-HIDDEN: a watch's omen as its cell told it (`s` null: no dragon at this relay). @param {{w: number, s: number|null}} o */
-    omen(o) { omens.set(o.w, o.s); },
+    /** DRAGON-HIDDEN: a watch's omen as its cell told it (`s` null: none near me - DRAGON-CELL - or no dragon at this relay).
+     *  @param {{w: number, s: number|null}} o */
+    omen(o) { omens.set(o.w, o.s); if (o.s == null) toldNoneAt.set(o.w, { at: askedFrom.get(o.w) ?? '', t: deps.now() }); else toldNoneAt.delete(o.w); },   // AUDIT DRAGON-CELL D6: the pixel it was asked from
     /** Test seams. */
     _queue: () => queue,
     _live: () => live,
@@ -438,15 +500,36 @@ export function createDragonHost(deps) {
  * `barBlocked()` another boss's bar up (the serpent's); `barHidden()`; `drawBar(model, opts)` the gate's bar; `makeHost` the tests'.
  * @param {any} deps createDragonHost's, and those
  */
-export function createDragonSky({ bayScan, theatres, street, barBlocked = () => false, barHidden = () => false, drawBar, makeHost = createDragonHost, ...deps }) {
+export function createDragonSky({ bayScan, theatres, street, barBlocked = () => false, barHidden = () => false, drawBar, makeHost = createDragonHost, offline = () => false, ...deps }) {
   const sites = createDragonSites({ bayScan, theatres });
   /** @type {any} */
   let host = null;
   const link = createDragonLink({ now: deps.now, say: (code) => host?.refused(code), site: () => host?.site() ?? null, onReceipt: (r) => host?.receipt(r) });
-  host = makeHost({ ...deps, link, sites });
-  const keep = createDragonKeep({ ...deps, street, scale: DRAGON_SCALE });   // DRAGON5b
+  // Offline a called dragon's fight is this machine's own (systems/dragon/localDragonFights.js); online the relay's.
+  const who = () => deps.player?.() ?? playerEntity;
+  const cell = createLocalDragonFights({
+    called: () => host?.calledNow() ?? [],
+    pose: () => { const feet = deps.feet?.(); if (!feet) return null; const at = deps.native(feet[0], feet[2]); return { x: at[0], z: at[1], dd: !(who()?.health > 0) }; },
+    deliver: (word) => link.word(word), hoard: (receipt) => host?.hoard(receipt), fell: (eventId) => noteCalledFell(eventId), now: deps.now, name: () => String(who()?.name ?? ''),
+  });
+  const wire = deps.online;
+  const online = { ready: (room) => (offline() ? true : !!wire?.ready?.(room)), send: (word, room) => (offline() ? cell.send(word) : !!wire?.send?.(word, room)) };
+  host = makeHost({ ...deps, online, link, sites });
+  const landed = new Set();
+  /** A called dragon's landing told on the World Events board, once, on every screen (systems/toybox/toyboxNews.js). */
+  function tellLandings() {
+    const nowMs = deps.now();
+    for (const omen of host.calledNow()) {
+      const at = dragonTimes(omen).landAt;
+      if (nowMs < at || landed.has(omen.ev)) continue;
+      landed.add(omen.ev);
+      if (nowMs - at < DRAGON_LAND_NEWS_MS) toyboxMomentNews({ id: omen.ev, tb: TB_DRAGON, nm: omen.nm }, 'boss');
+    }
+  }
+  const keep = createDragonKeep({ ...deps, street });   // DRAGON5b; at its ridden size, not DRAGON_SCALE
   const bossBatches = host.batches, _all = [];
-  let barUp = false;
+  let barUp = false,
+    fightNow = false;
   return Object.assign(host, {
     /** The boss's body and the tamed dragons' (mine waiting, and the others'), for the flats' axis. */
     batches() { _all.length = 0; _all.push(...bossBatches(), ...keep.batches()); return _all; },
@@ -456,15 +539,25 @@ export function createDragonSky({ bayScan, theatres, street, barBlocked = () => 
     word: (w) => (w?.k === 'omen' ? host.omen(w) : link.word(w)),   // DRAGON-HIDDEN: a watch's omen is the host's, never the fight's
     /** The online frame's (after the serpent's): on the street, to the dead too, its sky, its fight and its bar. */
     onlineFrame() {
-      host.tick();   // DRAGON4: its receipts offered in their time, in any mode
-      keep.tick();   // DRAGON5b: the mount and the dismount seen
+      const off = offline();
+      if (off) cell.tick();   // offline, the called dragon's fight beats here; no claim and no keep is asked of a service
+      else host.tick();   // DRAGON4: its receipts offered in their time, in any mode
+      if (!off) keep.tick();   // DRAGON5b: the mount and the dismount seen
+      try { tellLandings(); } catch (e) { console.warn('[dragon] landing news', e?.message ?? e); }
       let fight = false;
       try { fight = street() ? host.frame() : (host.leave(), false); } catch (e) { console.warn('[dragon] frame', e?.message ?? e); }
+      fightNow = !!fight;
       const bar = fight ? dragonBarModel(host.bar()) : null;
       if ((bar || barUp) && !barBlocked()) { drawBar(bar, { hidden: barHidden() }); barUp = !!bar; }
     },
     /** No online frame: its bar put away; offline, its fight forgotten. @param {boolean} [offline] */
-    away(offline) { if (barUp) { drawBar(null); barUp = false; } host.leave(offline); },
+    away(offline) { fightNow = false; if (barUp) { drawBar(null); barUp = false; } host.leave(offline); },
     barUp: () => barUp,
+    /** Whether its fight is on my street now: the city's guards spare the walkers then, as in a raid. */
+    fightHere: () => fightNow,
+    /** Offline, whether a called dragon is about - the frame to run onlineFrame in place of away. */
+    offlineHeld: () => offline() && host.calledNow().length > 0,
+    /** Test seam: the local cell. */
+    _cell: cell,
   });
 }

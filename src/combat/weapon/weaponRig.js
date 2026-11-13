@@ -55,6 +55,8 @@ import { installThunderlockSounds, SFX as TL_SFX } from '../../systems/thunderlo
 // same rig because this is the one surface every FPS-weapon host
 // already mounts - so wiring it here wires all four at once.
 import { fpsSpellCasting, loadSpellCastArt, drawSpellCastHands, magicAnimFilename, readiedHandsFrame, castReleaseS, castEndS } from '../fpsSpellCasting.js';   // RSH1: the readied hands; RPT1026-MISC CAST-PACE: the spell's moment; MW-SHOT-PACE: the hands' end
+import { playerPicturesGeneration } from '../../systems/replacements/playerPictures.js';   // a picture chosen on the Replacements pane loads the art again
+import { dfmodGeneration } from '../../systems/dfmodTextures.js';   // and the casting hands follow the attached mods
 import { createClimbHands, climbLens } from '../climbHands.js';   // CLIMB-HANDS: the classic lane's hands on the wall; II: the lens they are pinned through
 import { fieldOfView } from '../../ui/viewSettings.js';   // CLIMB-HANDS II: the world's own field of view, the hands' lens
 // MW-D8: the classic sprite is still the DEFAULT and still the fallback,
@@ -836,14 +838,15 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
   });
   // SPELL-BURST: the cast's element, drawn in the layered body's hands, and a weapon kept in hand beside the spell
   const layeredCast = () => ({ castElement: castPlaying() ? cast.element : null, spellHand: !!spellHandNow() });
-  // AUDIT (2026-10-31): a gathering act's tool in the body's hands, as the walkers draw mine (peerRiders walkerHands,
-  // WALK_GATHER_STROKES): held ready, each blow the swing's second stroke - odd counts, one a blow
+  // AUDIT (2026-10-31): a gathering act's tool for the layered body's hands, as the walkers draw mine (peerRiders
+  // walkerHands, WALK_GATHER_STROKES): held ready, each blow the swing's second stroke - odd counts, one a blow. Its own
+  // field: the skins keep the rig's state as it is (the owner, 2026-10-31: "This is only for layered")
   let toolBlows = 0, toolStriking = false;
   const layeredTool = () => {
     const tool = actTool(), strike = !!tool && !!tool.state && tool.state !== 'Idle';
     if (strike && !toolStriking) toolBlows++;
     toolStriking = strike;
-    return tool ? { heldWeapon: tool, toolInHand: true, usingBow: false, spellcasting: false, attacking: strike, swingN: -(2 * toolBlows + 1), pairRight: null, pairLeft: null, pairStrike: null } : {};
+    return tool ? { heldWeapon: tool, toolInHand: true, usingBow: false, spellcasting: false, attacking: strike, swingN: -(2 * toolBlows + 1), pairRight: null, pairLeft: null, pairStrike: null } : null;
   };
   // EOTB5: THE OTHER BODY, attached in the same breath as the arm it
   // stands in for. THE FOUR HOSTS named: exterior.js, world.js,
@@ -913,7 +916,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     handItem: playerWeapon.handItem(playerWeapon.leadHand),   // BACK-HOLSTER: the weapon of the hand in use - on the sprite's back sheathed, its glow round the sprite drawn
     handWraps: playerWeapon.wrapsOf(playerWeapon.leadHand),   // BACK-HOLSTER GLOW: and a bare fist's Hand Wraps, as handGlowOf asks them
     hasAmmo: hasAmmoFor(entity?.items, playerWeapon.handItem(playerWeapon.leadHand)),   // QUIVER: arrows in the quiver on the sprite's back (WS1's)
-    ...layeredTool(),   // AUDIT: a gathering act's tool over the weapon's hands
+    layeredTool: layeredTool(),   // AUDIT: a gathering act's tool, for the layered body's hands
   });
   const bindBody = () => eotbBody.attach(renderer, eotbState);
   bindBody();
@@ -1029,7 +1032,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     // is what the mod is for, and its author's tables are honoured over
     // DFU's cache slot.
     const gilded = thunderlock && item?.rarity === 'gilded';   // GILDED1: the Hourlock's frames in gold leaf (thunderlockArt.js gildFrame)
-    const key = `${type}:${item?.material ?? 0}:${thunderlock ? (gilded ? 'gilded' : '') : atlasFileName(item, WEAPON_FILE[type] ?? '', undefined, plain ? false : undefined)}`;
+    const key = `${type}:${item?.material ?? 0}:${thunderlock ? (gilded ? 'gilded' : '') : atlasFileName(item, WEAPON_FILE[type] ?? '', undefined, plain ? false : undefined)}:${playerPicturesGeneration()}`;
     if (!cache.has(key)) {
       cache.set(key, null);
       (isPistoletType(type)
@@ -1056,13 +1059,14 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
 
   function spellArtFor(element) {
     if (!palette || !magicAnimFilename(element)) return null;
-    if (!spellCache.has(element)) {
-      spellCache.set(element, null);
+    const key = `${element}:${playerPicturesGeneration()}:${dfmodGeneration()}`;
+    if (!spellCache.has(key)) {
+      spellCache.set(key, null);
       loadSpellCastArt(fetchBytes, palette, renderer, element)
-        .then((art) => spellCache.set(element, art))
+        .then((art) => spellCache.set(key, art))
         .catch((e) => console.warn('[weaponRig] spell anim load failed', element, e));
     }
-    return spellCache.get(element);
+    return spellCache.get(key);
   }
 
   /** WeaponManager.Update's ShowWeapons legs, verbatim order.
@@ -2121,7 +2125,10 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
         // left blade its own
         fpArm.setWeaponGlow?.(meshGlow(armItem), armItem);
         fpArm.setOffWeaponGlow?.(offItem ? meshGlow(offItem) : null, offItem);
-        fpArm.setHandGlow?.(wrapsMeshGlow() ?? (armItem ? null : fistGlow()));   // HAND-WRAPS: the fists wear the wraps' glow (bible/05-Combat/Hand-Wraps.md); ARMORY-FISTS: bare, the kit's weapon piece
+        // The werewolf's claws ARE its hands (fpWeaponKey keys them as the empty hand, the robe's hand rows the
+        // 'hands' ranges), so they wear the glow the classic claws sprite wears (glowOf, the art's own ask) - as a weapon
+        // they took none: no blade mesh for setWeaponGlow, and a held item turned the fists' glow off
+        fpArm.setHandGlow?.(armItem?.werecreatureClaws ? glowOf(armItem) : (wrapsMeshGlow() ?? (armItem ? null : fistGlow())));   // HAND-WRAPS: the fists wear the wraps' glow (bible/05-Combat/Hand-Wraps.md); ARMORY-FISTS: bare, the kit's weapon piece
         // MW-D32: THE BODY FOLLOWS THE EQUIP TABLE. The same per-frame
         // read that swaps the weapon now hands the rig its worn list;
         // setWorn's fast path is one key compare, and a change - a

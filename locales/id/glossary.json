@@ -326,5 +326,12 @@
  "sail patterns: Plain, Stripes, Bands, Quartered, Chevron, Cross, Border, Saltire": "Polos, Garis tegak, Garis mendatar, Empat petak, Siku, Salib, Tepi, Silang",
  "pattern (a sail's)": "motif",
  "Fleet (the ships page)": "Armada",
- "arms slot (Aura Armory)": "slot lengan"
+ "arms slot (Aura Armory)": "slot lengan",
+ "Overhaul (a texture overhaul mod)": "Perombakan",
+ "Replacements (the pane) / replacement (the player's own picture)": "Pengganti",
+ "picture (a game texture or sprite)": "gambar",
+ "Rejected: (a refused file)": "Ditolak:",
+ "NPCs (Replacements tab)": "NPC",
+ "Skin card (the profile card where the body look is chosen)": "kartu Skin",
+ "Layered Gearing (mod name, kept as is)": "Layered Gearing"
 }

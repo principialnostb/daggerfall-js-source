@@ -63,6 +63,7 @@ import {
 import { stripFont, STRIP } from '../map/mapStrip.js';
 import { dungeonInkFor, SLICE_ABOVE, rowMesh } from '../ink/inkDungeonGL.js';   // GL-LEAK: the page's one ink
 import { INK_RGB as FLOOR_INK_RGB } from '../ink/inkMap.js';
+import { readKeptView, writeKeptView } from './automapViewKeep.js';
 const NAME_FACE_CSS = "'Cormorant', Georgia, serif";   // EM3-3D: the classic map's way, drawn
 // EM3-3D: the same plan in the round, when the player has the solid map on (ui/map/mapSkin.js dungeonMap3dOn)
 import {
@@ -110,6 +111,7 @@ export const ME_MIDDLE_PX = 40;
 /** ALL-FLOORS: the key that shows every explored floor at once, and back. */
 export const ALL_FLOORS_KEY = 'KeyL';
 let _fullMapPref = false;
+const SHEET_VIEW_STORE = 'dfo.automapSheetViews';
 
 /** The fit at rest has ONE HOME in ui/ink/inkMap.js - re-exported so a
  *  pin that has this sheet does not also have to reach for it. */
@@ -141,7 +143,7 @@ const _frames = new WeakMap();   // rows -> { bounds, floors, field, links, shee
  *   player?: () => {feet?: number[], yaw?: number}|null,
  *   startMarker?: {x:number,y:number,z:number}|null,
  *   insideBuilding?: boolean,
- *   title?: string,
+ *   title?: string, viewKey?: string|null,
  *   askText?: (initial: string, done: (text: string|null) => void) => void,
  *   party?: () => Array<{acct?: string|null, name?: string, feet?: number[], yaw?: number}>,
  *   solid?: boolean,
@@ -1749,6 +1751,31 @@ export function createAutomapSheet(deps = {}) {
       const scale = restScale(min, fit);   // capped first, so the centre holds
       const c = p ? { x: p.x, y: p.z } : { x: (ext.x0 + ext.x1) / 2, y: (ext.y0 + ext.y1) / 2 };
       return viewCentredOn(c.x, c.y, scale, limits);
+    },
+
+    /** The view this dungeon's map was closed on (floor, turn, centre, zoom), or null. A flat view is not a solid one. */
+    keptView(limits) {
+      const kept = readKeptView(SHEET_VIEW_STORE, deps.viewKey);
+      if (!kept || !!kept.solid !== solidOn || ![kept.cx, kept.cy, kept.scale].every(Number.isFinite) || kept.scale <= 0) return null;
+      const levelFrame = ensureFrame();
+      if (Number.isInteger(kept.index) && kept.index >= 0 && kept.index < levelFrame.sheets.length) { index = kept.index; cut = null; }
+      if (solidOn) {
+        if (Number.isFinite(kept.yaw)) orbit.yaw = orbit.goalYaw = kept.yaw;
+        if (Number.isFinite(kept.pitch)) orbit.pitch = orbit.goalPitch = Math.max(ORBIT.pitchMin, Math.min(ORBIT.pitchMax, kept.pitch));
+        viewFloor = Number.isInteger(kept.viewFloor) && levelFrame.floors[kept.viewFloor] ? kept.viewFloor : null;
+        framedAt = { yaw: orbit.yaw, pitch: orbit.pitch };
+        wantHome = false; wantMe = false; floorShift = 0;
+      }
+      return viewCentredOn(kept.cx, kept.cy, kept.scale, limits);
+    },
+    /** Keep the view the map was closed on, for this dungeon's next open. */
+    keepView(view, paper) {
+      if (!view || !paper || !(view.scale > 0) || ![view.ox, view.oy, paper.w, paper.h].every(Number.isFinite)) return;
+      writeKeptView(SHEET_VIEW_STORE, deps.viewKey, {
+        solid: solidOn, index, viewFloor,
+        yaw: orbit.goalYaw, pitch: orbit.goalPitch,
+        cx: view.ox + paper.w / (2 * view.scale), cy: view.oy + paper.h / (2 * view.scale), scale: view.scale,
+      });
     },
 
     /** ME-PAN fix: THE ME BUTTON. The player in the middle of the paper, at the rest zoom (or nearer, if the map is

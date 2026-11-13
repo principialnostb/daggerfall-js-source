@@ -17,7 +17,8 @@
 // Not a DFU member. Ledger A (EVENT-TIP).
 import { raidActive, raidKey, raidTypeName } from '../systems/raidingParties.js';
 import { MAP_WIDTH, MAP_HEIGHT } from '../formats/woodsFile.js';
-import { raidKillsX } from '../systems/raidKinds.js';   // RAID-BANNER
+import { raidKillsX } from '../systems/raidKinds.js'; // RAID-BANNER
+import { t } from '../systems/textManager.js';
 
 /** The bay, when a caller does not say. */
 const BAY = Object.freeze({ width: MAP_WIDTH, height: MAP_HEIGHT });
@@ -27,6 +28,26 @@ const BAY = Object.freeze({ width: MAP_WIDTH, height: MAP_HEIGHT });
 export const RAID_MARK_CSS = '#d8284b';
 /** What the legend calls it. */
 export const RAID_LEGEND_TEXT = 'Town under attack';
+/** A mark's own icons beside the raided town's (a host's `icon`): an invasion's, in its purple (inkMap.js
+ *  paintInvasionMark), and a dragon attack's, in its orange (paintDragonMark). Its `text` is drawn by it, as the timer
+ *  reads. */
+export const RAID_ICONS = Object.freeze(['invasion', 'dragon']);
+export const INVASION_MARK_CSS = '#a13fe0';
+/** What the legend calls an invasion. */
+export const invasionLegendText = () => t('map.legend.invasion', 'Invasion');
+/** Its words' ink: the purple darkened, so small letters keep their contrast on the parchment. */
+export const INVASION_TEXT_CSS = '#64179a';
+/** A dragon attack's orange: yellower than the gate's ring, so the two never read as one. */
+export const DRAGON_MARK_CSS = '#f08c1a';
+/** What the legend calls a dragon attack. */
+export const dragonLegendText = () => t('map.legend.dragon', 'Dragon Attack');
+/** Its words' ink: the orange darkened, for the parchment. */
+export const DRAGON_TEXT_CSS = '#8f4a05';
+/** Each icon's legend row: its colour and its words. */
+export const raidIconLegend = () => [
+  { icon: 'invasion', css: INVASION_MARK_CSS, text: invasionLegendText() },
+  { icon: 'dragon', css: DRAGON_MARK_CSS, text: dragonLegendText() },
+];
 /** A tip's title, in the card's own words. */
 export const RAID_TIP_TITLE = 'Raiding Party';
 /** A tip's bounds: a title and at most this many lines, each at most this long - a host's word is text, and a card that
@@ -53,7 +74,10 @@ const clockText = (minute) => {
 };
 
 /** A raiding party as a player reads it: "Orcs", "Bandits", "Knights" (raidTypeName's words, capitalised). */
-export const raidPartyWord = (type) => { const w = raidTypeName(type); return w[0].toUpperCase() + w.slice(1); };
+export const raidPartyWord = (type) => {
+  const w = raidTypeName(type);
+  return w[0].toUpperCase() + w.slice(1);
+};
 
 /**
  * The raids a map marks at `nowMinutes` (classic minutes, the raids' own clock - systems/worldTick.js worldMinutes):
@@ -79,13 +103,19 @@ export function raidMapMarks(raids, nowMinutes, { regionName = () => '', localTi
     // FIELD BUGS 2026-10-11g RAID-WORD: at a raid relay the town's count is the ledger's (every defender's deaths, its
     // target the day's roll of 15 to 25), not this machine's share - "20 kills, and nothing pops up" read a share
     const led = typeof relay === 'function' ? relay(raidKey(r)) : null;
-    const x = raidKillsX(r);   // RAID-BANNER: a Standard's count in deaths
+    const x = raidKillsX(r); // RAID-BANNER: a Standard's count in deaths
     const killed = (Number.isInteger(led?.n) ? led.n : r.killed) * x;
     const target = (Number.isInteger(led?.tg) && led.tg > 0 ? led.tg : r.attackAmount) * x;
     if (killed > 0 && target > 0) lines.push(`${Math.min(killed, target)} of ${target} driven off`);
     const local = typeof localTime === 'function' ? localTime(r.endMinute) : null;
     lines.push(local ? `Withdraws at ${local} your time` : `Withdraws at ${clockText(r.endMinute)}`);
-    out.push({ key: raidKey(r), px: r.px, py: r.py, label: `${town} - under attack`, tip: { title: RAID_TIP_TITLE, lines } });
+    out.push({
+      key: raidKey(r),
+      px: r.px,
+      py: r.py,
+      label: `${town} - under attack`,
+      tip: { title: RAID_TIP_TITLE, lines },
+    });
   }
   return out;
 }
@@ -97,7 +127,10 @@ export function readTip(tip, { textMax = TIP_TEXT_MAX, linesMax = TIP_LINES_MAX 
   if (!tip || typeof tip !== 'object') return null;
   const title = String(tip.title ?? '').slice(0, TIP_TEXT_MAX);
   if (!title) return null;
-  const lines = (Array.isArray(tip.lines) ? tip.lines : []).slice(0, linesMax).map((l) => String(l ?? '').slice(0, textMax)).filter(Boolean);
+  const lines = (Array.isArray(tip.lines) ? tip.lines : [])
+    .slice(0, linesMax)
+    .map((l) => String(l ?? '').slice(0, textMax))
+    .filter(Boolean);
   return Object.freeze({ title, lines: Object.freeze(lines) });
 }
 
@@ -122,26 +155,51 @@ export function readRaidMarks(fn, size = BAY) {
  *  @param {(() => any) | undefined} fn @param {{x0:number, y0:number, w:number, h:number}} box */
 export function readRaidMarksIn(fn, box) {
   let list = null;
-  try { list = typeof fn === 'function' ? fn() : null; } catch { return []; }
+  try {
+    list = typeof fn === 'function' ? fn() : null;
+  } catch {
+    return [];
+  }
   if (!Array.isArray(list)) return [];
   const out = [];
   for (const m of list) {
     if (!m || typeof m !== 'object') continue;
     const { px, py } = m;
-    if (!Number.isInteger(px) || !Number.isInteger(py) || px < box.x0 || py < box.y0 || px >= box.x0 + box.w || py >= box.y0 + box.h) continue;
-    out.push(Object.freeze({ key: String(m.key ?? `${px},${py}`), px, py, x: px + 0.5, y: py + 0.5, label: String(m.label ?? '').slice(0, TIP_TEXT_MAX), tip: readTip(m.tip) }));
+    if (
+      !Number.isInteger(px) ||
+      !Number.isInteger(py) ||
+      px < box.x0 ||
+      py < box.y0 ||
+      px >= box.x0 + box.w ||
+      py >= box.y0 + box.h
+    )
+      continue;
+    out.push(
+      Object.freeze({
+        key: String(m.key ?? `${px},${py}`),
+        px,
+        py,
+        x: px + 0.5,
+        y: py + 0.5,
+        label: String(m.label ?? '').slice(0, TIP_TEXT_MAX),
+        tip: readTip(m.tip),
+        ...(RAID_ICONS.includes(m.icon) ? { icon: m.icon, text: String(m.text ?? '').slice(0, TIP_TEXT_MAX) } : {}),
+      }),
+    );
   }
   return out;
 }
 /** What the held map repaints its raids on: where they stand and what they say. */
-export const raidMarksKey = (marks) => marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}|${tipKey(m.tip)}`).join(';');
+export const raidMarksKey = (marks) =>
+  marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}|${m.icon ?? ''}|${m.text ?? ''}|${tipKey(m.tip)}`).join(';');
 
 /**
  * Where a tip card stands: beside the pointer (down and right by `gap`), turned to the other side of it where the
  * viewport would cut it, and never off the viewport's edge. Pure: the card's measured size in, its corner out.
  */
 export function placeTip(x, y, w, h, vw, vh, gap = 16, edge = 8) {
-  let left = x + gap, top = y + gap;
+  let left = x + gap,
+    top = y + gap;
   if (left + w > vw - edge) left = x - gap - w;
   if (top + h > vh - edge) top = y - gap - h;
   return { left: Math.max(edge, Math.min(left, vw - edge - w)), top: Math.max(edge, Math.min(top, vh - edge - h)) };

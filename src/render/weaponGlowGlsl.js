@@ -54,9 +54,37 @@ export const GLOW_FIRE_UP = 1.8;
 export const GLOW_FIRE_DOWN = 0.6;
 /** The embers' shifts over a fire weapon (glow units, three heights, each straight up and a hair to either side). */
 export const GLOW_EMBER_RISE = Object.freeze([6, 7.5, 9]);
+/** THE TIDEBOUND EDGE, drawn in the edge's code as its skin 1 (`uGlowSkin`, systems/weaponGlowLooks.js GLOW_SKINS): a
+ *  swell of water round the weapon, its crests `wave` cells apart running toward the tip, `run` crests a second, a chop
+ *  over them at `chop` Hz; drops of it falling `fall` cells a second, `slack` cells past its band at most - the Morrowind
+ *  pass's drops its outline shifted `drops` units down. Each rate whole over the clock. */
+export const GLOW_TIDE = Object.freeze({
+  skin: 1,
+  wave: 12,
+  run: 1,
+  chop: 0.5,
+  fall: 6,
+  slack: 4,
+  drops: Object.freeze([2, 3.5, 5]),
+});
+const TAU = 2 * Math.PI;
+/** The swell's crest at a cell (`cx`, `cy`, y up) at the clock `t`: 1 on a crest's top, 0 in its trough. Pure. */
+export const tideEdgeCrest = (cx, cy, t) =>
+  (0.5 + 0.5 * Math.sin(TAU * ((cy + 0.3 * cx) / GLOW_TIDE.wave - t * GLOW_TIDE.run))) ** 2;
+/** How far the Tidebound Edge's water stands off the weapon at a cell, at level `lv`: its swell and the chop over it. Pure. */
+export const tideEdgeReach = (cx, cy, t, lv) =>
+  0.9 +
+  0.4 * lv +
+  1.5 * tideEdgeCrest(cx, cy, t) +
+  0.3 * (0.5 + 0.5 * Math.sin(TAU * (cy * 0.17 - cx * 0.09 + t * GLOW_TIDE.chop)));
 /** How far a look's outline stands off the weapon at most, in glow units: the outer ring, fire's stretched up and its
- *  embers over it. */
-export const glowReach = (look) => (look === 'fire' ? Math.max(GLOW_RINGS[0] * GLOW_FIRE_UP, ...GLOW_EMBER_RISE) : GLOW_RINGS[0]);
+ *  embers over it, the Tidebound Edge's drops under it. */
+export const glowReach = (look) =>
+  look === 'fire'
+    ? Math.max(GLOW_RINGS[0] * GLOW_FIRE_UP, ...GLOW_EMBER_RISE)
+    : look === 'tide'
+      ? Math.max(GLOW_RINGS[0], ...GLOW_TIDE.drops)
+      : GLOW_RINGS[0];
 /** AUDIT WEAPON-GLOW MW-3: THE ROOM A THIRD-PERSON PICTURE NEEDS FOR ITS OUTLINE, in texels a side (render/
  *  characterSprite.js drawRigSpriteBox pads the window by it, as it pads for a foe's tells - bodyFxPad): the reach in
  *  glow units at the unit the PADDED picture will draw at, and a texel over. `rows` the picture's rows before the pad.
@@ -95,19 +123,46 @@ export const GLOW_DRAWS_MAX = 64;
  *  1, arcane (its one level, 2) 1.6 + 1.2. The sprite clamps its reach here (`uReachMax`), and its window below holds
  *  every cell within it, so no band is ever cut short by the window's box (AUDIT WEAPON-GLOW SPR-2: the window was a
  *  guess, and shock's band reached past it in every frame at level 3). */
-export const GLOW_REACH_MAX = Object.freeze({ fire: 7.35, frost: 6.1, shock: 10, arcane: 2.8, brand: 3.4, edge: 3.4, gilded: 3.2 });   // ARMORY: the Brand's (1 + 0.7 x 2)(0.6 + 0.8), the Edge's 1 + 0.4 x 2 + 1.6; GILDED-GLOW: 1.2 + 0.4 x 2 + 0.6 + 0.6, under the Brand's
+export const GLOW_REACH_MAX = Object.freeze({
+  fire: 7.35,
+  frost: 6.1,
+  shock: 10,
+  arcane: 2.8,
+  brand: 3.4,
+  edge: 3.4,
+  gilded: 3.2,
+  tide: 3.5,
+}); // ARMORY: the Brand's (1 + 0.7 x 2)(0.6 + 0.8), the Edge's 1 + 0.4 x 2 + 1.6; GILDED-GLOW: 1.2 + 0.4 x 2 + 0.6 + 0.6, under the Brand's; the Tidebound Edge's 0.9 + 0.4 x 2 + 1.5 + 0.3
 /** How far past its band a fire ember may rise off the weapon (GLOW_SPRITE_FS - an ember stands only over a solid). */
 export const GLOW_EMBER_SLACK = 3;
-/** The farthest a look's field measures, in glow cells: its reach, and fire's embers past it. */
-export const glowFieldReach = (look) => GLOW_REACH_MAX[/** @type {keyof typeof GLOW_REACH_MAX} */ (look)] + (look === 'fire' ? GLOW_EMBER_SLACK : 0);
+/** The farthest a look's field measures, in glow cells: its reach, and fire's embers or the Tidebound Edge's drops past it. */
+export const glowFieldReach = (look) =>
+  GLOW_REACH_MAX[/** @type {keyof typeof GLOW_REACH_MAX} */ (look)] +
+  (look === 'fire' ? GLOW_EMBER_SLACK : look === 'tide' ? GLOW_TIDE.slack : 0);
 /** The sprite's search window per look, in glow cells: [half-width, rows above the cell, rows below it] - every cell
  *  within glowFieldReach in the look's metric (gwMetric), and no more. Fire's flame stands over its weapon, so it looks
  *  far DOWN (its metric shrinks a rise by GLOW_FIRE_UP) and a little way up (a fall grows by 1/GLOW_FIRE_DOWN), and only
  *  its band looks up - an ember rises off a solid below it. */
-export const GLOW_SPRITE_WINDOW = Object.freeze(Object.fromEntries(['fire', 'frost', 'shock', 'arcane', 'brand', 'edge', 'gilded'].map((look) => {
-  const r = GLOW_REACH_MAX[/** @type {keyof typeof GLOW_REACH_MAX} */ (look)], e = glowFieldReach(look);
-  return [look, Object.freeze(look === 'fire' ? [Math.floor(e), Math.floor(r * GLOW_FIRE_DOWN), Math.floor(e * GLOW_FIRE_UP)] : [Math.floor(e), Math.floor(e), Math.floor(e)])];
-})));
+export const GLOW_SPRITE_WINDOW = Object.freeze(
+  Object.fromEntries(
+    ['fire', 'frost', 'shock', 'arcane', 'brand', 'edge', 'gilded', 'tide'].map((look) => {
+      const r = GLOW_REACH_MAX[/** @type {keyof typeof GLOW_REACH_MAX} */ (look)],
+        e = glowFieldReach(look);
+      return [
+        look,
+        Object.freeze(
+          look === 'fire'
+            ? [Math.floor(e), Math.floor(r * GLOW_FIRE_DOWN), Math.floor(e * GLOW_FIRE_UP)]
+            : [Math.floor(e), Math.floor(e), Math.floor(e)],
+        ),
+      ];
+    }),
+  ),
+);
+/** A field's key among a frame's (render/renderer.js _glowField): the look's code (under 8), its skin (0 or 1, its own
+ *  reach and window), the sides cut and the frame's cells - each in bits of its own, so no two fields share one. Pure. */
+export const glowFieldKey = (spec, cutL, cutR, aw, ah) =>
+  spec.code + 8 * (spec.skin ? 1 : 0) + 16 * ((cutL ? 1 : 0) + (cutR ? 2 : 0)) + 64 * (aw * 4096 + ah);
 /** AUDIT WEAPON-GLOW SPR-1: the most frames' fields the renderer keeps (render/renderer.js drawScreenQuadGlow) - a
  *  weapon's sheet is seven records of a few frames each, so two weapons' worth and the Thunderlock's; the least
  *  recently drawn goes first. */
@@ -120,10 +175,21 @@ export const GLOW_WORLD_FIELDS_MAX = 256;
  *  glow cells with y UP; `uRamp` the look's four stops, dark to hot. */
 export const GLOW_LOOK_GLSL = `
 uniform vec3 uRamp[4];
+uniform int uGlowSkin;   // a skin drawn in its look's code: ${GLOW_TIDE.skin} the Tidebound Edge's water in the edge's
 float gwHash(vec2 p) {
   vec3 q = fract(vec3(p.xyx) * 0.1031);
   q += dot(q, q.yzx + 33.33);
   return fract((q.x + q.y) * q.z);
+}
+// THE TIDEBOUND EDGE: a swell of water round the weapon, its crests running toward the tip, a chop over them
+float gwTideCrest(vec2 c, float t) { return pow(0.5 + 0.5 * sin(6.2831853 * ((c.y + 0.3 * c.x) / ${GLOW_TIDE.wave.toFixed(1)} - t * ${GLOW_TIDE.run.toFixed(1)})), 2.0); }
+float gwTideReach(vec2 c, float t, float lv) {
+  float chop = 0.5 + 0.5 * sin(6.2831853 * (c.y * 0.17 - c.x * 0.09 + t * ${GLOW_TIDE.chop.toFixed(1)}));
+  return 0.9 + 0.4 * lv + 1.5 * gwTideCrest(c, t) + 0.3 * chop;
+}
+// a drop of its water falling off the weapon, a cell a step
+bool gwDrip(vec2 c, float t, float lv) {
+  return gwHash(vec2(floor(c.x) + 53.0, mod(floor(c.y) + floor(t * ${GLOW_TIDE.fall.toFixed(1)}), ${(GLOW_CLOCK_PERIOD * GLOW_TIDE.fall).toFixed(1)}))) > 0.955 - 0.005 * lv;
 }
 // value noise, periodic in y over py lattice rows - a scroll of exactly py rows a clock period wraps seamlessly
 float gwNoise(vec2 x, float py) {
@@ -170,6 +236,7 @@ float gwReach(int look, vec2 c, float t, float lv) {
     float fall = pow(fract(c.y * 0.05 + t * 0.5 + gwHash(vec2(floor(c.x * 0.33), 5.0))), 6.0);
     return (1.0 + 0.7 * lv) * (0.6 + 0.8 * max(max(n, drip), fall));
   }
+  if (look == 6 && uGlowSkin == ${GLOW_TIDE.skin}) return gwTideReach(c, t, lv);   // the Tidebound Edge's own swell
   if (look == 6) {   // ARMORY: the Eternal Edge - a crisp line round the blade, a light running along it and a fainter one back
     float run = pow(0.5 + 0.5 * sin(t * 1.5707963 - (c.x + c.y) * 0.18), 8.0);
     float back = pow(0.5 + 0.5 * sin(t * 1.0471976 + (c.x + c.y) * 0.11), 12.0);
@@ -190,6 +257,14 @@ vec4 gwShade(int look, float h, vec2 c, float t, float lv) {
   float a = 0.55 + 0.45 * h;
   if (look == 2 && gwHash(floor(c) + floor(t * 5.0) * 7.31) > 0.972) { col = uRamp[3]; a = 1.0; }
   if (look == 3 && gwHash(floor(c * 0.5) + floor(t * 12.0) * 13.0) < 0.18) return vec4(0.0);
+  if (look == 6 && uGlowSkin == ${GLOW_TIDE.skin}) {   // the Tidebound Edge: a teal body, the glass of its skin at the
+    // band's outer cell, white foam on that skin along a crest's top and a fleck of it now and then in the body
+    bool skin = h * gwTideReach(c, t, lv) < 1.0;
+    col = skin ? uRamp[1] : uRamp[0];
+    a = skin ? 0.95 : 0.8;
+    if ((skin && gwTideCrest(c, t) > 0.45) || gwHash(floor(c) + floor(t * 4.0) * 3.17) > 0.985) { col = uRamp[3]; a = 1.0; }
+    return vec4(col, a * (0.75 + 0.083 * lv));
+  }
   if (look == 6 && h > 0.7) { col = uRamp[3]; a = 1.0; }   // ARMORY: the Edge's line white-hot at the blade
   if ((look == 5 || look == 6) && gwHash(floor(c) + floor(t * 6.0) * 3.17) > 0.982) { col = uRamp[3]; a = 1.0; }   // ARMORY: a spark caught in the band
   if (look == 7) col = uRamp[int(clamp(floor(h * 4.0 + 0.5), 0.0, 3.0))];   // GILDED-GLOW: a step hotter - crimson by the blade, its core at the swell
@@ -207,6 +282,7 @@ vec4 gwRim(int look, vec2 c, float t, float lv) {
   else if (look == 2) k = 0.3 + 0.2 * (0.5 + 0.5 * sin(t * 2.0943951));
   else if (look == 3) k = gwHash(floor(c * 0.5) + floor(t * 12.0) * 5.0) > 0.5 ? 0.65 : 0.15;
   else if (look == 5) k = 0.3 + 0.35 * gwNoise(vec2(c.x * 0.6, c.y * 0.6 + t * 2.0), 480.0);
+  else if (look == 6 && uGlowSkin == ${GLOW_TIDE.skin}) k = 0.3 + 0.4 * gwTideCrest(c, t);   // the Tidebound Edge's swell on the weapon's own edge
   else if (look == 6) k = 0.4 + 0.45 * pow(0.5 + 0.5 * sin(t * 1.5707963 - (c.x + c.y) * 0.18), 8.0);
   else if (look == 7) k = 0.3 + 0.25 * (0.5 + 0.5 * sin(t * 1.5707963));   // GILDED-GLOW: the edge breathes with the halo
   return vec4(uRamp[2], k * (0.7 + 0.1 * lv));
@@ -224,6 +300,7 @@ float gwSurface(int look, vec2 uv, vec2 c, float t) {
     return 1.0 - smoothstep(0.0, 0.07, abs(gwNoise(c * 0.6 + vec2(s * 5.1, s * 2.3), 4096.0) - 0.5));
   }
   if (look == 5) return max(smoothstep(0.45, 0.95, gwNoise(vec2(c.x * 0.5, c.y * 0.35 + t * 2.0), 480.0)), 0.6 * (1.0 - smoothstep(0.0, 0.05, abs(gwNoise(c * 0.4 + 9.0, 4096.0) - 0.5))));   // ARMORY: the Brand's fire runs down its cracks
+  if (look == 6 && uGlowSkin == ${GLOW_TIDE.skin}) return 0.55 * pow(0.5 + 0.5 * sin(6.2831853 * (uv.y * 3.0 - t * ${GLOW_TIDE.run.toFixed(1)}) + 1.5 * sin(6.2831853 * (uv.x * 2.0 + t * ${GLOW_TIDE.chop.toFixed(1)}))), 4.0);   // the Tidebound Edge: light through water rippling up the weapon
   if (look == 6) return max(pow(0.5 + 0.5 * sin(t * 1.5707963 - uv.y * 12.0), 10.0), step(0.985, gwHash(floor(uv * 32.0) + floor(t * 4.0) * 5.71)));   // ARMORY: a light sweeping the Edge's length, a glint here and there
   if (look == 7) return max(0.35 * (0.5 + 0.5 * sin(t * 1.5707963)), pow(0.5 + 0.5 * sin(t * 1.0471976 - uv.y * 8.0), 8.0));   // GILDED-GLOW: a sheen walking the blade over the halo's beat
   float a = t * 0.2617994;
@@ -358,6 +435,13 @@ uniform float uReachMax;
 uniform int uFlipY;   // BACK-HOLSTER GLOW: the world picture's bottom-up rows, its cells counted from its top as the field's are
 out vec4 outColor;
 ${GLOW_LOOK_GLSL}
+// a cell under the weapon: a solid one straight above it within the drops' reach (the field's rows run down)
+bool gwUnder(ivec2 a) {
+  for (int j = 1; j <= ${Math.ceil(glowFieldReach('tide'))}; j++) {
+    if (texelFetch(uField, clamp(a - ivec2(0, j) + uFieldAt, ivec2(0), textureSize(uField, 0) - 1), 0).b > 0.25) return true;
+  }
+  return false;
+}
 void main() {
   vec2 uv = mix(uSrc.xy, uSrc.zw, vQ);
   ivec2 ts = textureSize(uTex, 0);
@@ -381,6 +465,7 @@ void main() {
   float h = 1.0 - d / max(reach, 0.25);
   if (h <= 0.0) {
     if (uLook == 1 && f.g > 0.5 && d < reach + ${GLOW_EMBER_SLACK.toFixed(1)} && gwEmber(c, t, lv)) { outColor = vec4(uRamp[2], 1.0); return; }
+    if (uLook == 6 && uGlowSkin == ${GLOW_TIDE.skin} && gwDrip(c, t, lv) && gwUnder(a)) { outColor = vec4(uRamp[3], 1.0); return; }   // the Tidebound Edge's drops
     discard;
   }
   vec4 s = gwShade(uLook, h, c, t, lv);
@@ -393,9 +478,14 @@ void main() {
  *  FOG_GLSL, handed in - this file is a leaf) at its place in the world. Throws on a source without exactly one of each
  *  needle (glowMeshVs' rule). */
 export function glowWorldFs(spriteFs, fogGlsl) {
-  const decl = 'out vec4 outColor;', main = /\bvoid main\(\) \{/g;
-  const decls = spriteFs.split(decl).length - 1, mains = spriteFs.match(main)?.length ?? 0;
-  if (decls !== 1 || mains !== 1) throw new Error(`BACK-HOLSTER GLOW: the outline's shader needs one "${decl}" and one main (has ${decls} and ${mains})`);
+  const decl = 'out vec4 outColor;',
+    main = /\bvoid main\(\) \{/g;
+  const decls = spriteFs.split(decl).length - 1,
+    mains = spriteFs.match(main)?.length ?? 0;
+  if (decls !== 1 || mains !== 1)
+    throw new Error(
+      `BACK-HOLSTER GLOW: the outline's shader needs one "${decl}" and one main (has ${decls} and ${mains})`,
+    );
   const fog = `${decl}\nin vec3 vWorld;\nuniform int uFogMode;\nuniform float uFogDensity;\nuniform vec2 uFogRange;\nuniform vec3 uCamPos;\n`;
   return `${spriteFs.replace(decl, () => fog + fogGlsl).replace(main, (m) => m.replace('main', 'gwPaint'))}
 float gwFog() { return fogFactorAt(vWorld); }
@@ -418,11 +508,19 @@ export function glowMeshVs(charSkinVs) {
   const pos = 'gl_Position = uProj * uView * world;';
   const n = (needle) => charSkinVs.split(needle).length - 1;
   if (n(decl) !== 1 || n(pos) !== 1) {
-    throw new Error(`WEAPON-GLOW1: the character vertex shader needs one "${decl}" and one "${pos}" (has ${n(decl)} and ${n(pos)})`);
+    throw new Error(
+      `WEAPON-GLOW1: the character vertex shader needs one "${decl}" and one "${pos}" (has ${n(decl)} and ${n(pos)})`,
+    );
   }
   return charSkinVs
-    .replace(decl, `${decl}\nout vec3 vViewPos;\nflat out float vRingD;\nuniform vec4 uGlowDraw[${GLOW_DRAWS_MAX}];\nuniform int uGlowInstanced;\nuniform float uGlowPull;`)
-    .replace(pos, `${pos}\n  vViewPos = (uView * world).xyz;\n  vec4 gwD = uGlowInstanced == 1 ? uGlowDraw[gl_InstanceID] : vec4(0.0);\n  gl_Position.xy += gwD.xy * gl_Position.w;\n  gl_Position.z = gwD.z > 0.0 ? gwD.z * gl_Position.w : gl_Position.z + uGlowPull * gl_Position.w;\n  vRingD = gwD.w;`);
+    .replace(
+      decl,
+      `${decl}\nout vec3 vViewPos;\nflat out float vRingD;\nuniform vec4 uGlowDraw[${GLOW_DRAWS_MAX}];\nuniform int uGlowInstanced;\nuniform float uGlowPull;`,
+    )
+    .replace(
+      pos,
+      `${pos}\n  vViewPos = (uView * world).xyz;\n  vec4 gwD = uGlowInstanced == 1 ? uGlowDraw[gl_InstanceID] : vec4(0.0);\n  gl_Position.xy += gwD.xy * gl_Position.w;\n  gl_Position.z = gwD.z > 0.0 ? gwD.z * gl_Position.w : gl_Position.z + uGlowPull * gl_Position.w;\n  vRingD = gwD.w;`,
+    );
 }
 
 /** THE MORROWIND PASS'S FRAGMENT SHADER: `uMode` 0 the rings (opaque, each fragment's band its instance's `vRingD`, -1
@@ -456,6 +554,11 @@ void main() {
   float lv = uLevel;
   if (uMode < 0.5) {
     if (vRingD < 0.0) {
+      if (uLook == 6 && uGlowSkin == ${GLOW_TIDE.skin}) {   // the Tidebound Edge's drops, under the weapon
+        if (!gwDrip(c, t, lv)) discard;
+        outColor = vec4(uRamp[3], 1.0);
+        return;
+      }
       if (!gwEmber(c, t, lv)) discard;
       outColor = vec4(uRamp[2], 1.0);
       return;
@@ -486,15 +589,26 @@ export function glowRingDraws(look) {
   for (const ring of GLOW_RINGS) {
     for (let i = 0; i < GLOW_DIRS; i++) {
       const a = (i * 2 * Math.PI) / GLOW_DIRS;
-      let x = Math.cos(a), y = Math.sin(a);
+      let x = Math.cos(a),
+        y = Math.sin(a);
       if (look === 'fire') y *= y > 0 ? GLOW_FIRE_UP : GLOW_FIRE_DOWN;
-      out.push(Object.freeze({ shift: Object.freeze([x * ring, y * ring]), ring, far: GLOW_RING_FAR + ring * GLOW_RING_STEP }));
+      out.push(
+        Object.freeze({ shift: Object.freeze([x * ring, y * ring]), ring, far: GLOW_RING_FAR + ring * GLOW_RING_STEP }),
+      );
     }
   }
   if (look === 'fire') {
-    for (const up of GLOW_EMBER_RISE) for (const side of [-0.6, 0, 0.6]) {
-      out.push(Object.freeze({ shift: Object.freeze([side, up]), ring: -1, far: GLOW_RING_FAR }));
-    }
+    for (const up of GLOW_EMBER_RISE)
+      for (const side of [-0.6, 0, 0.6]) {
+        out.push(Object.freeze({ shift: Object.freeze([side, up]), ring: -1, far: GLOW_RING_FAR }));
+      }
+  }
+  if (look === 'tide') {
+    // the Tidebound Edge's drops: its outline shifted down, under the weapon
+    for (const down of GLOW_TIDE.drops)
+      for (const side of [-0.6, 0, 0.6]) {
+        out.push(Object.freeze({ shift: Object.freeze([side, -down]), ring: -1, far: GLOW_RING_FAR }));
+      }
   }
   return Object.freeze(out);
 }

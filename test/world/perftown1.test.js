@@ -93,7 +93,7 @@ test('PERF-TOWN1: a person answers into its OWN row, and the pool refills one li
   const q = new MobilePerson(nav, { archive: 385, frameCount: () => 4, groundY: () => 0, rand: () => 0.5 });
   q.place(40, 40);
   assert.notEqual(q.update(1 / 60, [0, 0, 0], false), b, 'two people, two rows');
-  assert.match(src('src/systems/town/townPopulation.js'), /const out = this\._live \?\?= \[\];\s*\n\s*out\.length = 0;/,
+  assert.match(src('src/systems/town/townPopulation.js'), /const out = \(this\._live \?\?= \[\]\);\n\s*out\.length = 0;/,
     'and the LIST is the pool’s own, refilled rather than rebuilt');
 });
 
@@ -114,8 +114,8 @@ test('PERF-TOWN1: both outdoor hosts stopped minting per person per frame', () =
     // the texture key is memoised on the three numbers it is made of
     assert.match(s, /const personTextureKey = createPersonTextureKeys\(\);/, f);
     assert.match(s, /renderer\.textures\.has\(personTextureKey\(person\.archive, out\.record, out\.frame\)\)/, f);
-    // MAC4's shape is untouched: the record still CARRIES its frame
-    assert.match(s, /const rkey = `\$\{out\.record\}#\$\{out\.frame\}`;/, f);
+    // MAC4's shape is untouched: the record still CARRIES its frame (the world host's string made once a pair)
+    assert.match(s, f === 'src/scenes/world.js' ? /const rkey = recordFrameKey\(out\.record, out\.frame\);/ : /const rkey = `\$\{out\.record\}#\$\{out\.frame\}`;/, f);
   }
   // THE SCRATCH ITSELF - one body for both hosts, and the two things a
   // shared seat can get wrong.
@@ -132,7 +132,7 @@ test('PERF-TOWN1: both outdoor hosts stopped minting per person per frame', () =
     // freezes on whatever was uploaded first.
     assert.match(s, /const k = \(archive \* 4096 \+ record\) \* 1024 \+ frame;/);
     // the seats are minted once and refilled
-    assert.match(s, /seat\(i\) \{ return seats\[i\] \?\?= \{ person: null, pos: null \}; \},/);
+    assert.match(s, /seat\(i\) \{\n\s*return \(seats\[i\] \?\?= \{ person: null, pos: null \}\);\n\s*\},/);
   }
 });
 

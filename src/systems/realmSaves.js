@@ -49,6 +49,10 @@
 // for the save as stored and opens it here.
 // ═══════════════════════════════════════════════════════════════════
 
+import { privateRunOn } from '../net/privateServer.js';
+import { busyWaitMs } from '../net/busyLaw.js';
+import { askThroughBusy, realmFailureText, REALM_BUSY_MAX_MS, realmBootBusyText } from './realmRetry.js';
+import { rosterSaved } from './realmRoster.js';
 import { storedSession, serviceBase, forgetSession, accountRefusalText, forgetD1Bookmark, sessionPassFor, noteSessionPass, forgetSessionPass, passKeptThrough } from '../net/accountClient.js';   // AUDIT SCALE II A-2: a write forgets the page's D1 bookmark; SESSION-SIGN: the checkpoint carries the session's pass
 import { realmTradeRefusalText, LOCKED_SAID_MAX } from '../net/realm/realmTradeLaw.js';   // REALM P2.1: a trade the realm settles
 import { REALM_DOOR_WORD } from '../net/wire.js';   // REALM-DOOR: the relay's word for a token that names no realm character
@@ -266,6 +270,95 @@ export function idleKeyOf(text, summary = null) {
   for (const quest of Object.values(rest.quest?.machine?.quests ?? {})) if (quest && typeof quest === 'object') delete quest.ownSecondsAt;
   for (const map of Object.values(rest.automap ?? {})) if (map && typeof map === 'object') delete map.lastVisited;
   return JSON.stringify([rest, summary]);
+}
+
+/** The save realmSaveWithHeld wrote last: its text, and `root`, the object it was written from. It is kept until a
+ *  checkpoint asks its key or the turn ends. The sink hands the text to its checkpoint in that turn, and nothing
+ *  between writes to the root, so the key is read off the root and the text, which can pass 4 MiB, is not parsed.
+ *  @type {{ text: string, root: any } | null} */
+let writtenSave = null;
+
+/** idleKeyOf's key of a checkpoint's text: read off the save's own object while the text is the one realmSaveWithHeld
+ *  has just written, else off the text. The object answers one ask; a second parses. */
+export function checkpointKeyOf(/** @type {string} */ text, /** @type {any} */ summary = null) {
+  const written = writtenSave;
+  writtenSave = null;
+  return (written && written.text === text ? idleKeyOfSave(written.root, summary) : null) ?? idleKeyOf(text, summary);
+}
+
+/** idleKeyOf's strip, made on copies of the save's own object: the same key, with no parse. Null where the object is
+ *  not as a parse of its text gives it back (an array where a record is stripped, a class, a toJSON on any value
+ *  there): the text answers those. */
+function idleKeyOfSave(/** @type {any} */ root, /** @type {any} */ summary) {
+  if (!parsedAlike(root)) return null;
+  const { classicMinutes, worldMinutes, ...rest } = root;
+  if ([rest.pose, rest.survival, rest.quest, rest.automap].some(hasToJSON)) return null;
+  if (rest.pose && typeof rest.pose === 'object') {
+    if (!parsedAlike(rest.pose)) return null;
+    const { yaw, pitch, camera, ...pose } = rest.pose;
+    rest.pose = pose;
+  }
+  if (rest.survival && typeof rest.survival === 'object') {
+    if (!parsedAlike(rest.survival)) return null;
+    const { lastMinute, rotMinutes, thirst, fed, ...survival } = rest.survival;
+    rest.survival = survival;
+  }
+  // a parsed list has no `machine`, nor a parsed machine list `quests`: idleKeyOf reaches neither
+  if (rest.quest && typeof rest.quest === 'object' && !Array.isArray(rest.quest)) {
+    if (!parsedAlike(rest.quest)) return null;
+    const quest = { ...rest.quest };
+    if (hasToJSON(quest.machine)) return null;
+    if (quest.machine && typeof quest.machine === 'object' && !Array.isArray(quest.machine)) {
+      if (!parsedAlike(quest.machine)) return null;
+      const machine = { ...quest.machine };
+      if (hasToJSON(machine.quests)) return null;
+      if (machine.quests && typeof machine.quests === 'object') {
+        machine.quests = withoutEach(machine.quests, 'ownSecondsAt');
+        if (!machine.quests) return null;
+      }
+      quest.machine = machine;
+    }
+    rest.quest = quest;
+  }
+  if (rest.automap && typeof rest.automap === 'object') {
+    rest.automap = withoutEach(rest.automap, 'lastVisited');
+    if (!rest.automap) return null;
+  }
+  return JSON.stringify([rest, summary]);
+}
+
+/** A list or a map of records with no toJSON, copied with `name` taken off each record that is an object, as
+ *  idleKeyOf deletes it from the parsed ones. A list record keeps its members: a parsed list has no named one. Null
+ *  where the list or a record is not as a parse would give it back. */
+function withoutEach(/** @type {any} */ records, /** @type {string} */ name) {
+  /** @type {any} */
+  let copy = null;
+  if (!Array.isArray(records)) copy = parsedAlike(records) ? { ...records } : null;
+  else if (Object.getPrototypeOf(records) === Array.prototype) copy = Array.from({ length: records.length }, (_, i) => records[i]);
+  if (!copy) return null;
+  for (const key of Object.keys(copy)) {
+    const record = copy[key];
+    if (hasToJSON(record)) return null;
+    if (!record || typeof record !== 'object' || Array.isArray(record)) continue;
+    if (!parsedAlike(record)) return null;
+    const { [name]: _, ...kept } = record;
+    copy[key] = kept;
+  }
+  return copy;
+}
+
+/** Whether a write of `value` calls a toJSON, its own or its prototype's: an object's, a list's or a function's. A
+ *  parse of the text gives back what the toJSON answers, not the value. */
+function hasToJSON(/** @type {any} */ value) {
+  return value !== null && (typeof value === 'object' || typeof value === 'function') && typeof value.toJSON === 'function';
+}
+
+/** An object that a parse of its own text gives back with the same members in the same order: Object's prototype or
+ *  none, and no toJSON. */
+function parsedAlike(/** @type {any} */ value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return (proto === Object.prototype || proto === null) && typeof value.toJSON !== 'function';
 }
 
 /** RESCUE-PACK (2026-09-30, Mac: "Do it"): A LONG LIFE'S COPY RIDES PACKED. The copy was the save's text, and a save
@@ -544,7 +637,13 @@ export function sweepUnsent(/** @type {any} */ storage, /** @type {any[]} */ row
 /** AUDIT RESCUE-SAVE A1: a save's text naming the spoils records its pack holds (none: the save as it stands). */
 export const realmSaveWithHeld = (/** @type {any} */ snap, /** @type {unknown} */ held) => {
   const ids = heldList(held);
-  return JSON.stringify(ids.length ? { ...snap, [REALM_HELD_FIELD]: ids } : snap);
+  const root = ids.length ? { ...snap, [REALM_HELD_FIELD]: ids } : snap;
+  const text = JSON.stringify(root);
+  if (typeof text === 'string') {
+    const written = (writtenSave = { text, root });
+    Promise.resolve().then(() => { if (writtenSave === written) writtenSave = null; });
+  }
+  return text;
 };
 /** AUDIT REALM2 C8: a checkpoint's refusal that may clear if the save is sent again - no answer, the service's own
  *  trouble (5xx: its error, its storage or its database away) or the account's request rate. Any other (the save too
@@ -727,6 +826,7 @@ export function createRealmSession({
           heardLocked(r.data?.locked);
           landedText = job.text;
           landedKey = idleKeyOf(job.text, job.summary); landedAt = now();   // SCALE2b
+          rosterSaved(storage, io?.player, id, job.summary, landedAt);   // the Online door's tile, without asking the realm
           savedAt = landedAt;
           // RESCUE-SAVE: the newest save landed - no copy; or a newer one waits, its copy at the sequence now held
           missed = false;
@@ -813,7 +913,7 @@ export function createRealmSession({
       // whatever it held - an account write every two minutes for someone standing still. The save the service holds
       // is answered for it: the one that last landed, but for its clock and its look (idleKeyOf), with nothing queued,
       // nothing missed, inside REALM_IDLE_CHECKPOINT_MS - and never on a page going away, whose save the next join reads.
-      if (idleOk && landedKey != null && !pending && !running && !missed && !hidden() && now() - landedAt < REALM_IDLE_CHECKPOINT_MS && idleKeyOf(text, summary) === landedKey) {
+      if (idleOk && landedKey != null && !pending && !running && !missed && !hidden() && now() - landedAt < REALM_IDLE_CHECKPOINT_MS && checkpointKeyOf(text, summary) === landedKey) {
         savedAt = now();   // the realm holds this save but for its clock
         return Promise.resolve({ ok: true, seq: current, idle: true });
       }
@@ -1000,7 +1100,36 @@ export function realmRowAsSave(row, { dateText = () => null } = {}) {
  * spoils records the save's pack already holds - the crash's door adopts them and never hands them again.
  * @param {{ io: any, id: string }} at
  */
-export async function openRealmBoot(/** @type {{ io: any, id: string }} */ at) { return heldOut(await joinRealmBoot(at)); }
+export async function openRealmBoot(/** @type {BootAt} */ at, /** @type {{ line: (text: string) => void } | null} */ loading = null) {
+  if (privateRunOn()) return { ok: false, error: 'private' };   // a private run never reaches the realm (net/privateServer.js)
+  // The loading screen says why it waits, once, whether the realm answered busy or is only slow to answer. The boot's
+  // next step writes its own line over this one.
+  let said = false;
+  const say = at.onBusy ?? (() => { loading?.line(realmBootBusyText()); });
+  const onBusy = () => { if (!said) { said = true; say(); } };
+  const { slowTimer = (/** @type {() => void} */ onSlow, /** @type {number} */ delayMs) => { const timer = setTimeout(onSlow, delayMs); return () => clearTimeout(timer); } } = at;
+  const stop = slowTimer(onBusy, REALM_BOOT_SLOW_MS);
+  try {
+    return heldOut(await joinRealmBoot({ ...at, onBusy }));
+  } finally {
+    stop();
+  }
+}
+/** @typedef {{ io: any, id: string, onBusy?: () => void, wait?: (ms: number) => Promise<void>, now?: () => number, rand?: () => number, busyMaxMs?: number, slowTimer?: (fn: () => void, ms: number) => () => void }} BootAt */
+
+export { REALM_BUSY_MAX_MS, realmBootBusyText };
+/** A boot still waiting on the realm this long says the servers are having issues, though nothing was refused. */
+export const REALM_BOOT_SLOW_MS = 4_000;
+/** Said when Play names a character the signed-in account does not own. The service answers the same for one that
+ *  is gone, so a deleted character's existence is never told to another account. */
+export const realmNotYoursText = () => t('realm.notYours', 'This character does not belong to you.');
+/** Why a refused boot came back to the Online door: a character not the account's says so, a 4xx says the server
+ *  cannot be found, any other failure of the service says it has issues, and a refusal this device made keeps its words. */
+export const realmBootRefusalText = (/** @type {{ error: string, status?: number }} */ refusal) =>
+  (refusal.error === 'no-realm-character' ? realmNotYoursText() : realmFailureText(refusal, { missing: true }) ?? realmRefusalText(refusal.error));
+/** A refused boot's word, kept across the reload for the Online door's popup. */
+export const noteRealmBootRefused = (/** @type {any} */ storage, /** @type {{ error: string, status?: number }} */ refusal) =>
+  setRealmNotice(storage, realmBootRefusalText(refusal), { popup: true });
 /** AUDIT RESCUE-SAVE A1: THE BOOT'S SAVE GIVES UP THE RECORDS ITS PACK HOLDS - `held`, read out of whichever save the
  *  join plays (the device's copy or the service's: a put that landed with its answer lost cleared no record either),
  *  and taken out of the save the world loads. */
@@ -1010,14 +1139,17 @@ function heldOut(/** @type {any} */ r) {
   delete r.snap[REALM_HELD_FIELD];
   return { ...r, held };
 }
+const statusOf = (/** @type {any} */ answer) => (Number.isInteger(answer.status) ? { status: answer.status } : {});
 /** The join and the save it plays (openRealmBoot's, before the records come out of it). */
-async function joinRealmBoot(/** @type {{ io: any, id: string }} */ { io, id }) {
+async function joinRealmBoot(/** @type {BootAt} */ at) {
+  const { io, id } = at;
   if (!io) return { ok: false, error: 'signed-out' };
   if (typeof id !== 'string' || !REALM_ID_SHAPE.test(id)) return { ok: false, error: 'no-realm-character' };
-  const joined = await realmJoin(io, id);
+  // A join asked again only mints a newer lease, and the newest is the one this tab plays under
+  const joined = await askThroughBusy(() => realmJoin(io, id), at);
   if (!joined.ok) {
     if (joined.error === 'no-realm-character') dropUnsent(io.storage, id);   // AUDIT RESCUE-SAVE A2: deleted elsewhere - its copy goes too
-    return { ok: false, error: joined.error };
+    return { ok: false, error: joined.error, ...statusOf(joined) };
   }
   const { lease, seq, bytes, origin = null } = joined.data ?? {};
   if (!(bytes > 0)) return { ok: false, error: 'no-data' };
@@ -1030,8 +1162,8 @@ async function joinRealmBoot(/** @type {{ io: any, id: string }} */ { io, id }) 
     if (snap) { snap.characterId = id; return { ok: true, snap, lease, seq, origin: typeof origin === 'string' ? origin : null, restored: true, missed: kept.missed, gzip: joined.data?.gzip === true }; }
     forgetUnsent(io.storage, id);   // a copy that will not open is dropped
   }
-  const got = await realmFetch(io, id);
-  if (!got.ok) return { ok: false, error: got.error };   // a copy behind the record stays for the next join to settle
+  const got = await askThroughBusy(() => realmFetch(io, id), at);
+  if (!got.ok) return { ok: false, error: got.error, ...statusOf(got) };   // a copy behind the record stays for the next join to settle
   // STRANDED: a copy behind the record is never played - set aside when a put of it failed and the realm does not hold it
   const stranded = kept && kept.seq !== seq ? await settleMovedCopy(io.storage, id, kept, got.text, got.seq ?? seq) : false;
   const snap = parseSave(got.text);
@@ -1048,16 +1180,27 @@ function parseSave(/** @type {string | null} */ text) {
 
 /** A word for the Online door, carried across the page's reload (sessionStorage - this tab's alone). */
 export const REALM_NOTICE_KEY = 'dagger.realm.notice';
-export function setRealmNotice(/** @type {any} */ storage, /** @type {string} */ text) {
-  try { storage?.setItem?.(REALM_NOTICE_KEY, String(text)); return true; } catch { return false; }
-}
-export function takeRealmNotice(/** @type {any} */ storage) {
+/** Set beside the word when the Online door says it in a popup (a refused Play). */
+export const REALM_NOTICE_POPUP_KEY = 'dagger.realm.notice.popup';
+export function setRealmNotice(/** @type {any} */ storage, /** @type {string} */ text, { popup = false } = {}) {
   try {
-    const t = storage?.getItem?.(REALM_NOTICE_KEY) ?? null;
-    if (t != null) storage.removeItem(REALM_NOTICE_KEY);
-    return t;
+    storage?.setItem?.(REALM_NOTICE_KEY, String(text));
+    if (popup) storage?.setItem?.(REALM_NOTICE_POPUP_KEY, '1'); else storage?.removeItem?.(REALM_NOTICE_POPUP_KEY);
+    return true;
+  } catch { return false; }
+}
+/** The word and whether it is a popup's, taken once. @returns {{ text: string, popup: boolean } | null} */
+export function takeRealmNoticeEntry(/** @type {any} */ storage) {
+  try {
+    const text = storage?.getItem?.(REALM_NOTICE_KEY) ?? null;
+    const popup = storage?.getItem?.(REALM_NOTICE_POPUP_KEY) === '1';
+    storage?.removeItem?.(REALM_NOTICE_POPUP_KEY);
+    if (text == null) return null;
+    storage.removeItem(REALM_NOTICE_KEY);
+    return { text, popup };
   } catch { return null; }
 }
+export const takeRealmNotice = (/** @type {any} */ storage) => takeRealmNoticeEntry(storage)?.text ?? null;
 
 /**
  * THE URL THAT BOOTS A REALM CHARACTER: the online lane, the load door and the character's id - the one online boot
@@ -1106,6 +1249,7 @@ export function realmRefusalText(/** @type {string} */ error) {
   if (error === 'too-large') return 'This character\'s save is too big for the realm. The realm keeps the last save it accepted.';   // AUDIT REALM2 C8
   if (error === 'customs-load-once') return 'Load this character once offline, then it can be brought online.';
   if (error === 'test-room') return 'A Test Room character plays offline only.';
+  if (error === 'private') return t('realm.private', 'You are on a private server. To bring an online character, use Copy to offline on it first, then load the copy. Your online character stays as it is.');   // net/privateServer.js
   if (error === 'no-room') return 'This device has no room for another save. Delete one, then copy again.';
   if (error === 'unknown') return 'The realm did not answer about a trade in progress. Join again to see how it ended.';   // REALM P2.1
   return accountRefusalText(error);
@@ -1217,9 +1361,10 @@ export function realmTradeEscrow({ session, checkpoint, wait, now, heldSaid = nu
 
 // ── REALM P2.2: AN ACT THAT MOVES A REALM CHARACTER'S GOLD ON THE SERVICE ──
 
-/** How many times an act asks again when its answer is lost, and how long it waits a time (ms, times the try). */
-export const REALM_ACT_TRIES = 4;
-export const REALM_ACT_RETRY_MS = 1_000;
+/** How many times a read asks when its answer is lost, and how long it waits a time (ms, times the try). A read never
+ *  ends the session, so its caller says "try again" soon rather than hold the player. */
+export const REALM_READ_TRIES = 4;
+export const REALM_READ_RETRY_MS = 1_000;
 /** AUDIT REALM L1-F2: the answers that say nothing about the act - no answer (offline), the service's own error, and the
  *  account's request rate, which the Worker answers before any route: asked again. */
 export const REALM_ACT_TRANSIENT = Object.freeze(['offline', 'server', 'rate']);
@@ -1233,8 +1378,8 @@ export const REALM_ACT_TRANSIENT = Object.freeze(['offline', 'server', 'rate']);
  * outcome is checkpointed. A LOST ANSWER IS ASKED AGAIN with the same record: while the hold stands nothing else moves
  * the record, and every realm act answers where the record stands before any other word (AUDIT REALM L1-F2), so a `seq`
  * refusal one ahead, when the act was asked before, is this act, landed - and any other word is the act refused, nothing
- * moved. A `seq` on the first asking is a move this tab never made. Still lost after REALM_ACT_TRIES, the session ends
- * (`unknown`) with the gold where it is - only a join reads how the act ended.
+ * moved. A `seq` on the first asking is a move this tab never made. Lost past REALM_BUSY_MAX_MS of busy waits, the
+ * session ends (`unknown`) with the gold where it is - only a join reads how the act ended.
  * `apply(answer)` gets the service's answer; an act whose client needs it (`needsAnswer` - a sale, whose refund the
  * service's price decides) cannot take a landed act without it, and ends the session instead.
  * AUDIT CARDS-6 E6: A READ (`read` - an ask that moves nothing on the record, a ranked seat's deck order: the service
@@ -1243,14 +1388,15 @@ export const REALM_ACT_TRANSIENT = Object.freeze(['offline', 'server', 'rate']);
  * this ask, landed: it lands nothing; a move this tab never made is its own checkpoint's to meet), is the realm not
  * answering: `{ ok: false, error: 'offline', why: 'offline' }`. Asked as an act, `unknown` sent the player to the title.
  * @param {{ session: any, checkpoint: () => any, reserve?: (() => (() => void)) | null, apply?: ((answer: any) => void) | null,
- *   call: (at: { id: string, lease: string, seq: number }) => Promise<any>, wait?: (ms: number) => Promise<void>, needsAnswer?: boolean, read?: boolean }} at
+ *   call: (at: { id: string, lease: string, seq: number }) => Promise<any>, wait?: (ms: number) => Promise<void>, rand?: () => number, needsAnswer?: boolean, read?: boolean }} at
  */
-export async function realmGoldAct({ session, checkpoint, reserve = null, apply = null, call, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), needsAnswer = false, read = false }) {
+export async function realmGoldAct({ session, checkpoint, reserve = null, apply = null, call, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), rand = Math.random, needsAnswer = false, read = false }) {
   checkpoint();
   const unanswered = read ? { ok: false, error: 'offline', why: 'offline' } : { ok: false, error: 'offline', unknown: true };   // AUDIT CARDS-6 E6
   const outcome = session.transact(async (/** @type {any} */ at) => {
     const where = { id: at.id, lease: at.lease, seq: at.seq };
-    for (let i = 0; i < REALM_ACT_TRIES; i++) {
+    let waited = 0;   // the sum of the waits, not the clock: the bound holds wherever the waits come from
+    for (let i = 0; ; i++) {
       const r = await call(where);
       if (r?.ok) return { ...r, seq: r.data?.realm?.seq ?? at.seq };   // the service says when the record moved; unsaid, it did not
       // AUDIT REALM L1-F2: every realm act answers where the record stands before any other word (server-account/src/
@@ -1258,9 +1404,12 @@ export async function realmGoldAct({ session, checkpoint, reserve = null, apply 
       // landed; on its first asking, or any further on, it is a move nothing this tab sent made: only a join reads it
       if (r?.error === 'seq') return i > 0 && r.seq === at.seq + 1 && !needsAnswer && !read ? { ok: true, landed: true, seq: r.seq } : unanswered;
       if (!REALM_ACT_TRANSIENT.includes(r?.error)) return r;   // the service's own word, asked where the record stands: nothing moved
-      await wait(REALM_ACT_RETRY_MS * (i + 1));
+      if (read && i + 1 >= REALM_READ_TRIES) return unanswered;
+      const delayMs = read ? REALM_READ_RETRY_MS * (i + 1) : busyWaitMs(i + 1, rand());
+      if (waited + delayMs > REALM_BUSY_MAX_MS) return unanswered;
+      waited += delayMs;
+      await wait(delayMs);
     }
-    return unanswered;
   });
   const undo = reserve ? reserve() : null;   // the hold began above: no checkpoint of the purse with it out goes
   const r = await outcome;

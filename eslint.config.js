@@ -1,6 +1,42 @@
 // The gate's static-analysis leg (added after the trs/index crash):
 // unbound identifiers are invisible to node --check, vite build, and
 // headless tests - no-undef catches the whole class.
+import { readFileSync } from 'node:fs';
+
+/** The folders the formatter owns (LEGIBLE 3). */
+const FORMATTED = JSON.parse(readFileSync(new URL('./tools/formatted.json', import.meta.url), 'utf8'));
+
+/** LEGIBLE 4 (AUDIT, 2026-10-31): the files that still hold a comma sequence in its own parentheses, `(act(), answer)`,
+ *  each at its count. test/tooling/legible4_sequences.test.js holds each count exactly, so the list only shrinks. */
+export const SEQUENCES_HELD = Object.freeze({
+  'src/combat/weapon/weaponRig.js': 1,
+  'src/net/gate/gateBrain.js': 1,
+  'src/render/farRing.js': 1,
+  'src/render/underwaterFog.js': 1,
+  'src/scenes/arena/arenaBouts.js': 1,
+  'src/scenes/comeSailAway/shipLiveryPaint.js': 1,
+  'src/scenes/dragonHost.js': 1,
+  'src/scenes/dungeonContext.js': 1,
+  'src/scenes/eliteGates/egSpan.js': 1,
+  'src/scenes/homeYards.js': 1,
+  'src/scenes/huntHost.js': 1,
+  'src/scenes/world.js': 1,
+  'src/scenes/worldModes.js': 4,
+  'src/systems/dragon/dragonFlight.js': 1,
+  'src/systems/item/itemTransfer.js': 1,
+  'src/systems/legacy/family.js': 1,
+  'src/systems/loot/lootRarity.js': 1,
+  'src/systems/naval/navalAI.js': 1,
+  'src/systems/quickslots.js': 1,
+  'src/systems/revenant/revenant.js': 3,
+  'src/ui/input.js': 19,
+  'src/ui/listPicker.js': 1,
+  'src/ui/marketTab.js': 1,
+  'src/world/prefabColliders.js': 1,
+  'tools/grassLookProbe.mjs': 1,
+  'tools/tellDuel.mjs': 1,
+});
+
 export default [
   {
     // ONLINE1 / AUDIT ONLINE A13: the relay's Worker is linted with the tree - its globals are the runtime's
@@ -13,6 +49,25 @@ export default [
       globals: { console: 'readonly', Response: 'readonly', Request: 'readonly', URL: 'readonly', WebSocketPair: 'readonly', WebSocketRequestResponsePair: 'readonly', crypto: 'readonly', TextEncoder: 'readonly', TextDecoder: 'readonly', atob: 'readonly', btoa: 'readonly', fetch: 'readonly', AbortSignal: 'readonly', URLSearchParams: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly' },   // DISCORD-GATES: the hub posts to a Discord webhook; PATREON-LINK: the account service speaks Patreon's OAuth forms; SCALE5b: a room's batch of poses is flushed on a timer (a Durable Object's own, while it is awake)
     },
     rules: { 'no-undef': 'error', 'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }], 'no-dupe-keys': 'error', 'no-dupe-class-members': 'error' },
+  },
+  {
+    // the journal's Activity: a page inside Discord's frame, so a browser's globals and no others
+    files: ['server-account/journal/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        console: 'readonly', window: 'readonly', document: 'readonly', location: 'readonly', history: 'readonly',
+        fetch: 'readonly', URL: 'readonly', URLSearchParams: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly',
+        setInterval: 'readonly', clearInterval: 'readonly', requestAnimationFrame: 'readonly', cancelAnimationFrame: 'readonly',
+        performance: 'readonly', globalThis: 'readonly', ResizeObserver: 'readonly', MessageEvent: 'readonly',
+        KeyboardEvent: 'readonly', PointerEvent: 'readonly', HTMLElement: 'readonly', HTMLButtonElement: 'readonly',
+        HTMLInputElement: 'readonly', HTMLTextAreaElement: 'readonly', HTMLImageElement: 'readonly', HTMLCanvasElement: 'readonly',
+        CanvasRenderingContext2D: 'readonly', Blob: 'readonly', Intl: 'readonly', AudioContext: 'readonly', Headers: 'readonly',
+        HTMLSelectElement: 'readonly', BiquadFilterType: 'readonly', SVGElement: 'readonly',
+      },
+    },
+    rules: { 'no-undef': 'error', 'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }], 'no-dupe-keys': 'error' },
   },
   {
     files: ['src/**/*.js'],
@@ -81,6 +136,22 @@ export default [
       'no-unreachable': 'error',
     },
   },
+  {
+    // LEGIBLE 4 (bible/01-Overview/Readability-Arc.md): no comma sequence in shipped code - `(a(), b)` hides a
+    // statement inside an expression - parenthesized or not, but in the files held above.
+    files: ['src/**/*.js', 'server/src/**/*.js', 'server-account/src/**/*.js', 'tools/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}'],
+    rules: { 'no-sequences': ['error', { allowInParentheses: false }] },
+  },
+  {
+    // LEGIBLE 4: a held file keeps its parenthesized sequences at their count; a bare one is refused there too.
+    files: Object.keys(SEQUENCES_HELD),
+    rules: { 'no-sequences': ['error', { allowInParentheses: true }] },
+  },
+  {
+    // LEGIBLE 4: one statement a line in the folders and files the formatter owns (tools/formatted.json, LEGIBLE 3).
+    files: FORMATTED.map((entry) => (/\.m?js$/.test(entry) ? entry : `${entry}/*.{js,mjs}`)),
+    rules: { 'max-statements-per-line': ['error', { max: 1 }] },
+  },
   // generated and gitignored trees the lint paths above reach into
-  { ignores: ['app/release/**', 'tools/parity/dfu/**', 'tools/parity/cs/api/**', 'tools/parity/out/**'] },
+  { ignores: ['app/release/**', 'tools/parity/dfu/**', 'tools/parity/cs/api/**', 'tools/parity/out/**', 'server-account/journal/kit/**'] },
 ];

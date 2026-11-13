@@ -38,7 +38,18 @@ export const GUARD_RAISE = Object.freeze({
 
 /** The share of the tuck the motion word (bodyMotion.js motionWord's) wants: the fists drawn, both hands free, no blow. */
 export function guardElbowShare(word) {
-  if (!word || !word.on || word.busy || word.equip || word.spell || word.blow || word.shield || word.torch || word.spellHand) return 0;
+  if (
+    !word ||
+    !word.on ||
+    word.busy ||
+    word.equip ||
+    word.spell ||
+    word.blow ||
+    word.shield ||
+    word.torch ||
+    word.spellHand
+  )
+    return 0;
   return carryClassOf(word) === 'fists' && !guardTraveling(word) ? 1 : 0;
 }
 
@@ -59,48 +70,76 @@ export function createGuardElbows() {
       if (!(k > 1e-4)) return out;
       const body = bodyOf(skeleton, rootRef, skelMats);
       if (!body?.bones?.L || !body.bones.R) return out;
-      raise(skeleton, pose, rootRef, skelMats, body, raised);   // GUARD-RAISE, before the tuck
-      const mats = skelMats(skeleton, pose, rootRef, [body.chest, body.bones.pelvis, body.bones.L.hand, body.bones.R.hand]);
+      raise(skeleton, pose, rootRef, skelMats, body, raised); // GUARD-RAISE, before the tuck
+      const mats = skelMats(skeleton, pose, rootRef, [
+        body.chest,
+        body.bones.pelvis,
+        body.bones.L.hand,
+        body.bones.R.hand,
+      ]);
       const frame = bodyFrames(body, mats);
       if (!frame) return out;
       const down = scale(frame.up, -1);
       for (const side of /** @type {const} */ (['L', 'R'])) {
         const b = body.bones[side];
-        const S = at(mats, b.upper), E = at(mats, b.fore), W = at(mats, b.hand);
+        const S = at(mats, b.upper),
+          E = at(mats, b.fore),
+          W = at(mats, b.hand);
         if (!S || !E || !W) continue;
         const a = norm(sub(W, S));
         if (!(len(sub(W, S)) > 1e-6)) continue;
         const e0 = sub(sub(E, S), scale(a, dot(sub(E, S), a)));
         const t0 = sub(down, scale(a, dot(down, a)));
         if (!(len(e0) > 1e-6 && len(t0) > 1e-6)) continue;
-        const e = norm(e0), t = norm(t0);
+        const e = norm(e0),
+          t = norm(t0);
         const phi = Math.atan2(dot(cross(e, t), a), dot(e, t));
         const th = Math.max(-GUARD_ELBOWS.max, Math.min(GUARD_ELBOWS.max, k * phi));
         if (Math.abs(th) < 1e-5) continue;
         const Q = rotAxisAngle(a, th);
-        const upper = skeleton.nodes.get(b.upper), hand = skeleton.nodes.get(b.hand);
-        const Wu = turnOf(mats, b.upper), Wp = upper?.parent != null ? turnOf(mats, upper.parent) : null;
-        const Wf = turnOf(mats, b.fore), Wh = turnOf(mats, b.hand);
+        const upper = skeleton.nodes.get(b.upper),
+          hand = skeleton.nodes.get(b.hand);
+        const Wu = turnOf(mats, b.upper),
+          Wp = upper?.parent != null ? turnOf(mats, upper.parent) : null;
+        const Wf = turnOf(mats, b.fore),
+          Wh = turnOf(mats, b.hand);
         if (!upper || !hand || !Wu || !Wf || !Wh) continue;
-        const lu = pose.get(b.upper) ?? upper.rest, lh = pose.get(b.hand) ?? hand.rest;
-        pose.set(b.upper, { rotation: orthonormal(mul(Wp ? transpose(Wp) : IDENT, mul(Q, Wu))), translation: lu.translation, scale: lu.scale });
+        const lu = pose.get(b.upper) ?? upper.rest,
+          lh = pose.get(b.hand) ?? hand.rest;
+        pose.set(b.upper, {
+          rotation: orthonormal(mul(Wp ? transpose(Wp) : IDENT, mul(Q, Wu))),
+          translation: lu.translation,
+          scale: lu.scale,
+        });
         // the fist keeps its turn in the world: its parent (the forearm) turned with the arm by Q
-        pose.set(b.hand, { rotation: orthonormal(mul(transpose(mul(Q, Wf)), Wh)), translation: lh.translation, scale: lh.scale });
+        pose.set(b.hand, {
+          rotation: orthonormal(mul(transpose(mul(Q, Wf)), Wh)),
+          translation: lh.translation,
+          scale: lh.scale,
+        });
         out[side] = th;
       }
       return out;
     },
     status: () => share,
-    reset() { share = 0; },
+    reset() {
+      share = 0;
+    },
   };
 }
 
 const IDENT = [1, 0, 0, 0, 1, 0, 0, 0, 1];
-const mulv = (M, v) => [M[0] * v[0] + M[1] * v[1] + M[2] * v[2], M[3] * v[0] + M[4] * v[1] + M[5] * v[2], M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
+const mulv = (M, v) => [
+  M[0] * v[0] + M[1] * v[1] + M[2] * v[2],
+  M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
+  M[6] * v[0] + M[7] * v[1] + M[8] * v[2],
+];
 
 /** The shortest turn taking unit `a` onto unit `b`. */
 function arc(a, b) {
-  const axis = cross(a, b), s = len(axis), c = Math.max(-1, Math.min(1, dot(a, b)));
+  const axis = cross(a, b),
+    s = len(axis),
+    c = Math.max(-1, Math.min(1, dot(a, b)));
   return s < 1e-9 ? IDENT : rotAxisAngle(scale(axis, 1 / s), Math.atan2(s, c));
 }
 
@@ -113,21 +152,33 @@ function raise(skeleton, pose, rootRef, skelMats, body, k) {
   const C = at(mats, body.chest);
   if (!C) return;
   const inWorld = (v) => [0, 1, 2].map((i) => F.right[i] * v[0] + F.fwd[i] * v[1] + F.up[i] * v[2]);
-  const inChest = (p) => { const d = sub(p, C); return [dot(d, F.right), dot(d, F.fwd), dot(d, F.up)].map((v) => v / body.arm); };
+  const inChest = (p) => {
+    const d = sub(p, C);
+    return [dot(d, F.right), dot(d, F.fwd), dot(d, F.up)].map((v) => v / body.arm);
+  };
   for (const side of /** @type {const} */ (['L', 'R'])) {
     const b = body.bones[side];
-    const S = at(mats, b.upper), E = at(mats, b.fore), W = at(mats, b.hand);
-    const upper = skeleton.nodes.get(b.upper), fore = skeleton.nodes.get(b.fore), hand = skeleton.nodes.get(b.hand);
+    const S = at(mats, b.upper),
+      E = at(mats, b.fore),
+      W = at(mats, b.hand);
+    const upper = skeleton.nodes.get(b.upper),
+      fore = skeleton.nodes.get(b.fore),
+      hand = skeleton.nodes.get(b.hand);
     if (!S || !E || !W || !upper || !fore || !hand) continue;
     // the fist's place in the chest's frame, the guard's `to` plus `keep` of the clip's motion off its `from`
-    const w = inChest(W), from = GUARD_RAISE.from[side], to = GUARD_RAISE.to[side];
+    const w = inChest(W),
+      from = GUARD_RAISE.from[side],
+      to = GUARD_RAISE.to[side];
     const goal = [0, 1, 2].map((i) => to[i] + GUARD_RAISE.keep * (w[i] - from[i]));
     const step = scale(inWorld(sub(goal, w)), body.arm * k);
-    const l1 = len(sub(E, S)), l2 = len(sub(W, E)), reach = sub(add(W, step), S);
+    const l1 = len(sub(E, S)),
+      l2 = len(sub(W, E)),
+      reach = sub(add(W, step), S);
     const D = Math.max(Math.abs(l1 - l2) + 1e-3, Math.min(l1 + l2 - 1e-3, len(reach)));
     const d = norm(reach);
     // the elbow on its own side of the reach (its offset off the new line), leaned `drop` toward straight down
-    const off = sub(sub(E, S), scale(d, dot(sub(E, S), d))), down = sub(scale(F.up, -1), scale(d, -dot(F.up, d)));
+    const off = sub(sub(E, S), scale(d, dot(sub(E, S), d))),
+      down = sub(scale(F.up, -1), scale(d, -dot(F.up, d)));
     const own = len(off) > 1e-6 ? norm(off) : norm(down);
     // The pole fades with the reach. A fixed half-way pole could flip when
     // the clip's elbow crossed above the reach, then snap off at the cutoff.
@@ -137,14 +188,31 @@ function raise(skeleton, pose, rootRef, skelMats, body, k) {
     const T = add(S, scale(d, D));
     const Q1 = arc(norm(sub(E, S)), norm(sub(E2, S)));
     const Q2 = arc(norm(mulv(Q1, sub(W, E))), norm(sub(T, E2)));
-    const Wu = turnOf(mats, b.upper), Wf = turnOf(mats, b.fore), Wh = turnOf(mats, b.hand);
-    const Wp = upper.parent != null ? turnOf(mats, upper.parent) : null, Wfp = turnOf(mats, fore.parent), Whp = turnOf(mats, hand.parent);
+    const Wu = turnOf(mats, b.upper),
+      Wf = turnOf(mats, b.fore),
+      Wh = turnOf(mats, b.hand);
+    const Wp = upper.parent != null ? turnOf(mats, upper.parent) : null,
+      Wfp = turnOf(mats, fore.parent),
+      Whp = turnOf(mats, hand.parent);
     if (!Wu || !Wf || !Wh || !Wfp || !Whp) continue;
-    const lu = pose.get(b.upper) ?? upper.rest, lf = pose.get(b.fore) ?? fore.rest, lh = pose.get(b.hand) ?? hand.rest;
+    const lu = pose.get(b.upper) ?? upper.rest,
+      lf = pose.get(b.fore) ?? fore.rest,
+      lh = pose.get(b.hand) ?? hand.rest;
     // the upper arm turned by Q1; the forearm's parent rides with it and the forearm turns on by Q2; the fist keeps its turn
-    pose.set(b.upper, { rotation: orthonormal(mul(Wp ? transpose(Wp) : IDENT, mul(Q1, Wu))), translation: lu.translation, scale: lu.scale });
-    pose.set(b.fore, { rotation: orthonormal(mul(transpose(mul(Q1, Wfp)), mul(Q2, mul(Q1, Wf)))), translation: lf.translation, scale: lf.scale });
-    pose.set(b.hand, { rotation: orthonormal(mul(transpose(mul(Q2, mul(Q1, Whp))), Wh)), translation: lh.translation, scale: lh.scale });
+    pose.set(b.upper, {
+      rotation: orthonormal(mul(Wp ? transpose(Wp) : IDENT, mul(Q1, Wu))),
+      translation: lu.translation,
+      scale: lu.scale,
+    });
+    pose.set(b.fore, {
+      rotation: orthonormal(mul(transpose(mul(Q1, Wfp)), mul(Q2, mul(Q1, Wf)))),
+      translation: lf.translation,
+      scale: lf.scale,
+    });
+    pose.set(b.hand, {
+      rotation: orthonormal(mul(transpose(mul(Q2, mul(Q1, Whp))), Wh)),
+      translation: lh.translation,
+      scale: lh.scale,
+    });
   }
 }
-

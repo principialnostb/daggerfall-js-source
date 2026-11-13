@@ -140,6 +140,6 @@ test('THUMB-FIST / BETTER-HANDS: the wiring - fitted at the build in the fists\'
   const tf = rd('src/formats/morrowind/mwThumbFist.js');
   assert.match(tf, /export const FIST_GROUP = 'idlehh';/);
   const settings = rd('src/systems/modSettings.js');
-  assert.match(settings, /FirstPersonHands: Object\.freeze\(\{ default: 1, options: lazyWords\('Vanilla', 'Better Hands'\),/);
+  assert.match(settings, /FirstPersonHands: Object\.freeze\(\{\s*default: 1,\s*options: lazyWords\('Vanilla', 'Better Hands'\),/);
   assert.equal(firstPersonHandsSource(2), 'better-hands');
 });

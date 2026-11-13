@@ -104,11 +104,11 @@ test('R2-C2: a draft a failed run left at the tag is deleted before staging - so
   assert.ok(guard >= 0 && stage > guard, 'the guard stands before anything is staged');
   const script = runOf(steps[guard]);
   // an ASSIGNMENT, so a listing that fails fails the step (bash -e) - a `for` over a failed $(...) would carry on
-  assert.match(script, /\n\s*LEFT=\$\(gh api --paginate "repos\/\$GITHUB_REPOSITORY\/releases\?per_page=100" --jq '\.\[\] \| select\(\.draft and \.tag_name == env\.TAG\) \| \.id'\)\n/,
+  assert.match(script, /\n\s*LEFT=\$\(gh api --paginate "repos\/\$RELEASE_REPO\/releases\?per_page=100" --jq '\.\[\] \| select\(\.draft and \.tag_name == env\.TAG\) \| \.id'\)\n/,
     'every page: softprops itself only scans two');
-  assert.match(script, /for ID in \$LEFT; do\s*gh api -X DELETE "repos\/\$GITHUB_REPOSITORY\/releases\/\$ID" --silent/);
+  assert.match(script, /for ID in \$LEFT; do\s*gh api -X DELETE "repos\/\$RELEASE_REPO\/releases\/\$ID" --silent/);
   assert.ok(script.indexOf('LEFT=') > script.indexOf("grep -q 'HTTP 404' lookup-error.txt"), 'only once the tag is known to have no published release');
-  assert.match(steps[stage], /target_commitish: \$\{\{ github\.sha \}\}/, 'staged afresh, the tag is cut where these files were built (AUDIT 68)');
+  assert.match(steps[stage], /target_commitish: \$\{\{ steps\.host\.outputs\.target \}\}/, 'staged afresh, the tag is cut where these files were built (AUDIT 68; the host step names that commit)');
 });
 
 // ---- the launcher's fences ---------------------------------------------------

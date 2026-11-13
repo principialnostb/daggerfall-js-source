@@ -29,6 +29,18 @@ import { validLootItem } from '../../src/systems/loot/loot.js';
 import { setPref } from '../../src/systems/uiPrefs.js';
 import { itemLongName } from '../../src/systems/item/itemInfo.js';
 import { seededRng } from '../../src/systems/wind/wind.js';
+import { DEFENDER_SET_PIECES } from '../../src/systems/aetheric.js';
+import { setBlow, setStrike, setFold, _setSetPowersClockForTests, _resetSetPowersForTests, setSetPowersVoice } from '../../src/systems/sigil/sigilSetPowers.js';
+import { SIGIL_SET_IDS } from '../../src/systems/sigil/sigil.js';
+import { setById } from '../../src/systems/sigil/sigilSets.js';
+import { computeEntityMods } from '../../src/systems/entityMods.js';
+import { defineLiveMaxHealth } from '../../src/systems/chargen.js';
+import { offlineVitals } from '../../src/systems/renownLayer.js';
+import { _resetPlayerHealForTests } from '../../src/systems/playerHeal.js';
+import { itemFindings } from '../../src/systems/item/itemLaw.js';
+import { mintCondition } from '../../src/systems/item/itemTemplates.js';
+import { createWeapon } from '../../src/combat/enemyEquipment.js';
+import { EFFECT_FLAGS } from '../../src/systems/spellcast.js';
 
 const seq = (...v) => { let i = 0; return () => v[i++]; };
 const counted = (fn) => { const c = { n: 0 }; c.rolls = () => { c.n++; return fn(); }; return c; };
@@ -199,4 +211,92 @@ test('SET6 the floor and the card: a Regalia piece is laid as an item in its tie
   assert.deepEqual(lines.slice(1, 4), ['+20 armor', '+10% Fire resistance', '+15 Endurance']);
   assert.match(lines.at(-1), /^Beaten in the gate's own heart/, 'the lore, last - as a Legendary\'s');
   for (const r of REGALIA) assert.equal(itemLongName(mintAetheric(r)), r.name, `${r.id}: named as a Legendary is - never "Daedric ${r.name}"`);
+});
+
+// ── THE REALM DEFENDER: the invasion boss's own set ─────────────────────────────────────────────────────────────────
+const DEF_BODY = [107, 106, 105, 102, 103, 104, 108];
+const defPlayer = () => ({
+  isPlayer: true, items: [], stats: { strength: 50, intelligence: 50, willpower: 50, agility: 50, endurance: 50, personality: 50, speed: 50, luck: 50 },
+  skills: new Array(35).fill(30), level: 5, career: {}, activeEffects: [], health: 50, maxHealth: 100, magicka: 10, maxMagicka: 1000,
+  armorValues: new Array(7).fill(100),
+});
+const defWear = (e, n, set = 'defender') => {
+  for (const t of DEF_BODY.slice(0, n)) {
+    const it = mintCondition({ group: 'Armor', templateIndex: t, material: ARMOR_MATERIAL.Steel, flags: 0 });
+    it.rarity = 'rare';
+    it.sigil = { set, party: 1, xp: 0 };
+    e.items.push(it);
+    equipItem(e, it);
+  }
+  return e;
+};
+const RAT = Object.freeze({ name: 'rat' });
+function defFresh() {
+  _resetSigilForTests(); _resetSigilSetsForTests(); _resetSetPowersForTests(); _resetPlayerHealForTests();
+  _setSetPowersClockForTests(() => 0);
+  setSetPowersVoice({ say: () => {}, sound: () => {} });
+  setSigilOnline(true); setSigilRenown(1);
+}
+
+test("REALM DEFENDER THE RECORDS: a record for every Daedric piece a set is worn as - seven body pieces, four shields, every weapon but the arrow - each named The Realm Defender's and its own name, Aetheric, lawful, its numbers the Legendary band's top, no magic, fire or shock resistance (mutants: a name off its gear; a resistance the 2-piece tier carries)", () => {
+  assert.equal(DEFENDER_SET_PIECES.length, 29);
+  assert.deepEqual(SIGIL_SET_IDS.slice(-1), ['defender']);
+  assert.equal(setById('defender').aetheric, true);
+  const names = DEFENDER_SET_PIECES.map((r) => r.name);
+  for (const n of ['Cuirass', 'Helm', 'Kite Shield', 'Dai-Katana', 'Katana', 'Long Bow', 'War Axe']) assert.ok(names.includes(`The Realm Defender's ${n}`), n);
+  assert.equal(new Set(DEFENDER_SET_PIECES.map((r) => r.templateIndex)).size, 29, 'one record a template');
+  for (const r of DEFENDER_SET_PIECES) {
+    const it = mintAetheric(r);
+    assert.deepEqual(itemFindings(it), [], r.id);
+    assert.equal(it.name, r.name);
+    assert.equal(it.material, r.group === 'Weapons' ? WEAPON_MATERIALS.Daedric : ARMOR_MATERIAL.Daedric, r.id);
+    assert.equal(it.sigil.set, 'defender');
+    if (r.group === 'Weapons') assert.equal(it.sigil.power, SIGIL_POWER_MAX);
+    for (const a of r.affixes) assert.equal(a.value, AFFIX_RANGES[a.id].legendary[1], `${r.id} ${a.id}`);
+    assert.ok(!r.affixes.some((a) => a.id === 'resist' && ['magic', 'fire', 'shock'].includes(a.param)), r.id);
+    assert.ok(r.lore.length > 20 && r.lore.length <= 100, r.id);
+  }
+  const resists = DEFENDER_SET_PIECES.flatMap((r) => r.affixes.filter((a) => a.id === 'resist').map((a) => a.param));
+  assert.equal(new Set(resists).size, resists.length, 'one of an element at most');
+});
+
+test("REALM DEFENDER TALOS'S PRINCIPLE (2): +20 magic, fire and shock resistance at every stage; nothing with one piece (mutants: an element dropped)", () => {
+  defFresh();
+  assert.deepEqual(['magic', 'fire', 'shock'].map((el) => setFold(defWear(defPlayer(), 2)).resist[el]), [20, 20, 20]);
+  setSigilRenown(40);
+  assert.deepEqual(['magic', 'fire', 'shock'].map((el) => setFold(defWear(defPlayer(), 2)).resist[el]), [20, 20, 20], "the owner's numbers hold");
+  assert.equal(setFold(defWear(defPlayer(), 1)).resist?.magic ?? 0, 0, 'one piece wakes nothing');
+});
+
+test("REALM DEFENDER AZURA'S PROPHECY (4): a weapon blow +5 magic (half on a foe that resists magic) and a landed one +3 magicka; nothing with three pieces, bare-handed or a part-blow (mutants: the magic flat; the magicka)", () => {
+  defFresh();
+  const e = defWear(defPlayer(), 4), w = createWeapon(120, 0, () => 0.5);
+  assert.equal(setBlow(w, 100, e, RAT, {}), 105);
+  assert.equal(setBlow(w, 100, e, { career: { resistanceFlags: EFFECT_FLAGS.Magic } }, {}), 102, 'half, floored');
+  assert.equal(setBlow(null, 100, e, RAT, {}), 100, 'no weapon');
+  assert.equal(setBlow(w, 100, defWear(defPlayer(), 3), RAT, {}), 100, 'three pieces');
+  setStrike(e, RAT, 100, w);
+  assert.equal(e.magicka, 13);
+  setStrike(e, RAT, 100, w, { blow: false });
+  assert.equal(e.magicka, 13, 'a part-blow gives nothing');
+  setSigilOnline(false);
+  assert.equal(setBlow(w, 100, e, RAT, {}), 100, 'asleep');
+});
+
+test("REALM DEFENDER MERIDIA'S PRESERVATION (6): a weapon blow +5 fire more, a landed one heals 5% of my health, and +20% maximum health on Daggerfall's own, taken off a save (mutants: the heal; the fire; the health)", () => {
+  defFresh();
+  const e = defWear(defPlayer(), 6), w = createWeapon(120, 0, () => 0.5);
+  assert.equal(setBlow(w, 100, e, RAT, {}), 110, "Azura's 5 magic and Meridia's 5 fire");
+  assert.equal(setBlow(w, 100, e, { career: { immunityFlags: EFFECT_FLAGS.Fire } }, {}), 105, 'no fire on a foe immune to it');
+  setStrike(e, RAT, 100, w);
+  assert.equal(e.health, 55, '5% of 100');
+  assert.equal(setFold(e).healthPct, 20);
+  assert.equal(setFold(defWear(defPlayer(), 5)).healthPct ?? 0, 0, 'five pieces');
+  const live = defWear(defPlayer(), 6);
+  live.health = 100;
+  defineLiveMaxHealth(live);
+  computeEntityMods(live);
+  assert.equal(live.maxHealth, 120);
+  assert.equal(live.rawMaxHealth, 100, 'never in the stored value');
+  assert.equal(offlineVitals(live).health, 83, 'a save keeps the fraction under the offline maximum');
 });

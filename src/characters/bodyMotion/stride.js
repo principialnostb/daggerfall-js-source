@@ -15,14 +15,24 @@
 // and the fork took that out (2026-10-21): this keeps the clip's legs and only lengthens them.
 
 import { rotAxisAngle, rotationPart } from '../../combat/climbRig.js';
-import { quatToMat33, poseSkeleton, skeletonSpaceMatrices, accumRootRef, GRAPH_ROOT } from '../../formats/morrowind/mwSkin.js';
+import {
+  quatToMat33,
+  poseSkeleton,
+  skeletonSpaceMatrices,
+  accumRootRef,
+  GRAPH_ROOT,
+} from '../../formats/morrowind/mwSkin.js';
 import { ease, mul, transpose, apply, clamp01, bodyOf, algebra } from './bodyKit.js';
 
 /** `cadence` the exponent of the ratio the clip plays at (0.5: the ratio shared evenly), `maxStride` the most the legs
  *  swing past their own, `ease` seconds the stride comes on and off with the movement, `samples` per cycle for its mean
  *  pose, `bones` the legs that swing. */
 export const STRIDE = Object.freeze({
-  cadence: 0.5, maxStride: 1.45, maxRate: 2.4, ease: 0.12, samples: 24,
+  cadence: 0.5,
+  maxStride: 1.45,
+  maxRate: 2.4,
+  ease: 0.12,
+  samples: 24,
   bones: Object.freeze(['bip01 l thigh', 'bip01 r thigh', 'bip01 l calf', 'bip01 r calf']),
   feet: Object.freeze(['bip01 l foot', 'bip01 r foot']),
 });
@@ -53,7 +63,7 @@ export const RUN_STRIDE = Object.freeze({ maxRate: 1.36, maxStride: 1.3, calf: -
  * same law for a walk. Daggerfall walks at 4.4 m/s over clips of 1.8 to 2.2: the legs played at 2 to 2.5x. A walk's stride
  * keeps the knee as the clip has it (`calf` 0: a calf swung as far locked the knee at 178), and a longer swing would lift the
  * toes to 41-63 degrees, so `toeMax` holds them to what MAO's own walk reaches. */
-export const WALK_STRIDE = Object.freeze({ maxRate: 1.5, maxStride: 1.7, calf: 0, toeMax: 22, keepFeet: true });   // RUN-FEET: the walk's feet too
+export const WALK_STRIDE = Object.freeze({ maxRate: 1.5, maxStride: 1.7, calf: 0, toeMax: 22, keepFeet: true }); // RUN-FEET: the walk's feet too
 // PROFILE-WALK: the ordinary forward walk's knee, presentation only. The extended thigh keeps the clip's knee
 // timing, but gives its flexion some of the longer stride and rounds off near-straight extension (degrees).
 export const WALK_KNEES = Object.freeze({ soft: 15, gain: 0.2, max: 85 });
@@ -76,7 +86,7 @@ function powRot(D, p) {
   const sn = 2 * Math.sin(angle);
   let axis = [(D[7] - D[5]) / sn, (D[2] - D[6]) / sn, (D[3] - D[1]) / sn];
   const l = Math.hypot(axis[0], axis[1], axis[2]);
-  if (!(l > 1e-6)) return D;   // a half turn: no stride is that far from its mean
+  if (!(l > 1e-6)) return D; // a half turn: no stride is that far from its mean
   axis = axis.map((v) => v / l);
   return Array.from(rotAxisAngle(axis, angle * p));
 }
@@ -95,7 +105,7 @@ export function cycleMean(state, source, bone, sampleTrack, window) {
   const acc = [0, 0, 0, 0];
   let ref = null;
   for (let i = 0; i < STRIDE.samples; i++) {
-    const q = sampleTrack(track, window.start + (window.stop - window.start) * (i + 0.5) / STRIDE.samples)?.rotation;
+    const q = sampleTrack(track, window.start + ((window.stop - window.start) * (i + 0.5)) / STRIDE.samples)?.rotation;
     if (!q) continue;
     ref ??= q;
     const s = q[0] * ref[0] + q[1] * ref[1] + q[2] * ref[2] + q[3] * ref[3] < 0 ? -1 : 1;
@@ -103,7 +113,10 @@ export function cycleMean(state, source, bone, sampleTrack, window) {
   }
   const l = Math.hypot(...acc);
   const mean = l > 1e-9 ? acc.map((v) => v / l) : null;
-  if (!memo) { memo = new Map(); MEANS.set(source, memo); }
+  if (!memo) {
+    memo = new Map();
+    MEANS.set(source, memo);
+  }
   memo.set(key, mean);
   return mean;
 }
@@ -113,7 +126,23 @@ export function cycleMean(state, source, bone, sampleTrack, window) {
  * `w`), then the body lowered by the rise of its lower foot. `means` bone name -> mean quaternion; `pose` the frame's
  * locals (written, never mutated in place); answers how far it lowered the body (rig units), or null when it did nothing.
  */
-export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w = 1, means = null, rootBone = 'bip01', calf = 1, toeMax = null, settle = null, knees = false, keepFeet = false } = {}) {
+export function lengthenLegs(
+  skeleton,
+  pose,
+  rootRef,
+  skelMats,
+  {
+    stride = 1,
+    w = 1,
+    means = null,
+    rootBone = 'bip01',
+    calf = 1,
+    toeMax = null,
+    settle = null,
+    knees = false,
+    keepFeet = false,
+  } = {},
+) {
   const s = 1 + (stride - 1) * clamp01(w);
   if (!(Math.abs(s - 1) > 1e-4) || !means || !skeleton?.byName) return null;
   const feet = STRIDE.feet.map((n) => skeleton.byName.get(n)).filter((r) => r != null);
@@ -123,7 +152,8 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
   const lowBefore = before ? Math.min(...feet.map((r) => before.get(r)?.t?.[2] ?? Infinity)) : null;
   let did = false;
   for (const name of STRIDE.bones) {
-    const ref = skeleton.byName.get(name), mean = means.get(name);
+    const ref = skeleton.byName.get(name),
+      mean = means.get(name);
     if (ref == null || !mean) continue;
     const local = pose.get(ref) ?? skeleton.nodes.get(ref)?.rest;
     if (!local?.rotation) continue;
@@ -131,7 +161,11 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
     const D = mul(local.rotation, transpose(M));
     // RUN-STRIDE: a calf's own share of the stride (`calf`: 1 as the thigh, under 1 a tighter kick held back)
     const sb = /calf/.test(name) ? 1 + (s - 1) * calf : s;
-    pose.set(ref, { rotation: Float32Array.from(mul(powRot(D, sb), M)), translation: local.translation, scale: local.scale });
+    pose.set(ref, {
+      rotation: Float32Array.from(mul(powRot(D, sb), M)),
+      translation: local.translation,
+      scale: local.scale,
+    });
     did = true;
   }
   if (!did) return null;
@@ -141,9 +175,15 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
   if (keepFeet && before) {
     const now = skelMats(skeleton, pose, rootRef, feet);
     for (const ref of feet) {
-      const node = skeleton.nodes.get(ref), local = pose.get(ref) ?? node?.rest, was = before.get(ref), parent = now.get(node?.parent);
+      const node = skeleton.nodes.get(ref),
+        local = pose.get(ref) ?? node?.rest,
+        was = before.get(ref),
+        parent = now.get(node?.parent);
       if (!local?.rotation || !was || !parent) continue;
-      pose.set(ref, { ...local, rotation: Float32Array.from(mul(transpose(rotationPart(parent.a)), rotationPart(was.a))) });
+      pose.set(ref, {
+        ...local,
+        rotation: Float32Array.from(mul(transpose(rotationPart(parent.a)), rotationPart(was.a))),
+      });
     }
   }
   if (knees) softenWalkKnees(skeleton, pose, rootRef, skelMats, s, clamp01(w));
@@ -153,16 +193,24 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
   let dz = Math.min(...feet.map((r) => after.get(r)?.t?.[2] ?? Infinity)) - lowBefore;
   // STRIDE-SMOOTH: the lower foot changes sides and the height asked leaps with it (13.7 cm/frame^2 of hip jerk in a steady
   // run): followed, never taken at once
-  if (settle) { settle.dz = settle.dz == null ? dz : ease(settle.dz, dz, STRIDE_SMOOTH.ground, settle.dt); dz = settle.dz; }
+  if (settle) {
+    settle.dz = settle.dz == null ? dz : ease(settle.dz, dz, STRIDE_SMOOTH.ground, settle.dt);
+    dz = settle.dz;
+  }
   if (!(Math.abs(dz) > 1e-3) || root == null) return 0;
-  const node = skeleton.nodes.get(root), local = pose.get(root) ?? node.rest;
+  const node = skeleton.nodes.get(root),
+    local = pose.get(root) ?? node.rest;
   const parent = node.parent != null ? after.get(node.parent) : null;
   let lv = [0, 0, -dz];
   if (parent) {
-    const sp = Math.hypot(parent.a[0], parent.a[3], parent.a[6]) || 1;   // bodySolve.js moveSubtree's: the rig vector in the parent's frame
+    const sp = Math.hypot(parent.a[0], parent.a[3], parent.a[6]) || 1; // bodySolve.js moveSubtree's: the rig vector in the parent's frame
     lv = apply(transpose(rotationPart(parent.a)), lv).map((v) => v / sp);
   }
-  pose.set(root, { rotation: local.rotation, translation: [local.translation[0] + lv[0], local.translation[1] + lv[1], local.translation[2] + lv[2]], scale: local.scale });
+  pose.set(root, {
+    rotation: local.rotation,
+    translation: [local.translation[0] + lv[0], local.translation[1] + lv[1], local.translation[2] + lv[2]],
+    scale: local.scale,
+  });
   return dz;
 }
 
@@ -172,11 +220,17 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
  * 13-9-14 cm, a hump its clip does not have); the accepted run keeps its own leg chain. */
 function softenWalkKnees(skeleton, pose, rootRef, skelMats, stride, w) {
   const { sub, cross, dot, len, scale } = algebra;
-  const mats = skelMats(skeleton, pose, rootRef, ['l', 'r'].map((side) => skeleton.byName.get(`bip01 ${side} foot`)).filter((r) => r != null));   // the feet carry the thighs and calves as ancestors
+  const mats = skelMats(
+    skeleton,
+    pose,
+    rootRef,
+    ['l', 'r'].map((side) => skeleton.byName.get(`bip01 ${side} foot`)).filter((r) => r != null),
+  ); // the feet carry the thighs and calves as ancestors
   for (const side of ['l', 'r']) {
     const [thigh, calf, foot] = ['thigh', 'calf', 'foot'].map((b) => skeleton.byName.get(`bip01 ${side} ${b}`));
     if ([thigh, calf, foot].some((r) => r == null || !mats.has(r))) continue;
-    const a = sub(mats.get(calf).t, mats.get(thigh).t), b = sub(mats.get(foot).t, mats.get(calf).t);
+    const a = sub(mats.get(calf).t, mats.get(thigh).t),
+      b = sub(mats.get(foot).t, mats.get(calf).t);
     const ab = len(a) * len(b);
     if (!(ab > 1e-8)) continue;
     const bend = Math.acos(Math.max(-1, Math.min(1, dot(a, b) / ab)));
@@ -190,8 +244,10 @@ function softenWalkKnees(skeleton, pose, rootRef, skelMats, stride, w) {
     if (len(axis) < ab * 1e-5) axis = cross(a, [0, -1, 0]);
     if (len(axis) < 1e-8) continue;
     axis = scale(axis, 1 / len(axis));
-    const Q = rotAxisAngle(axis, extra), P = rotationPart(mats.get(thigh).a);
-    const Rc = rotationPart(mats.get(calf).a), Rf = rotationPart(mats.get(foot).a);
+    const Q = rotAxisAngle(axis, extra),
+      P = rotationPart(mats.get(thigh).a);
+    const Rc = rotationPart(mats.get(calf).a),
+      Rf = rotationPart(mats.get(foot).a);
     const c = pose.get(calf) ?? skeleton.nodes.get(calf).rest;
     const f = pose.get(foot) ?? skeleton.nodes.get(foot).rest;
     const turned = mul(Q, Rc);
@@ -206,17 +262,31 @@ function holdToes(skeleton, pose, rootRef, skelMats, toeMax, w) {
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body?.footAxes) return;
   const feet = [body.bones.L.foot, body.bones.R.foot];
-  const rest = skelMats(skeleton, new Map(), rootRef, feet), now = skelMats(skeleton, pose, rootRef, feet);
+  const rest = skelMats(skeleton, new Map(), rootRef, feet),
+    now = skelMats(skeleton, pose, rootRef, feet);
   for (const s of ['L', 'R']) {
-    const ref = body.bones[s].foot, ax = body.footAxes[s], node = skeleton.nodes.get(ref);
+    const ref = body.bones[s].foot,
+      ax = body.footAxes[s],
+      node = skeleton.nodes.get(ref);
     if (!ax || !node) continue;
-    const pitchOf = (m) => { const v = apply(rotationPart(m.get(ref).a), ax.fwd); return { v, deg: Math.asin(Math.max(-1, Math.min(1, v[2] / Math.hypot(...v)))) * 180 / Math.PI }; };
-    const { v, deg } = pitchOf(now), over = deg - pitchOf(rest).deg - toeMax;
+    const pitchOf = (m) => {
+      const v = apply(rotationPart(m.get(ref).a), ax.fwd);
+      return { v, deg: (Math.asin(Math.max(-1, Math.min(1, v[2] / Math.hypot(...v)))) * 180) / Math.PI };
+    };
+    const { v, deg } = pitchOf(now),
+      over = deg - pitchOf(rest).deg - toeMax;
     if (!(over > 0)) continue;
-    const h = Math.hypot(v[0], v[1]) || 1, side = [-v[1] / h, v[0] / h, 0];   // toes down about it
+    const h = Math.hypot(v[0], v[1]) || 1,
+      side = [-v[1] / h, v[0] / h, 0]; // toes down about it
     const Q = rotAxisAngle(side, (over * w * Math.PI) / 180);
-    const Rw = rotationPart(now.get(ref).a), P = rotationPart(now.get(node.parent).a), local = pose.get(ref) ?? node.rest;
-    pose.set(ref, { rotation: Float32Array.from(mul(transpose(P), mul(Q, Rw))), translation: local.translation, scale: local.scale });
+    const Rw = rotationPart(now.get(ref).a),
+      P = rotationPart(now.get(node.parent).a),
+      local = pose.get(ref) ?? node.rest;
+    pose.set(ref, {
+      rotation: Float32Array.from(mul(transpose(P), mul(Q, Rw))),
+      translation: local.translation,
+      scale: local.scale,
+    });
   }
 }
 
@@ -233,29 +303,54 @@ const FEET = new WeakMap();
  * a run's planted foot crosses 202 units a second against its root's 223, a sideways run's 74 against 104 (Morrowind.bsa,
  * measured), so a run slid 10 and a strafe 29 per cent. Null where nothing stands on the ground long enough to tell.
  */
-export function clipFootSpeed(state, source, skeleton, window, sampleTrack, { poseSkeleton, skeletonSpaceMatrices, accumRootRef, root }) {
+export function clipFootSpeed(
+  state,
+  source,
+  skeleton,
+  window,
+  sampleTrack,
+  { poseSkeleton, skeletonSpaceMatrices, accumRootRef, root },
+) {
   const tracks = source?.trackMap;
   if (!(tracks instanceof Map) || !skeleton?.byName || !(window?.stop > window?.start)) return null;
   const key = `${String(state?.group ?? '').toLowerCase()}|${window.start}|${window.stop}`;
   let memo = FEET.get(source);
   if (memo?.has(key)) return memo.get(key) ?? null;
-  const L = skeleton.byName.get(STRIDE.feet[0]), R = skeleton.byName.get(STRIDE.feet[1]);
+  const L = skeleton.byName.get(STRIDE.feet[0]),
+    R = skeleton.byName.get(STRIDE.feet[1]);
   let speed = null;
   if (L != null && R != null) {
-    const accum = accumRootRef(skeleton, tracks), dt = 1 / FOOT_SPEED.hz;
-    const at = (t) => { const m = skeletonSpaceMatrices(skeleton, poseSkeleton(skeleton, tracks, sampleTrack, t, { accumRoot: accum }), root); return [m.get(L).t, m.get(R).t]; };
+    const accum = accumRootRef(skeleton, tracks),
+      dt = 1 / FOOT_SPEED.hz;
+    const at = (t) => {
+      const m = skeletonSpaceMatrices(
+        skeleton,
+        poseSkeleton(skeleton, tracks, sampleTrack, t, { accumRoot: accum }),
+        root,
+      );
+      return [m.get(L).t, m.get(R).t];
+    };
     const frames = [];
     for (let t = window.start; t <= window.stop + 1e-9; t += dt) frames.push(at(Math.min(t, window.stop)));
     const ground = Math.min(...frames.map(([a, b]) => Math.min(a[2], b[2])));
-    let sum = 0, n = 0;
+    let sum = 0,
+      n = 0;
     for (let i = 1; i < frames.length; i++) {
-      const side = frames[i][0][2] < frames[i][1][2] ? 0 : 1, was = frames[i - 1][0][2] < frames[i - 1][1][2] ? 0 : 1;
-      const f = frames[i][side], p = frames[i - 1][side];
-      if (side === was && f[2] < ground + FOOT_SPEED.ground) { sum += Math.hypot(f[0] - p[0], f[1] - p[1]) / dt; n++; }
+      const side = frames[i][0][2] < frames[i][1][2] ? 0 : 1,
+        was = frames[i - 1][0][2] < frames[i - 1][1][2] ? 0 : 1;
+      const f = frames[i][side],
+        p = frames[i - 1][side];
+      if (side === was && f[2] < ground + FOOT_SPEED.ground) {
+        sum += Math.hypot(f[0] - p[0], f[1] - p[1]) / dt;
+        n++;
+      }
     }
     speed = n >= 4 ? sum / n : null;
   }
-  if (!memo) { memo = new Map(); FEET.set(source, memo); }
+  if (!memo) {
+    memo = new Map();
+    FEET.set(source, memo);
+  }
   memo.set(key, speed);
   return speed;
 }
@@ -265,9 +360,25 @@ export function clipFootSpeed(state, source, skeleton, window, sampleTrack, { po
 export const STRIDE_SMOOTH = Object.freeze({ ground: 0.09, ratio: 0.25 });
 
 /** THE LAYER: the stride the movement asks, eased on and off, and the cycle means of the clip that walks. */
-export function createStride({ sampleTrack, loopWindow, share: shareOf = strideShare, groups = null, calf = 1, toeMax = null, knees = false, keepFeet = false, profile = null }) {
-  let w = 0, stride = 1, means = null, slotMemo = null, ratio = null, ratioGroup = null;
-  let walkKnees = false; let selectedProfile = null;
+export function createStride({
+  sampleTrack,
+  loopWindow,
+  share: shareOf = strideShare,
+  groups = null,
+  calf = 1,
+  toeMax = null,
+  knees = false,
+  keepFeet = false,
+  profile = null,
+}) {
+  let w = 0,
+    stride = 1,
+    means = null,
+    slotMemo = null,
+    ratio = null,
+    ratioGroup = null;
+  let walkKnees = false;
+  let selectedProfile = null;
   const settle = { dz: null, dt: 0 };
   const layer = {
     /** One frame: `on` (the switch, the third person), the movement's clip `state`, its `source`, and the speed ratio
@@ -275,7 +386,7 @@ export function createStride({ sampleTrack, loopWindow, share: shareOf = strideS
     step(dt, { on = false, state = null, source = null, k = 1 } = {}) {
       settle.dt = Math.max(0, dt);
       const group = String(state?.group ?? '');
-      ratio = ratio == null || group !== ratioGroup ? k : ease(ratio, k, STRIDE_SMOOTH.ratio, dt);   // a new clip has its own speed
+      ratio = ratio == null || group !== ratioGroup ? k : ease(ratio, k, STRIDE_SMOOTH.ratio, dt); // a new clip has its own speed
       ratioGroup = group;
       const mine = !groups || groups.test(group);
       if (mine && state) {
@@ -290,7 +401,12 @@ export function createStride({ sampleTrack, loopWindow, share: shareOf = strideS
         means = new Map(STRIDE.bones.map((b) => [b, cycleMean(state, source, b, sampleTrack, win)]));
       }
       w = ease(w, live ? 1 : 0, STRIDE.ease, dt);
-      if (!live && w < 1e-3) { w = 0; means = null; stride = 1; settle.dz = null; }
+      if (!live && w < 1e-3) {
+        w = 0;
+        means = null;
+        stride = 1;
+        settle.dz = null;
+      }
       return w;
     },
     /** The rig's frame (combat/fpArm.js, positional so the host spends one line): `on` the switch in third person, the
@@ -305,20 +421,41 @@ export function createStride({ sampleTrack, loopWindow, share: shareOf = strideS
      *  is believable, else `rootVel` (the reference's) - and the reference's whenever the switch is off. */
     pace(source, state, skeleton, rootVel, on) {
       if (!on || !source || !state || !skeleton) return rootVel;
-      const fs = clipFootSpeed(state, source, skeleton, loopWindow(state, source.keys), sampleTrack, { poseSkeleton, skeletonSpaceMatrices, accumRootRef, root: GRAPH_ROOT });
+      const fs = clipFootSpeed(state, source, skeleton, loopWindow(state, source.keys), sampleTrack, {
+        poseSkeleton,
+        skeletonSpaceMatrices,
+        accumRootRef,
+        root: GRAPH_ROOT,
+      });
       return fs != null && fs > rootVel * FOOT_SPEED.minShare && fs > 1 ? fs : rootVel;
     },
     /** The clip's playback rate for a speed ratio `k`, the switch `on`: the share's, or the reference's `k`. */
-    rate: (k, on, group = null) => (on && (!groups || groups.test(String(group ?? ''))) ? (profile?.(group)?.share ?? shareOf)(ratio != null && String(group ?? '') === ratioGroup ? ratio : k).rate : k),
+    rate: (k, on, group = null) =>
+      on && (!groups || groups.test(String(group ?? '')))
+        ? (profile?.(group)?.share ?? shareOf)(ratio != null && String(group ?? '') === ratioGroup ? ratio : k).rate
+        : k,
     weight: () => w,
     stride: () => stride,
     /** poseAssembly's `motion` slot with the legs lengthened before `inner` (the lean, the body motion) sees them. */
     slot(inner) {
       if (slotMemo && slotMemo.inner === inner) return slotMemo.fn;
-      slotMemo = { inner, fn: (skeleton, pose, rootRef, skelMats) => {
-        if (w > 1e-3 && means) lengthenLegs(skeleton, pose, rootRef, skelMats, { stride, w, means, calf: selectedProfile?.calf ?? calf, toeMax: selectedProfile?.toeMax ?? toeMax, keepFeet: !!(selectedProfile?.keepFeet ?? keepFeet), settle, knees: walkKnees });
-        return inner ? inner(skeleton, pose, rootRef, skelMats) : null;
-      } };
+      slotMemo = {
+        inner,
+        fn: (skeleton, pose, rootRef, skelMats) => {
+          if (w > 1e-3 && means)
+            lengthenLegs(skeleton, pose, rootRef, skelMats, {
+              stride,
+              w,
+              means,
+              calf: selectedProfile?.calf ?? calf,
+              toeMax: selectedProfile?.toeMax ?? toeMax,
+              keepFeet: !!(selectedProfile?.keepFeet ?? keepFeet),
+              settle,
+              knees: walkKnees,
+            });
+          return inner ? inner(skeleton, pose, rootRef, skelMats) : null;
+        },
+      };
       return slotMemo.fn;
     },
   };

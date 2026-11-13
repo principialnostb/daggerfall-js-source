@@ -2,87 +2,143 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- DA8: the shell's first window (app/lib/launcherState.cjs). It runs its
-       own script and stylesheet and the fonts beside them, and nothing else:
-       no remote request, no inline code. The one thing it can say to the
-       shell is window.daggerLauncher (app/launcherPreload.cjs).
-       DA10: the game's front door - the patch notes, the player's options,
-       the update in the bar, and Play.
-       DA12: and a controller - the game's own front-door pad loop (pad.js).
-       AUDIT BR5: and the product's logo, the game's own file (dfo-online.png,
-       served by the shell out of src/assets/branding). -->
+  <!-- The shell's first window (app/lib/launcherState.cjs). It runs its own scripts and stylesheet and the fonts beside
+       them, and nothing else: no remote request, no inline code. The one thing it can say to the shell is
+       window.daggerLauncher (app/launcherPreload.cjs). The logo is the game's own file, served by the shell. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self'">
   <title>DFO Online</title>
   <link rel="stylesheet" href="launcher.css">
 </head>
 <body data-busy>
   <div class="night" aria-hidden="true"></div>
-  <div class="launcher">
-    <header class="top">
+  <canvas id="scene" class="scene" aria-hidden="true"></canvas>
+  <div class="shade" aria-hidden="true"></div>
+
+  <div id="front" class="launcher">
+    <header class="top" data-behind>
       <h1 class="wordmark"><img src="dfo-online.png" alt="DFO Online" width="1232" height="1034"></h1>
-      <nav class="links caps" aria-label="Links">
-        <button class="link" type="button" data-open="site">daggerfalljs.dev</button>
-        <button class="link" type="button" data-open="discord">Discord</button>
+      <nav class="links" aria-label="Links">
+        <button class="link" type="button" data-open="site"><i class="icon" data-icon="globe"></i>daggerfalljs.dev</button>
+        <button class="link" type="button" data-open="discord"><i class="icon" data-icon="chat"></i>Discord</button>
+        <button id="settings-open" class="plaque small" type="button" aria-controls="settings" aria-expanded="false" aria-haspopup="dialog"><i class="icon" data-icon="gear"></i>Settings</button>
       </nav>
     </header>
-    <div class="rule" aria-hidden="true"><i class="gem"></i></div>
 
-    <div class="middle">
+    <div class="middle" data-behind>
       <main class="panel">
-        <section id="news" class="news" aria-labelledby="news-title">
-          <h2 id="news-title" class="caps">Patch notes</h2>
-          <div class="feed" tabindex="0"></div>
-          <p class="note" hidden></p>
+        <!-- The newest release, told large: the patch notes beside it hold the whole of it -->
+        <section id="hero" class="hero" aria-labelledby="hero-title" hidden>
+          <p class="eyebrow"><i class="diamond" aria-hidden="true"></i><span id="hero-kind"></span><span id="hero-when" class="when"></span></p>
+          <h2 id="hero-title" class="hero-title"></h2>
+          <p id="hero-text" class="hero-text"></p>
+          <button id="hero-read" class="link read" type="button">Read the patch notes<i class="icon" data-icon="arrow"></i></button>
         </section>
         <section id="setup" class="setup" hidden>
-          <h2 id="setup-title"></h2>
-          <p id="setup-detail"></p>
-          <ul id="found" class="found" hidden></ul>
-          <div id="setup-actions" class="actions"></div>
+          <div class="card">
+            <h2 id="setup-title"></h2>
+            <p id="setup-detail"></p>
+            <ul id="found" class="found" hidden></ul>
+            <div id="setup-actions" class="actions"></div>
+          </div>
         </section>
       </main>
 
-      <aside class="side" aria-label="Options">
-        <section class="opt">
-          <h3 class="caps">Game files</h3>
-          <p id="files" class="files"></p>
-          <button class="plaque small" type="button" data-act="choose-folder">Change folder</button>
-        </section>
-        <section class="opt">
-          <h3 class="caps">Saves</h3>
-          <button class="plaque small" type="button" data-act="open-saves">Open saves folder</button>
-        </section>
-        <section class="opt">
-          <h3 class="caps">Updates</h3>
-          <label class="check"><input id="update-check" type="checkbox"> Check automatically</label>
-          <button class="link" type="button" data-act="reinstall">Reinstall...</button>
-        </section>
-        <!-- GPU-BACKEND-LAUNCHER: Windows only; the shell shows it (app/lib/launcherState.cjs graphicsView) -->
-        <section id="graphics" class="opt" hidden>
-          <h3 class="caps">Graphics</h3>
-          <label class="check"><input id="backend-vulkan" type="checkbox" aria-describedby="backend-note"> Use Vulkan</label>
-          <p id="backend-note" class="files"></p>
-          <button class="link" type="button" data-act="restart" hidden>Restart to apply</button>
-        </section>
-      </aside>
+      <section id="news" class="news" aria-labelledby="news-title">
+        <h2 id="news-title" class="caps">Patch notes</h2>
+        <div class="feed" tabindex="0"></div>
+        <p class="note" hidden></p>
+      </section>
     </div>
 
     <footer class="bar">
+      <i class="gem" aria-hidden="true"></i>
       <div class="state">
         <p id="status" aria-live="polite"></p>
         <p id="detail"></p>
         <div id="progress" class="progress" hidden>
           <div class="track" role="progressbar" aria-labelledby="status" aria-valuemin="0" aria-valuemax="100"><i></i></div>
           <span class="label" aria-hidden="true"></span>
+          <span id="rate" class="rate" aria-hidden="true"></span>
         </div>
       </div>
-      <div id="status-actions" class="status-actions"></div>
-      <div class="go">
+      <div id="status-actions" class="status-actions" data-behind></div>
+      <button id="private-chip" class="plaque small chip" type="button" data-behind hidden><i class="icon" data-icon="fire"></i>Private server on</button>
+      <div class="go" data-behind>
         <button id="play" class="play" type="button" data-act="play" disabled>Play</button>
         <span id="version" class="caps"></span>
       </div>
     </footer>
   </div>
+
+  <!-- Over the front door: the shade behind a window, PLAY's question, the Private server and Settings -->
+  <div id="scrim" class="scrim" aria-hidden="true"></div>
+
+  <!-- PLAY's question: online or offline (the game's own menu asks which), or a private server -->
+  <section id="choose" class="dialog" role="dialog" aria-modal="true" aria-labelledby="choose-title" hidden>
+    <h2 id="choose-title" class="caps">Where to play</h2>
+    <div class="choices">
+      <button id="play-main" class="mode" type="button" data-act="play" aria-labelledby="play-main-name" aria-describedby="play-main-line"><i class="icon big" data-icon="tower"></i><span id="play-main-name" class="mode-name">Online or offline</span><span id="play-main-line" class="mode-line">Play with everyone, or alone on this PC. The game asks which.</span></button>
+      <button id="private-open" class="mode" type="button" aria-labelledby="private-open-name" aria-describedby="private-open-line"><i class="icon big" data-icon="fire"></i><span id="private-open-name" class="mode-name">Private server</span><span id="private-open-line" class="mode-line">Host a game for friends on this PC, or join a friend's game.</span></button>
+    </div>
+    <button class="link back" type="button">Back</button>
+  </section>
+
+  <!-- Host a private server on this PC, or join a friend's (app/lib/launcherState.cjs privateView) -->
+  <section id="private" class="dialog" role="dialog" aria-modal="true" aria-labelledby="private-title" hidden>
+    <h2 id="private-title" class="caps"><i class="icon" data-icon="fire"></i>Private server</h2>
+    <p id="private-note" class="files"></p>
+    <div id="private-off">
+      <button class="plaque small" type="button" data-act="private-host" aria-describedby="private-note">Host a game</button>
+      <span class="or caps" aria-hidden="true">or</span>
+      <label class="files" for="private-address">Friend's address</label>
+      <input id="private-address" class="address" type="text" maxlength="80" placeholder="192.168.1.20:7777" spellcheck="false" autocomplete="off">
+      <button class="plaque small" type="button" data-act="private-join" aria-describedby="private-note">Join</button>
+    </div>
+    <div class="private-on">
+      <button id="private-play" class="play small-play" type="button" data-act="play" hidden>Play</button>
+      <button id="private-stop" class="plaque small" type="button" data-act="private-stop" hidden>Stop</button>
+    </div>
+    <p class="files hint">Once you host or join, press PLAY to load a character there.</p>
+    <button class="link back" type="button">Back</button>
+  </section>
+
+  <!-- The player's options, in a drawer from the right -->
+  <aside id="settings" class="drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title" inert>
+    <header class="drawer-head">
+      <h2 id="settings-title" class="caps">Settings</h2>
+      <button id="settings-close" class="close" type="button" aria-label="Close settings"><i class="icon" data-icon="close"></i></button>
+    </header>
+    <div class="drawer-body">
+      <section class="opt">
+        <h3 class="caps"><i class="icon" data-icon="folder"></i>Game files</h3>
+        <p id="files" class="files"></p>
+        <button class="plaque small" type="button" data-act="choose-folder">Change folder</button>
+      </section>
+      <section class="opt">
+        <h3 class="caps"><i class="icon" data-icon="disk"></i>Saves</h3>
+        <button class="plaque small" type="button" data-act="open-saves">Open saves folder</button>
+      </section>
+      <section class="opt">
+        <h3 class="caps"><i class="icon" data-icon="download"></i>Updates</h3>
+        <label class="check"><input id="update-check" type="checkbox"> Check automatically</label>
+        <button class="link" type="button" data-act="reinstall">Reinstall...</button>
+      </section>
+      <!-- Windows only; the shell shows it (app/lib/launcherState.cjs graphicsView) -->
+      <section id="graphics" class="opt" hidden>
+        <h3 class="caps"><i class="icon" data-icon="screen"></i>Graphics</h3>
+        <label class="check"><input id="backend-vulkan" type="checkbox" aria-describedby="backend-note"> Use Vulkan</label>
+        <p id="backend-note" class="files"></p>
+        <button class="link" type="button" data-act="restart" hidden>Restart to apply</button>
+      </section>
+    </div>
+  </aside>
+
+  <!-- The red glow and embers under the pointer (pointer.js): over everything, and never in the way of a click -->
+  <canvas id="trail" class="trail" aria-hidden="true"></canvas>
+
+  <script src="icons.js"></script>
+  <script src="scene.js"></script>
+  <script src="pointer.js"></script>
   <script src="launcher.js"></script>
   <script type="module" src="pad.js"></script>
 </body>

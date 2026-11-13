@@ -241,6 +241,11 @@ jobs:
       # the shell reads back from the release at that tag. The
       # metadata rides the release with the installers, or the updater
       # finds nothing and every copy falls back to the notice.
+      # The shell packs the game's pad loop, its logo, its gauntlet pointer's art and the built site from the repo's own tree. electron-builder's
+      # asarUnpack (the private server's runtime binary) holds every packed file to app/, so they are copied in first.
+      - name: Stage the shell's files inside app/
+        run: node scripts/desktopRelease.mjs stage
+
       - name: Build installers
         run: npx electron-builder --publish never
         working-directory: app
@@ -285,6 +290,11 @@ jobs:
     permissions:
       contents: write
       pull-requests: read   # REL6: the notes are the merged pull requests' own
+    env:
+      # The public repository installed copies read their releases from. Unset, it is this one.
+      # Set (vars.RELEASE_REPO), releases go there with secrets.RELEASE_TOKEN, so this repository
+      # can be private while every copy players hold still finds its updates.
+      RELEASE_REPO: ${{ vars.RELEASE_REPO || github.repository }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -292,6 +302,26 @@ jobs:
           # AUDIT INSTALL L1-1: this job holds contents: write, and checkout writes its token into .git/config.
           # Nothing in this job uses git auth, and nothing it publishes is read from the working tree.
           persist-credentials: false
+
+      # Where a new release tag is cut. Here, at the commit the files were built from. On another
+      # repository that commit does not exist, so the tag goes on its default branch, and this
+      # repository keeps the real one (the last step).
+      - name: The release host
+        id: host
+        env:
+          GH_TOKEN: ${{ (vars.RELEASE_REPO == '' || vars.RELEASE_REPO == github.repository) && github.token || secrets.RELEASE_TOKEN }}
+        run: |
+          [[ "$RELEASE_REPO" =~ ^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$ ]] || { echo "::error::vars.RELEASE_REPO must be owner/name"; exit 1; }
+          if [ "${RELEASE_REPO,,}" = "${GITHUB_REPOSITORY,,}" ]; then
+            echo "target=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [ -n "$GH_TOKEN" ] || { echo "::error::releases go to $RELEASE_REPO, and secrets.RELEASE_TOKEN is not set"; exit 1; }
+          BRANCH=$(gh api "repos/$RELEASE_REPO" --jq .default_branch)
+          [ -n "$BRANCH" ] || { echo "::error::$RELEASE_REPO named no default branch"; exit 1; }
+          echo "target=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "elsewhere=true" >> "$GITHUB_OUTPUT"
+          echo "releases go to $RELEASE_REPO, tagged at its $BRANCH; this repository keeps the tag at $GITHUB_SHA"
 
       - uses: actions/setup-node@v4
         with:
@@ -322,14 +352,14 @@ jobs:
       # changed: every update the installer's) is not published. The first release with a game has nothing before it.
       - name: The game's update is the files that changed
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ (vars.RELEASE_REPO == '' || vars.RELEASE_REPO == github.repository) && github.token || secrets.RELEASE_TOKEN }}
         run: |
-          if PREV=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>prev-error.txt); then :
+          if PREV=$(gh api "repos/$RELEASE_REPO/releases/latest" --jq .tag_name 2>prev-error.txt); then :
           elif grep -q 'HTTP 404' prev-error.txt; then PREV=''
           else cat prev-error.txt >&2; exit 1
           fi
-          if [ -n "$PREV" ] && gh api "repos/$GITHUB_REPOSITORY/releases/tags/$PREV" --jq '.assets[].name' | grep -qx 'DFO-Online-game.json.gz'; then
-            gh release download "$PREV" --repo "$GITHUB_REPOSITORY" --pattern 'DFO-Online-game.json.gz' --dir previous
+          if [ -n "$PREV" ] && gh api "repos/$RELEASE_REPO/releases/tags/$PREV" --jq '.assets[].name' | grep -qx 'DFO-Online-game.json.gz'; then
+            gh release download "$PREV" --repo "$RELEASE_REPO" --pattern 'DFO-Online-game.json.gz' --dir previous
             node scripts/desktopRelease.mjs delta previous/DFO-Online-game.json.gz release/DFO-Online-game.json.gz "$PREV"
           else
             echo "no game on the release before (${PREV:-none}) - nothing to measure against"
@@ -359,17 +389,17 @@ jobs:
       # files. A draft is invisible to players; this run stages it afresh.
       - name: The tag has no published release, and no draft left over
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ (vars.RELEASE_REPO == '' || vars.RELEASE_REPO == github.repository) && github.token || secrets.RELEASE_TOKEN }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
-          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --silent 2>lookup-error.txt; then
+          if gh api "repos/$RELEASE_REPO/releases/tags/$TAG" --silent 2>lookup-error.txt; then
             echo "::error::$TAG is already published - a release is never re-cut in place; cut a new tag"
             exit 1
           fi
           grep -q 'HTTP 404' lookup-error.txt || { cat lookup-error.txt >&2; exit 1; }
-          LEFT=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.draft and .tag_name == env.TAG) | .id')
+          LEFT=$(gh api --paginate "repos/$RELEASE_REPO/releases?per_page=100" --jq '.[] | select(.draft and .tag_name == env.TAG) | .id')
           for ID in $LEFT; do
-            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$ID" --silent
+            gh api -X DELETE "repos/$RELEASE_REPO/releases/$ID" --silent
             echo "deleted draft $ID, left at $TAG by an earlier run"
           done
 
@@ -392,7 +422,9 @@ jobs:
           # REL8: the release is the player's update by name (the launcher's news reads it); the tag keeps the
           # installer's number, which the updater compares
           name: ${{ needs.version.outputs.update != '' && format('Update {0}', needs.version.outputs.update) || needs.version.outputs.tag }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ steps.host.outputs.target }}
+          repository: ${{ env.RELEASE_REPO }}
+          token: ${{ (vars.RELEASE_REPO == '' || vars.RELEASE_REPO == github.repository) && github.token || secrets.RELEASE_TOKEN }}
           draft: true
           body_path: release-notes.md
           generate_release_notes: true
@@ -404,16 +436,33 @@ jobs:
       # must not move every download link and updater back to it.
       - name: Publish it whole
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ (vars.RELEASE_REPO == '' || vars.RELEASE_REPO == github.repository) && github.token || secrets.RELEASE_TOKEN }}
           TAG: ${{ needs.version.outputs.tag }}
           RELEASE_ID: ${{ steps.release.outputs.id }}
         run: |
           # AUDIT INSTALL L3-5: only a 404 means "nothing is latest yet" - any other failure (a 5xx, a rate
           # limit) fails the step, rather than letting a re-cut of an old build take `latest` by default
-          if CURRENT=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>latest-error.txt); then :
+          if CURRENT=$(gh api "repos/$RELEASE_REPO/releases/latest" --jq .tag_name 2>latest-error.txt); then :
           elif grep -q 'HTTP 404' latest-error.txt; then CURRENT=''
           else cat latest-error.txt >&2; exit 1
           fi
           MAKE_LATEST=$(node scripts/desktopRelease.mjs latest "$TAG" "$CURRENT")
-          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -F draft=false -f make_latest="$MAKE_LATEST" --silent
+          gh api -X PATCH "repos/$RELEASE_REPO/releases/$RELEASE_ID" -F draft=false -f make_latest="$MAKE_LATEST" --silent
           echo "published $TAG (latest: $MAKE_LATEST)"
+
+      # The next release's notes and a renote both find a release by its tag in this repository's
+      # history, so a release published elsewhere leaves its tag here too, at the commit its files
+      # were built from. A tag already here (a pushed tag started this run) is kept as it is.
+      - name: The tag here too, when the release went elsewhere
+        if: steps.host.outputs.elsewhere == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --silent 2>here-error.txt; then
+            echo "$TAG is already tagged here"
+            exit 0
+          fi
+          grep -q 'HTTP 404' here-error.txt || { cat here-error.txt >&2; exit 1; }
+          gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" --silent
+          echo "tagged $TAG here at $GITHUB_SHA"

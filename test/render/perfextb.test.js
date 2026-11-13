@@ -305,7 +305,7 @@ test('PERF-EXT11: the shadow replay uploads a flat\'s origin and size when they 
     if (c[0] === 'useProgram') inBb = c[1] === P.p;
     else if (inBb && c[0] === 'uniform3f' && c[1] === 'uOrigin') origins++;
     else if (inBb && c[0] === 'uniform2f' && c[1] === 'uSize') sizes++;
-    else if (inBb && c[0] === 'uniform4fv' && c[1] === 'uFlatWind') records++;   // once a record a replay
+    else if (inBb && c[0] === 'uniformMatrix4fv' && c[1] === 'uProj') records++;   // once a replay: the projection the flat program takes on each (the wind goes up once per change)
     else if (inBb && c[0] === 'drawElements') draws++;
   }
   assert.ok(records >= 1 && draws >= 20 * records, `the record was replayed (${records} replays, ${draws} flat draws)`);

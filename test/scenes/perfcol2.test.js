@@ -188,8 +188,10 @@ function worldBox(b) {
  *  meets the query's (a standing one within its cells' skin, a mover where it stands now) - checked against _near's:
  *  each there, in the Map's order, once. SEA-DROPS: and a mover whose world box stands a metre clear of the query's is
  *  not handed (the boats' buckets, asked by every ray of the deep's foes hundreds of metres off). */
+const KEPT = [];   // one list kept across every query, as the walks keep theirs: the answer is its first `n`
 function nearIsWhole(c, x0, x1, z0, z1, label) {
-  const out = c._near(x0, x1, z0, z1, []);
+  const n = c._near(x0, x1, z0, z1, KEPT), out = KEPT.slice(0, n);
+  for (let i = n; i < KEPT.length; i++) assert.equal(KEPT[i], null, `${label}: a slot past the answer lets its bucket go`);
   const order = [...c._buckets.values()];
   for (let i = 1; i < out.length; i++) assert.ok(order.indexOf(out[i - 1]) < order.indexOf(out[i]), `${label}: in the walk's order, once`);
   const narrow = (Math.floor(x1 / 8) - Math.floor(x0 / 8) + 1) * (Math.floor(z1 / 8) - Math.floor(z0 / 8) + 1) <= 256;   // a box over more broad cells (8 m) than 256 is handed the whole walk, as before

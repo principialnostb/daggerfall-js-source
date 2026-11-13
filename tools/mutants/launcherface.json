@@ -1,0 +1,686 @@
+[
+  {
+    "name": "LAUNCHER-FACE-1-the-window-ignores-the-screen",
+    "file": "app/lib/launcherWindow.cjs",
+    "old": "? Math.max(min, Math.min(want, Math.floor(room))) : want",
+    "new": "? want : want",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-2-the-window-goes-below-its-floor",
+    "file": "app/lib/launcherWindow.cjs",
+    "old": "? Math.max(min, Math.min(want, Math.floor(room))) : want",
+    "new": "? Math.min(want, Math.floor(room)) : want",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-3-the-shell-sizes-the-window-by-hand-again",
+    "file": "app/main.cjs",
+    "old": "    ...launcherBounds(require('electron').screen),\n",
+    "new": "    width: 1120,\n    height: 680,\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-4-busy-is-not-a-tone",
+    "file": "app/lib/launcherState.cjs",
+    "old": "  v.tone = v.busy ? 'busy' : STATUS_TONE[u.status] ?? 'ok';",
+    "new": "  v.tone = STATUS_TONE[u.status] ?? 'ok';",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-5-a-failed-check-reads-as-fine",
+    "file": "app/lib/launcherState.cjs",
+    "old": "failed: 'warn', stuck: 'warn', offline: 'warn',",
+    "new": "failed: 'ok', stuck: 'ok', offline: 'ok',",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-6-the-game-never-starts-for-the-page",
+    "file": "app/lib/launcherState.cjs",
+    "old": "  v.launching = !!s.launch;",
+    "new": "  v.launching = false;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-7-no-bytes-to-reckon-a-speed-from",
+    "file": "app/lib/launcherState.cjs",
+    "old": "    if (u.total > 0) Object.assign(v.progress, { transferred: Math.max(0, Number(u.transferred) || 0), total: u.total });\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-8-the-headline-takes-the-last-heading",
+    "file": "app/launcher/launcher.js",
+    "old": "if (heading) { title ??= heading[1]",
+    "new": "if (heading) { title = heading[1]",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-9-every-headline-is-the-latest",
+    "file": "app/launcher/launcher.js",
+    "old": "Object.hasOwn(HERO_KIND, note.badge) ? HERO_KIND[note.badge] : 'Latest update'",
+    "new": "'Latest update'",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-10-the-headline-over-the-first-run-card",
+    "file": "app/launcher/launcher.js",
+    "old": "$('hero').hidden = v.panel !== 'news' || !v.news.items.length;",
+    "new": "$('hero').hidden = !v.news.items.length;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-11-a-release-loses-its-mark",
+    "file": "app/launcher/launcher.js",
+    "old": "    if (Object.hasOwn(BADGE, note.badge)) box.dataset.badge = note.badge;\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-12-the-page-is-reachable-behind-a-window",
+    "file": "app/launcher/launcher.js",
+    "old": "    for (const region of document.querySelectorAll('[data-behind]')) region.toggleAttribute('inert', !!over);\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-13-the-open-drawer-stays-out-of-reach",
+    "file": "app/launcher/launcher.js",
+    "old": "$('settings').toggleAttribute('inert', !drawer);",
+    "new": "$('settings').toggleAttribute('inert', true);",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-14-the-focus-is-left-in-a-shut-drawer",
+    "file": "app/launcher/launcher.js",
+    "old": "(open ? $('settings').querySelector('.plaque') : $('settings-open')).focus({ preventScroll: true });",
+    "new": "if (open) $('settings').querySelector('.plaque').focus({ preventScroll: true });",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-15-escape-closes-nothing",
+    "file": "app/launcher/launcher.js",
+    "old": "if (e.key === 'Escape' && !e.isComposing && back()) e.preventDefault();",
+    "new": "if (e.key === 'Esc' && !e.isComposing && back()) e.preventDefault();",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-16-escape-skips-the-question",
+    "file": "app/launcher/launcher.js",
+    "old": "  const stepBack = () => show(screen === 'private' && !privateOn ? 'choose' : null);",
+    "new": "  const stepBack = () => show(null);",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-17-a-window-stays-over-the-first-run-card",
+    "file": "app/launcher/launcher.js",
+    "old": "    if (v.panel !== 'news' || v.launching) screen = null;\n",
+    "new": "    if (v.launching) screen = null;\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-18-the-drawer-stays-over-the-first-run-card",
+    "file": "app/launcher/launcher.js",
+    "old": "    if (drawer && ((v.panel === 'setup' && lastPanel !== 'setup') || v.launching)) settings(false);\n",
+    "new": "    if (drawer && v.launching) settings(false);\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-19-the-notes-vanish-under-the-question",
+    "file": "app/launcher/launcher.js",
+    "old": "    $('news').hidden = v.panel !== 'news';\n",
+    "new": "    $('news').hidden = v.panel !== 'news' || !!screen;\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-20-a-speed-from-one-tick",
+    "file": "app/launcher/launcher.js",
+    "old": "if (now - t0 < 1500 || p.transferred <= b0) return '';",
+    "new": "if (p.transferred <= b0) return '';",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-21-the-fast-start-counts-for-ever",
+    "file": "app/launcher/launcher.js",
+    "old": "    while (speed.seen.length > 2 && now - speed.seen[0][0] > 6000) speed.seen.shift();\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-22-a-new-download-keeps-the-old-count",
+    "file": "app/launcher/launcher.js",
+    "old": "if (p.total !== speed.total || p.transferred < (speed.seen.at(-1)?.[1] ?? 0)) {",
+    "new": "if (p.transferred < (speed.seen.at(-1)?.[1] ?? 0)) {",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-23-minutes-said-in-seconds",
+    "file": "app/launcher/launcher.js",
+    "old": "${secs < 60 ? `${secs} s left`",
+    "new": "${secs < 600 ? `${secs} s left`",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-24-the-scene-draws-over-the-game-starting",
+    "file": "app/launcher/launcher.js",
+    "old": "    document.body.toggleAttribute('data-launching', !!v.launching);\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-25-the-scene-never-rests",
+    "file": "app/launcher/scene.js",
+    "old": "const stopped = () => document.hidden || document.body.hasAttribute('data-launching') || !!still?.matches;",
+    "new": "const stopped = () => document.hidden;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-26-a-colour-the-brand-does-not-have",
+    "file": "app/launcher/scene.js",
+    "old": "sky0: '#050608'",
+    "new": "sky0: '#050609'",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-27-an-icon-a-column-short",
+    "file": "app/launcher/icons.js",
+    "old": "    gear: [\n      '................',",
+    "new": "    gear: [\n      '...............',",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-28-the-page-asks-for-an-icon-nobody-drew",
+    "file": "app/launcher/index.html",
+    "old": "data-icon=\"tower\"",
+    "new": "data-icon=\"towers\"",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-29-the-headline-under-aa",
+    "file": "app/launcher/launcher.css",
+    "old": "margin: 12px 0 0; font-size: 16px; line-height: 1.45; color: #c5bda2;",
+    "new": "margin: 12px 0 0; font-size: 16px; line-height: 1.45; color: #4a463d;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-30-less-motion-still-moves",
+    "file": "app/launcher/launcher.css",
+    "old": "  *, *::before, *::after { animation: none !important; transition: none !important; }\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-31-the-scene-smeared",
+    "file": "app/launcher/launcher.css",
+    "old": ".scene { position: fixed; left: 0; top: 0; image-rendering: pixelated;",
+    "new": ".scene { position: fixed; left: 0; top: 0; image-rendering: auto;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-32-the-shut-drawer-is-reachable",
+    "file": "app/launcher/index.html",
+    "old": "aria-labelledby=\"settings-title\" inert>",
+    "new": "aria-labelledby=\"settings-title\">",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-33-the-night-is-read-aloud",
+    "file": "app/launcher/index.html",
+    "old": "<canvas id=\"scene\" class=\"scene\" aria-hidden=\"true\">",
+    "new": "<canvas id=\"scene\" class=\"scene\">",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-34-the-focus-lands-on-a-held-button",
+    "file": "app/launcher/launcher.js",
+    "old": "  const firstAnswer = (root) => [...root.querySelectorAll('button, input')].find((b) => !b.disabled && b.checkVisibility());",
+    "new": "  const firstAnswer = (root) => root.querySelector('button');",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-35-any-bytes-served-as-a-pointer",
+    "file": "app/lib/launcherPointer.cjs",
+    "old": "if (bytes && bytes.subarray(0, 8).equals(PNG_SIGNATURE)) out.set(file, bytes);",
+    "new": "if (bytes) out.set(file, bytes);",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-36-the-pointer-served-as-no-image",
+    "file": "app/main.cjs",
+    "old": "return png ? new Response(png, { headers: { 'Content-Type': 'image/png' } })",
+    "new": "return png ? new Response(png, { headers: { 'Content-Type': 'application/octet-stream' } })",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-37-the-shell-reads-another-file",
+    "file": "app/main.cjs",
+    "old": "path.join(__dirname, '..', 'src', 'ui', 'plus', 'gauntletArt.js');",
+    "new": "path.join(__dirname, '..', 'src', 'ui', 'plus', 'plusCursor.js');",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-38-the-art-never-packed",
+    "file": "scripts/desktopRelease.mjs",
+    "old": "  Object.freeze({ from: 'src/ui/plus/gauntletArt.js', to: 'app/launcher/gauntletArt.js' }),\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-39-the-staged-art-committed",
+    "file": ".gitignore",
+    "old": "app/launcher/gauntletArt.js\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-40-no-press-frame",
+    "file": "app/launcher/launcher.css",
+    "old": "html.press, html.press *, html.press *::before, html.press *::after { cursor: url(gauntlet-press.png) 0 0, auto !important;",
+    "new": "html.press { cursor: url(gauntlet-press.png) 0 0, auto !important;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-41-a-broken-pointer-shows-nothing",
+    "file": "app/launcher/launcher.css",
+    "old": "html, html *, html *::before, html *::after { cursor: url(gauntlet-point.png) 0 0, auto !important;",
+    "new": "html, html *, html *::before, html *::after { cursor: url(gauntlet-point.png) 0 0, none !important;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-42-the-address-loses-its-caret",
+    "file": "app/launcher/launcher.css",
+    "old": "html .address { cursor: text !important; }\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-43-the-red-takes-the-click",
+    "file": "app/launcher/launcher.css",
+    "old": ".trail { position: fixed; left: 0; top: 0; z-index: 8; pointer-events: none;",
+    "new": ".trail { position: fixed; left: 0; top: 0; z-index: 8;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-44-a-finger-wears-the-gauntlet",
+    "file": "app/launcher/pointer.js",
+    "old": "{ if (e.pointerType !== 'touch') press(true); }",
+    "new": "{ press(true); }",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-45-the-press-stuck-on-blur",
+    "file": "app/launcher/pointer.js",
+    "old": "  window.addEventListener('blur', () => press(false));\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-46-the-red-burns-over-the-game-starting",
+    "file": "app/launcher/pointer.js",
+    "old": "const stopped = () => document.hidden || document.body.hasAttribute('data-launching') || !!still?.matches;",
+    "new": "const stopped = () => document.hidden;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-47-the-red-draws-at-rest",
+    "file": "app/launcher/pointer.js",
+    "old": "    if (busy()) raf = requestAnimationFrame(tick);\n    else { ctx.clearRect(0, 0, W, H); canvas.hidden = true; }\n",
+    "new": "    raf = requestAnimationFrame(tick);\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-48-a-red-the-brand-does-not-have",
+    "file": "app/launcher/pointer.js",
+    "old": "const RAMP = ['#fff4e0',",
+    "new": "const RAMP = ['#fff4e1',",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-49-the-game-keeps-its-own-copy",
+    "file": "src/ui/plus/plusCursor.js",
+    "old": "import {\n  GAUNTLET_POINT_1X as N1,\n  GAUNTLET_POINT_2X as N2,\n  GAUNTLET_PRESS_1X as P1,\n  GAUNTLET_PRESS_2X as P2,\n} from './gauntletArt.js';\n",
+    "new": "import { GAUNTLET_POINT_1X as N1, GAUNTLET_POINT_2X as N2, GAUNTLET_PRESS_2X as P2 } from './gauntletArt.js';\nconst P1 = N1;\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-50-the-window-opens-on-another-display",
+    "file": "app/lib/launcherWindow.cjs",
+    "old": "    return Number.isFinite(x) && Number.isFinite(y) ? { x, y, ...size } : size;\n",
+    "new": "    return size;\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-51-no-screen-no-window",
+    "file": "app/lib/launcherWindow.cjs",
+    "old": "  } catch {\n    return { ...LAUNCHER_SIZE };\n  }\n",
+    "new": "  } finally {\n    // no fallback\n  }\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-52-a-failed-read-kept-for-the-session",
+    "file": "app/main.cjs",
+    "old": "      launcherPointer = null;\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-53-every-failed-read-shouted",
+    "file": "app/main.cjs",
+    "old": "      if (!launcherPointerWarned) { launcherPointerWarned = true; console.warn(",
+    "new": "      if (true) { launcherPointerWarned = true; console.warn(",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-54-settings-on-the-card-shut-at-every-view",
+    "file": "app/launcher/launcher.js",
+    "old": "(v.panel === 'setup' && lastPanel !== 'setup')",
+    "new": "(v.panel === 'setup')",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-55-the-question-over-the-game-starting",
+    "file": "app/launcher/launcher.js",
+    "old": "    if (v.panel !== 'news' || v.launching) screen = null;\n",
+    "new": "    if (v.panel !== 'news') screen = null;\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-56-a-lost-focus-left-lost",
+    "file": "app/launcher/launcher.js",
+    "old": "    if ((screen || drawer) && lost(document.activeElement)) firstAnswer(drawer ? $('settings') : $(screen))?.focus({ preventScroll: true });\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-57-the-status-line-silenced-under-a-window",
+    "file": "app/launcher/index.html",
+    "old": "      <div class=\"state\">\n        <p id=\"status\" aria-live=\"polite\"></p>",
+    "new": "      <div class=\"state\" data-behind>\n        <p id=\"status\" aria-live=\"polite\"></p>",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-58-no-play-in-the-private-window",
+    "file": "app/launcher/launcher.js",
+    "old": "      $('private-play').hidden = !pv.on;\n",
+    "new": "      $('private-play').hidden = true;\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-59-no-mark-that-a-server-is-on",
+    "file": "app/launcher/launcher.js",
+    "old": "    $('private-chip').hidden = !privateOn;\n",
+    "new": "    $('private-chip').hidden = true;\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-60-enter-in-the-address-does-nothing",
+    "file": "app/launcher/launcher.js",
+    "old": "    document.querySelector('[data-act=\"private-join\"]').click();\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-61-a-composed-key-taken-for-escape",
+    "file": "app/launcher/launcher.js",
+    "old": "e.key === 'Escape' && !e.isComposing && back()",
+    "new": "e.key === 'Escape' && back()",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-62-back-lands-on-the-first-answer",
+    "file": "app/launcher/launcher.js",
+    "old": "from === 'private' && !$('private-open').disabled ? $('private-open') : firstAnswer($(next))",
+    "new": "firstAnswer($(next))",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-63-headline-from-a-code-block",
+    "file": "app/launcher/launcher.js",
+    "old": "      if (/^(```|~~~)/.test(line)) { fenced = !fenced; continue; }\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-64-untitled-notes-titled-patch-notes",
+    "file": "app/launcher/launcher.js",
+    "old": "heading[1].replace(/^Patch Notes:?\\s*/i, '')",
+    "new": "heading[1].replace(/^Patch Notes:\\s*/i, '')",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-65-the-last-byte-said-as-one-second",
+    "file": "app/launcher/launcher.js",
+    "old": "    if (p.transferred >= p.total) return '';\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-66-the-glow-repaints-every-frame",
+    "file": "app/launcher/launcher.css",
+    "old": "  animation: glow 2.6s steps(13) infinite;",
+    "new": "  animation: glow 2.6s ease-in-out infinite;",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-67-the-pulse-on-the-compositor",
+    "file": "app/launcher/launcher.css",
+    "old": "@keyframes beat { 50% { color: #7a5424; } }",
+    "new": "@keyframes beat { 50% { opacity: 0.35; } }",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-68-the-progress-light-on-the-compositor",
+    "file": "app/launcher/launcher.css",
+    "old": "@keyframes sweep { to { background-position: 560px 0; } }",
+    "new": "@keyframes sweep { to { transform: translateX(560px); } }",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-69-it-moves-while-the-game-starts",
+    "file": "app/launcher/launcher.css",
+    "old": "body[data-launching] *, body[data-launching] *::before, body[data-launching] *::after { animation-play-state: paused !important; }\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-70-the-blend-stays-on-the-page-at-rest",
+    "file": "app/launcher/pointer.js",
+    "old": "    else { ctx.clearRect(0, 0, W, H); canvas.hidden = true; }\n",
+    "new": "    else ctx.clearRect(0, 0, W, H);\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-71-the-trail-uncapped",
+    "file": "app/launcher/pointer.js",
+    "old": "    if (dt >= 1 / 61) {\n",
+    "new": "    if (dt >= 0) {\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-72-a-layer-of-no-pixels",
+    "file": "app/launcher/scene.js",
+    "old": "    w = Math.max(1, w);\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-73-the-scene-draws-before-it-listens",
+    "file": "app/launcher/scene.js",
+    "old": "  // the listeners first: a first draw that fails must not leave the scene deaf to the next resize\n",
+    "new": "  redraw();\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-74-a-new-screen-scale-unseen",
+    "file": "app/launcher/scene.js",
+    "old": "  watchScale();\n",
+    "new": "",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-75-the-trail-starts-on-the-page",
+    "file": "app/launcher/pointer.js",
+    "old": "  canvas.hidden = true;\n  window.addEventListener('resize', size);\n",
+    "new": "  window.addEventListener('resize', size);\n",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  },
+  {
+    "name": "LAUNCHER-FACE-76-the-floor-taller-than-a-laptop",
+    "file": "app/lib/launcherWindow.cjs",
+    "old": "const LAUNCHER_MIN = Object.freeze({ width: 900, height: 520 });",
+    "new": "const LAUNCHER_MIN = Object.freeze({ width: 900, height: 600 });",
+    "tests": [
+      "test/tooling/launcher_face.test.js"
+    ]
+  }
+]

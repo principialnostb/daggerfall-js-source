@@ -33,18 +33,18 @@
 // the bilinear blend of its corners - the diagonal the shore tile's own
 // art follows - feathered by SHORE_SOFTNESS.
 import { WATER_DRAW_MASK_TABLE } from '../world/water/waterCorners.js';
-import { snowCoreGlsl } from './snowCoverGlsl.js';   // AUDIT PRECIP GROUND-5: the ground's snow, for a puddle's mask under it
-import { PUDDLE_RECORDS } from '../world/puddleMask.js';   // WATER-PUDDLE: the records whose water is their art's   // MAC2: the corner table is a leaf the player's feet share; WATER-DRAW1: the DRAW's half of it - the feet's is the law's own table, and the two are not the same question
+import { snowCoreGlsl } from './snowCoverGlsl.js'; // AUDIT PRECIP GROUND-5: the ground's snow, for a puddle's mask under it
+import { PUDDLE_RECORDS } from '../world/puddleMask.js'; // WATER-PUDDLE: the records whose water is their art's   // MAC2: the corner table is a leaf the player's feet share; WATER-DRAW1: the DRAW's half of it - the feet's is the law's own table, and the two are not the same question
 import { WIND_ROW_CALM, WIND_ROW_SPAN } from '../systems/wind/wind.js';
-import { getPref } from '../systems/uiPrefs.js';   // FT6: the switch, read here alone
+import { getPref } from '../systems/uiPrefs.js'; // FT6: the switch, read here alone
 import { isEnhanced } from '../systems/uiSkin.js';
-import { FOG_GLSL } from './fogGlsl.js';   // AUDIT 68 S17-fog-glsl-dup: the fog every world pass takes, one home
-import { SEA_LOOK_GLSL, SEA_HAZE_BAND } from './horizonHaze.js';   // FAR-SEA1: the sea takes the far ring's haze; AUDIT FAR-SEA1 C12: and the open sea's light is one text with the ring's sea
+import { FOG_GLSL } from './fogGlsl.js'; // AUDIT 68 S17-fog-glsl-dup: the fog every world pass takes, one home
+import { SEA_LOOK_GLSL, SEA_HAZE_BAND } from './horizonHaze.js'; // FAR-SEA1: the sea takes the far ring's haze; AUDIT FAR-SEA1 C12: and the open sea's light is one text with the ring's sea
 import { pageParam } from '../systems/pageQuery.js';
-import { EDGE_NOISE_GLSL } from './roadEdgeGlsl.js';   // COAST-LOOK: the edges' lattice noise, its one text
-import { groundWanderGlsl, groundKindsGlsl } from './groundEdgeGlsl.js';   // COAST-LOOK: the shore's wander and the transitions' table, the ground's own (the sheet, the sand and the silt on one line)
+import { EDGE_NOISE_GLSL } from './roadEdgeGlsl.js'; // COAST-LOOK: the edges' lattice noise, its one text
+import { groundWanderGlsl, groundKindsGlsl } from './groundEdgeGlsl.js'; // COAST-LOOK: the shore's wander and the transitions' table, the ground's own (the sheet, the sand and the silt on one line)
 import { RIPPLE_CELLS, RIPPLE_SCALE } from '../world/water/waterRipples.js';
-import { NO_BED_DEPTH, SHELF_SHEET_DEPTH } from '../world/water/waterCorners.js';   // AUDIT WATER-NEXT H2: its one home, the water's leaf (the kernel's worker writes it)   // WATER-NEXT 4: the ripple field the shader reads   // PERF-URL: the page's query, parsed once a search
+import { NO_BED_DEPTH, SHELF_SHEET_DEPTH } from '../world/water/waterCorners.js'; // AUDIT WATER-NEXT H2: its one home, the water's leaf (the kernel's worker writes it)   // WATER-NEXT 4: the ripple field the shader reads   // PERF-URL: the page's query, parsed once a search
 
 /** FT6 (2026-09-14, the Features arc): THE SWITCH, ONE HOME. Both
  *  exterior hosts composed "the enhanced skin, the pref, the kill door"
@@ -54,7 +54,7 @@ import { NO_BED_DEPTH, SHELF_SHEET_DEPTH } from '../world/water/waterCorners.js'
  *  still asks tilemapRectHasWater beside it - that is the town's, not
  *  the switch's. */
 export function waterSwitchOn(search = globalThis.location?.search ?? '') {
-  return isEnhanced() && !!getPref('enhancedWater') && pageParam('water', search) !== 'off';   // PERF-URL
+  return isEnhanced() && !!getPref('enhancedWater') && pageParam('water', search) !== 'off'; // PERF-URL
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -99,7 +99,7 @@ export const WATER_LIFT = 0.08;
  *  multiplier, so the tile's own palette colour reads as the body of the
  *  water and not as a floor seen through it. MAC2: darkened from
  *  0.62/0.78/0.86 - the body is the water's depth now, not its floor. */
-export const WATER_TINT = Object.freeze([0.36, 0.50, 0.60]);
+export const WATER_TINT = Object.freeze([0.36, 0.5, 0.6]);
 /** Schlick's F0 for water (n = 1.33). */
 export const WATER_F0 = 0.02;
 /** Half-width of the shore feather, in coverage (0.5 is the diagonal). */
@@ -119,7 +119,8 @@ export const DEFAULT_SKY_HORIZON = Object.freeze([0.66, 0.78, 0.92]);
  *  answered yes for every non-square town (AUDIT 65 MC-6: the one gate -
  *  the whole-map twin it replaced had no caller left and is retired). */
 export function tilemapRectHasWater(bytes, dim, width, height, table = WATER_DRAW_MASK_TABLE) {
-  const w = Math.min(width, dim), h = Math.min(height, dim);
+  const w = Math.min(width, dim),
+    h = Math.min(height, dim);
   for (let y = 0; y < h; y++) {
     const row = y * dim;
     for (let x = 0; x < w; x++) if (table[bytes[row + x]]) return true;
@@ -139,25 +140,39 @@ export function tilemapRectHasWater(bytes, dim, width, height, table = WATER_DRA
  * tiles at (x * stride.., z * stride..) - the grid's cell IS the tile at
  * stride 1 (6.4 units), which is the frame the shader samples in.
  */
-export function buildWaterIndices(bytes, stride = 1, table = WATER_DRAW_MASK_TABLE, tileDim = 128, width = tileDim, height = tileDim) {
-  const g = width / stride + 1;   // WATER-NEXT 2: a grid `width` x `height` tiles (the fixed town's), `tileDim` a row
-  const qx = g - 1, qz = height / stride;
+export function buildWaterIndices(
+  bytes,
+  stride = 1,
+  table = WATER_DRAW_MASK_TABLE,
+  tileDim = 128,
+  width = tileDim,
+  height = tileDim,
+) {
+  const g = width / stride + 1; // WATER-NEXT 2: a grid `width` x `height` tiles (the fixed town's), `tileDim` a row
+  const qx = g - 1,
+    qz = height / stride;
   const out = [];
   for (let z = 0; z < qz; z++) {
     for (let x = 0; x < qx; x++) {
       let wet = false;
       for (let tz = z * stride; tz < (z + 1) * stride && !wet; tz++) {
         const row = tz * tileDim;
-        for (let tx = x * stride; tx < (x + 1) * stride; tx++) if (table[bytes[row + tx]]) { wet = true; break; }
+        for (let tx = x * stride; tx < (x + 1) * stride; tx++)
+          if (table[bytes[row + tx]]) {
+            wet = true;
+            break;
+          }
       }
       if (!wet) continue;
-      const i0 = z * g + x, i1 = i0 + 1, i2 = i0 + g, i3 = i2 + 1;
+      const i0 = z * g + x,
+        i1 = i0 + 1,
+        i2 = i0 + g,
+        i3 = i2 + 1;
       out.push(i0, i2, i3, i0, i3, i1);
     }
   }
   return out.length ? Uint32Array.from(out) : null;
 }
-
 
 /** 0..1: the eased wind row's strength on the sky's own scale
  *  (systems/wind/wind.js: a row's vector runs WIND_ROW_CALM to
@@ -178,10 +193,14 @@ export function windStrength01(wind) {
 export function waterUniforms({ seconds = 0, wind = null, rain = 0, sky = null, still = false } = {}) {
   const t = still ? 0 : seconds;
   const s = windStrength01(wind);
-  let dx = 0.7, dz = Math.sqrt(1 - 0.49);   // a unit direction: the wind the sea takes when none is known
+  let dx = 0.7,
+    dz = Math.sqrt(1 - 0.49); // a unit direction: the wind the sea takes when none is known
   if (wind) {
     const m = Math.hypot(wind[0] ?? 0, wind[1] ?? 0);
-    if (m > 1e-9) { dx = wind[0] / m; dz = wind[1] / m; }
+    if (m > 1e-9) {
+      dx = wind[0] / m;
+      dz = wind[1] / m;
+    }
   }
   return {
     time: t,
@@ -190,7 +209,7 @@ export function waterUniforms({ seconds = 0, wind = null, rain = 0, sky = null, 
     rain: Math.min(1, Math.max(0, rain || 0)),
     zenith: sky?.zenith ?? DEFAULT_SKY_ZENITH,
     horizon: sky?.horizon ?? DEFAULT_SKY_HORIZON,
-    aurora: sky?.aurora?.tex ?? null,   // SKYRIM-AURORA: the dome map's texture, or null
+    aurora: sky?.aurora?.tex ?? null, // SKYRIM-AURORA: the dome map's texture, or null
     // AUDIT WATER-NEXT m6: no `scroll` and no `opacity` - WATER-NEXT 2's sheet scrolls no texel and has no one opacity
     // (the body swallows light by its depth; MAC2's "darker and not as see through" is the deep water's now), and
     // WATER_OPACITY, forwarded here and pinned as the surface's floor, was a law nothing drew
@@ -198,7 +217,7 @@ export function waterUniforms({ seconds = 0, wind = null, rain = 0, sky = null, 
     tint: WATER_TINT,
     f0: WATER_F0,
     shoreSoft: SHORE_SOFTNESS,
-    swell: swellAmplitude(s),   // WATER-NEXT 2: the sheet's swell, the wind's
+    swell: swellAmplitude(s), // WATER-NEXT 2: the sheet's swell, the wind's
     absorb: WATER_ABSORB,
   };
 }
@@ -232,15 +251,22 @@ export const SWELL_DEPTH = 2.5;
  *  eye (a pixel is 819.2 across), before a strided ring's cells grow as long as the shortest train. */
 export const SWELL_REACH = Object.freeze([300, 600]);
 /** The swell's height for a wind strength 0..1. */
-export const swellAmplitude = (windStrength01) => SWELL_CALM + (SWELL_GALE - SWELL_CALM) * Math.min(1, Math.max(0, windStrength01));
+export const swellAmplitude = (windStrength01) =>
+  SWELL_CALM + (SWELL_GALE - SWELL_CALM) * Math.min(1, Math.max(0, windStrength01));
 
 /** The swell at a world point, the shader's own sum: [height, d/dx, d/dz]. `windDir` a unit [x, z]. */
 export function swellAt(x, z, t, windDir, amplitude) {
-  let h = 0, gx = 0, gz = 0;
+  let h = 0,
+    gx = 0,
+    gz = 0;
   for (const [ang, len, share] of SWELL_TRAINS) {
-    const c = Math.cos(ang), s = Math.sin(ang);
-    const dx = c * windDir[0] - s * windDir[1], dz = s * windDir[0] + c * windDir[1];
-    const k = (2 * Math.PI) / len, w = Math.sqrt(SWELL_G * k), a = amplitude * share;
+    const c = Math.cos(ang),
+      s = Math.sin(ang);
+    const dx = c * windDir[0] - s * windDir[1],
+      dz = s * windDir[0] + c * windDir[1];
+    const k = (2 * Math.PI) / len,
+      w = Math.sqrt(SWELL_G * k),
+      a = amplitude * share;
     const ph = k * (dx * x + dz * z) - w * t;
     h += a * Math.sin(ph);
     gx += a * k * Math.cos(ph) * dx;
@@ -254,11 +280,13 @@ export const SWELL_GLSL = `
 vec3 swellAt(vec2 p, float t, vec2 wind, float amp) {
   vec3 r = vec3(0.0);
 ${SWELL_TRAINS.map(([ang, len, share]) => {
-    const k = (2 * Math.PI) / len, w = Math.sqrt(SWELL_G * k), f = (v) => `(${v.toFixed(6)})`;
-    return `  { vec2 d = vec2(${f(Math.cos(ang))} * wind.x - ${f(Math.sin(ang))} * wind.y, ${f(Math.sin(ang))} * wind.x + ${f(Math.cos(ang))} * wind.y);
+  const k = (2 * Math.PI) / len,
+    w = Math.sqrt(SWELL_G * k),
+    f = (v) => `(${v.toFixed(6)})`;
+  return `  { vec2 d = vec2(${f(Math.cos(ang))} * wind.x - ${f(Math.sin(ang))} * wind.y, ${f(Math.sin(ang))} * wind.x + ${f(Math.cos(ang))} * wind.y);
     float ph = ${k.toFixed(6)} * dot(d, p) - ${w.toFixed(6)} * t; float a = amp * ${share.toFixed(4)};
     r += vec3(a * sin(ph), (a * ${k.toFixed(6)} * cos(ph)) * d); }`;
-  }).join('\n')}
+}).join('\n')}
   return r;
 }`;
 
@@ -271,9 +299,15 @@ ${SWELL_TRAINS.map(([ang, len, share]) => {
 // ═══════════════════════════════════════════════════════════════════
 
 /** Beer-Lambert's absorption, per unit of path, red, green, blue. */
-export const WATER_ABSORB = Object.freeze([0.55, 0.30, 0.22]);
+export const WATER_ABSORB = Object.freeze([0.55, 0.3, 0.22]);
 /** How far the refracted look is pushed by the waves' slope, in screen fractions at a unit of depth. */
 export const REFRACT_STRENGTH = 0.035;
+/** The path through the water, in units, past which the push grows no more. */
+export const REFRACT_PATH_MAX = 4;
+/** How the push fades with the distance from the eye: it is divided by 1 + REFRACT_FADE times that distance. */
+export const REFRACT_FADE = 0.02;
+/** How far inside the copy's edges the pushed look is held, in screen fractions. */
+export const REFRACT_EDGE = 0.001;
 /** The depth a sheet without a bed stands for - world/water/waterCorners.js NO_BED_DEPTH, its one home, re-exported for the renderer. */
 export { NO_BED_DEPTH };
 /** The path, in units, past which the water is taken as deep everywhere it cannot measure itself (the open sea
@@ -305,7 +339,7 @@ export const WATER_SCENE_DEPTH_UNIT = 6;
 export const AURORA_SKY_UNIT = 25;
 /** SKYRIM-AURORA: where the aurora's dome map (render/auroraPass.js AURORA_DOME_FS) holds direction R - its azimuth from the
  *  north toward the east across, its height up. Here, beside its reader, so the boot's graph takes no new file. */
-export const AURORA_DOME_UV_GLSL = `vec2 auroraDomeUv(vec3 R) { return vec2((length(R.xz) > 1e-6 ? atan(R.x, R.z) : 0.0) * 0.15915494 + 0.5, R.y); }`;   // atan(0, 0) is undefined: straight up, any azimuth
+export const AURORA_DOME_UV_GLSL = `vec2 auroraDomeUv(vec3 R) { return vec2((length(R.xz) > 1e-6 ? atan(R.x, R.z) : 0.0) * 0.15915494 + 0.5, R.y); }`; // atan(0, 0) is undefined: straight up, any azimuth
 /** SKYRIM-AURORA: the least share of the aurora the water reflects - its Fresnel where that is more. Calm water at night
  *  shows the curtains as it shows a lamp's glint; the bare Fresnel, a few hundredths looking down, hid them. */
 export const AURORA_MIRROR = 0.3;
@@ -365,7 +399,10 @@ void main() {
  * moon's and the lamps' glints, the fog. Without a copy (the classic lane's frame), the blend does the same sum: the
  * ground under the sheet is drawn, and the sheet's alpha is how much of it the water hides.
  */
-export const waterSurfaceFs = (cloudShadowGlsl, shadowGlsl = '') => `#version 300 es   // EL7: with SHADOW_GLSL the water receives the lane's sun shadow
+export const waterSurfaceFs = (
+  cloudShadowGlsl,
+  shadowGlsl = '',
+) => `#version 300 es   // EL7: with SHADOW_GLSL the water receives the lane's sun shadow
 precision highp float;
 precision highp int;   // WATER-NEXT 2: uOpen is the vertex stage's too - an int's precision must agree across the two
 precision highp usampler2D;
@@ -587,8 +624,8 @@ void main() {
     float bedD = eyeDepth(textureLod(uSceneDepth, uv0, 0.0).r);   // AUDIT WATER-NEXT G10: after the discards, an explicit level
     path = max(bedD - here, bedPath);   // the scene's measure, never less than the bed's (a sheet with no bed stands for one)
     // the look pushed by the slope, by more the deeper the water under it, less the farther off
-    vec2 push = n.xz * (${REFRACT_STRENGTH.toFixed(4)} * clamp(path, 0.0, 4.0)) / (1.0 + dist * 0.02);
-    vec2 uv = clamp(uv0 + push, vec2(0.001), vec2(0.999));
+    vec2 push = n.xz * (${REFRACT_STRENGTH.toFixed(4)} * clamp(path, 0.0, ${REFRACT_PATH_MAX.toFixed(1)})) / (1.0 + dist * ${REFRACT_FADE.toFixed(2)});
+    vec2 uv = clamp(uv0 + push, vec2(${REFRACT_EDGE.toFixed(3)}), vec2(${(1 - REFRACT_EDGE).toFixed(3)}));
     float pushedD = eyeDepth(textureLod(uSceneDepth, uv, 0.0).r);
     if (pushedD < here) uv = uv0; else path = max(pushedD - here, bedPath);   // never what stands in front of the water
     vec3 T = exp(-uAbsorb * path);
@@ -643,3 +680,208 @@ void main() {
   fogged = dwWaterFogAdd(fogged, vWorldPos) + dwWaterFog(vec3(0.0), vWorldPos) * ownShare;
   outColor = uSceneOn == 1 ? vec4(under * trans + fogged, edge) : vec4(fogged / max(cover, 1e-3), edge * cover);
 }`;
+
+// ═══════════════════════════════════════════════════════════════════
+// WHAT A WATER DRAW CAN READ. The copy of the frame under the water (Renderer.captureUnderWater) is taken only where
+// the water's fragments can read it. A sheet's box, carried through the vertex shader's own steps, bounds where its
+// fragments fall; the push's own bound - REFRACT_STRENGTH over REFRACT_PATH_MAX, faded by the distance - bounds how
+// far from its fragment a look lands. The copy is never read outside that part, so the rest need not be copied.
+// ═══════════════════════════════════════════════════════════════════
+
+/** The share each bound of the reach is widened by, against the GPU's single precision. */
+const REACH_SLOP = 1e-3;
+/** The texels a read can land past the push's own bound: the colour's second bilinear texel, the raster's sub-pixel
+ *  snap and the rounding of the copy's coordinates, with one to spare. */
+export const REACH_MARGIN = 3;
+/** A box's twelve edges as pairs of corners, each corner numbered by its far ends (1 x, 2 y, 4 z). */
+const BOX_EDGES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 1, 3, 4, 6, 5, 7, 0, 4, 1, 5, 2, 6, 3, 7]);
+/** The most the swell lifts a vertex, in multiples of its height: the trains' shares summed. */
+const SWELL_SHARE = SWELL_TRAINS.reduce((sum, train) => sum + Math.abs(train[2]), 0);
+const reachViewProj = new Float64Array(16);
+const reachClip = new Float64Array(32);
+const reachNdc = new Float64Array(4);
+
+/**
+ * A water sheet's box in its own space, [minX, minY, minZ, maxX, maxY, maxZ]: over its quads' vertices when it has
+ * its own grid (`positions`), else round the `sphere` ([x, y, z, radius]) of the ground it rides. null with neither.
+ * @param {ArrayLike<number>|null} indices
+ * @param {ArrayLike<number>|null} [positions]
+ * @param {ArrayLike<number>|null} [sphere]
+ * @returns {Float64Array|null}
+ */
+export function waterSheetBox(indices, positions = null, sphere = null) {
+  if (!indices || !indices.length) return null;
+  if (!positions) {
+    if (!sphere) return null;
+    const radius = sphere[3];
+    return Float64Array.of(
+      sphere[0] - radius,
+      sphere[1] - radius,
+      sphere[2] - radius,
+      sphere[0] + radius,
+      sphere[1] + radius,
+      sphere[2] + radius,
+    );
+  }
+  const box = Float64Array.of(Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity);
+  for (let k = 0; k < indices.length; k++) {
+    const at = indices[k] * 3;
+    for (let axis = 0; axis < 3; axis++) {
+      const value = positions[at + axis];
+      if (value < box[axis]) box[axis] = value;
+      if (value > box[axis + 3]) box[axis + 3] = value;
+    }
+  }
+  return box;
+}
+
+/**
+ * Whether a part of the frame already copied holds a reach - each [x0, y0, x1, y1], null for the whole frame. Any
+ * part holds an empty reach.
+ * @param {ArrayLike<number>|null} part
+ * @param {ArrayLike<number>|null} reach
+ */
+export function waterReachHolds(part, reach) {
+  if (!part) return true;
+  if (!reach) return false;
+  if (reach[0] >= reach[2] || reach[1] >= reach[3]) return true;
+  return part[0] <= reach[0] && part[1] <= reach[1] && part[2] >= reach[2] && part[3] >= reach[3];
+}
+
+/** Widens the reach's NDC bounds by a clip-space point; false for one at or behind the eye's own plane. */
+function reachPoint(clipX, clipY, clipW) {
+  if (!(clipW > 1e-6)) return false;
+  const x = clipX / clipW,
+    y = clipY / clipW;
+  if (x < reachNdc[0]) reachNdc[0] = x;
+  if (x > reachNdc[2]) reachNdc[2] = x;
+  if (y < reachNdc[1]) reachNdc[1] = y;
+  if (y > reachNdc[3]) reachNdc[3] = y;
+  return true;
+}
+
+/**
+ * The part of the frame water rows can read in the copy under them: [x0, y0, x1, y1] texels into `out`, the far edges
+ * exclusive; empty when none is in view, null when a row cannot be bounded (no box, a matrix not affine). `frame`
+ * holds the draw's `proj`, `view` and `eye`, its `lift` and `swell`, the viewport (`left`, `bottom`, `wide`, `high`)
+ * and the copy's `width` and `height`. A box takes the vertex shader's steps and is cut at the near plane; a look is
+ * pushed no farther than REFRACT_STRENGTH at REFRACT_PATH_MAX over 1 + REFRACT_FADE times its distance, then the edge.
+ * @returns {Int32Array|null}
+ */
+export function waterRowsReach(rows, n, frame, out = new Int32Array(4)) {
+  const { proj, view, eye, width, height } = frame;
+  for (let col = 0; col < 4; col++) {
+    for (let row = 0; row < 4; row++) {
+      reachViewProj[col * 4 + row] =
+        proj[row] * view[col * 4] +
+        proj[4 + row] * view[col * 4 + 1] +
+        proj[8 + row] * view[col * 4 + 2] +
+        proj[12 + row] * view[col * 4 + 3];
+    }
+  }
+  if (!reachViewProj.every(Number.isFinite)) return null;
+  const heave = Math.abs(frame.swell) * SWELL_SHARE * (1 + REACH_SLOP);
+  const pushMost = REFRACT_STRENGTH * REFRACT_PATH_MAX * (1 + REACH_SLOP);
+  let x0 = Infinity,
+    y0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const box = rows[i][0]?.box,
+      model = rows[i][1];
+    if (!box || !model || model[3] !== 0 || model[7] !== 0 || model[11] !== 0 || model[15] !== 1) return null;
+    let minX = Infinity,
+      minY = Infinity,
+      minZ = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity,
+      maxZ = -Infinity;
+    for (let k = 0; k < 8; k++) {
+      const sheetX = k & 1 ? box[3] : box[0],
+        sheetY = (k & 2 ? box[4] : box[1]) + frame.lift,
+        sheetZ = k & 4 ? box[5] : box[2];
+      const worldX = model[0] * sheetX + model[4] * sheetY + model[8] * sheetZ + model[12],
+        worldY = model[1] * sheetX + model[5] * sheetY + model[9] * sheetZ + model[13],
+        worldZ = model[2] * sheetX + model[6] * sheetY + model[10] * sheetZ + model[14];
+      minX = Math.min(minX, worldX);
+      maxX = Math.max(maxX, worldX);
+      minY = Math.min(minY, worldY);
+      maxY = Math.max(maxY, worldY);
+      minZ = Math.min(minZ, worldZ);
+      maxZ = Math.max(maxZ, worldZ);
+    }
+    if (!(minX <= maxX && minY <= maxY && minZ <= maxZ)) return null;
+    // the world the GPU computes in single precision, a hair either way of this one
+    const pad = REACH_SLOP * 0.1 * (1 + Math.max(-minX, maxX, -minY, maxY, -minZ, maxZ));
+    minX -= pad;
+    maxX += pad;
+    minY -= pad + heave;
+    maxY += pad + heave;
+    minZ -= pad;
+    maxZ += pad;
+    // the eye's distance to the box: no fragment of the row is nearer
+    const near =
+      Math.hypot(
+        Math.max(minX - eye[0], 0, eye[0] - maxX),
+        Math.max(minY - eye[1], 0, eye[1] - maxY),
+        Math.max(minZ - eye[2], 0, eye[2] - maxZ),
+      ) *
+      (1 - REACH_SLOP);
+    const reach = pushMost / (1 + REFRACT_FADE * near) + REFRACT_EDGE;
+    for (let k = 0; k < 8; k++) {
+      const worldX = k & 1 ? maxX : minX,
+        worldY = k & 2 ? maxY : minY,
+        worldZ = k & 4 ? maxZ : minZ;
+      for (let comp = 0; comp < 4; comp++) {
+        reachClip[k * 4 + comp] =
+          reachViewProj[comp] * worldX +
+          reachViewProj[4 + comp] * worldY +
+          reachViewProj[8 + comp] * worldZ +
+          reachViewProj[12 + comp];
+      }
+    }
+    reachNdc[0] = reachNdc[1] = Infinity;
+    reachNdc[2] = reachNdc[3] = -Infinity;
+    for (let k = 0; k < 8; k++) {
+      const at = k * 4;
+      if (reachClip[at + 2] + reachClip[at + 3] < 0) continue; // behind the near plane
+      if (!reachPoint(reachClip[at], reachClip[at + 1], reachClip[at + 3])) return null;
+    }
+    // where an edge crosses the near plane, the cut's own corner
+    for (let edge = 0; edge < BOX_EDGES.length; edge += 2) {
+      const from = BOX_EDGES[edge] * 4,
+        to = BOX_EDGES[edge + 1] * 4;
+      const nearFrom = reachClip[from + 2] + reachClip[from + 3],
+        nearTo = reachClip[to + 2] + reachClip[to + 3];
+      if (nearFrom < 0 === nearTo < 0) continue;
+      const share = nearFrom / (nearFrom - nearTo);
+      const clipX = reachClip[from] + share * (reachClip[to] - reachClip[from]),
+        clipY = reachClip[from + 1] + share * (reachClip[to + 1] - reachClip[from + 1]),
+        clipW = reachClip[from + 3] + share * (reachClip[to + 3] - reachClip[from + 3]);
+      if (!reachPoint(clipX, clipY, clipW)) return null;
+    }
+    if (reachNdc[0] > reachNdc[2]) continue; // wholly behind the eye: no fragment
+    const left = frame.left + (reachNdc[0] + 1) * 0.5 * frame.wide,
+      right = frame.left + (reachNdc[2] + 1) * 0.5 * frame.wide,
+      bottom = frame.bottom + (reachNdc[1] + 1) * 0.5 * frame.high,
+      top = frame.bottom + (reachNdc[3] + 1) * 0.5 * frame.high;
+    // wholly beside the viewport: no fragment either
+    if (right < frame.left - REACH_MARGIN || left > frame.left + frame.wide + REACH_MARGIN) continue;
+    if (top < frame.bottom - REACH_MARGIN || bottom > frame.bottom + frame.high + REACH_MARGIN) continue;
+    const spreadX = reach * width + REACH_MARGIN,
+      spreadY = reach * height + REACH_MARGIN;
+    x0 = Math.min(x0, Math.max(left, frame.left) - spreadX);
+    x1 = Math.max(x1, Math.min(right, frame.left + frame.wide) + spreadX);
+    y0 = Math.min(y0, Math.max(bottom, frame.bottom) - spreadY);
+    y1 = Math.max(y1, Math.min(top, frame.bottom + frame.high) + spreadY);
+  }
+  out.fill(0);
+  if (x0 === Infinity) return out; // no row's water in view
+  if (!(x0 < x1 && y0 < y1)) return null;
+  out[0] = Math.max(0, Math.floor(x0));
+  out[1] = Math.max(0, Math.floor(y0));
+  out[2] = Math.min(width, Math.ceil(x1));
+  out[3] = Math.min(height, Math.ceil(y1));
+  if (!(out[0] < out[2] && out[1] < out[3])) out.fill(0);
+  return out;
+}

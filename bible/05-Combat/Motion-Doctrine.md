@@ -9,9 +9,9 @@ one-hander, a shield and the fists stood up to 104-105 cm at every stop and sank
 idles (`idle1h`, `idlehh`) stand on nearly straight legs; `idle2c` does not.
 
 A drawn stance weapon now stands at the two-hander's height: the hips lowered, the ankles where the clip put them,
-the knees yielding (src/characters/bodyMotion/guardStand.js:"export function createGuardStand(config = GUARD_STAND) {").
+the knees yielding (src/characters/bodyMotion/guardStand.js:"export function createGuardStand").
 It only ever lowers, eases over 0.22 s, and lies in the stride's slot before the body motion and BLOW-LEGS
-(src/characters/bodyMotion/travelStride.js:"const stand = createGuardStand();"). The arms, the clips and every
+(src/characters/bodyMotion/travelStride.js:"const stand = createGuardStand"). The arms, the clips and every
 blow are untouched: a rule's place is the legs and the weight (section 4). DFU draws no body; OpenMW plays the idle as
 authored, so this is the port's own presentation. The four hosts pose through the shared modules; none is wired.
 
@@ -30,7 +30,7 @@ standing four seconds, the hips and the chest of the fists and of a one-hander m
 The archive's `idlehh` and `idle1h` barely move the hips, and GUARD-STAND pinned what little there was.
 
 The lowered hips now breathe 0.8 of a hundredth of a leg every 3.1 s and shift from foot to foot every 5.3 s, the
-ankles where they were (src/characters/bodyMotion/guardStand.js:"export const STAND_LIFE = Object.freeze({ breath: 0.008, breathS: 3.1, sway: 0.014, swayS: 5.3 });").
+ankles where they were (src/characters/bodyMotion/guardStand.js:"export const STAND_LIFE").
 Read after: the hips travel 2.1 cm across and 0.8 up with the fists, 2.5 and 0.8 with a sword; the feet stay; no pop.
 The two-hander is left alone. `globalThis.__standLife` tunes it live. The port's own; all four hosts share it.
 Test: test/characters/bodyMotion/guardstand.test.js. The fists' guard pose itself is untouched: open.
@@ -49,9 +49,9 @@ lab read each on the woman in steel, against the two-hander.
 - **Legs.** A standing punch moved the hips 1.2 cm (a two-hander's blow 8.8) and slid a foot 90 cm over the ground:
   the hand-to-hand clips walk their own legs, and the repair of 2026-11-09 had taken the fists out of BLOW-LEGS
   because its anchors twisted their thighs. While a standing punch plays, the lower body is held at the stance
-  (src/characters/bodyMotion/fistLegs.js:"export function createFistLegs(config = FIST_LEGS) {"), and BLOW-LEGS takes
+  (src/characters/bodyMotion/fistLegs.js:"export function createFistLegs"), and BLOW-LEGS takes
   the fists as a blade, on a punch's own keys
-  (src/characters/bodyMotion/blowLegs.js:"export const FIST_BLOW_KEYS = Object.freeze({").
+  (src/characters/bodyMotion/blowLegs.js:"export const FIST_BLOW_KEYS").
 - **Guard.** Moving, the fists played the ordinary walk whole, its arms at the sides. The legs keep those clips; the
   upper body is the stance's guard, standing and moving
   (src/combat/guardLocomotion.js:"return !moving || walking ? FIST_GUARD : null;").
@@ -63,7 +63,7 @@ lab read each on the woman in steel, against the two-hander.
   legs". Read frame by frame: no wind-up (the trunk turned 13 degrees, the fist crept forward), the hips' drive
   peaked 5 frames after the hit, and the fist was still out 15 frames on. A punch now runs up the body: the hips
   drive and the lead foot steps inside the wind-up, the trunk - cocked back, then thrown in over the lead leg - a
-  beat behind them (src/characters/bodyMotion/blowLegs.js:"export function punchPhase(section, progress) {"),
+  beat behind them (src/characters/bodyMotion/blowLegs.js:"export function punchPhase"),
   and the fist is taken back over 0.17 s, not let down over 0.5. Read after: the wind-up turns the trunk 31 degrees
   back, the hit 53 in (lean 23), the foot is 17 cm out at the hit for 8, the fist home 10 frames after; no pop.
 
@@ -72,9 +72,9 @@ lab read each on the woman in steel, against the two-hander.
   swing clock (SERIES-FLOW's wait, made for a blade's long follow-through). A fist does not wait there: it goes
   home to its guard (src/combat/fpArm.js:"if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait && !blowPlan?.fists) break;"),
   the trunk cocked for the next punch
-  (src/characters/bodyMotion/blowLegs.js:"export const PUNCH_READY = Object.freeze({ seconds: 0.6, yaw: -0.2, pitch: -0.04, tau: 0.1 });"),
+  (src/characters/bodyMotion/blowLegs.js:"export const PUNCH_READY"),
   and standing in the guard the knees give and the weight shifts
-  (src/characters/bodyMotion/guardStand.js:"export const FIST_BOUNCE = Object.freeze({ breath: 0.014, breathS: 0.72, sway: 0.016, swayS: 2.3, quiet: 0.12 });").
+  (src/characters/bodyMotion/guardStand.js:"export const FIST_BOUNCE").
   Read after: still frames a blow 2 for 27; the fist in its guard 20 frames after the hit; the hips 1.8 cm up and down
   standing, the feet still. Open: the guard then waits some 50 frames for the clock - bounced, but a wait.
 
@@ -91,7 +91,7 @@ with two one-handers the arms go back and the wrists turn. Read in the lab on th
 
 - **Aim.** At the hit the hook's fist stood 45 cm past the centre line, the hips and trunk turned 45 degrees over the
   clip's own; the overhand's 30 cm under the head. The hit's turn and lean are now small, the wind-up's cock kept
-  (src/characters/bodyMotion/blowLegs.js:"export const FIST_TRUNK = Object.freeze({"). Read after: the hook 10-12 cm
+  (src/characters/bodyMotion/blowLegs.js:"export const FIST_TRUNK"). Read after: the hook 10-12 cm
   off the line and 14 cm further out, every punch 133-136 cm up, under the chin.
 - **Stop.** A stop blends from a frozen stride: linear, the legs fell from 10 cm a frame to 1.3, slid, and halted at
   once 15 frames on. Out of a gait the blend now leaves fast and settles
@@ -112,7 +112,7 @@ degrees. Before, she had her own sparse file alone and the archive's strafe arm 
 Under a shield a woman keeps her own file alone again
 (src/formats/morrowind/mwWalkAnimationAssets.js:"if (female && shield && femaleOverride) return [femaleOverride];").
 Walking forward takes the strafe's held arm again, as backing and running do; SHIELD-WALK-NEUTRAL's idle arm and
-its 15 degree lift are withdrawn (src/characters/bodyMotion/shieldSet.js:"walk: Object.freeze({ lift: 0, abduct: 0, yaw: 0, roll: 0 }),").
+its 15 degree lift are withdrawn (src/characters/bodyMotion/shieldSet.js:"walk: Object.freeze").
 A man under a shield keeps MAO's bare groups and leaves the armed ones (`1h`, `hh`) to the archive
 (src/formats/morrowind/mwWalkAnimationAssets.js:"const bare = (name) => isMovementAnimationGroup(name) && !/(?:1h|hh)$/i.test(String(name ?? '').trim());").
 The fists, the two-hander and a bare one-hander are untouched.
@@ -122,7 +122,7 @@ Test: test/formats/morrowind/maofists.test.js, test/combat/shieldwalk.test.js.
 SHIELD-LIFE (the owner, 2026-11-12: "livelier", "stops and small movements"): the held arm is turned a few degrees
 more about its shoulder - a damped spring dips the shield at a start and carries it at a stop, each footfall bobs
 it 1.6 degrees, a strafe leans it 3, a turn turns it up to 6
-(src/characters/bodyMotion/shieldSet.js:"export const SHIELD_LIFE = Object.freeze({ kick: 1.6, hz: 2.2, damp: 0.45, max: 9, bob: 1.6, lean: 3, turn: 2.5, turnMax: 6, ease: 0.15 });").
+(src/characters/bodyMotion/shieldSet.js:"export const SHIELD_LIFE").
 A correction over the clip's arm, never a row of angles in its place; `globalThis.__shieldSet.life` tunes it live.
 Read in the lab: no pop in any direction; the hand rides 12 cm under the chest walking and 27 standing. The look is
 the owner's eye to judge: open. Test: test/characters/bodyMotion/shieldlife.test.js.
@@ -177,7 +177,7 @@ vertices, 154 groin vertices, neutral morphs), with the configured local mods:
   AFTER the movement overlay and exchanged the already walking legs. The lower group's existing eased ownership now
   protects those locals through the mirror and its carry; the carry records the actual protected pose
   (src/combat/lowerBodyLayer.js:"export function withMirrorLocomotion(",
-  src/combat/twoHands/mirrorRig.js:"if (out && share > 0) {"). Standing blows retain the authored whole-body motion;
+  src/combat/twoHands/mirrorRig.js:"if (out && share > 0)"). Standing blows retain the authored whole-body motion;
   the repaired weapon-leg bypass for fists remains. First-person requests have no lower-group protection.
 
 Validation: 780 gameplay-input frames for each of bare fists, shirt/pants, steel armour, claymore and sword/shield,
@@ -204,15 +204,15 @@ the worn steel cuirass. The intended lowering of the hands during locomotion is 
 - Standing strike foot anchors survived a short walk while the previous strike's weight faded. A new moving
   strike raised that weight and pulled the feet toward the old stance. Anchors and pending steps now belong only
   to a standing body; the standing/moving share follows locomotion even between blows
-  (src/characters/bodyMotion/blowLegs.js:"const standing = grounded && still >= BLOW_LEGS_TIME.after;").
+  (src/characters/bodyMotion/blowLegs.js:"const standing =").
 - Bare-body and clothes captures also exposed the weapon lunge acting over the authored hand-to-hand legs. A
   punch clip could exchange the lead feet while the layer pinned them to the previous stance, twisting the thigh
   surface at the groin. Fists now keep the clip's whole-body drive and the existing locomotion overlay; the weapon
   lunge and its residual anchors are cleared for that carry class
-  (src/characters/bodyMotion/blowLegs.js:"if (carryClassOf(word ?? {}) === 'fists') { clearLegs(); trunk = { yaw: 0, pitch: 0 }; return 0; }").
+  (src/characters/bodyMotion/blowLegs.js:"const fists = carryClassOf").
 - The fist guard faded the hand target but kept its full elbow-pole correction until the solve's cutoff. Opposite
   pole vectors could also cancel and flip during the transition. The pole now follows its arc by the same fading
-  weight as the reach (src/characters/bodyMotion/guardElbows.js:"const pole = len(down) > 1e-6 ? swingWay(own, norm(down), d, GUARD_RAISE.drop * k) : own;").
+  weight as the reach (src/characters/bodyMotion/guardElbows.js:"const pole = len").
 - The steel breastplate's separate deformation was in its authored rig, not a CPU/GPU mismatch; see
   `04-Characters/Steel-Plate.md`, Rigid breastplate shell.
 
@@ -521,7 +521,7 @@ moved with it (two frames of a turn). Pinned by `test/combat/idlesettle.test.js`
 walkforward 1.65, runforward 1.63, runback 2.74, **runleft 3.86** - Daggerfall strafes at the full run, and a run
 sideways's clip plants its foot at 73 units a second, so the legs scurried. The clip now plays at most
 `STRIDE.maxRate` 2.4 times its own speed; the rest of a strafe's speed is a slide, the lesser evil
-(src/characters/bodyMotion/stride.js:"return { rate: Math.min(STRIDE.maxRate, k / stride), stride };"). Pinned by
+(src/characters/bodyMotion/stride.js:"return { rate: Math.min"). Pinned by
 `test/characters/bodyMotion/stride.test.js`.
 
 ### 7c. The combat sweep (2026-10-28) - a longsword and shield, then a claymore
@@ -542,7 +542,7 @@ every frame; a single-frame jump three times its neighbours' and over 7 cm was f
    with it.
 3. **ELBOW-OUT** - the claymore's left elbow stood 0.02-0.05 m off the spine's axis, inside the cuirass (the owner's
    screenshots): the grip's elbow way, once down, left and a little back, is now out to the left and forward
-   (src/characters/bodyMotion/carry.js:"haf.pole = norm(add(scale(F.right, lerp(-0.55").
+   (src/characters/bodyMotion/carry.js:"haf.pole = norm(").
 4. **SERIES intent 0.85** - a click every 0.7 s fell out of its series and the idle cut in for 0.09 s between blows
    (src/combat/weapon/attackSeries.js:"export const SERIES").
 
@@ -621,7 +621,7 @@ the pelvis drops 4-6 units at the hit, the knees stay straight, the chop's right
 thrust's left foot slides 13 units forward FLAT and back inside 0.13 s at the hit. LOWER-BODY gives a moving blow the
 stride's legs; a standing one had that stance.
 
-**BLOW-LEGS** (src/characters/bodyMotion/blowLegs.js:"export const BLOW_LEGS = Object.freeze") gives it the body, by key poses rather
+**BLOW-LEGS** (src/characters/bodyMotion/blowLegs.js:"export const BLOW_LEGS =") gives it the body, by key poses rather
 than a running physics (7d): the wind-up LOADS (the hips back, the body turned away from the swing), the release DRIVES
 - snapped (`1 - (1 - p)^3`) - the hips forward, down and turned through the swing, the lead foot STEPPING on a thrust
 (0.24 of the leg) and a chop (0.15): lifted 0.06 of the leg at its middle over 0.16 s, never slid; the follow-through
@@ -631,7 +631,7 @@ hips ask (the BODY-MOTION solve, `solveBody`'s feet). A backhand's turns mirrore
 right foot; a heavier body (bodyWeight.js's weight) strikes up to 0.4 deeper. Additive over the clip's hips - the trunk,
 the arms and the weapon's arc stay the clip's, carried by the hips. On only standing, grounded, in third person, behind
 the MotionDoctrine switch; a body set moving gives its legs to the stride over 0.12 s. Wired through BODY-WEIGHT's slot
-(after the carry, before ARM-CLEARANCE) with the motion word (src/characters/bodyMotion/bodyWeight.js:"legs.step(dt, active, word, weight);").
+(after the carry, before ARM-CLEARANCE) with the motion word (src/characters/bodyMotion/bodyWeight.js:"legs.step(dt, active, word, weight)").
 Measured offline over the vanilla clip: the planted feet within 0.5 units, the hips at most 3.3 units a frame. Pinned by
 `test/characters/bodyMotion/blowlegs.test.js`. The magnitudes are the owner's to judge in the game.
 
@@ -674,7 +674,7 @@ together"). STOP-UNDER-A-BLOW's stride test was the feet a quarter of the leg ap
 own fighting stance is wider than that: every standing blow took it for a stride and stepped the feet in under the hips
 (offline, a planted stance 32 cm deep went to 10 cm in the wind-up's first frames). A body BLOW-LEGS finds is standing
 (it waits `after`), so two planted feet are its stance and are kept; only a foot still in the air is stepped down
-(src/characters/bodyMotion/blowLegs.js:"WIDE-STANCE"). Offline the same stance holds 32-33 cm through the whole slash.
+(src/characters/bodyMotion/blowLegs.js:"feet stand wide in"). Offline the same stance holds 32-33 cm through the whole slash.
 Pinned: the stop-under test now keeps a wide planted stance and steps a lifted foot down. Not yet seen in the owner's
 game.
 
@@ -749,7 +749,7 @@ Pinned (TRAILING-FOOT; with the step taken out it fails). Not yet seen in the ow
 the knees at most 6 degrees a frame - no lag there; walk -> run under a slash jumped them 12-15 degrees a frame, folded
 them to 42 and splayed the legs into a near split: over the run's long stride the pinned feet and the guarded reach sank
 the hips to the floor. The run is not this pass's (the owner): between 5.5 and 7 m/s the moving blow now fades out and a
-run keeps its clip's legs (src/characters/bodyMotion/blowLegs.js:"RUN-FADE"). Measured again in the game: no knee jumps
+run keeps its clip's legs (src/characters/bodyMotion/blowLegs.js:"/* RUN-FADE (2026-10-29"). Measured again in the game: no knee jumps
 over 8.4 degrees a frame, the split gone (the run's own clip, unchanged, still folds a knee to 55 under a thrust).
 
 **RUN-STRIDE** (2026-10-29, the owner: the run "badly broken"; asked between capping the clip and a longer stride:
@@ -1135,7 +1135,7 @@ through lower-body ownership, travel stride and body motion. KNEE-FORWARD flatte
 current hip-to-ankle line before the balance layer moved the hip. Reprojection after that move could cross the
 limb axis and put the knee on its opposite side while the combat walk released into running. Restore
 all-animations' full hip-to-knee hint plus its small toe bias in
-`guardWalkBalance.js:"export function kneePole(hip, knee, toe, length) {"`.
+`guardWalkBalance.js:"export function kneePole"`.
 A deeply bent clip knee retains its own side; the toe bias only resolves a nearly straight knee, rather than
 forcing every swinging knee toward the foot's current orientation. The same hint remains shared by moving blows.
 The real-clip regression sweeps forward/backward transitions, one-/two-handed weapons and 30/60/120 Hz.
@@ -1171,7 +1171,7 @@ The measured fault is in the held arm solve, not an extra clip or the clearance 
 elbow plane transferred the hand's requested orientation into the wrist: on the female retail hierarchy / MAO
 idle the left wrist carried about 115 degrees of axial turn. Better Bodies' actual wrist weights consequently
 reduced the minimum local linear scale to about 0.61 (right 0.76). The solver now retains the upper arm's hinge
-plane and lets the forearm pronate. `src/characters/bodyMotion/armAnatomy.js:"export const ARM_ANATOMY = Object.freeze("` bounds the turn
+plane and lets the forearm pronate. `src/characters/bodyMotion/armAnatomy.js:"export const ARM_ANATOMY"` bounds the turn
 and its speed. An analytic one-axis minimax balances the larger bind-relative rotation at elbow and wrist;
 it evaluates extrema and equal-cost crossings, without a per-frame grid search. The target hand rotation and
 wrist position remain fixed. An unnecessarily bent wrist can move the elbow to the nearest compatible point on
@@ -1308,8 +1308,8 @@ On the local female Dark Elf idle2c sample, minimum forearm skin-affine volume r
 0.738; minimum singular scale from 0.817 to 0.857. These are forearm measures, not proof about the shoulder or every
 vertex at the elbow. Visual acceptance of the live return and pinching remains pending; the older wide-grip
 controller is not replaced by this change.
-Implementation: src/characters/bodyMotion/elbowSkin.js:"export function bindElbowSkin(skeleton, bound) {" and
-src/characters/bodyMotion/freshReturn.js:"function joinTrunk(skeleton, pose, from, root, skelMats, progress) {".
+Implementation: src/characters/bodyMotion/elbowSkin.js:"export function bindElbowSkin" and
+src/characters/bodyMotion/freshReturn.js:"function joinTrunk".
 Reference read: DFU Assets/Scripts/Game/WeaponManager.cs, WeaponManager.Update / UpdateHands use ScreenWeapon
 and weapon states rather than articulated elbow skin. This continues our existing articulated-body presentation
 departure. Shared assembly/body modules serve world.js, exterior.js, worldModes.js and dungeonContext.js; no host
@@ -1367,7 +1367,7 @@ sneaking, airborne movement and unarmed locomotion retain their owners. Final po
 after the trunk/return solve. Actual MAO tests exercise either side over forward/back walk/run and verify that
 occupied arm and leg matrices stay unchanged.
 Sources: the free-arm layer (freeArms.js, withdrawn by FREE-ARM-CLIP below) and
-src/characters/bodyMotion/freshReturn.js:"export function setReturnGoal(pose, goal, live = false) { goals.set(pose, { pose: goal, live }); }".
+src/characters/bodyMotion/freshReturn.js:"export function setReturnGoal".
 These are initial presentation settings; live visual coherence and restored running posture remain to be confirmed.
 Reference remains DFU WeaponManager.UpdateHands/PlayerMotor: DFU selects screen weapons and controls movement,
 without this articulated torso/free-arm presentation. This continues the shared body-presentation departure for
@@ -1386,9 +1386,9 @@ Three faults, each in a different layer:
   shoulder widths out in front, and nothing above the chest bone - the upper arm against the breast - was looked at.
   TRUNK-SKIN bakes the body's own trunk (Tri Chest and Tri Groin on the spine and pelvis, every race; the races share one
   shape) as a polar profile about the chest bone
-  (src/characters/bodyMotion/trunkProfile.js:"export function trunkRadius(kind, x, y, z) {"), the limbs' thickness on
+  (src/characters/bodyMotion/trunkProfile.js:"export function trunkRadius"), the limbs' thickness on
   it. The clearance keeps its ellipse turn as it always chose it, then turns on by the skin's shortfall, a turn's cost
-  weighed (src/characters/bodyMotion/armClearance.js:"const ELLIPSE_WEIGHT = 10, TURN_COST = 0.08, SKIN_TURN = 0.6, SKIN_TURN_HELD = 0.6;");
+  weighed (src/characters/bodyMotion/armClearance.js:"const ELLIPSE_WEIGHT");
   an arm held on a hilt the skin turns only while it swings - a blow or the return from one - because turned at rest the
   hand kept on the hilt wrings the wrist's skin past ARM-ANATOMY's volume pins (0.585 against their 0.6). The clearance
   now runs last, after the two-hander's return, which had written its straight-line arms after it.
@@ -1396,13 +1396,13 @@ Three faults, each in a different layer:
   shoulder-wrist circle to spare the held wrist; it never asked where the trunk is. Running with a two-hander, the
   blade trailing down behind, it swung the right elbow from the side to the breastbone once a stride: 9.8 units into a
   woman's chest running, 10.4 running back - the recording's fault. It now takes the elbow no deeper than the preferred
-  elbow stood, give for a graze (src/characters/bodyMotion/armAnatomy.js:"export const ARM_ANATOMY = Object.freeze({ wristBend: 60 * RAD, foreTurn: 100 * RAD, turnSpeed: 540 * RAD, trunkGive: 0.15 });");
+  elbow stood, give for a graze (src/characters/bodyMotion/armAnatomy.js:"export const ARM_ANATOMY");
   the wrist bends past its ease instead. 9.8 to 2.1 running, 10.4 to 2.2 back, the blows' right arm 9.8 to 1.4-2.1.
 - **Two clocks.** The legs drawn are the movement clip's; gait.js counted its own stride from the ground crossed, and
   the chest's counter-turn and every held arm's swing ride that count. Walking it ran 3 strides to the clip's 3.5 in two
   seconds, running 5 to 4.5: half a stride off the feet within the second. LEG-CLOCK takes the clip's own stride phase
   from its contacts (src/combat/movementContinuity.js:"export function clipStridePhase(state, keys) {"), measures where
-  in it the left foot leads most off the posed feet (src/characters/bodyMotion/legClock.js:"export function createLegClock() {"
+  in it the left foot leads most off the posed feet (src/characters/bodyMotion/legClock.js:"export function createLegClock"
   - a key is a sound, not a pose: MAO's walk leads 0.04 of a stride past its contact, its run 0.22), and shows the
   gait's stride on it, eased on and off. Every gait now keeps the feet within 0.06 of a stride; a strafe's feet do not
   swing fore and aft, and the gait keeps its own clock there.
@@ -1477,7 +1477,7 @@ lowering, as the shield's"; "work on the fingers everywhere").
   stance now walks the worked gait - the free walk, its fingers open (the knuckles about 20 degrees on the probe's
   measure). A raised fist was a claw; a hilt walked and ran in an open palm, a two-hander's in both. The fingers are now
   the game's own: a fist is the hand-to-hand idle's (`idlehh`, the knuckles 88 degrees), baked from the retail rig
-  (src/characters/bodyMotion/handFingers.js:"export const FIST = Object.freeze({"), and each hand's fingers stand a share
+  (src/characters/bodyMotion/handFingers.js:"export const FIST"), and each hand's fingers stand a share
   of the way to it by what the hand holds
   (handFingers.js FINGERS, as it first stood: a loose fist 0.6 and a relaxed hand 0.35 besides - withdrawn below):
   a hilt 77 degrees walking and running as the one-handed stance holds it standing, a shield's strap, a loose fist
@@ -1508,11 +1508,11 @@ legs - over to the fists' stance". So:
 - **The fingers, simply.** Only a hand closed on something moves its fingers: the fists drawn are the game's fist, a hilt
   and a shield's strap toward it; the free hand beside a shield is the game's OPEN hand (the plain idle's fingers, baked
   as the fist is), as the free hand beside a sword is the walk's own; every other hand keeps the clip's fingers - the
-  relaxed blend is withdrawn (src/characters/bodyMotion/handFingers.js:"export const FINGERS = Object.freeze({ fist: 1, hilt: 0.85, grip: 0.8, ease: 0.12 });").
+  relaxed blend is withdrawn (src/characters/bodyMotion/handFingers.js:"export const FINGERS").
 - **The free hand beside a shield** is an open hand on FIST_BESIDE_SHIELD's rows, standing on the free hand's own rest
   (the same row, mirrored): 0.23 forward standing, the free hand beside a sword's 0.26.
 - **FISTS-GUARD.** The fists drawn now walk, run and step as the weapons do: the hand-to-hand type joins the stance's
-  list (src/characters/bodyMotion/guardStance.js:"MW_WEAPON_TYPE.HandToHand,"), so they take the worked gait (its clock,
+  list (src/characters/bodyMotion/guardStance.js:"MW_WEAPON_TYPE.HandToHand"), so they take the worked gait (its clock,
   the legs' and the trunk's rules) and the stance's walk, the body's empty hands drawn read as fists there. Their
   walk-to-run change no longer throws the fists half an arm in a frame (0.54 to 0.10, the weapons' own).
 GUARD-WALK-POSE's pin now counts the fists in the stance. The motion tests: none newly failing.
@@ -1554,7 +1554,7 @@ fists moved 0.04-0.12 - the clip's own arms, near still while the legs walked.
 
 - **GUARD-ELBOWS.** Each arm of the fists' guard is swung about its shoulder-to-wrist line - ARM-CLEARANCE's own turn,
   the fist kept where the clip holds it - GUARD_ELBOWS.tuck of the way to straight below that line
-  (src/characters/bodyMotion/guardElbows.js:"export const GUARD_ELBOWS = Object.freeze({ tuck: 0.55, max: 0.6, ease: 0.12 });"),
+  (src/characters/bodyMotion/guardElbows.js:"export const GUARD_ELBOWS"),
   eased in and out, off for a blow and beside a shield; clearArms runs after it. The elbows stand at 0.44-0.49.
 - **FISTS-PUMP.** Walking, the guard is the hand-to-hand clip's held at its mean and swung by ARM_HOLD.fists of the plain
   walk the legs play (ARM-HOLD's way; src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8, fists: 0.3 });"):
@@ -1570,7 +1570,7 @@ is sampled for bare hands. Stopping and punching use the rig's existing clip tra
 follows the stop with an eased onset. The movement keeps its clip's wrists and fingers. The discarded procedural wrist
 trajectory and the special overlay release time are removed. ARM-CLEARANCE and armAnatomy remain unchanged.
 `src/combat/guardLocomotion.js:"export function guardMovementGroup"` selects the primary clip; armedUpperPlan returns
-no overlay for bare hands. `src/characters/bodyMotion/guardTravel.js:"export function guardTraveling(word) {"` suppresses
+no overlay for bare hands. `src/characters/bodyMotion/guardTravel.js:"export function guardTraveling"` suppresses
 the chin correction and forced finger curl during movement. Tests: armclips, guardraise and handfingers. The shared rig
 serves world.js, exterior.js, worldModes.js and dungeonContext.js without host changes. DFU FPSWeapon.OnGUI draws
 first-person sprites; this remains the BODY-MOTION presentation departure. Offline probes do not establish visual
@@ -1628,7 +1628,7 @@ hand-to-hand pose the game has - idlehh, each blow's start and follow stop, the 
 no better clip of the game's to take it from: it is corrected on the clip, as GUARD-ELBOWS corrects the elbows. The legs
 were not the fault: idlehh stands exactly the two-hander's idle2c and the one-hander's idle1h (feet 29 across, 21 apart).
 
-- **GUARD-RAISE.** Each fist is carried from the game's guard to the chin's (guardElbows.js:"export const GUARD_RAISE = Object.freeze({"),
+- **GUARD-RAISE.** Each fist is carried from the game's guard to the chin's (guardElbows.js:"export const GUARD_RAISE"),
   half the clip's own motion about it kept (the breath, FISTS-PUMP's bob - whole, the walk's swing threw a fist across
   the chest), the arm laid to it by a two-bone reach - the lengths kept, the elbow on its own side leaned half toward
   straight down, the fist's turn in the world kept - before the tuck, on the tuck's own share (the fists drawn, no blow,
@@ -1655,7 +1655,7 @@ idle moved the arm the chosen turn leapt between them, 0.23 radians at once, eas
 
 - The least turn that clears the ellipse is found by halvings between the grid's two steps; the skin's best is refined
   between its neighbours (golden section); and the last frame's turn is kept while it is within `hold` of the best, so
-  two near-equal ways out do not trade places (armClearance.js:"export const CLEAR_SMOOTH = Object.freeze({ iterations: 12, hold: 0.02 });").
+  two near-equal ways out do not trade places (armClearance.js:"export const CLEAR_SMOOTH").
 - Measured on zIdle: the left elbow's largest move in a frame 0.0017 arm lengths (0.0070 before), no burst; one change
   of way out per loop at most, eased. Over the stance matrix (none, one, shield, two, fists, the shield bare; idle,
   walk, run, strafe) nothing else changes but the two-hander's right arm running, 0.18 deeper in the skin at its worst.

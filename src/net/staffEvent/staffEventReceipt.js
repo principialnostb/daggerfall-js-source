@@ -22,7 +22,7 @@
 //
 // Not a DFU member. Ledger A (STAFF-EVENT's row).
 import { _b64url, SIG_BYTES, SKEW_S, ID_RE } from '../identityToken.js';
-import { STAFF_EVENT_ID_RE, STAFF_EVENT_BOARD_MAX, STAFF_RECEIPT_WIRE_MAX } from './staffEventLaw.js';
+import { STAFF_EVENT_ID_RE, STAFF_EVENT_BOARD_MAX, STAFF_RECEIPT_WIRE_MAX, TB_INVASION } from './staffEventLaw.js';
 
 /** The only version this file reads or writes. */
 export const STAFF_RECEIPT_V = 'e1';
@@ -30,6 +30,9 @@ export const STAFF_RECEIPT_V = 'e1';
 export const STAFF_RECEIPT_TTL_S = 7 * 24 * 3600;
 /** The bound on a receipt's length on the wire. */
 export const STAFF_RECEIPT_MAX = STAFF_RECEIPT_WIRE_MAX;
+/** A toybox event's receipt names its kind (`tb`, signed with the rest) so the game rolls that event's own rewards; a
+ *  staff event's carries none. Only an invasion has rewards of its own: a dragon attack pays a staff event's. */
+export const STAFF_RECEIPT_TB = Object.freeze([TB_INVASION]);
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -48,23 +51,27 @@ export function staffReceiptValid(c) {
   if (!Number.isInteger(c.r) || c.r < 0 || c.r > STAFF_EVENT_BOARD_MAX) return false;
   if (!Number.isSafeInteger(c.i) || !Number.isSafeInteger(c.e)) return false;
   if (c.e <= c.i || c.e - c.i > STAFF_RECEIPT_TTL_S) return false;
+  if (c.tb !== undefined && !STAFF_RECEIPT_TB.includes(c.tb)) return false;
   return true;
 }
 
 /**
  * MINT - the relay's half. With no key the receipt goes out unsigned (`e1.<body>.`).
- * @param {{v: string, s: string, c: number, r: number}} what
+ * @param {{v: string, s: string, c: number, r: number, tb?: number}} what
  * @param {CryptoKey|null} privateKey an Ed25519 private key (net/gate/gateReceipt.js importReceiptKey), or null for none
  * @param {{subtle: SubtleCrypto, nowS: number}} env
  * @returns {Promise<string>}
  */
-export async function mintStaffReceipt({ v, s, c, r }, privateKey, { subtle, nowS }) {
+export async function mintStaffReceipt({ v, s, c, r, tb: toyboxKind }, privateKey, { subtle, nowS }) {
   if (!Number.isSafeInteger(nowS)) throw new TypeError('mintStaffReceipt needs an integer epoch-seconds clock');
-  const claims = { v, s, c, r, i: nowS, e: nowS + STAFF_RECEIPT_TTL_S };
+  const kind = STAFF_RECEIPT_TB.includes(/** @type {number} */ (toyboxKind)) ? { tb: toyboxKind } : {};
+  const claims = { v, s, c, r, ...kind, i: nowS, e: nowS + STAFF_RECEIPT_TTL_S };
   if (!staffReceiptValid(claims)) throw new TypeError('mintStaffReceipt refused a claim set it could not verify');
   const body = _b64url.encode(enc.encode(JSON.stringify(claims)));
   if (!privateKey) return `${STAFF_RECEIPT_V}.${body}.`;
-  const sig = new Uint8Array(await subtle.sign({ name: 'Ed25519' }, privateKey, enc.encode(`${STAFF_RECEIPT_V}.${body}`)));
+  const sig = new Uint8Array(
+    await subtle.sign({ name: 'Ed25519' }, privateKey, enc.encode(`${STAFF_RECEIPT_V}.${body}`)),
+  );
   return `${STAFF_RECEIPT_V}.${body}.${_b64url.encode(sig)}`;
 }
 
@@ -80,7 +87,11 @@ export function readStaffReceipt(r) {
   const raw = _b64url.decode(parts[1]);
   if (!raw) return null;
   let c;
-  try { c = JSON.parse(dec.decode(raw)); } catch { return null; }
+  try {
+    c = JSON.parse(dec.decode(raw));
+  } catch {
+    return null;
+  }
   return staffReceiptValid(c) ? { ...c, signed: parts[2].length > 0 } : null;
 }
 
@@ -104,10 +115,18 @@ export async function verifyStaffReceipt(r, publicKey, { subtle, nowS, skewS = S
   const raw = _b64url.decode(body);
   if (!raw) return { ok: false, why: 'body-shape' };
   let good = false;
-  try { good = await subtle.verify({ name: 'Ed25519' }, publicKey, sig, enc.encode(`${v}.${body}`)); } catch { return { ok: false, why: 'verify-threw' }; }
+  try {
+    good = await subtle.verify({ name: 'Ed25519' }, publicKey, sig, enc.encode(`${v}.${body}`));
+  } catch {
+    return { ok: false, why: 'verify-threw' };
+  }
   if (!good) return { ok: false, why: 'signature' };
   let claims;
-  try { claims = JSON.parse(dec.decode(raw)); } catch { return { ok: false, why: 'json' }; }
+  try {
+    claims = JSON.parse(dec.decode(raw));
+  } catch {
+    return { ok: false, why: 'json' };
+  }
   if (!staffReceiptValid(claims)) return { ok: false, why: 'claims' };
   if (!Number.isSafeInteger(nowS)) return { ok: false, why: 'clock' };
   if (nowS >= claims.e) return { ok: false, why: 'expired' };

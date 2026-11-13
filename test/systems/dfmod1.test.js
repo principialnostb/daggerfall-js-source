@@ -155,8 +155,10 @@ test('FACE-RECT (issue #639): a replaced face takes the <rect> its xml gives - P
       'the doll draws the face into that rect');
     assert.deepEqual(altBox({ bmp, off, rect: null }), { width: 29, height: 31, off }, 'without one, the classic record\'s size at its offset, as before');
   } finally { clearDfmodSources(); }
-  assert.match(src('ui/paperDoll.js'), /head: \{ bmp: headBmp, off: face\.getOffset\(fi\), alt: [^\n]*rect: dfmodCifRciRect\(art\.heads, fi, 0\) \}/, 'the racial face asks its rect');
-  assert.match(src('ui/paperDoll.js'), /art\.rect = dfmodCifRciRect\(file, record, 0\);/, 'and so does a racial override\'s head');
+  assert.match(src('ui/paperDoll.js'), /head: \{ bmp: headBmp, off: face\.getOffset\(fi\), alt: [^\n]*rect: modRect\(art\.heads, fi\) \}/, 'the racial face asks its rect');
+  assert.match(src('ui/paperDoll.js'), /art\.rect = modRect\(file, record\);/, 'and so does a racial override\'s head');
+  assert.match(src('ui/paperDoll.js'), /hasPlayerPicture\(cifPictureName\(file, record, 0\)\) \|\| hasPlayerFile\(file\) \? null : dfmodCifRciRect\(file, record, 0\)/,
+    'the mod\'s rect, unless the player\'s own head stands in for it (the Replacements pane)');
 });
 
 test('DFMOD1 wiring: the boot, the pick, the doll, the portraits and the packs card', () => {
@@ -172,9 +174,13 @@ test('DFMOD1 wiring: the boot, the pick, the doll, the portraits and the packs c
   for (const label of ['Add texture mods', 'Remove music pack', 'Remove sound pack', 'Remove texture pack', 'Remove all texture mods']) assert.ok(menu.includes(`'${label}'`), label);
   assert.match(menu, /d\.removeStoredDfmod\(m\.key\)/);
   const doll = src('ui/paperDoll.js');
-  assert.match(doll, /alt: await dfmodAlt\(dfmodImgImage\(name\), bmp\)/);
-  assert.match(doll, /alt: await dfmodAlt\(dfmodCifRciImage\(art\.heads, fi, 0\), headBmp\)/);
-  assert.match(src('ui/native/nativeTalk.js'), /hasDfmodCifRci\(file, recordId, 0\)/);
+  assert.match(doll, /alt: await dfmodAlt\(ownOrModImg\(name\), bmp\)/);
+  assert.match(doll, /alt: await dfmodAlt\(ownOrModCifRecord\(art\.heads, fi, palette, face\), headBmp\)/);
+  // the player's own picture (the Replacements pane) is asked first; the attached mod's after it
+  const door = src('systems/replacements/ownOrMod.js');   // every reader of these files asks the one door
+  assert.match(door, /export const ownOrModImg = \(name\) => \(hasPlayerPicture\(name\) \? playerPictureRgba\(name\) : dfmodImgImage\(name\)\);/);
+  assert.match(door, /return hasDfmodCifRci\(file, record, frame\) \? dfmodCifRciImage\(file, record, frame\)\.catch\(\(\) => null\) : null;/);
+  assert.match(src('ui/native/nativeTalk.js'), /ownOrModCifRecord\(file, recordId, _portraitDeps\.palette\)/);
 });
 
 test('DFMOD1-E: the Enhanced Plus avatar follows the attached mods - the composite knows its mod generation, the art reloads, the pack asks', () => {
@@ -182,11 +188,12 @@ test('DFMOD1-E: the Enhanced Plus avatar follows the attached mods - the composi
   // DFMOD3-F: once per generation, never during a compose - the Enhanced Plus pack asks on every render, and an ask
   // that stayed true while the compose ran spun render -> ask -> render until the page froze
   assert.match(doll, /if \(!_art \|\| !_deps \|\| _refreshing \|\| _composedGen === gen \|\| _staleTried === gen\) return false;\n\s+_staleTried = gen;\n\s+return true;/);
-  assert.match(doll, /else if \(_ident && !_identity\?\.endsWith\(`#\$\{dfmodGeneration\(\)\}`\)\) await preloadPaperDollArt\(_deps, _ident\);/, 'a boot-time art set is reloaded once the mods land');
+  assert.match(doll, /else if \(_ident && !_identity\?\.endsWith\(`#\$\{artGeneration\(\)\}`\)\) await preloadPaperDollArt\(_deps, _ident\);/, 'a boot-time art set is reloaded once the mods land');
+  assert.match(doll, /const artGeneration = \(\) => `\$\{dfmodGeneration\(\)\}\.\$\{playerPicturesGeneration\(\)\}`;/, 'the mods\' generation, and the player\'s own pictures\'');
   assert.match(doll, /_composedGen = gen;/);
   assert.match(doll, /if \(!_live \|\| paperDollStale\(\)\) refreshPaperDoll\(entity\);/, 'the classic doll recomposes on its draw');
   assert.match(src('ui/enhanced/enhancedInventory.js'), /if \(paperDollStale\(\)\) refreshFigure\(\);\n\s*const figure = modelFigure\(\);/, 'the enhanced pack asks for a fresh avatar');
-  assert.match(src('ui/textureCanvas.js'), /if \(_iconsGen !== iconsGeneration\(\)\) \{ icons\.clear\(\); _iconsGen = iconsGeneration\(\); \}/, 'and its icons are drawn again');
+  assert.match(src('ui/textureCanvas.js'), /if \(_iconsGen !== iconsGeneration\(\)\) \{\n\s*icons\.clear\(\);\n\s*_iconsGen = iconsGeneration\(\);\n\s*\}/, 'and its icons are drawn again');
   assert.match(src('ui/textureCanvas.js'), /const iconsGeneration = \(\) => `\$\{dfmodGeneration\(\)\}:\$\{studioGeneration\(\)\}`;/, 'STUDIO1: the key is the attached-mod set\'s, and the studio\'s');
 });
 
@@ -219,7 +226,7 @@ test('DFMOD2 sources: a Uint8Array or a ranged source reads the same; a Blob is 
 test('DFMOD2 wiring: the boot never indexes on its way in, opens by range and warms, asks wait a bounded time, detail is the player\'s', () => {
   const door = src('systems/dfmodTextures.js');
   // PIN MOVED (AUDIT VE R6): what is indexed in the background is the missing AND the version before's rebuild
-  assert.match(door, /if \(todo\.length\) \{ if \(background\) indexMissing\(\); else await indexMissing\(\); \}/);
+  assert.match(door, /if \(todo\.length\) \{\n\s*if \(background\) indexMissing\(\);\n\s*else await indexMissing\(\);\n\s*\}/);
   assert.match(door, /if \(blob\?\.size\) return _opener\(blob, \{ maxTextureSize: maxSize\(\), knownTextures: knownOf\(key\) \}\);/);
   assert.match(door, /const b = await Promise\.race\(\[bundleFor\(key\), waited\]\);/);
   assert.match(src('scenes/dataSource.js'), /const index = await indexDfmodBytes\(f\);/, 'an attach reads the picked File by range, not whole');
@@ -337,7 +344,7 @@ test('DWHD1 crunch: a non-CRN stream is refused; formats 28/29 are known to the 
   assert.equal(F.DXT1Crunched, 28); assert.equal(F.DXT5Crunched, 29);
   assert.ok(!hasOwnDoor('dfmod/diverse weapons hd - handhelds i.dfmod') && !hasOwnDoor('dfmod/diverse weapons hd - inventory.dfmod'));
   assert.ok(hasOwnDoor('dfmod/diverse weapons.dfmod'), 'RealAKP\'s own bundle stays with its door');
-  assert.match(src('combat/diverseWeapons/diverseWeaponsAssets.js'), /&& !\/\\bhd\\b\/i\.test\(name\.slice\(name\.lastIndexOf\('\/'\) \+ 1\)\);/, 'and that door no longer opens the HD ones to read their GUID');
+  assert.match(src('combat/diverseWeapons/diverseWeaponsAssets.js'), /&&\n\s*!\/\\bhd\\b\/i\.test\(name\.slice\(name\.lastIndexOf\('\/'\) \+ 1\)\);/, 'and that door no longer opens the HD ones to read their GUID');
 });
 
 // The crunch decoder was checked block for block against texture2ddecoder's unpack_unity_crunch on 122 of Diverse

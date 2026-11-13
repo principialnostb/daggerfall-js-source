@@ -643,7 +643,7 @@ test('CSA-L: the panel wears the Plus kit - its bar a window of the kit and its 
   assert.match(css, /\.helmpanel-btn \{[^}]*pointer-events: auto/, 'its buttons take it');
   assert.match(css, /\.helmpanel\.touch \.helmpanel-btn \{ min-height: 44px; min-width: 44px; \}/, 'a finger\'s size');
   const src = rd('src/ui/enhanced/enhancedHelm.js');
-  assert.match(src, /for \(const t of \['pointerdown', 'mousedown', 'mouseup', 'click', 'touchstart', 'wheel', 'contextmenu'\]\) node\.addEventListener\(t, swallow\);/);
+  assert.match(src, /for \(const t of \['pointerdown', 'mousedown', 'mouseup', 'click', 'touchstart', 'wheel', 'contextmenu'\]\)\n\s*node\.addEventListener\(t, swallow\);/);
 });
 
 test('CSA-L: a pad at the helm - up raises or stows the sails (held: the square sails alone), down the lanterns (held: leaves the helm), left and right step the time scale (held: the trim while it is the player\'s, else left puts the time back to one); the prompt bar says so', () => {
@@ -771,7 +771,7 @@ test('CSA-L: the host\'s helm seam - the panel\'s and the pad\'s presses reach t
   const upd = cut(WORLD, 'function csaUpdate(dt) {', '\n  }\n');
   assert.ok(upd.indexOf('csaHelmInput.edges.clear()') > upd.indexOf('csaRuntime.lateUpdate('), 'after LateUpdate read them');
   // once a frame, every mode; Enhanced Plus, walking, the mod on - hidden under a window, the HUD off or a pause
-  assert.match(WORLD, /csaDrawHelmPanel\(\);[^\n]*\n\s+spoilsRecoverFrame\(\);[^\n]*\n\s+if \(onlineOn && playerSpawned\) \{ if \(!online\) onlineStart\(\); onlineFrame\(now, dt\); \}/);
+  assert.match(WORLD, /csaDrawHelmPanel\(\);[^\n]*\n\s+spoilsRecoverFrame\(\);[^\n]*\n\s+try \{ toybox\.frame\(\); invasionField\.frame\(\); \}[^\n]*\n\s+if \(onlineOn && playerSpawned\) \{ if \(!online\) onlineStart\(\); onlineFrame\(now, dt\); \}/);
   const draw = cut(WORLD, 'function csaDrawHelmPanel() {', '\n  }\n');
   assert.match(draw, /if \(!csaRuntime \|\| !csaOn\(\) \|\| !isEnhancedPlus\(\) \|\| typeof document === 'undefined' \|\| !walkMode\) \{ if \(enhancedHelmMounted\(\)\) hideEnhancedHelm\(\); csaHelmInput\.held\.clear\(\); return; \}/);
   assert.match(draw, /covered: townTalk\.hudCovered \|\| \(modes\?\.hudCovered \?\? false\) \|\| gamePaused\(\) \|\| !hudRenderEnabled\(\) \|\| !!travelView\?\.active \|\| !!_travelUIHolder\.ui\?\.isShowing,/);   // PIN MOVED (AUDIT NAV2 F17): under overhead and first-person journey controls, where a journey holds the helm

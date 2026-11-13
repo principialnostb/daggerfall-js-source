@@ -73,7 +73,7 @@ came through the rest. The press read the pressed cloth, so it changed every foo
   bind space, rounded two units sideways (src/formats/morrowind/mwCloakColliders.js:"export function cloakColliders(").
   It costs 0.65 ms a frame.
 - Every cloak is fitted to the eleven poses
-  (src/formats/morrowind/mwCloakFit.js:"export const CLOAK_STILL_POSES = Object.freeze([...CLOAK_FIT_POSES,").
+  (src/formats/morrowind/mwCloakFit.js:"export const CLOAK_STILL_POSES = Object.freeze([").
 - The hem's shape memory is 0.015, not 0.035: the walk swing is 10.0 units again (8.6 before).
 - Over an animated cloak the shield is drawn in to 1 unit off the body, the cloth pressed 4 units at most
   (src/formats/morrowind/mwCloakFit.js:"export const SHIELD_PRESS = 4;"). The press is read off the fitted cloth.

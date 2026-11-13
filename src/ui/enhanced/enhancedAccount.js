@@ -30,6 +30,7 @@ import { STAGES, FIELDS, FIELD_SPEC, AGREEMENTS, AGREEMENT_SPEC, recoveryCodesTe
 import { profileIconNode, ICON_TEXT } from '../profileIcons.js';   // WITCH1: the profile icons, worn in the portrait well
 import { TITLE_TEXT, glyphBadges, glyphArtNode, badgeClass } from '../playerBadge.js';
 import { characterSlots } from '../characterSlots.js';   // PROFILE-SLOTS: the character on its stage between its slots - the wardrobe's picker now
+import { discordRow, DISCORD_WATCH_MS } from './discordRow.js';   // the Discord PDA's link row
 import { setTitleFlame } from '../titleFlame.js';   // SHOP: a flame title's plate - a class, as every colour here is   // ACC3c: the SAME table the name over a head reads, so the picker shows what a player will actually wear - the COLOUR is the skin's (this card may not style itself, and a pin holds that)
 import { duelRecordText } from '../../net/duel/duelRecord.js';   // DUEL1: the account card's K/D row
 import { renownText, renownProgressText, renownProgress } from '../../net/renown.js';   // RENOWN1: Renown, left of the name and in its rows
@@ -69,7 +70,7 @@ export const GLYPH_LABEL = localizedTable({   // L10N4: each word a getter, read
   disciple: () => t('account.glyph.disciple', 'Disciple'),   // TITLE-N: the Patreon tiers' marks, each its title's word
   apostle: () => t('account.glyph.apostle', 'Apostle'),
   hierophant: () => t('account.glyph.hierophant', 'Hierophant'),
-  shadowfang: () => t('account.glyph.shadowfang', 'Shadow Fang'),   // SHADOW-FANG: the wolf's head beside SirMcMobdon's name
+  shadowfang: () => t('account.glyph.shadowfang', 'Shadow Fang'),   // SHADOW-FANG: the wolf's head beside the Shadow Fang account's name
   penitent: () => t('account.glyph.penitent', 'Penitent'),   // PENITENT: the sword in its lozenge beside Diggleborf's name
   herald: () => t('account.glyph.herald', 'Herald'),   // HERALD: the herald's trumpet and its banner
   tower: () => t('account.glyph.tower', 'A seat\'s Charter'),   // SEAT1c: the tower of a guild holding a palace seat
@@ -90,12 +91,14 @@ export const GLYPH_LABEL = localizedTable({   // L10N4: each word a getter, read
   wikimaid: () => t('account.glyph.wikimaid', 'WikiMaid'),   // WIKIMAID: the rabbit in its maid's headdress, beside SylviaBun's name
   nirnrootsage: () => t('account.glyph.nirnrootsage', 'Nirnroot Sage'),   // NIRNROOT-SAGE: the nirnroot sprig, beside Blob-Marley's name
   coldharbour: () => t('account.glyph.coldharbour', 'Blood of Coldharbour'),   // BLOOD-OF-COLDHARBOUR: the rose in its ring of thorns, beside Trakel's name
+  worldturtle: () => t('account.glyph.worldturtle', 'World Turtle'),   // the turtle, beside Eterna's name
   origin: () => t('account.glyph.origin', 'Origin'),   // SHOP: the ouroboros dragon, the shop's pre-alpha glyph
   oblivion: () => t('account.glyph.oblivion', 'Oblivion Sigil'),   // STOREFRONT: the bundles' three
   gatesigil: () => t('account.glyph.gatesigil', 'Gate Sigil'),
   gearcrown: () => t('account.glyph.gearcrown', 'Brass Crown'),
   tonalfork: () => t('account.glyph.tonalfork', 'Tonal Fork'),   // STOREFRONT: the Battle Pass's two
   cog: () => t('account.glyph.cog', 'Dwemer Cog'),
+  waxseal: () => t('account.glyph.waxseal', 'Courier’s Seal'),   // the Courier's Cabinet's, bought with Seals in Discord
 });
 
 /** ACC4: THE TWO FACTS MAC ASKED FOR, as words. Pure, so node pins
@@ -468,10 +471,14 @@ export function accountCard(doc, flow, { onClose = null, face = null, character 
   if (win && typeof win.addEventListener === 'function') {
     const onFocus = () => {
       if (!root.isConnected) { win.removeEventListener('focus', onFocus); return; }
-      if (flow.stage === 'in' && flow.patreon?.on && typeof flow.refresh === 'function') Promise.resolve(flow.refresh()).catch(() => {});
+      if (flow.stage === 'in' && (flow.patreon?.on || flow.discordCode) && typeof flow.refresh === 'function') Promise.resolve(flow.refresh()).catch(() => {});
     };
     win.addEventListener('focus', onFocus);
-    off = () => { win.removeEventListener('focus', onFocus); charSlots.dispose(); };
+    // A Discord code is typed on another screen, often another device: while one lives, the card asks now and then.
+    const watch = typeof win.setInterval === 'function'
+      ? win.setInterval(() => { if (root.isConnected && flow.stage === 'in' && flow.discordCode?.expiresAt * 1000 > Date.now() && !flow.busy) Promise.resolve(flow.refresh()).catch(() => {}); }, DISCORD_WATCH_MS)
+      : null;
+    off = () => { win.removeEventListener('focus', onFocus); if (watch != null) win.clearInterval(watch); charSlots.dispose(); };
   }
 
   function build(stage) {
@@ -634,6 +641,7 @@ export function accountCard(doc, flow, { onClose = null, face = null, character 
       host = account;
       nameAsRow();   // NAME-AS: the name the room reads - the account's own section, beside the name it goes by
       patreonRow();   // PATREON-LINK
+      { const d = discordRow({ flow, el, act }); if (d) host.append(d); }   // the Discord PDA's link
       recoveryRow();   // RECOVERY-SET
       if (!flow.account.handle) {
         account.append(el('p', 'meta', t('account.card.guestNote', 'Adding a username keeps everything this account already has.')));

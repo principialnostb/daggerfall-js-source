@@ -32,8 +32,8 @@
   {
     "name": "Z4-wanted-not-rebuilt",
     "file": "src/net/remotePlayers.js",
-    "old": "    this._wanted = new Set();   // SLAM7: rebuilt every frame",
-    "new": "    this._wanted = this._wanted ?? new Set();   // SLAM7: rebuilt every frame",
+    "old": "    this._wanted.clear();   // SLAM7: rebuilt every frame",
+    "new": "    void this._wanted;   // SLAM7: rebuilt every frame",
     "tests": [
       "test/net/slam15.test.js",
       "test/net/slam7.test.js"

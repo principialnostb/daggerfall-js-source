@@ -164,7 +164,7 @@ blow (the owner: "one very sharp, intense animation" among the fists - the rever
   was pulled toward the fist pose and back. Now the override is held through the return: `bashExit =
   BLOW_FLOW.exit` in `endAttack` (src/combat/fpArm.js:"if (blowBash) { blowBash"), the idle not restarted under it
   (`resetIdleOnAttackEnd = false`), and a new blow clears it (`blowSerial++; blowHit = false; bashExit = 0;`). The
-  mirror reads it at src/combat/fpArm.js:"if (((blowBash && attackingNow()) || bashExit > 0) && idle)".
+  mirror reads it at src/combat/fpArm.js:"((blowBash && attackingNow()) || bashExit > 0) && idle)".
 
 ## 7. LEFT-ARM - who poses the left arm
 

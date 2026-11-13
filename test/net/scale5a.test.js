@@ -425,7 +425,7 @@ test('SCALE5a the hub asks storage for an account\'s serpent receipt once - a he
 test('SCALE5a the hello\'s walks are methods of their own (`_message` runs interpreted, PERF-RELAY1) and the hub\'s fans walk the index in place; the client\'s frame walks its peers in place', () => {
   const relay = src('server/src/index.js');
   assert.match(relay, /for \(const \[other, b\] of this\._withId\(m\.id, ws\)\) \{/);
-  assert.match(relay, /const others = this\._othersOf\(ws\);/);
+  assert.match(relay, /const others = this\._othersOf\(ws, who\);/);   // the viewer passed too, for the ghost's rule
   assert.match(relay, /this\._fanRoster\(ws, said\);/);   // PIN MOVED (SCALE5b): a channel's join and leave by the roster's fan, which walks in place as `_fanBut` does
   assert.match(relay, /if \(isChatRoom\(a\.key\)\) this\._fanRoster\(ws, out\); else this\._fanBut\(ws, out\);   \/\/ SCALE5a: in place, as the join's/);
   assert.match(relay, /_fanRoster\(ws, out\) \{ for \(const \[other, b\] of \(this\._vper\.size \? this\._reals\(\) : this\._all\(\)\)\) if \(other !== ws && b\.id && !other\.virtual\) \{ /, 'the roster\'s fan walks the index itself, never a copy (PIN MOVED, SCALE5c: the bus walks its own sockets, a shard\'s hearing its own shard\'s roster)');

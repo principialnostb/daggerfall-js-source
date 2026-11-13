@@ -177,3 +177,44 @@ test('BOARD-SIFT the book: a page, an order, a search\'s recipes and a least qua
   assert.equal(asked.length, 6, 'the same again: the minute\'s');
   assert.equal(book.cached('crafted', { ...base, page: 1 })?.page, 1);
 });
+
+test('MARKET-SEARCH the book: a Goods search\'s words and its affix lines each their own minute\'s read - "iron" never answered from the unsearched view, nor Strength from Luck (mutants: the key without the words; without the affixes)', async () => {
+  const asked = [];
+  const door = { read: async (req) => { asked.push(req); return { ok: true, status: 200, data: { ok: true, rows: [], page: 0, find: req.find ?? null } }; } };
+  const book = createMarketBook({ door, character: () => 'c1', now: () => 1000 });
+  const base = { region: 17, hubs: {} };
+  const qs = [{}, { find: 'iron' }, { find: 'steel' }, { affixes: [{ id: 'stat', param: 'strength', min: 1 }] }, { affixes: [{ id: 'stat', param: 'luck', min: 1 }] }, { affixes: [{ id: 'stat', param: 'luck', min: 5 }] }];
+  for (const q of qs) await book.read('goods', { ...base, ...q });
+  assert.equal(asked.length, qs.length, 'each its own ask');
+  for (const q of qs) await book.read('goods', { ...base, ...q });
+  assert.equal(asked.length, qs.length, 'the same again: the minute\'s');
+  assert.equal(book.cached('goods', { ...base, find: 'iron' })?.find, 'iron');
+});
+
+test('MARKET-STAMP the book: a cached view stands while the market\'s mark stands, and is read again the moment it moves, the other views kept; one mark serves every view a few seconds (mutants: the mark unread; never shared)', async () => {
+  let t = 1000, mark = 'a', stamps = 0;
+  const asked = [];
+  const door = {
+    read: async (req) => { asked.push(req); return { ok: true, status: 200, data: { ok: true, rows: [], page: 0 } }; },
+    stamp: async () => { stamps++; return { ok: true, status: 200, data: { stamp: { goods: mark, materials: 'm' } } }; },
+  };
+  const book = createMarketBook({ door, character: () => 'c1', now: () => t });
+  const q = { region: 17, hubs: {} };
+  await book.read('goods', q);
+  t += 10_000;
+  await book.read('goods', q);
+  assert.equal(asked.length, 1, 'the mark stood: the cache answered');
+  await book.read('materials', q);
+  assert.equal(asked.length, 2);
+  mark = 'b';
+  t += 10_000;
+  await book.read('goods', q);
+  assert.equal(asked.length, 3, 'the Goods mark moved: Goods read again');
+  await book.read('materials', q);
+  assert.equal(asked.length, 3, 'Materials still the cache\'s');
+  const before = stamps;
+  await book.read('goods', q);
+  await book.read('goods', q);
+  assert.equal(stamps, before, 'one mark serves a few seconds');
+  assert.equal(asked.length, 3);
+});

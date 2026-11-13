@@ -13,9 +13,9 @@ import { algebra, bodyOf, bodyTurn, turnOf, transpose, mul, clamp, clamp01, ease
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 import { orthonormal } from '../../combat/climbRig.js';
 import { clearArms } from './armClearance.js';
-import { createGuardElbows } from './guardElbows.js';   // GUARD-ELBOWS: the fists' elbows under the fists
-import { createHandFingers } from './handFingers.js';   // HAND-FINGERS: a fist the game's own, a free hand relaxed   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
-import { createBlowLegs } from './blowLegs.js';   // BLOW-LEGS: the body under a blow struck standing
+import { createGuardElbows } from './guardElbows.js'; // GUARD-ELBOWS: the fists' elbows under the fists
+import { createHandFingers } from './handFingers.js'; // HAND-FINGERS: a fist the game's own, a free hand relaxed   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
+import { createBlowLegs } from './blowLegs.js'; // BLOW-LEGS: the body under a blow struck standing
 import { createArmouredSword } from './armouredSword.js';
 import { createTravelStride } from './travelStride.js';
 import { createFreshReturn } from './freshReturn.js';
@@ -36,7 +36,13 @@ export const MATERIAL_HEFT = Object.freeze([0.3, 0.6, 1]);
 export const WEIGHT_MIX = Object.freeze({ armor: 0.65, weapon: 0.35, twoHanded: 1, oneHanded: 0.45 });
 /** The Morrowind weapon types held in two hands (a bow's draw is the arms', not the body's heft). */
 /** @type {readonly number[]} */
-const TWO_HANDED_TYPES = Object.freeze([MW_WEAPON_TYPE.LongBladeTwoHand, MW_WEAPON_TYPE.BluntTwoClose, MW_WEAPON_TYPE.BluntTwoWide, MW_WEAPON_TYPE.SpearTwoWide, MW_WEAPON_TYPE.AxeTwoHand]);
+const TWO_HANDED_TYPES = Object.freeze([
+  MW_WEAPON_TYPE.LongBladeTwoHand,
+  MW_WEAPON_TYPE.BluntTwoClose,
+  MW_WEAPON_TYPE.BluntTwoWide,
+  MW_WEAPON_TYPE.SpearTwoWide,
+  MW_WEAPON_TYPE.AxeTwoHand,
+]);
 
 /** THE WEIGHT, 0 (bare and empty-handed) to 1 (full plate and a two-hander): `armor` the worn pieces
  *  (mwItemMap.js dfWornEquipment's - `{ kind, templateIndex, material }`), `mwType` the drawn weapon's Morrowind type. */
@@ -48,7 +54,11 @@ export function bodyWeightOf({ armor = null, mwType = MW_WEAPON_TYPE.None } = {}
     a += share * (MATERIAL_HEFT[Math.min(2, Math.max(0, (Number(p.material) || 0) >> 8))] ?? 1);
   }
   const armorW = clamp01(a);
-  const weaponW = TWO_HANDED_TYPES.includes(mwType) ? WEIGHT_MIX.twoHanded : mwType >= 0 && mwType <= MW_WEAPON_TYPE.MarksmanThrown ? WEIGHT_MIX.oneHanded : 0;
+  const weaponW = TWO_HANDED_TYPES.includes(mwType)
+    ? WEIGHT_MIX.twoHanded
+    : mwType >= 0 && mwType <= MW_WEAPON_TYPE.MarksmanThrown
+      ? WEIGHT_MIX.oneHanded
+      : 0;
   return { armor: armorW, weapon: weaponW, w: clamp01(WEIGHT_MIX.armor * armorW + WEIGHT_MIX.weapon * weaponW) };
 }
 
@@ -61,8 +71,14 @@ export function bodyWeightOf({ armor = null, mwType = MW_WEAPON_TYPE.None } = {}
  * teleport, not a run.
  */
 export const LEAN = Object.freeze({
-  velTau: 0.08, accel: 0.01, side: 0.6, max: 0.3,
-  omega: Object.freeze([14, 9]), zeta: Object.freeze([0.5, 0.42]), gain: Object.freeze([0.5, 1]), limit: 25,
+  velTau: 0.08,
+  accel: 0.01,
+  side: 0.6,
+  max: 0.3,
+  omega: Object.freeze([14, 9]),
+  zeta: Object.freeze([0.5, 0.42]),
+  gain: Object.freeze([0.5, 1]),
+  limit: 25,
 });
 
 /**
@@ -79,7 +95,14 @@ export const LEAN = Object.freeze({
  *  pinned, for a later pass; the slot still clears the elbows (ARM-CLEARANCE). */
 export const LEAN_ON = false;
 
-export const SWAY = Object.freeze({ carry: Object.freeze([0, 0.07]), roll: Object.freeze([0.012, 0.075]), lift: 0.12, pace: 4.4, on: 0.6, ease: 0.15 });
+export const SWAY = Object.freeze({
+  carry: Object.freeze([0, 0.07]),
+  roll: Object.freeze([0.012, 0.075]),
+  lift: 0.12,
+  pace: 4.4,
+  on: 0.6,
+  ease: 0.15,
+});
 
 /** One spring step toward `goal` of x'' = w^2 (goal - x) - 2 z w x' - semi-implicit Euler, sub-stepped at 120 Hz so it is
  *  stable at any frame time. */
@@ -93,20 +116,30 @@ function springStep(s, goal, omega, zeta, dt) {
 }
 
 /** THE LAYER: the weight, the followed velocity and the trunk's two springs (pitch, roll). */
-let traceIds = 0;   // TEMP ARM-TRACE
+let traceIds = 0; // TEMP ARM-TRACE
 export function createBodyWeight() {
-  const traceId = ++traceIds;   // TEMP ARM-TRACE
-  let travel = null; let yaw0 = null;
-  const vel = { f: 0, r: 0 }; let velPrev = null;
-  const pitch = { x: 0, v: 0 }, roll = { x: 0, v: 0 };
-  let weight = 0; let on = false; let slotMemo = null; let moving = 0; let armorW = 0; let clearOn = false;
+  const traceId = ++traceIds; // TEMP ARM-TRACE
+  let travel = null;
+  let yaw0 = null;
+  const vel = { f: 0, r: 0 };
+  let velPrev = null;
+  const pitch = { x: 0, v: 0 },
+    roll = { x: 0, v: 0 };
+  let weight = 0;
+  let on = false;
+  let slotMemo = null;
+  let moving = 0;
+  let armorW = 0;
+  let clearOn = false;
   const legs = createBlowLegs();
   const freshReturn = createFreshReturn();
-  let bodyKind = 'male', bodySwing = false;
-  const fingers = createHandFingers(), guard = createGuardElbows();
+  let bodyKind = 'male',
+    bodySwing = false;
+  const fingers = createHandFingers(),
+    guard = createGuardElbows();
   const sword = createArmouredSword();
   const travelStride = createTravelStride({ sampleTrack, loopWindow });
-  let strideOn = false;   // RUN-STRIDE: last frame's switch, for the movement's rate (read before the frame's step)
+  let strideOn = false; // RUN-STRIDE: last frame's switch, for the movement's rate (read before the frame's step)
   const elbowTurns = { L: 0, R: 0 };
   let frameDt = 0;
   const layer = {
@@ -115,35 +148,58 @@ export function createBodyWeight() {
      * (`travel` world metres cumulative, x/y/z with y up; `bodyYaw` radians), and the weight's inputs.
      */
     step(dt, { active = false, move = null, armor = null, mwType = MW_WEAPON_TYPE.None } = {}) {
-      const bw = bodyWeightOf({ armor, mwType }); weight = bw.w; armorW = bw.armor;
+      const bw = bodyWeightOf({ armor, mwType });
+      weight = bw.w;
+      armorW = bw.armor;
       on = !!active;
       if (!(dt > 0)) return layer.lean();
-      const tr = move?.travel, yaw = Number(move?.bodyYaw);
-      let vf = 0, vr = 0, fresh = true;
+      const tr = move?.travel,
+        yaw = Number(move?.bodyYaw);
+      let vf = 0,
+        vr = 0,
+        fresh = true;
       if (Array.isArray(tr) && tr.every(Number.isFinite) && Number.isFinite(yaw)) {
         if (travel && yaw0 != null) {
-          const wx = tr[0] - travel[0], wz = tr[2] - travel[2];
+          const wx = tr[0] - travel[0],
+            wz = tr[2] - travel[2];
           if (Math.hypot(wx, wz) / dt <= LEAN.limit) {
-            const c = Math.cos(yaw0), s = Math.sin(yaw0);
-            vr = (wx * c - wz * s) / dt; vf = (wx * s + wz * c) / dt; fresh = false;
+            const c = Math.cos(yaw0),
+              s = Math.sin(yaw0);
+            vr = (wx * c - wz * s) / dt;
+            vf = (wx * s + wz * c) / dt;
+            fresh = false;
           }
         }
-        travel = [tr[0], tr[1], tr[2]]; yaw0 = yaw;
-      } else { travel = null; yaw0 = null; }
-      if (fresh) { vel.f = vf; vel.r = vr; velPrev = null; }
-      vel.f = ease(vel.f, vf, LEAN.velTau, dt); vel.r = ease(vel.r, vr, LEAN.velTau, dt);
-      const af = velPrev ? (vel.f - velPrev.f) / dt : 0, ar = velPrev ? (vel.r - velPrev.r) / dt : 0;
+        travel = [tr[0], tr[1], tr[2]];
+        yaw0 = yaw;
+      } else {
+        travel = null;
+        yaw0 = null;
+      }
+      if (fresh) {
+        vel.f = vf;
+        vel.r = vr;
+        velPrev = null;
+      }
+      vel.f = ease(vel.f, vf, LEAN.velTau, dt);
+      vel.r = ease(vel.r, vr, LEAN.velTau, dt);
+      const af = velPrev ? (vel.f - velPrev.f) / dt : 0,
+        ar = velPrev ? (vel.r - velPrev.r) / dt : 0;
       velPrev = { f: vel.f, r: vel.r };
       const g = lerp(LEAN.gain[0], LEAN.gain[1], weight);
       const speed = Math.hypot(vel.f, vel.r);
       moving = ease(moving, on && speed > SWAY.on ? Math.min(1, speed / SWAY.pace) : 0, SWAY.ease, dt);
-      const carry = lerp(SWAY.carry[0], SWAY.carry[1], weight) * moving * (speed > 1e-3 ? clamp(vel.f / speed, -0.5, 1) : 0);
+      const carry =
+        lerp(SWAY.carry[0], SWAY.carry[1], weight) * moving * (speed > 1e-3 ? clamp(vel.f / speed, -0.5, 1) : 0);
       const goalP = on ? clamp(LEAN.accel * g * af + carry, -LEAN.max, LEAN.max) : 0;
       const goalR = on ? clamp(LEAN.accel * LEAN.side * g * ar, -LEAN.max, LEAN.max) : 0;
-      const omega = lerp(LEAN.omega[0], LEAN.omega[1], weight), zeta = lerp(LEAN.zeta[0], LEAN.zeta[1], weight);
+      const omega = lerp(LEAN.omega[0], LEAN.omega[1], weight),
+        zeta = lerp(LEAN.zeta[0], LEAN.zeta[1], weight);
       springStep(pitch, goalP, omega, zeta, dt);
       springStep(roll, goalR, omega, zeta, dt);
-      if (!on && Math.abs(pitch.x) < 1e-4 && Math.abs(roll.x) < 1e-4) { pitch.x = pitch.v = roll.x = roll.v = 0; }
+      if (!on && Math.abs(pitch.x) < 1e-4 && Math.abs(roll.x) < 1e-4) {
+        pitch.x = pitch.v = roll.x = roll.v = 0;
+      }
       return layer.lean();
     },
     /** The rig's frame (combat/fpArm.js, positional so the host spends one line): `on` the switch in third person, the
@@ -151,24 +207,45 @@ export function createBodyWeight() {
      *  motion word (bodyMotion.js motionWord's - its blow, for BLOW-LEGS). */
     stepRig(dt, on, cam, armor, mwType, dead, word = null, moveState = null, moveSource = null, moveSpeed = 0) {
       frameDt = Math.max(0, dt);
-      bodyKind = word?.kind ?? 'male'; bodySwing = !!word?.blow?.section;
-      fingers.step(dt, !!on && !dead, word); guard.step(dt, !!on && !dead, word);   // TRUNK-SKIN: the clearance reads this body's trunk and its blow
+      bodyKind = word?.kind ?? 'male';
+      bodySwing = !!word?.blow?.section;
+      fingers.step(dt, !!on && !dead, word);
+      guard.step(dt, !!on && !dead, word); // TRUNK-SKIN: the clearance reads this body's trunk and its blow
       freshReturn.step(dt, !!word?.blow?.section, !!on && !dead && !word?.busy && carryClassOf(word ?? {}) === 'two');
       const mv = cam?.move ?? null;
       clearOn = !!on;
-      const active = !!on && !dead && !!mv && mv.grounded !== false && !mv.swimming && !mv.levitating && !mv.climbing && !cam?.climb && !cam?.seat && !cam?.saddle;
+      const active =
+        !!on &&
+        !dead &&
+        !!mv &&
+        mv.grounded !== false &&
+        !mv.swimming &&
+        !mv.levitating &&
+        !mv.climbing &&
+        !cam?.climb &&
+        !cam?.seat &&
+        !cam?.saddle;
       const lean = layer.step(dt, { active, move: mv, armor, mwType });
-      legs.step(dt, active, word, weight);   // BLOW-LEGS, by the body's weight just read
+      legs.step(dt, active, word, weight); // BLOW-LEGS, by the body's weight just read
       sword.step(dt, active, word, armorW);
       strideOn = !!on && !dead;
-      travelStride.stepRig(dt, strideOn, moveState, moveSource, cam, moveSpeed, MW_UNITS_PER_METER, active ? word : null);
+      travelStride.stepRig(
+        dt,
+        strideOn,
+        moveState,
+        moveSource,
+        cam,
+        moveSpeed,
+        MW_UNITS_PER_METER,
+        active ? word : null,
+      );
       return lean;
     },
     /** BLOW-LEGS's word, for the rig's status. */
     legs: () => legs.status(),
     /** RUN-STRIDE: the movement clip's playback rate for the speed ratio `k` (the body's over the clip's) - a run's
      *  capped, its legs lengthened by the rest; any other group's `k`. */
-    moveRate: (k, group) => travelStride.rate(k, strideOn, group),   // each answers its own groups
+    moveRate: (k, group) => travelStride.rate(k, strideOn, group), // each answers its own groups
     /** The trunk's lean now (radians, bodyTurn's sense: pitch + the front down, roll + the right side down). */
     lean: () => ({ pitch: pitch.x, roll: roll.x }),
     /** The step's shift over the standing foot now: its full roll (radians) and how far it is on (0..1). */
@@ -179,60 +256,142 @@ export function createBodyWeight() {
       if (slotMemo && slotMemo.inner === inner) return slotMemo.fn;
       // TEMP POSE-AUDIT: the legs after each stage - never committed
       const cap = (tag, skeleton, pose, rootRef, skelMats) => {
-        const A = globalThis.__poseAudit; if (!A?.on) return;
-        const b = bodyOf(skeleton, rootRef, skelMats); if (!b) return;
-        const m = skelMats(skeleton, pose, rootRef, [b.bones.L.foot, b.bones.R.foot]), p = (r) => { const t = m.get(r)?.t; return t ? [t[0], t[1], t[2]] : null; };
-        (A.stage ??= {})[tag] = { pel: p(b.bones.pelvis), kL: p(b.bones.L.calf), kR: p(b.bones.R.calf), fL: p(b.bones.L.foot), fR: p(b.bones.R.foot) };
+        const A = globalThis.__poseAudit;
+        if (!A?.on) return;
+        const b = bodyOf(skeleton, rootRef, skelMats);
+        if (!b) return;
+        const m = skelMats(skeleton, pose, rootRef, [b.bones.L.foot, b.bones.R.foot]),
+          p = (r) => {
+            const t = m.get(r)?.t;
+            return t ? [t[0], t[1], t[2]] : null;
+          };
+        (A.stage ??= {})[tag] = {
+          pel: p(b.bones.pelvis),
+          kL: p(b.bones.L.calf),
+          kR: p(b.bones.R.calf),
+          fL: p(b.bones.L.foot),
+          fR: p(b.bones.R.foot),
+        };
       };
       // TEMP ARM-TRACE (the 12-40-11 twitch, read in the owner's game): each arm's elbow and hand in the chest's frame after
       // each stage, while globalThis.__armTrace.on - never committed
       const armCap = (tag, skeleton, pose, rootRef, skelMats) => {
-        const T = globalThis.__armTrace; if (!T?.on || !T.cur) return;
-        const b = bodyOf(skeleton, rootRef, skelMats); if (!b?.bones?.L || !b.bones.R) return;
+        const T = globalThis.__armTrace;
+        if (!T?.on || !T.cur) return;
+        const b = bodyOf(skeleton, rootRef, skelMats);
+        if (!b?.bones?.L || !b.bones.R) return;
         const m = skelMats(skeleton, pose, rootRef, [b.chest, b.bones.L.hand, b.bones.R.hand]);
-        const C = at(m, b.chest), Rc = turnOf(m, b.chest); if (!C || !Rc) return;
-        const Rt = transpose(Rc), loc = (ref) => { const p = at(m, ref); if (!p) return null; const d = [p[0] - C[0], p[1] - C[1], p[2] - C[2]]; return [0, 1, 2].map((i) => +(Rt[i * 3] * d[0] + Rt[i * 3 + 1] * d[1] + Rt[i * 3 + 2] * d[2]).toFixed(3)); };
-        T.cur.s[tag] = [loc(b.bones.L.fore), loc(b.bones.L.hand), loc(b.bones.R.fore), loc(b.bones.R.hand), loc(b.bones.R.upper), loc(b.bones.R.clavicle), loc(b.bones.neck)];
+        const C = at(m, b.chest),
+          Rc = turnOf(m, b.chest);
+        if (!C || !Rc) return;
+        const Rt = transpose(Rc),
+          loc = (ref) => {
+            const p = at(m, ref);
+            if (!p) return null;
+            const d = [p[0] - C[0], p[1] - C[1], p[2] - C[2]];
+            return [0, 1, 2].map((i) => +(Rt[i * 3] * d[0] + Rt[i * 3 + 1] * d[1] + Rt[i * 3 + 2] * d[2]).toFixed(3));
+          };
+        T.cur.s[tag] = [
+          loc(b.bones.L.fore),
+          loc(b.bones.L.hand),
+          loc(b.bones.R.fore),
+          loc(b.bones.R.hand),
+          loc(b.bones.R.upper),
+          loc(b.bones.R.clavicle),
+          loc(b.bones.neck),
+        ];
       };
-      const tapped = inner ? (sk, po, ro, sm) => { cap('preMotion', sk, po, ro, sm); armCap('clip', sk, po, ro, sm); const r = inner(sk, po, ro, sm); cap('postMotion', sk, po, ro, sm); armCap('motion', sk, po, ro, sm); return r; } : inner;
-      const strided = travelStride.slot(tapped);   // RUN-STRIDE: the run's legs lengthened before the body motion sees them
-      slotMemo = { inner, fn: (skeleton, pose, rootRef, skelMats) => {
-        cap('clip', skeleton, pose, rootRef, skelMats);
-        const AT = globalThis.__armTrace; if (AT?.on) AT.cur = { id: traceId, t: +performance.now().toFixed(1), dt: +frameDt.toFixed(4), clip: AT.clip ?? null, s: {} };   // TEMP ARM-TRACE
-        const report = strided(skeleton, pose, rootRef, skelMats);
-        cap('stride', skeleton, pose, rootRef, skelMats);
-        const lean = layer.lean(), sway = layer.sway();
-        let mats = null;
-        if (LEAN_ON && sway.roll > 1e-4) {
-          const body = bodyOf(skeleton, rootRef, skelMats);
-          mats = body ? skelMats(skeleton, pose, rootRef, [body.bones.L.foot, body.bones.R.foot, body.chest]) : null;   // the feet here, the trunk in leanTrunk
-          const zl = mats ? at(mats, body.bones.L.foot)?.[2] : null, zr = mats ? at(mats, body.bones.R.foot)?.[2] : null;
-          if (Number.isFinite(zl) && Number.isFinite(zr)) lean.roll -= sway.roll * clamp((zr - zl) / (SWAY.lift * body.leg), -1, 1);
-        }
-        if (LEAN_ON) leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
-        leanTrunk(skeleton, pose, rootRef, skelMats, sword.pose());
-        if (clearOn) leanTrunk(skeleton, pose, rootRef, skelMats, legs.trunkTurn());   // BLOW-TRUNK: the turn the hips leave
-        if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);   // BLOW-LEGS: a standing blow's hips and feet
-        cap('legs', skeleton, pose, rootRef, skelMats);   // TEMP POSE-AUDIT
-        armCap('legs', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
-        freshReturn.apply(skeleton, pose, rootRef, skelMats);
-        armCap('fresh', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
-        // ARM-CLEARANCE, last: over the lean, the carry and the two-hander's return (TRUNK-SKIN: the return wrote its arms
-        // after the clearance had run, and its straight path took the haft hand's arm through the chest)
-        if (clearOn) guard.apply(skeleton, pose, rootRef, skelMats);   // GUARD-ELBOWS, before the clearance keeps them off the trunk
-        armCap('guard', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
-        const clr = clearOn ? clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt, held: report?.armAnatomy, kind: bodyKind, swinging: bodySwing || ['return', 'interrupt', 'settle'].includes(freshReturn.status().mode), moving }) : null;
-        armCap('clear', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
-        if (clearOn) fingers.apply(skeleton, pose);   // HAND-FINGERS, on the hands as they now stand
-        poseElbowSkin(skeleton, pose, rootRef, skelMats);
-        armCap('final', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
-        if (AT?.on && AT.cur) { AT.cur.clr = clr ? [+clr.L.toFixed(4), +clr.R.toFixed(4)] : null; (AT.frames ??= []).push(AT.cur); if (AT.frames.length > 4000) AT.frames.shift(); AT.cur = null; }
-        frameDt = 0;
-        return report;
-      } };
+      const tapped = inner
+        ? (sk, po, ro, sm) => {
+            cap('preMotion', sk, po, ro, sm);
+            armCap('clip', sk, po, ro, sm);
+            const r = inner(sk, po, ro, sm);
+            cap('postMotion', sk, po, ro, sm);
+            armCap('motion', sk, po, ro, sm);
+            return r;
+          }
+        : inner;
+      const strided = travelStride.slot(tapped); // RUN-STRIDE: the run's legs lengthened before the body motion sees them
+      slotMemo = {
+        inner,
+        fn: (skeleton, pose, rootRef, skelMats) => {
+          cap('clip', skeleton, pose, rootRef, skelMats);
+          const AT = globalThis.__armTrace;
+          if (AT?.on)
+            AT.cur = {
+              id: traceId,
+              t: +performance.now().toFixed(1),
+              dt: +frameDt.toFixed(4),
+              clip: AT.clip ?? null,
+              s: {},
+            }; // TEMP ARM-TRACE
+          const report = strided(skeleton, pose, rootRef, skelMats);
+          cap('stride', skeleton, pose, rootRef, skelMats);
+          const lean = layer.lean(),
+            sway = layer.sway();
+          let mats = null;
+          if (LEAN_ON && sway.roll > 1e-4) {
+            const body = bodyOf(skeleton, rootRef, skelMats);
+            mats = body ? skelMats(skeleton, pose, rootRef, [body.bones.L.foot, body.bones.R.foot, body.chest]) : null; // the feet here, the trunk in leanTrunk
+            const zl = mats ? at(mats, body.bones.L.foot)?.[2] : null,
+              zr = mats ? at(mats, body.bones.R.foot)?.[2] : null;
+            if (Number.isFinite(zl) && Number.isFinite(zr))
+              lean.roll -= sway.roll * clamp((zr - zl) / (SWAY.lift * body.leg), -1, 1);
+          }
+          if (LEAN_ON) leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
+          leanTrunk(skeleton, pose, rootRef, skelMats, sword.pose());
+          if (clearOn) leanTrunk(skeleton, pose, rootRef, skelMats, legs.trunkTurn()); // BLOW-TRUNK: the turn the hips leave
+          if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats); // BLOW-LEGS: a standing blow's hips and feet
+          cap('legs', skeleton, pose, rootRef, skelMats); // TEMP POSE-AUDIT
+          armCap('legs', skeleton, pose, rootRef, skelMats); // TEMP ARM-TRACE
+          freshReturn.apply(skeleton, pose, rootRef, skelMats);
+          armCap('fresh', skeleton, pose, rootRef, skelMats); // TEMP ARM-TRACE
+          // ARM-CLEARANCE, last: over the lean, the carry and the two-hander's return (TRUNK-SKIN: the return wrote its arms
+          // after the clearance had run, and its straight path took the haft hand's arm through the chest)
+          if (clearOn) guard.apply(skeleton, pose, rootRef, skelMats); // GUARD-ELBOWS, before the clearance keeps them off the trunk
+          armCap('guard', skeleton, pose, rootRef, skelMats); // TEMP ARM-TRACE
+          const clr = clearOn
+            ? clearArms(skeleton, pose, rootRef, skelMats, {
+                armor: armorW,
+                previous: elbowTurns,
+                dt: frameDt,
+                held: report?.armAnatomy,
+                kind: bodyKind,
+                swinging: bodySwing || ['return', 'interrupt', 'settle'].includes(freshReturn.status().mode),
+                moving,
+              })
+            : null;
+          armCap('clear', skeleton, pose, rootRef, skelMats); // TEMP ARM-TRACE
+          if (clearOn) fingers.apply(skeleton, pose); // HAND-FINGERS, on the hands as they now stand
+          poseElbowSkin(skeleton, pose, rootRef, skelMats);
+          armCap('final', skeleton, pose, rootRef, skelMats); // TEMP ARM-TRACE
+          if (AT?.on && AT.cur) {
+            AT.cur.clr = clr ? [+clr.L.toFixed(4), +clr.R.toFixed(4)] : null;
+            (AT.frames ??= []).push(AT.cur);
+            if (AT.frames.length > 4000) AT.frames.shift();
+            AT.cur = null;
+          }
+          frameDt = 0;
+          return report;
+        },
+      };
       return slotMemo.fn;
     },
-    reset() { fingers.reset(); guard.reset(); freshReturn.reset(); elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
+    reset() {
+      fingers.reset();
+      guard.reset();
+      freshReturn.reset();
+      elbowTurns.L = elbowTurns.R = 0;
+      frameDt = 0;
+      sword.reset();
+      legs.reset();
+      moving = 0;
+      travel = null;
+      yaw0 = null;
+      vel.f = vel.r = 0;
+      velPrev = null;
+      pitch.x = pitch.v = roll.x = roll.v = 0;
+    },
   };
   return layer;
 }
@@ -244,19 +403,26 @@ export function leanTrunk(skeleton, pose, rootRef, skelMats, { pitch = 0, roll =
   if (!(Math.abs(pitch) > 1e-5 || Math.abs(roll) > 1e-5 || Math.abs(yaw) > 1e-5)) return false;
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body || !body.trunk?.length) return false;
-  const mats = posed ?? skelMats(skeleton, pose, rootRef, [body.chest]);   // only the trunk and its ancestors
+  const mats = posed ?? skelMats(skeleton, pose, rootRef, [body.chest]); // only the trunk and its ancestors
   const n = body.trunk.length;
   const step = bodyTurn(yaw / n, roll / n, pitch / n);
   /** @type {ArrayLike<number>} */
   let C = [1, 0, 0, 0, 1, 0, 0, 0, 1];
   for (const ref of body.trunk) {
     const node = skeleton.nodes.get(ref);
-    const W = turnOf(mats, ref), Wp = node?.parent != null ? turnOf(mats, node.parent) : null;
+    const W = turnOf(mats, ref),
+      Wp = node?.parent != null ? turnOf(mats, node.parent) : null;
     if (!node || !W) continue;
-    const Cprev = C; C = mul(step, C);
-    const newWorld = mul(C, W), newParent = Wp ? mul(Cprev, Wp) : null;
+    const Cprev = C;
+    C = mul(step, C);
+    const newWorld = mul(C, W),
+      newParent = Wp ? mul(Cprev, Wp) : null;
     const local = pose.get(ref) ?? node.rest;
-    pose.set(ref, { rotation: orthonormal(newParent ? mul(transpose(newParent), newWorld) : newWorld), translation: local.translation, scale: local.scale });
+    pose.set(ref, {
+      rotation: orthonormal(newParent ? mul(transpose(newParent), newWorld) : newWorld),
+      translation: local.translation,
+      scale: local.scale,
+    });
   }
   return true;
 }

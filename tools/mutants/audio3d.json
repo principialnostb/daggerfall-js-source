@@ -101,7 +101,7 @@
   {
     "name": "RIDE-SOUND-departure-kept",
     "file": "src/net/remotePlayers.js",
-    "old": "    for (const id of [...this._riding.keys()]) if (!seen.has(id)) this._stopRidingSound(id);",
+    "old": "    for (const id of this._riding.keys()) if (!seen.has(id)) this._stopRidingSound(id);",
     "new": "",
     "tests": [
       "test/systems/audio3d.test.js"

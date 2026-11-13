@@ -93,5 +93,11 @@
  "guest (account)": "khách",
  "By chance (Collections chip: a random roll)": "Ngẫu nhiên",
  "the sprout (the new account's glyph)": "huy hiệu mầm non",
- "Offered by {giver} (a questline's giver, last in the sentence)": "Người giao: {giver}."
+ "Offered by {giver} (a questline's giver, last in the sentence)": "Người giao: {giver}.",
+ "Replacement (the Replacements pane: your own PNG in place of a game picture)": "Thay thế",
+ "picture (a texture or sprite)": "hình",
+ "Overhaul (a mod that changed a picture)": "Đại tu",
+ "Skin card (profile)": "thẻ Skin",
+ "Rejected: (a refused file)": "Bị từ chối:",
+ "Werewolf form / Wereboar form": "Dạng người sói / Dạng người lợn rừng"
 }

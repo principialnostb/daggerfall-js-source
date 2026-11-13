@@ -23,6 +23,7 @@ import { EL_LANE } from '../../src/render/enhancedLighting.js';
 import { SHADOW_POINT_CASTERS, SHADOW_NEAR_CASTERS, SHADOW_DYNAMIC_HOLD, shadowCacheOn, spheresTouch, foldSignature } from '../../src/render/shadowPass.js';
 import { SHADOW_TUNING } from '../../src/render/shadowPass.js';
 SHADOW_TUNING.override = false;   // these tests pin EL8's schedule and DISC24-C's near-two card
+SHADOW_TUNING.moverHold = false;   // these pin the movers' redraw schedule call by call; a redraw the movers' memo skips puts back what it found (moverhold.test.js)
 
 const rd = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const I = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);

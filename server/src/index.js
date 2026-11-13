@@ -187,6 +187,7 @@ import { cellDoors, cellTell, cellDoorShut, isCellDirectory, cellPlanAlarm } fro
 import { isCoarseNode, cellSeedOf } from '../../src/net/cellTree.js';   // COST-2: a coarse node is the Worker's name for an object, never a page's room; part two: the cellSeed setting read
 import { staffNetFrame, staffNetClosed, staffFoesSeen, staffFoesStripped, staffReactAsk, staffReactPose, staffLeft } from './staffFeeds.js';   // STAFF-PANEL5-FEEDS: the Staff Panel's counts - network bursts, monsters, an encounter's reaction (off until their URLs are set)
 import { hiddenMay, hiddenAsked, seatsTaken, hiddenSeats, hiddenHello, hiddenPose, hiddenLapse, hiddenEntered, isHidden } from './staffHidden.js';   // STAFF-PANEL5-HIDDEN: a hidden staff spectator, named by nobody
+import { ghostFrame, ghostHello, ghostHides } from './staffGhost.js';   // the toybox's ghost: seen by developers and moderators alone
 import { takeStaffEventLaw, sayStaffBook, staffEventWord, staffBookInternal, staffTellInternal, staffCallInternal, SEV_INTERNAL_BOOK, SEV_INTERNAL_TELL, SEV_INTERNAL_CALL } from './staffEvents.js';   // STAFF-EVENT: a staff event's book (the hub) and meter (its place's cell)
 import { takeYardOrder } from './yardWords.js';
 import { delveFrame, forgetDelve } from './delveRoom.js';   // DELVE II (DLV3): a dungeon's encounters, kept by its room
@@ -203,6 +204,7 @@ import { mintKetchReceipt, readKetchReceipt, KT_RECEIPT_TTL_S } from '../../src/
 import { dungeonToDeck } from '../../src/net/ketch/ketchDeck.js';   // KETCH: a pose of the dungeon's frame in the deck's
 import { instanceOwnerOf } from '../../src/net/instanceRoom.js';
 import { sdCopyRight, sdNewcomerWord, sdAcctTell, sdAcctInternal, SD_INTERNAL_ACCT, sdSeatsInternal, SD_INTERNAL_SEATS, sdOpenDoor, SD_OPEN_PATH } from './sdCopy.js';   // SD-PARTY: a party's own Hour - its door, one life and one win a Hollow   // KETCH: a captain's digest, INSTANCES' own
+import { lookGlowWorn } from '../../src/net/wire.js';   // the Tidebound Edge's glow word only beside its piece
 import { validKetchIn, ketchRelayGate, KT_BRAIN_MIN, KT_VOYAGE_KEY, KT_RC_PREFIX, ketchReceiptKey, KT_INTERNAL_RC, KT_TELL_RETRY_MS, validKtRcTell } from '../../src/net/wire.js';   // KETCH: its words, their bucket, its brain's number, its record's key; AUDIT KETCH L1-2: the hub's keeping of its receipts
 import { RELAY_CFG_TTL_MS, RELAY_INTERNAL_CFG, mayRelayCfg, relayCfgValue } from '../../src/net/relayCfg.js';   // SCALE5b: the relay's settings, at run time
 import { leaseKeyOf, mintLease, readLease, leaseRoom, LEASE_FRAME_MIN_MS, LEASE_OLD_REASON } from '../../src/net/roomLease.js';   // LEASE1: the hub's word on every socket, in every room
@@ -402,8 +404,12 @@ import { egResume, egHoldDone, egRelease, egBeatGap, egReceiptSeed, EG_LIVE_MAX,
 import { egEnd, egGeo } from '../../src/net/eliteGates/egBrain.js';
 import { egHallOf, egCircleOfHall, EG_LAST_WORD_MS, EG_ABSENT_TRIAL_MS } from '../../src/net/eliteGates/egLaw.js';   // AUDIT EG III: and a closed socket's body held for the absence's window
 import { mintEgReceipt } from '../../src/net/eliteGates/egReceipt.js';
-import { dragonWord, dragonTick, dragonTrails, dragonFellInternal, dragonReceiptTo, sweepDragonReceipts, mergeBeats, DRAGON_REST_MS, DRAGON_INTERNAL_FELL } from './dragonFights.js';   // DRAGON2: the Dwarven Dragon's fight, the relay's half
+import { dragonWord, dragonTick, dragonTrails, dragonFellInternal, dragonJudgeInternal, dragonReceiptTo, sweepDragonReceipts, mergeBeats, DRAGON_REST_MS, DRAGON_INTERNAL_FELL, DRAGON_INTERNAL_JUDGE } from './dragonFights.js';   // DRAGON2: the Dwarven Dragon's fight, the relay's half
 import { dragonGate } from '../../src/net/wire.js';   // DRAGON2: its frames' own bucket
+import { pdaRelayDoor, pdaRelayInternal } from './pdaRelay.js';   // the Discord PDA's doors: the live events' public facts, and a player's friends
+import { PDA_RELAY_PREFIX, PDA_INTERNAL_PREFIX } from './pdaRelayLaw.js';
+import { invasionWord, invasionTick } from './invasionFights.js';   // an invasion's fight, hosted by its city's cell
+import { invasionGate } from '../../src/net/wire.js';
 // EG-ZA (2026-10-12, Mac: "I said I want everything"; Elite-Gates.md sections 22 and 23): A KEY IS NEVER LOST - the hub's
 // open retried and its call told the room, an open the room never took voided by the room (its tombstone first), a client's
 // void of a stake no call answered, every receipt held at the hub (`egrc:<sub>`) until its account says it is counted, a
@@ -411,6 +417,7 @@ import { dragonGate } from '../../src/net/wire.js';   // DRAGON2: its frames' ow
 import { EG_VOID_MAX_S, EG_DONE_KEY, EG_OPEN_HUB_TRIES, EG_INTERNAL_VOID, EG_INTERNAL_CALLED, EG_INTERNAL_RCPT, EG_RC_PREFIX, EG_RC_TELL_MS, EG_RC_OWED_MAX, egRcKey, egRcId, egRcFold, egRcSpent, egRcLive, egDoneWith, egDoneOf, egVoidable, egTickAt } from '../../src/net/eliteGates/egDurable.js';
 import { readEgReceipt, EG_RECEIPT_TTL_S } from '../../src/net/eliteGates/egReceipt.js';
 import { verifyEgOpenAnyAge } from '../../src/net/identityToken.js';
+import { egTokenAtt } from '../../src/net/eliteGates/egMight.js';   // EG-MIGHT: a breach member's kit's might, off its token
 // EG-E3 (2026-10-12, Mac: "I said I want everything"; bible/11-Multiplayer/Elite-Gates.md section 20): net/eliteGates/egHerald.js
 // JOINS THE BUNDLE - the Spire's herald (its posts, the hub's reckoning of the Descent's tops, First of the Spire and the
 // seals said; pure - it imports gateHerald.js, egLaw.js and arenaLaw.js, all here). A breach's room tells the hub its news
@@ -420,7 +427,7 @@ import { EG_INTERNAL_HERALD, EG_HERALD_KEY, EG_HERALD_KEEP_MS, EG_HERALD_TELL_MS
 // SHARED time (net/eliteGates/egFair.js's time law) onto its socket's trail and THE FAIR TRAIL, the Spire's blows and hazards judged on
 // those trails and the body counted, ENFORCED in the Spire (net/eliteGates/egBrain.js egCount - the member's one life), the room's
 // heals restored to it, the member's own word of its body (`vt`), the shared clock's ping answered (`clk`)
-import { egPoseIn, egCount, egCountHeals, egBodyWord, egFairWoke, EG_BODY_ENFORCE } from '../../src/net/eliteGates/egBrain.js';
+import { egPoseIn, egCount, egCountHeals, egBodyWord, egFairWoke, egPotion, EG_BODY_ENFORCE } from '../../src/net/eliteGates/egBrain.js';
 import { egHeal } from '../../src/net/eliteGates/egBrain.js';   // EG-ZF (Elite-Gates.md section 27.6): what a companion's spell healed in a member - the recap's healing
 import { EG_HEAL_CAST_MS } from '../../src/net/eliteGates/egBrain.js';   // AUDIT EG IV (lane3 #3): how far back a relayed cast corroborates a heal word's healer
 import { egPoseClock, egPoseShared, egTrailPush, EG_TRAIL_MS, EG_TS_LAG_MAX_MS } from '../../src/net/eliteGates/egFair.js';   // AUDIT EG V (L4-1): the edge no pose can still land before
@@ -689,6 +696,7 @@ export default {
     if (url.pathname === SD_OPEN_PATH) return sdOpenDoor(env, url);   // SD-SOLO: which shared Hour a player in no party goes to
     if (url.pathname === EG_LIVE_PATH) return egLiveAsk(env.ROOMS);   // EG-H2: the Spire's live breaches, for the deploy's hold and drain
     if (url.pathname === SAFE_LAW_PATH) return lawDoor(request, env);   // SAFE4: a mute or ban the account service pushed, for the hub
+    if (url.pathname.startsWith(PDA_RELAY_PREFIX)) return pdaRelayDoor(request, env, url);   // the Discord PDA's live events and friends
     const key = roomOf(url.pathname);
     if (!key || (key.startsWith('chat:') && !isChatRoom(key))) return json({ error: 'no such room' }, 404);   // AUDIT CHAT A1: no object is minted for a channel the port does not run
     if (key.startsWith('owned:') && !privateInteriorOf(key)) return json({ error: 'no such private room' }, 404);
@@ -1095,6 +1103,7 @@ export class Room {
     if (path === GATE_INTERNAL_PARTY) return this._gatePartyInternal(request);   // GATE-COURTS: the book asking the hub an account's party
     if (path === SERPENT_INTERNAL_FELL) return this._serpentFellInternal(request);   // SERPENT1: the serpent's kill, said to the hub
     if (path === DRAGON_INTERNAL_FELL) return dragonFellInternal(this, request);   // DRAGON2: a dragon's kill and its receipts, to the hub
+    if (path === DRAGON_INTERNAL_JUDGE) return dragonJudgeInternal(this, request);   // DRAGON-BUDGET: an account's cells a watch, on the hub
     if (path === RAID_INTERNAL_CLEAN) return this._raidCleanInternal(request);   // RAID3: a raid's cleanse, said to the hub
     if (path === SEV_INTERNAL_BOOK) return staffBookInternal(this);   // STAFF-EVENT: a cell asking the hub for the book of staff events
     if (path === SEV_INTERNAL_TELL) return staffTellInternal(this, request);   // STAFF-EVENT: a cell telling the hub an event's meter
@@ -1131,6 +1140,7 @@ export class Room {
     if (path === HOLDEM_INTERNAL_VOID) return this._holdemVoidInternal(request);   // AUDIT SCALE II R3-3 (c): a layer's void, spent by its place
     if (path === SAFE_INTERNAL_LAW) return this._lawInternal(request);   // SAFE4: an order the account service pushed through the Worker's door
     if (path === FOLLOW_INTERNAL_SAY) return followSayInternal(this, request);   // STAFF-PANEL5-FOLLOW: a room telling the bus a followed account came or went
+    if (path.startsWith(PDA_INTERNAL_PREFIX)) return pdaRelayInternal(this, path, request);   // the Discord PDA: the hub's live facts and a player's friends
     const key = roomOf(new URL(request.url).pathname);
     if (!key || (key.startsWith('owned:') && !privateInteriorOf(key))) return json({ error: 'no such private room' }, 404);
     // AUDIT WB A1: A SEAT IS A HELLO'S. A socket that opened and never said hello kept its seat for as long as it stood
@@ -1306,10 +1316,10 @@ export class Room {
   }
   /** Everyone but `ws` the room can name - hello'd, and never a socket this object closed or whose leave is said
    *  (AUDIT DEEP2 C, ONE-SEAT R4's rule): their attachments, in the index's order. */
-  _othersOf(ws) {
+  _othersOf(ws, viewer = this._all().get(ws)) {
     const out = [];
     for (const [other, b] of this._all()) if (other !== ws && b.id && !this._dead.has(other) && !this._gone.has(other)) out.push(b);
-    return out.filter((b) => !b.hid);   // STAFF-PANEL5-HIDDEN: a hidden socket is in no roster - nor the welcome's who-is-here, nor a region's travellers
+    return out.filter((b) => !b.hid && !ghostHides(b, viewer));   // STAFF-PANEL5-HIDDEN: a hidden socket is in no roster - nor the welcome's who-is-here, nor a region's travellers
   }
   /** AUDIT SCALE5a C1-C3: how many the room can name - hello'd, never a socket this object closed or whose leave is said
    *  (`_othersOf`'s rule, the joiner's own socket counted): the welcome's `n`, said again on a channel's every leave. */
@@ -3246,7 +3256,7 @@ export class Room {
     // SERPENT1: A CELL WITH A SERPENT'S FIGHT beats it - and its other duties (a rite's tell, its raids' ends) still run,
     // every SERPENT_REST_MS while the fight beats and on every firing once it is over, under one alarm: the soonest of the
     // beat and what they arm
-    const sp = mergeBeats(await this._serpentTick(), await dragonTick(this));   // DRAGON2: and a dragon's fight, on the same alarm
+    const sp = mergeBeats(mergeBeats(await this._serpentTick(), await dragonTick(this)), await invasionTick(this));   // DRAGON2: and a dragon's fight, on the same alarm; and an invasion's
     if (sp) {
       const now = Date.now();
       if (!sp.live || !(now < this._serpentRestAt)) { this._serpentRestAt = now + Math.min(SERPENT_REST_MS, DRAGON_REST_MS); await this._alarmRest(); }
@@ -3502,12 +3512,13 @@ export class Room {
     // AUDIT LEGACY III O1: and the realm character itself - `ci`, beside the realm's yes alone (identityToken.js claimsValid)
     // INT7: and its ARMS (`wa`, the judged pack's most reach and its bow) - every referee's clip of a blow between players
     if (c.ak) house.ak = c.ak;
+    m.look = lookGlowWorn(m.look, c.ak);   // a sold piece's glow word only beside the kit the token signed
     if (c.sc === 1) house.sc = 1;   // AUDIT GUILD-SHOP S2: `sc`, the Guild Sailcloth held - a peer flies the owner's sailcloth only on it   // ARMORY: `ak`, the Aura Armory's kit the token signed for (stamped by `badged` beside the aura) - set here, as `fo` is, the return's literal being pinned
     if (c.fx) house.fx = c.fx;   // STOREFRONT: `fx`, the effects kit the token signed for (stamped by `badged` beside the armory's kit)
     if (c.vl) house.vl = c.vl;   // PVP-VILLAIN-KEEP: `vl`, the villain meter the token signed for (wildRef.js wildTokenAtt puts it on the socket)
     if (c.fo) house.fo = c.fo;   // STAFF-PANEL5-FOLLOW: `fo`, the account a hidden spectator follows (beside `hd` alone - claimsValid); set here, as the return's literal is pinned by other mutant lists
     if (c.hd === 1) this._hidHellos.add(m);   // STAFF-PANEL5-HIDDEN: `hd`, a hidden staff spectator's token - the hello marked off the signature (staffHidden.js hiddenHello)
-    return { name: c.n, kind: c.k, subject: c.s, title: c.t, ts: c.ts, glyphs: c.g, gx: c.gx, au: c.au, pi: c.pi, rb: c.rb, mu, lt, lv: c.lv, ...guild, gio: c.i, ar: c.ar, cl: c.cl, ...house, ci: c.ci, wa: c.wa };   // ARENA4: the season's rating, the hall's queue's   // ARENA4b: `cl` the character's level, a ladder fighter's vitality's
+    return { name: c.n, kind: c.k, subject: c.s, title: c.t, ts: c.ts, glyphs: c.g, gx: c.gx, au: c.au, pi: c.pi, rb: c.rb, mu, lt, lv: c.lv, ...guild, gio: c.i, ar: c.ar, cl: c.cl, ...house, ci: c.ci, wa: c.wa, mg: c.mg };   // ARENA4: the season's rating, the hall's queue's   // ARENA4b: `cl` the character's level, a ladder fighter's vitality's
   }
 
   /** The verifying key, imported once. Shared by the hello and by
@@ -3635,7 +3646,7 @@ export class Room {
     // pixel derived once for the whole room (wire.js inRangeOf, inRange's own answer), not once a listener
     const reach = inRangeOf(a.key ?? '', m.p);
     for (const [other, b] of this._all()) {
-      if (other === ws || !b.id || (S && !S.members[b.sub])) continue;
+      if (other === ws || !b.id || (S && !S.members[b.sub]) || ghostHides(a, b)) continue;   // a ghost's pose to developers and moderators alone (staffGhost.js)
       if (reach(b.pose)) heard.push([other, b]);
     }
     for (const [other, b] of (still ? heard : poseFan(heard, m.p, (e) => e[1].pose, met.turn, (e) => e[1].id))) {   // SLAM10: the far tier bucketed by the listener's ID, so a moving crowd cannot shuffle who is served
@@ -3733,6 +3744,7 @@ export class Room {
     if (a.vid && a.id && isChannelShard(a.key) && m.t !== 'hello' && m.t !== 'ping' && m.t !== 'pose' && m.t !== 'lease') { a = await this._leaseHeard(ws, a); if (a) this._hubForward(ws, a, message); return; }   // LEASE1: as above
     // AUDIT SCALE II R3-7: and a court hears from a copy's socket its gate words alone (the copy hands up nothing else)
     if (ws.court && m.t !== 'gate') { this._junk(ws); return; }
+    if (m.t === 'ghost') { ghostFrame(this, ws, a, m); return; }   // the toybox's ghost turned on or off (staffGhost.js)
     if (m.t === 'hello') {
       const now = Date.now();
       this._metrics.c.hellos++;   // SCALE2b
@@ -3865,7 +3877,7 @@ export class Room {
       if (m.cl) for (const other of seatHeld) this._refuse(other, SEAT_ELSEWHERE, CLOSE_REPLACED);
       // AUDIT DEEP2 C (ONE-SEAT R4's rule): never a socket this object closed or whose leave is said - the runtime may
       // list it until its close completes, and a joiner handed its mark held a ghost for TRAV_STALE_MS
-      const others = this._othersOf(ws);   // SCALE5a: a method of its own
+      const others = this._othersOf(ws, who);   // SCALE5a: a method of its own
       // AUDIT ONESEAT R1: A SEAT THAT MOVED IS NOT A DRAIN. Nobody else here is an empty room only when nobody's seat
       // carried over - a claim that closed the account's other tabs, or a reconnect that replaced its own old socket,
       // moved a seat the room never lost, and the sweep below took every party in the hub with it (a stranger's too)
@@ -3878,7 +3890,7 @@ export class Room {
       const arena = isArenaRoom(a.key) ? { ar: arenaRatingOk(who.ar), lk: who.kind === 'linked' ? 1 : 0, ...(Number.isSafeInteger(who.cl) && who.cl >= ARENA_CL_MIN && who.cl <= ARENA_CL_MAX ? { cl: who.cl } : {}) } : {};   // ARENA4: the hall queues by the signed rating, and a guest is queued for no rated bout   // ARENA4b: and a ladder bout's vitality is the signed character level's (`cl` - absent from a service before it)
       const linked = (isRegionRoom(a.key) || realmRoom) && who.kind === 'linked' ? { lk: 1 } : {};   // SD3: a region's channel marks a registered account - the census counts those alone (a guest is one click); AUDIT SD II (L7 H2): and a realm's - its stones count every guest as one turner
       const charLv = (isCellRoom(a.key) || realmRoom || ktRoom || isWorldRoom(a.key)) && Number.isSafeInteger(who.cl) && who.cl >= 1 ? { cl: who.cl } : {};   // AUDIT SERPENT E4: a cell's serpent fighter's level is never above the token's own character level (`cl` - absent from a service before ARENA4b); AUDIT SD II (L7 M2): and a realm's fighter's level IS it
-      if (egRoom && Number.isSafeInteger(who.cl) && who.cl >= 1) charLv.cl = who.cl;   // EG-PLAY: and a breach member's level is its token's character level
+      if (egRoom) Object.assign(charLv, egTokenAtt(who));   // EG-PLAY: and a breach member's level is its token's character level; EG-MIGHT: and its kit's might (net/eliteGates/egMight.js)
       // AUDIT PRE-MERGE 1003b R5: A FLOOR'S PLACE MOVES WITH ITS RECONNECT - a replaced socket loses its id before its close,
       // so its leave frees no seat, and the new socket's `in` took another: every blip a seat gone from the stands (a full
       // session's sixty), every fighter's a second body. The place the old socket held is the new one's
@@ -3893,7 +3905,8 @@ export class Room {
         // AUDIT SCALE II R2-4: and kept, so a woken instance whose sockets say nothing still knows it
         if (this._hubKeyKept !== this._hubKey) { this._hubKeyKept = this._hubKey; try { await this.state.storage.put(HUB_KEY_KEY, this._hubKey); } catch { this._hubKeyKept = null; } }
       }
-      if (!this._setAttach(ws, { ...a, ...placed, ...shown, ...(shard ? { vid, hm: { acct: m.acct ?? null, as: m.asecret ?? null, ps: m.ps === 1 ? 1 : 0, sc: m.secret } } : copy ? { vid } : {}), ...(m.gv >= GRANT_HELLO_LAW && streamsFoes(a.key) ? { gv: 1 } : {}), id: m.id, sc: m.secret, name: who.name, title: who.title, ...(who.ts ? { ts: who.ts } : {}), glyphs: who.glyphs, gx: who.gx, au: who.au, ...(who.pi ? { pi: who.pi } : {}), ...(who.rb ? { rb: who.rb } : {}), lv: who.lv, ...(who.ak ? { ak: who.ak } : {}), ...(who.fx ? { fx: who.fx } : {}), ...(who.sc === 1 ? { gsc: 1 } : {}), ...guild, ...(who.hn ? { hn: who.hn, hc: who.hc, hb: who.hb, hg: who.hg } : {}), ...(who.ci && !chat && !isSocialRoom(a.key) ? wildTokenAtt(who) : {}), ...(armsOk(who.wa) && !chat && !isSocialRoom(a.key) ? { wa: who.wa } : {}), gio: who.gio, ...(Number.isSafeInteger(who.lt) ? { lt: who.lt } : {}), ...(m.ls === 1 && leaseRoom(a.key) ? { ld: 0 } : {}), sub: who.subject, ...instAtt, ...(siegeSide ? { sd: siegeSide } : {}), mu: who.mu, ...(who.fz ? { fz: who.fz } : {}), ...(m.fv === 1 ? { fv: 1 } : {}), pose: chat ? null : m.pose, since: this._seatKeep(replaced, now), ...arena, ...charLv, ...linked, ...(chat && who.kind === 'guest' ? { gu: 1 } : {}), ...(m.w2 === 1 ? { w2: 1 } : {}), ...(who.fo ? { fo: who.fo } : {}), ...(m.sm === 1 && isSocialRoom(a.key) ? { sm: 1 } : {}), ...(who.hid ? { hid: 1, lk: 0 } : {}) })) { this._refuse(ws, 'hello too large'); return; }   // MOD1: `sub` the verified account (what a mute names), `mu` until when it may not talk   // RENOWN1: `lv` the Renown level the token carried   // AUDIT SAFE RELAY-11: `gu`, a guest's socket in a channel - paced as a sprout's (`_newVoiceWait`)   // STAFF-PANEL5-MESSAGE: `sm`, a hub socket whose game shows a staff message's box (its hello said so) - one without it is "old game, not shown"   // STAFF-PANEL5-HIDDEN: `hid`, a hidden staff spectator's socket (staffHidden.js) - and in no census (`lk` 0 over `linked`)
+      if (!this._setAttach(ws, { ...a, ...placed, ...shown, ...(shard ? { vid, hm: { acct: m.acct ?? null, as: m.asecret ?? null, ps: m.ps === 1 ? 1 : 0, sc: m.secret } } : copy ? { vid } : {}), ...(m.gv >= GRANT_HELLO_LAW && streamsFoes(a.key) ? { gv: 1 } : {}), id: m.id, sc: m.secret, name: who.name, title: who.title, ...(who.ts ? { ts: who.ts } : {}), glyphs: who.glyphs, gx: who.gx, au: who.au, ...(who.pi ? { pi: who.pi } : {}), ...(who.rb ? { rb: who.rb } : {}), lv: who.lv, ...(who.ak ? { ak: who.ak } : {}), ...(who.fx ? { fx: who.fx } : {}), ...(who.sc === 1 ? { gsc: 1 } : {}), ...guild, ...(who.hn ? { hn: who.hn, hc: who.hc, hb: who.hb, hg: who.hg } : {}), ...(who.ci && !chat && !isSocialRoom(a.key) ? wildTokenAtt(who) : {}), ...(armsOk(who.wa) && !chat && !isSocialRoom(a.key) ? { wa: who.wa } : {}), gio: who.gio, ...(Number.isSafeInteger(who.lt) ? { lt: who.lt } : {}), ...(m.ls === 1 && leaseRoom(a.key) ? { ld: 0 } : {}), sub: who.subject, ...instAtt, ...(siegeSide ? { sd: siegeSide } : {}), mu: who.mu, ...(who.fz ? { fz: who.fz } : {}), ...(m.fv === 1 ? { fv: 1 } : {}), pose: chat ? null : m.pose, since: this._seatKeep(replaced, now), ...arena, ...charLv, ...linked, ...(chat && who.kind === 'guest' ? { gu: 1 } : {}), ...(m.w2 === 1 ? { w2: 1 } : {}), ...(who.fo ? { fo: who.fo } : {}), ...(m.sm === 1 && isSocialRoom(a.key) ? { sm: 1 } : {}), ...(m.tb === 1 && isSocialRoom(a.key) ? { tb: 1 } : {}), ...(who.hid ? { hid: 1, lk: 0 } : {}) })) { this._refuse(ws, 'hello too large'); return; }   // MOD1: `sub` the verified account (what a mute names), `mu` until when it may not talk   // RENOWN1: `lv` the Renown level the token carried   // AUDIT SAFE RELAY-11: `gu`, a guest's socket in a channel - paced as a sprout's (`_newVoiceWait`)   // STAFF-PANEL5-MESSAGE: `sm`, a hub socket whose game shows a staff message's box (its hello said so) - one without it is "old game, not shown"   // STAFF-PANEL5-HIDDEN: `hid`, a hidden staff spectator's socket (staffHidden.js) - and in no census (`lk` 0 over `linked`)
+      ghostHello(this, ws, m, who);   // a ghost's hello (`gh`) is marked before its join is fanned (staffGhost.js)
       if (!chat && m.pose && this._trailing({ key: a.key, sub: who.subject })) this._trailPose(ws, m.pose, now);   // AUDIT INT11: a fighter's socket new to the room stands where its hello put it, from now - on its trail, or none says when
       // SRV-N: `v` rides EVERY welcome, a channel's included. A player in the enhanced skin holds a presence socket
       // and one chat socket per tab; whichever reconnects first after a hand deploy is the one that notices, and the
@@ -4027,7 +4040,7 @@ export class Room {
       if (String(a.key ?? '').startsWith('interior:') && who.subject) { try { await this._gambitOwed(ws, { sub: who.subject }, 0); } catch (e) { console.warn('[gambit] hello failed', e?.message ?? e); } }   // KG6: and the King's Gambit results owed here
       if (unseen) return;   // HOTFIX 1003f: a floor's hello said as anyone's - a private session's stranger's to nobody (a member's join says it: `_sessionShow`)
       const join = JSON.stringify(badged({ t: 'join', id: m.id, name: who.name, look: m.look, pose: this._drawn({ sub: who.subject, pose: m.pose }, a.key).pose }, who));   // AUDIT-SEATS T2: and a spectator's join stands it nowhere
-      if (!who.hid) for (const [other, b] of [...this._all()]) if (other !== ws && b.id && (!S || S.members[b.sub])) this._send(other, join);   // STAFF-PANEL5-HIDDEN: nor here   // AUDIT PRE-MERGE 1003b R4: a member's to the members alone
+      if (!who.hid) for (const [other, b] of [...this._all()]) if (other !== ws && b.id && (!S || S.members[b.sub]) && !ghostHides(this._attach(ws), b)) this._send(other, join);   // STAFF-PANEL5-HIDDEN: nor here   // AUDIT PRE-MERGE 1003b R4: a member's to the members alone
       followJoined(this, ws, this._attach(ws));   // STAFF-PANEL5-FOLLOW: a spectator counted here, or a followed account said come
       if (copy) {
         // SCALE5d part two: A COPY'S HELLO IS THE COURT'S TOO - its socket made there (admitted by the court's law, or
@@ -4496,6 +4509,12 @@ export class Room {
       try { await this._serpentFrame(ws, a, m, now); } catch (e) { console.warn('[serpent] word failed', e?.message ?? e); }
       return;
     }
+    if (m.t === 'inv') {   // an invasion's fight, judged by its city's cell (server/src/invasionFights.js)
+      const now = Date.now();
+      if (!this._spend(ws, now, invasionGate, 'invBucket', 'invDrops', 'too many invasion frames') || typeof a.sub !== 'string' || !a.sub) return;
+      try { await invasionWord(this, ws, a, m, now); } catch (e) { console.warn('[inv] word failed', e?.message ?? e); }
+      return;
+    }
     if (m.t === 'dragon') {   // DRAGON2: a word on the Dwarven Dragon's fight, to its site's cell (server/src/dragonFights.js)
       const now = Date.now();
       if (!this._spend(ws, now, dragonGate, 'dragonBucket', 'dragonDrops', 'too many dragon frames')) return;
@@ -4601,6 +4620,7 @@ export class Room {
       const now = Date.now();
       a = this._meterLook(ws, a, now); if (!a) return;
       if (isChatRoom(a.key)) return;
+      m.look = lookGlowWorn(m.look, a.ak);   // a sold piece's glow word only beside the kit this socket's token signed
       // AUDIT-SEATS R3: AND IN A BATTLE ROOM THE ACCOUNT'S OWN GATE, as its hello's (`_battleHelloGate`) - the room's stored
       // bucket there is the stands', and a crowd of spectators draining it would refuse a fighter's change of gear 'busy',
       // its socket closed mid-battle
@@ -4843,7 +4863,7 @@ export class Room {
       this._roomWho = budget.bucket;
       if (!budget.pass) return;
       const target = this._idFirst(id, ws);
-      if (!target) return;
+      if (!target || ghostHides(target[1], a)) return;   // a ghost is asked for by nobody who cannot see it
       const [tws, b] = target;
       let look = this._looks.get(b.id) ?? null;
       if (!look) { look = (await this.state.storage.get(lookKey(b.id))) ?? null; if (look) this._looks.set(b.id, look); }
@@ -9676,7 +9696,7 @@ export class Room {
       now = Date.now();
       B = this._eg;
       const lv = a.cl > 0 && Number.isSafeInteger(a.cl) ? a.cl : m.lv;   // the token's character level where it carries one
-      const w = egEnter(B, a.sub, r.claims.ez, lv, now);
+      const w = egEnter(B, a.sub, r.claims.ez, lv, now, a.mg);   // EG-MIGHT: and the token's kit's might, the purse's
       if (w) { no(w); return; }
       await this._egSave(B, now, true);
       this._egFan([egStateOf(B, now)]);
@@ -9685,6 +9705,7 @@ export class Room {
     }
     if (m.k === 'clk') { this._send(ws, JSON.stringify({ t: 'eg', k: 'clk', c: m.c, now: Date.now() })); if (Number.isInteger(m.h)) { const all = (this._egClocks ??= new Map()); let c = all.get(ws); if (!c) all.set(ws, c = egPoseClock()); c.h = m.h; } return; }   // EG-H1: the shared clock's ping, answered at once (section 10.8); the delay its corrected clock measured places its poses (net/eliteGates/egFair.js egPoseShared)
     if (m.k === 'vt') { egBodyWord(B, a.sub, m.v, now, this._egLine(), EG_BODY_ENFORCE); return; }   // EG-H1: its body, in its own word
+    if (m.k === 'pot') { egPotion(B, a.sub, now, this._egLine(), EG_BODY_ENFORCE); return; }   // AUDIT POTION-MIGHT C2: a health potion, believed on the room's clock
     if (m.k === 'down') { if (egDown(B, a.sub, m.h, pose, now)) await this._egArm(now + BRAIN_TICK_MS); return; }
     if (m.k === 'spec') {
       // EG-H2 (section 22, THE LAW PIN): a hall of this circle (or the next) in the breach's own law's bytes, to the socket

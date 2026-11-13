@@ -145,8 +145,8 @@ test('FD1: the launcher and the keyed settings window are gone, nothing imports 
 
 test('FD1: both skins open on the enhanced door; classic collapses its game doors into BEGIN, which resolves into the classic sequence with the data gated first (mutant: Begin on the enhanced rail, or the classic rail keeping New Game)', () => {
   const menu = src('ui/enhanced/enhancedMenu.js');
-  assert.match(menu, /const SECTIONS_CLASSIC = \['Begin', 'Online', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About'\];/);   // TUT1: the tutorials   // LOAD1: the gallery's door   // OVH1: the three looks   // FT16: Controls is a Settings category   // ORG2: Features is Settings' tabs
-  assert.match(menu, /const SECTIONS_BOOT = \['Online', 'Continue', 'New Game', 'Load Game', 'Test Room', 'Settings', 'Overhauls', 'Tutorials', 'Screenshots', 'About'\];/, 'the enhanced rail keeps its three doors and loses the Enhanced entry (SO1), the Controls one (FT16) and the Features one (ORG2)');
+  assert.match(menu, /const SECTIONS_CLASSIC = \['Begin', 'Online', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About'\];/);   // TUT1: the tutorials   // LOAD1: the gallery's door   // OVH1: the three looks   // FT16: Controls is a Settings category   // ORG2: Features is Settings' tabs
+  assert.match(menu, /const SECTIONS_BOOT = \['Online', 'Continue', 'New Game', 'Load Game', 'Test Room', 'Settings', 'Overhauls', 'Replacements', 'Tutorials', 'Screenshots', 'About'\];/, 'the enhanced rail keeps its three doors and loses the Enhanced entry (SO1), the Controls one (FT16) and the Features one (ORG2)');
   assert.match(menu, /sections = mode === 'pause' \? SECTIONS_PAUSE : isEnhanced\(\) \? SECTIONS_BOOT : SECTIONS_CLASSIC;/);
   assert.match(menu, /function paneBegin\(body\) \{[\s\S]*?onClick: \(\) => onAction\('begin'\)/);
   assert.match(menu, /begin: paneBegin,/, 'the dispatch knows it');

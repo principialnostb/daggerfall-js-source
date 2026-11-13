@@ -21,6 +21,7 @@ import { masterOptionWords, masterNeeds, masterPicks, resetMasterBoxes, drawMast
 import { PROF_CSS } from '../../../src/ui/enhanced/enhancedPlusStyle.js';
 import { setPref } from '../../../src/systems/uiPrefs.js';
 import { utcDay } from '../../../src/net/marksLaw.js';
+import { hostText } from '../../hostText.mjs';   // PIN MOVED (HOST-SPLIT PROFESSIONS): the world host whole
 
 const noWait = () => Promise.resolve();
 const memStorage = () => { const m = new Map(); return { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)) }; };
@@ -132,7 +133,7 @@ test('MASTER-ART NO BOX below Master, none for a piece no tier takes; a catalyst
     resetProfPages();
   }
   // PIN MOVED (AUDIT HORIZONTAL B6): a catalyst is asked of the counted units alone - a Pearl jewel's own Pearl is a good
-  assert.deepEqual(masterNeeds(() => 3).find((c) => c.key === PEARL.key), { key: PEARL.key, need: 3, have: 3, pursuit: 'sea' });
+  assert.deepEqual(masterNeeds(() => 3).find((c) => c.key === PEARL.key), { key: PEARL.key, need: 3, have: 3, pursuit: 'sea', walled: 0 });
   assert.equal(masterOptionWords({ id: 'focus' }), '-7 to 10% spell cost');
   resetMasterBoxes();
   const p1 = masterPicks('anvil', recipeById(SWORD));
@@ -142,7 +143,7 @@ test('MASTER-ART NO BOX below Master, none for a piece no tier takes; a catalyst
 });
 
 test('MASTER-ART THE WIRING: world.js\'s craft door hands the page\'s other asks to the book (no logical line in bootWorld); the four stations that make a tier draw the box, each through its own craft door, the loom in its dye; Enhanced Plus gives its pickers and its press 40px (mutants: the door\'s asks dropped; a station\'s box unwired)', () => {
-  const w = readFileSync(new URL('../../../src/scenes/world.js', import.meta.url), 'utf8');
+  const w = hostText('src/scenes/world.js');
   assert.match(w, /craft: async \(recipe, \{ clean, heartwood = false, dye = null, cracked = false, \.\.\.more \}\) => \{/);
   assert.match(w, /const r = await profBook\.craft\(recipe, \{ clean, heartwood, dye, cracked, fee: f\.fee > 0 \? f\.fee : 0, name: [^\n]*, seat, \.\.\.more \}, profMintCraft\);/);
   const pages = readFileSync(new URL('../../../src/ui/professions/profPages.js', import.meta.url), 'utf8');
@@ -229,6 +230,7 @@ test('AUDIT HORIZONTAL B6 A PEARL JEWEL\'S PEARLS: its three catalysts asked of 
     const sec = boxOf(loose.book);
     assert.deepEqual(rows(sec, '.prof-master-good'), ['metal:gold 1 / 1 (1 stored)', 'gem:pearl 1 / 1 (1 stored)'], 'the ring\'s own Pearl a good, the catalysts\' three set aside');
     assert.deepEqual(rows(sec, '.prof-master-cat'), ['wood:heartwood 2 / 2 (Logging\'s rarest find)', 'gem:pearl 3 / 3 (nets hauled at sea)', 'essence:arcane 10 / 10 (Enchanting)']);
+    assert.equal(sec.querySelectorAll('.prof-master-walled').length, 0, "the loose Pearl is the ring's own: nothing said of it");
     assert.equal(sec.querySelector('.prof-master-go').disabled, false);
     const made = await loose.s.call('/v1/prof/master', { character: loose.mac.character, rid: 'mastr-pearl1', recipe: ring.id, lines: LINES, name: 'Mac' }, loose.mac.secret);
     assert.equal(made.body.ok, true, 'and the service makes it');
@@ -238,6 +240,33 @@ test('AUDIT HORIZONTAL B6 A PEARL JEWEL\'S PEARLS: its three catalysts asked of 
     assert.equal(sec2.querySelector('.prof-master-go').disabled, true);
     const refused = await counted.s.call('/v1/prof/master', { character: counted.mac.character, rid: 'mastr-pearl2', recipe: ring.id, lines: LINES, name: 'Mac' }, counted.mac.secret);
     assert.equal(refused.body.error, 'stores-short', 'nor does the service');
+  } finally {
+    setProfessionsPages(null);
+    resetProfPages();
+  }
+});
+
+test("A CATALYST HELD BUT NOT COUNTED IS SAID: traded Heartwood (loose) shows 0 / 2 and a note naming the two that do not count, as the service refuses the work; a Pearl jewel's own loose Pearl is never among them", async (t) => {
+  t.mock.method(Date, 'now', () => NOON * 1000);
+  resetProfPages();
+  const LINES = ['stat:intelligence', 'resist:magic', 'focus'];
+  const boxOf = (r, book) => {
+    resetMasterBoxes();
+    masterPicks('jeweller', r).splice(0, 3, ...LINES);
+    return drawMasterBox(el('div'), kit, r, { station: 'jeweller', book, state: {}, free: true, rerender: () => {}, name: (k) => k, go: async () => null });
+  };
+  const notes = (sec) => [...sec.querySelectorAll('.prof-master-walled')].map((n) => n.textContent);
+  try {
+    const ring = recipeById('ring:gold:pearl');
+    const traded = await standAt('smithing', [['metal:gold', 1], [HEARTWOOD.key, 2, 'loose'], [ARCANE_ESSENCE.key, 10], [PEARL.key, 4]]);
+    const sec = boxOf(ring, traded.book);
+    assert.ok([...sec.querySelectorAll('.prof-master-cat')].some((c) => c.textContent.startsWith('wood:heartwood 0 / 2')), 'the traded two are not counted');
+    assert.deepEqual(notes(sec), ['wood:heartwood: 2 more you hold do not count. A catalyst must be gathered, or bought on the market with silver.']);
+    assert.equal(sec.querySelector('.prof-master-go').disabled, true);
+    const refused = await traded.s.call('/v1/prof/master', { character: traded.mac.character, rid: 'mastr-walled1', recipe: ring.id, lines: LINES, name: 'Mac' }, traded.mac.secret);
+    assert.equal(refused.body.error, 'stores-short', 'the service holds the same rule');
+    const extra = await standAt('smithing', [['metal:gold', 1], [HEARTWOOD.key, 2], [ARCANE_ESSENCE.key, 10], [PEARL.key, 3], [PEARL.key, 2, 'loose']]);
+    assert.deepEqual(notes(boxOf(ring, extra.book)), ['gem:pearl: 1 more you hold does not count. A catalyst must be gathered, or bought on the market with silver.'], "one loose Pearl is the ring's own, the other said");
   } finally {
     setProfessionsPages(null);
     resetProfPages();

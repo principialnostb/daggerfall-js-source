@@ -196,7 +196,7 @@ test('VC6c: a sun behind a bank throws no shafts - the gate is the cloud shadow 
   assert.match(air, /return uSunColor \* \(acc \/ \$\{AIR_SHAFT_TAPS\}\.0 \* uShaftParams\.y \* through \* through\);/, 'squared: a shaft needs a BEAM, so half the sun is a quarter of the rays (VC7b: the beams\' own function, the gate unchanged)');
   assert.match(air, /\$\{CLOUD_SHADOW_GLSL\}/, 'the same block the ground reads - one field, three consumers');
   assert.match(air, /uniform vec3 uEye;/);
-  assert.match(air, /shaft: P\(QUAD_VS, SHAFT_FS, \['uDepth', 'uSun', 'uShaftParams', 'uSunColor', 'uProjInfo', 'uRect', 'uCanvas', 'uEye', 'uCloudShadowMap', 'uCloudShadowRect', 'uSunOn', 'uViewRot', 'uCloudSky', 'uCloudSkyOn', 'uLightDir', 'uHaze'\]\)/, 'every uniform it declares has its location fetched (VC7b: the sky map and the haze)');
+  assert.match(air, /shaft: P\(QUAD_VS, SHAFT_FS, \[\n\s*'uDepth',\n\s*'uSun',\n\s*'uShaftParams',\n\s*'uSunColor',\n\s*'uProjInfo',\n\s*'uRect',\n\s*'uCanvas',\n\s*'uEye',\n\s*'uCloudShadowMap',\n\s*'uCloudShadowRect',\n\s*'uSunOn',\n\s*'uViewRot',\n\s*'uCloudSky',\n\s*'uCloudSkyOn',\n\s*'uLightDir',\n\s*'uHaze',\n\s*\]\)/, 'every uniform it declares has its location fetched (VC7b: the sky map and the haze)');
   assert.match(air, /gl\.uniform3fv\(S\.uEye, f\.eye\);/);   // VC7b: S is this.programs.shaft
   assert.match(air, /gl\.uniform4fv\(S\.uCloudShadowRect, deck\?\.rect \?\? this\._noDeck\);/);
   assert.match(air, /const S = this\.programs\.shaft;/, 'S is the shaft program');
@@ -209,10 +209,10 @@ test('VC6c: a sun behind a bank throws no shafts - the gate is the cloud shadow 
   // game: the gate could never have fired. No pin could see it - the pins
   // drive no frame - and the field probe did (tools/vc6ShaftProbe.mjs).
   assert.doesNotMatch(air, /f\.cloudShadow/, 'never a prepare input');
-  assert.match(air, /setCloudShadow\(deck\) \{ this\.cloudShadow = deck \?\? null; \}/);
+  assert.match(air, /setCloudShadow\(deck\) \{\n\s*this\.cloudShadow = deck \?\? null;\n\s*\}/);
   assert.match(air, /const deck = this\.cloudShadow;/, 'the shafts read what the resolve set');
   const r = read('src/render/renderer.js');
-  assert.match(r, /this\._air\.setCloudShadow\(this\._cloudShadow \?\? this\._deckOwed\);[^\n]*\n\s*this\._air\.composite\(\);/, 'set at the resolve, immediately before the images are drawn');
+  assert.match(r, /this\._air\.setCloudShadow\(this\._cloudShadow \?\? this\._deckOwed\);[^\n]*\n\s*this\._air\.setWet\?\.\(this\._wet\);[^\n]*\n\s*this\._air\.setWetRoad\?\.\([\s\S]*?\);\n\s*this\._air\.composite\(\);/, 'set at the resolve, immediately before the images are drawn');   // puddle proxy deck between the cloud deck and the composite
   for (const h of ['src/scenes/world.js', 'src/scenes/exterior.js']) {
     const src = read(h);
     assert.ok(src.indexOf('renderer.beginFrame(') < src.indexOf('renderer.setCloudShadow('), `${h}: the host sets the deck AFTER beginFrame - which is the whole reason the resolve is where it must be read`);
@@ -283,7 +283,7 @@ test('VC6d: the frame\'s spans TILE it - every mark hands the clock straight to 
   // between them, which is the only reason the total in the line is true.
   assert.match(r, /this\._perf\.begin\(\); this\._perf\.mark\('shadow'\);/);
   assert.match(r, /this\._perf\?\.mark\('world'\);[^\n]*\n\s*sp\.discard\(\);/, 'the passes end where the world\'s draws begin');
-  assert.match(r, /this\._perf\?\.mark\('air'\);[^\n]*\n[^\n]*\n\s*this\._air\.composite\(\);/, 'the air\'s span opens before its images are drawn (VC6c\'s deck is set between the two)');
+  assert.match(r, /this\._perf\?\.mark\('air'\);[\s\S]*?this\._air\.composite\(\);/, 'the air\'s span opens before its images are drawn (VC6c\'s deck is set between the two)');   // setWet / setWetRoad between the mark and the composite
   assert.match(r, /this\._perf\.end\(\);\s*\n\s*this\._perf\.stop\(\);/, 'and the last span closes with the frame');
   assert.match(shared, /meter\?\.mark\('sky'\);/); assert.match(shared, /meter\?\.mark\('world'\);/);
   assert.equal((shared.match(/meter\?\.mark\(/g) || []).length, 2, 'the sky takes its span and hands the frame back - it does not keep it');

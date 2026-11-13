@@ -27,7 +27,7 @@
 // have no fixed Update order either.
 
 import { getInt } from '../systems/settings/settings.js';
-import { hitResponse } from '../combat/hitResponse.js';   // HIT-RESPONSE: a landed blow's soft shake, beside the reel
+import { hitResponse } from '../combat/hitResponse.js'; // HIT-RESPONSE: a landed blow's soft shake, beside the reel
 
 /** CameraRecoiler.cs:33. */
 export const BASE_MAX_RECOIL_SEVERITY = 50;
@@ -63,14 +63,25 @@ export class CameraRecoiler {
 
   /** ResetRecoil (:135-138): a world init, a load, the court screen.
    *  The offset still on the look comes off on the next update. */
-  reset() { this.swaying = false; }
+  reset() {
+    this.swaying = false;
+  }
 
   /**
    * Update (:48-77). `paused` covers IsGamePaused and cursorActive.
    * @returns {boolean} whether the camera was rotated this frame
    */
-  update(dt, cam, { healthLost = 0, healthLostPercent = 0, paused = false,
-    setting = getInt('Controls', 'CameraRecoilStrength', 0, 4), rolls = Math.random } = {}) {
+  update(
+    dt,
+    cam,
+    {
+      healthLost = 0,
+      healthLostPercent = 0,
+      paused = false,
+      setting = getInt('Controls', 'CameraRecoilStrength', 0, 4),
+      rolls = Math.random,
+    } = {},
+  ) {
     // Take last frame's offset back off the look (the mouselook's
     // absolute write, PlayerMouseLook.cs:257).
     cam.pitch += this.applied[0] * DEG;
@@ -79,13 +90,17 @@ export class CameraRecoiler {
     // HIT-RESPONSE (combat/hitResponse.js, MOTION-DOCTRINE - the port's own, beside CameraRecoiler.cs): a landed blow's
     // soft shake, laid and taken back as the reel is; DFU's recoil setting is not its switch (the doctrine's is)
     const hs = paused ? [0, 0] : hitResponse.shake(dt);
-    if (hs[0] || hs[1]) { cam.pitch -= hs[0] * DEG; cam.yaw += hs[1] * DEG; this.applied = [hs[0], hs[1]]; }
+    if (hs[0] || hs[1]) {
+      cam.pitch -= hs[0] * DEG;
+      cam.yaw += hs[1] * DEG;
+      this.applied = [hs[0], hs[1]];
+    }
     if (setting === 0 || paused) return !!(hs[0] || hs[1]);
     if (healthLost > 0 && healthLostPercent > MIN_PERCENT_THRESHOLD) {
       this.swaying = true;
       this.timerStart = recoilTimerStart(healthLostPercent);
       this.timer = this.timerStart;
-      const a = rolls() * 2 * Math.PI;   // insideUnitCircle.normalized
+      const a = rolls() * 2 * Math.PI; // insideUnitCircle.normalized
       this.swayAxis = [Math.cos(a), Math.sin(a)];
     }
     if (!this.swaying) return !!(hs[0] || hs[1]);
@@ -93,9 +108,9 @@ export class CameraRecoiler {
     const scalar = recoilRotationScalar(setting, healthLost, this.timer, this.timerStart);
     const xAngle = Math.sin(this.timer) * scalar * this.swayAxis[0];
     const yAngle = Math.sin(this.timer) * scalar * this.swayAxis[1];
-    cam.pitch -= xAngle * DEG;   // Rotate(+x) pitches DOWN in Unity's frame; the port's +pitch looks up
-    cam.yaw += yAngle * DEG;     // Rotate(+y) turns right, as the port's +yaw does
-    this.applied = [this.applied[0] + xAngle, this.applied[1] + yAngle];   // HIT-RESPONSE: beside the shake laid above
+    cam.pitch -= xAngle * DEG; // Rotate(+x) pitches DOWN in Unity's frame; the port's +pitch looks up
+    cam.yaw += yAngle * DEG; // Rotate(+y) turns right, as the port's +yaw does
+    this.applied = [this.applied[0] + xAngle, this.applied[1] + yAngle]; // HIT-RESPONSE: beside the shake laid above
     this.swaying = this.timer > 0;
     return true;
   }

@@ -235,18 +235,23 @@ test('AUDIT 637 B2: a swaying wood whose one tree stands in a lantern\'s CORNER 
   assert.deepEqual(run(true), off, 'and with the pre-pass on, the same');
 });
 
-test('AUDIT 637 B2: UNDER THE STATIC CACHE TOO, a wood is asked of its quads once a lantern - the static faces and the dynamic ones each find it dropped from the lists, where every face walked its placements before (mutants: either cache-on ask of the quads gone)', () => {
-  const run = (prepass) => withTuning(prepass, () => {
+test('AUDIT 637 B2: UNDER THE STATIC CACHE TOO, a wood is asked of its quads once a lantern - the static faces and the dynamic ones each find it dropped from the lists, where every face walked its placements before: by walkers, by flats that sway where they stand, and by walkers with the movers\' hold off (mutants: either cache-on ask of the quads gone)', () => {
+  const run = (prepass, sway) => withTuning(prepass, () => {
     const { g, r } = night();   // the static cache on, as it ships
     // forty-one trees along x at z = 0, a still wood and a swaying one; four lanterns 60 off the line, inside both
-    // woods' spheres, their cubes (far 12) clear of every tree; a walker by each lantern, so its dynamic faces redraw
+    // woods' spheres, their cubes (far 12) clear of every tree; by each lantern a walker, or (`sway`) a flat that sways
+    // where it stands, so its dynamic faces redraw: a sway's redraw never asks the movers' hold
     const line = (z) => Array.from({ length: 41 }, (_, i) => [i * 5 - 100, 0, z]);
     const still = r.createBillboardBatch(504, 1, { w: 3, h: 7 }, line(0));
     const swaying = r.createBillboardBatch(504, 2, { w: 3, h: 7 }, line(1));
     swaying.sway = 1;
     const lights = new Float32Array([0, 2.5, 60, 12, 30, 2.5, -55, 12, -40, 3, 62, 12, 55, 2, -50, 12]);
     const walkers = [];
-    for (let i = 0; i < 4; i++) { const b = r.createBillboardBatch(504, 3, { w: 1, h: 1.8 }, [[0, 0, 0]]); walkers.push(b); }
+    for (let i = 0; i < 4; i++) {
+      const b = r.createBillboardBatch(504, 3, { w: 1, h: 1.8 }, [[0, 0, 0]]);
+      if (sway) { b.sway = 1.4; b.origin = [lights[i * 4] + 2, 0, lights[i * 4 + 2]]; }
+      walkers.push(b);
+    }
     let walks = 0, on = false;
     for (const wood of [still, swaying]) { const q = wood._place; wood._place = new Proxy(q, { get(t, k) { if (on && k === 'pts') walks++; return t[k]; } }); }
     const sp = r.shadows, render = sp.render.bind(sp);
@@ -254,7 +259,7 @@ test('AUDIT 637 B2: UNDER THE STATIC CACHE TOO, a wood is asked of its quads onc
     const out = [];
     let faces = 0;
     for (let f = 0; f < 6; f++) {
-      walkers.forEach((b, i) => { b.origin = [lights[i * 4] + Math.sin(f + i) * 2, 0, lights[i * 4 + 2] + Math.cos(f) * 2]; });
+      if (!sway) walkers.forEach((b, i) => { b.origin = [lights[i * 4] + Math.sin(f + i) * 2, 0, lights[i * 4 + 2] + Math.cos(f) * 2]; });
       out.push(frameOf(g, r, lights, () => { r.setFlatWind([6, 2, 3.7, 1]); r.drawBillboards([still, swaying, ...walkers], RIGHT, UP); }));
       faces += sp.stats.staticFaces + sp.stats.dynFaces;
     }
@@ -264,12 +269,18 @@ test('AUDIT 637 B2: UNDER THE STATIC CACHE TOO, a wood is asked of its quads onc
   // the answers kept (bounds.js placementsInVolumeOf) a still lantern's faces walk the woods once, on the frame they
   // are named, so the kept answers would hide a dead pre-pass on every frame after; this pin holds the pre-pass, perfvol the memo
   SHADOW_TUNING.volumeMemo = false;
-  let base, now;
-  try { base = run(false); now = run(true); } finally { SHADOW_TUNING.volumeMemo = true; }
-  assert.deepEqual(now.out, base.out, 'the same draws');
-  assert.ok(base.faces >= 4 * 6 * 5, `the lanterns drew their static faces and then their dynamic ones every frame (${base.faces})`);
-  assert.ok(base.walks >= 4 * 6 * 5, `the base walked the woods' placements from the faces (${base.walks})`);
-  assert.equal(now.walks, 0, `now no face walks them (${now.walks})`);
+  const hold = SHADOW_TUNING.moverHold;
+  try {
+    // the walkers' redraw asks the quads before the movers' hold; a sway's redraw, and any with the hold off, asks them itself
+    for (const [sway, held, at] of [[false, true, 'walkers'], [true, true, 'flats swaying in place'], [false, false, 'walkers, the movers\' hold off']]) {
+      SHADOW_TUNING.moverHold = held;
+      const base = run(false, sway), now = run(true, sway);
+      assert.deepEqual(now.out, base.out, `${at}: the same draws`);
+      assert.ok(base.faces >= 4 * 6 * 5, `${at}: the lanterns drew their static faces and then their dynamic ones every frame (${base.faces})`);
+      assert.ok(base.walks >= 4 * 6 * 5, `${at}: the base walked the woods' placements from the faces (${base.walks})`);
+      assert.equal(now.walks, 0, `${at}: now no face walks them (${now.walks})`);
+    }
+  } finally { SHADOW_TUNING.volumeMemo = true; SHADOW_TUNING.moverHold = hold; }
 });
 
 test('AUDIT 637 B2: the walk empties every list it opens, whatever came before it - frames whose pass never discards draw what the pass without the pre-pass draws (mutants: a list reused without emptying it)', () => {
@@ -367,12 +378,47 @@ test('AUDIT 637 B4: no lantern\'s list holds a batch past the frame - discard() 
   const lights = new Float32Array([0, 2, 0, 16, 8, 2, 8, 16]);
   const sp = r.shadows;
   let held = 0;
+  const flatsIn = (l) => (l ? l.filter((b) => b != null).length : 0);   // a slot's array keeps its length: what it holds is what is not null
   const render = sp.render.bind(sp);
-  sp.render = (f) => { const out = render(f); held = Math.max(held, ...sp._cands.map((c) => c.bb.reduce((n, l) => n + (l?.length ?? 0), 0))); return out; };
+  sp.render = (f) => { const out = render(f); held = Math.max(held, ...sp._cands.map((c) => c.bb.reduce((n, l) => n + flatsIn(l), 0))); return out; };
   for (let f = 0; f < 3; f++) frameOf(g, r, lights, () => r.drawBillboards(f < 2 ? flats : flats.slice(0, 2), RIGHT, UP));
   assert.ok(held > 0, `the lanterns' lists held flats while the pass ran (${held})`);
-  const left = sp._cands.reduce((n, c) => n + c.bb.reduce((m, l) => m + (l?.length ?? 0), 0), 0);
+  const left = sp._cands.reduce((n, c) => n + c.bb.reduce((m, l) => m + flatsIn(l), 0), 0);
   assert.equal(left, 0, `and none once it was done (${left})`);
+}));
+
+test('AUDIT 637 B4 (the lists kept): a lantern\'s list of a record\'s flats keeps its array from frame to frame - its count alone goes back to none, so its store is not handed back and grown again flat by flat - and lets go at discard of every flat it held, the wood its cube query dropped too (mutants: a slot left holding its flats at discard; the flats a cube dropped kept)', () => withTuning(true, () => {
+  const { g, r } = night();
+  r.setShadowCache(false);
+  const lights = new Float32Array([0, 2, 0, 12]);
+  // one record: a wood with its trees by the lantern, and a ring of trees 40 off whose sphere holds the lantern's cube
+  // while no tree of it stands in the cube - the cube query drops the ring from the list
+  const near = r.createBillboardBatch(504, 1, { w: 1, h: 2 }, Array.from({ length: 9 }, (_, i) => [Math.cos(i) * 3, 0, Math.sin(i) * 3]));
+  const ring = r.createBillboardBatch(504, 2, { w: 1, h: 2 }, Array.from({ length: 24 }, (_, i) => [Math.cos(i * Math.PI / 12) * 40, 0, Math.sin(i * Math.PI / 12) * 40]));
+  assert.ok(near._place && ring._place, 'placed batches');
+  const sp = r.shadows, render = sp.render.bind(sp);
+  let held = [], cut = 0;
+  sp.render = (f) => {
+    const out = render(f);
+    held = [];
+    for (const c of sp._cands) for (let j = 0; j < c.n; j++) {
+      const l = c.bb[j], n = l ? (c.bn ? c.bn[j] : l.length) : 0;
+      if (n > 0) held.push([l, n]);
+      if (l && n === 1 && l[0] === near) cut++;   // the ring dropped: the record's two batches, one listed
+    }
+    return out;
+  };
+  let lists = 0, kept = 0;
+  for (let f = 0; f < 4; f++) {
+    frameOf(g, r, lights, () => r.drawBillboards([near, ring], RIGHT, UP));
+    for (const [l, n] of held) {
+      lists++;
+      assert.ok(l.every((b) => b == null), `frame ${f}: a list holds no flat past the frame (${l.filter((b) => b != null).length} held)`);
+      if (l.length >= n) kept++;
+    }
+  }
+  assert.ok(lists >= 3 && cut >= 3, `the lantern's list held the wood by it, the ring dropped by its cube (${lists} lists, ${cut} cut)`);
+  assert.equal(kept, lists, `every list kept its array, as long as the flats it held (${kept} of ${lists})`);
 }));
 
 // ─── B5, B6, B8: the cube's own law at its edges ─────────────────────────────────────────────────────────────────

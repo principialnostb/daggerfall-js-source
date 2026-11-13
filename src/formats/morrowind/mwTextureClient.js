@@ -53,8 +53,11 @@ export const DECODE_TIMEOUT_MS = 20000;
 
 /** The escape hatch, read once per pool (the ?terrainthread=off shape). */
 export function textureThreadDisabled(search = globalThis.location?.search) {
-  try { return /[?&]texturethread=off\b/.test(search ?? ''); }
-  catch { return false; }
+  try {
+    return /[?&]texturethread=off\b/.test(search ?? '');
+  } catch {
+    return false;
+  }
 }
 
 /** The one place the worker URL is spelled. Split out so tests can
@@ -78,28 +81,42 @@ export function texturePoolSize(cores = globalThis.navigator?.hardwareConcurrenc
  * died (or whose factory throws) decodes here from then on.
  */
 export function createTexturePool({ workerFactory = null, size = texturePoolSize(), idleMs = TEXTURE_IDLE_MS } = {}) {
-  const factory = workerFactory
-    ?? ((textureThreadDisabled() || typeof Worker === 'undefined') ? null : defaultWorkerFactory);
+  const factory =
+    workerFactory ?? (textureThreadDisabled() || typeof Worker === 'undefined' ? null : defaultWorkerFactory);
   const here = (path, bytes, levels) => {
-    try { return Promise.resolve(decodeTextureImage(path, bytes, levels == null ? undefined : { levels })); }
-    catch (e) {
+    try {
+      return Promise.resolve(decodeTextureImage(path, bytes, levels == null ? undefined : { levels }));
+    } catch (e) {
       const error = Object.assign(e instanceof Error ? e : new Error(String(e)), { decoderError: true });
-      modDiagnostics.record({ level: 'error', phase: 'texture-decode', action: 'texture-decode-failed', modId: 'morrowind-textures', resource: path, message: error.message, details: { decoder: 'main-thread', byteLength: bytes?.byteLength ?? null, levels: levels ?? null } });
+      modDiagnostics.record({
+        level: 'error',
+        phase: 'texture-decode',
+        action: 'texture-decode-failed',
+        modId: 'morrowind-textures',
+        resource: path,
+        message: error.message,
+        details: { decoder: 'main-thread', byteLength: bytes?.byteLength ?? null, levels: levels ?? null },
+      });
       return Promise.reject(error);
     }
   };
-  const slots = [];   // { w, jobs: Map<id, {path, bytes, levels, resolve, reject}> }
+  const slots = []; // { w, jobs: Map<id, {path, bytes, levels, resolve, reject}> }
   let dead = !factory;
   let opened = 0;
   let nextId = 1;
-  let pumpRef = () => {};   // LOAD-STALL 3: the queue's pump, defined below the workers it feeds
+  let pumpRef = () => {}; // LOAD-STALL 3: the queue's pump, defined below the workers it feeds
   const stats = { offThread: 0, onThread: 0, workers: 0 };
 
   // AUDIT MW-TEXTHREAD F6: every job answered, the workers go after idleMs of quiet - a new job restarts the quiet
   // (wake), and a worker with a job in hand is never among them. A retired worker is not a dead one: `opened` gives
   // its place back, so the next decode opens it again (pick).
   let idle = null;
-  const wake = () => { if (idle !== null) { clearTimeout(idle); idle = null; } };
+  const wake = () => {
+    if (idle !== null) {
+      clearTimeout(idle);
+      idle = null;
+    }
+  };
   const rest = () => {
     if (idle !== null || !slots.length || slots.some((s) => s.jobs.size > 0)) return;
     idle = setTimeout(() => {
@@ -107,24 +124,47 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
       for (const s of slots.filter((x) => x.jobs.size === 0)) {
         slots.splice(slots.indexOf(s), 1);
         opened--;
-        try { s.w.terminate?.(); } catch { /* already gone */ }
+        try {
+          s.w.terminate?.();
+        } catch {
+          /* already gone */
+        }
       }
       stats.workers = slots.length;
     }, idleMs);
-    idle.unref?.();   // node: an idle pool never holds the process open
+    idle.unref?.(); // node: an idle pool never holds the process open
   };
 
   const drop = (slot, why) => {
     const i = slots.indexOf(slot);
-    if (i < 0) return;   // once: onerror and a failed post both reach here
+    if (i < 0) return; // once: onerror and a failed post both reach here
     slots.splice(i, 1);
     stats.workers = slots.length;
-    try { slot.w.terminate?.(); } catch { /* already gone */ }
+    try {
+      slot.w.terminate?.();
+    } catch {
+      /* already gone */
+    }
     // the jobs it held go back to this thread - the caller's bytes are still whole
-    for (const j of slot.jobs.values()) { stats.onThread++; here(j.path, j.bytes, j.levels).then(j.resolve, j.reject); }
+    for (const j of slot.jobs.values()) {
+      stats.onThread++;
+      here(j.path, j.bytes, j.levels).then(j.resolve, j.reject);
+    }
     slot.jobs.clear();
-    Promise.resolve().then(() => pumpRef());   // LOAD-STALL 3: what waited for it goes to the rest, or here when none are left
-    if (!slots.length && opened >= size) { dead = true; console.warn('[mw textures] workers unavailable; decoding on the main thread -', why); modDiagnostics.record({ level: 'warn', phase: 'texture-decode', action: 'worker-pool-fallback', modId: 'morrowind-textures', resource: 'worker-pool', message: String(why ?? 'worker unavailable'), details: { fallback: 'main-thread', poolSize: size } }); }
+    Promise.resolve().then(() => pumpRef()); // LOAD-STALL 3: what waited for it goes to the rest, or here when none are left
+    if (!slots.length && opened >= size) {
+      dead = true;
+      console.warn('[mw textures] workers unavailable; decoding on the main thread -', why);
+      modDiagnostics.record({
+        level: 'warn',
+        phase: 'texture-decode',
+        action: 'worker-pool-fallback',
+        modId: 'morrowind-textures',
+        resource: 'worker-pool',
+        message: String(why ?? 'worker unavailable'),
+        details: { fallback: 'main-thread', poolSize: size },
+      });
+    }
     rest();
   };
   const open = () => {
@@ -141,7 +181,15 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
         if (m.t === 'image') j.resolve(m.image);
         else {
           const error = Object.assign(new Error(m.message ?? 'mw texture worker error'), { decoderError: true });
-          modDiagnostics.record({ level: 'error', phase: 'texture-decode', action: 'texture-decode-failed', modId: 'morrowind-textures', resource: j.path, message: error.message, details: { decoder: 'worker', byteLength: j.bytes?.byteLength ?? null, levels: j.levels ?? null } });
+          modDiagnostics.record({
+            level: 'error',
+            phase: 'texture-decode',
+            action: 'texture-decode-failed',
+            modId: 'morrowind-textures',
+            resource: j.path,
+            message: error.message,
+            details: { decoder: 'worker', byteLength: j.bytes?.byteLength ?? null, levels: j.levels ?? null },
+          });
           j.reject(error);
         }
         pumpRef();
@@ -151,8 +199,15 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
       stats.workers = slots.length;
       return slot;
     } catch (e) {
-      try { slot.w?.terminate?.(); } catch { /* never spawned */ }
-      if (!slots.length) { dead = true; console.warn('[mw textures] workers unavailable; decoding on the main thread -', e?.message ?? e); }
+      try {
+        slot.w?.terminate?.();
+      } catch {
+        /* never spawned */
+      }
+      if (!slots.length) {
+        dead = true;
+        console.warn('[mw textures] workers unavailable; decoding on the main thread -', e?.message ?? e);
+      }
       return null;
     }
   };
@@ -172,21 +227,34 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
     slot.jobs.set(j.id, j);
     // LOAD-HOLD: a worker that holds a job past DECODE_TIMEOUT_MS is let go - its jobs decode here (drop's own law) -
     // so a worker that died without a word cannot hold a picture, and the rig waiting on it, for ever
-    const timer = setTimeout(() => { if (slot.jobs.get(j.id) === j) drop(slot, 'mw texture worker stopped answering'); }, DECODE_TIMEOUT_MS);
+    const timer = setTimeout(() => {
+      if (slot.jobs.get(j.id) === j) drop(slot, 'mw texture worker stopped answering');
+    }, DECODE_TIMEOUT_MS);
     /** @type {any} */ (timer)?.unref?.();
     // a COPY: the caller's bytes are the fallback's if this never answers
     const copy = j.bytes.slice();
-    try { slot.w.postMessage({ t: 'decode', id: j.id, path: j.path, bytes: copy, levels: j.levels }, [copy.buffer]); stats.offThread++; }
-    catch (e) { drop(slot, e?.message ?? 'mw texture worker refused a job'); }
+    try {
+      slot.w.postMessage({ t: 'decode', id: j.id, path: j.path, bytes: copy, levels: j.levels }, [copy.buffer]);
+      stats.offThread++;
+    } catch (e) {
+      drop(slot, e?.message ?? 'mw texture worker refused a job');
+    }
   };
   const pump = () => {
     while (waiting.urgent.length || waiting.normal.length) {
-      if (dead) {   // the pool is gone: what waits decodes here, as a job a dying worker held does
-        for (const j of [...waiting.urgent.splice(0), ...waiting.normal.splice(0)]) { stats.onThread++; here(j.path, j.bytes, j.levels).then(j.resolve, j.reject); }
+      if (dead) {
+        // the pool is gone: what waits decodes here, as a job a dying worker held does
+        for (const j of [...waiting.urgent.splice(0), ...waiting.normal.splice(0)]) {
+          stats.onThread++;
+          here(j.path, j.bytes, j.levels).then(j.resolve, j.reject);
+        }
         return;
       }
       const slot = pick();
-      if (!slot) { if (dead) continue; return; }   // a factory that just failed made the pool dead: decode here
+      if (!slot) {
+        if (dead) continue;
+        return;
+      } // a factory that just failed made the pool dead: decode here
       post(slot, (waiting.urgent.length ? waiting.urgent : waiting.normal).shift());
     }
   };
@@ -198,7 +266,10 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
     waiting: () => ({ urgent: waiting.urgent.length, normal: waiting.normal.length }),
     /** @returns {Promise<{width:number, height:number, mips:{width:number, height:number, rgba:Uint8Array}[]}>} */
     decode(path, bytes, { levels = null, urgent = false } = {}) {
-      if (dead) { stats.onThread++; return here(path, bytes, levels); }
+      if (dead) {
+        stats.onThread++;
+        return here(path, bytes, levels);
+      }
       wake();
       return new Promise((resolve, reject) => {
         (urgent ? waiting.urgent : waiting.normal).push({ id: nextId++, path, bytes, levels, resolve, reject });
@@ -206,7 +277,20 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
       });
     },
     /** Close every worker; later decodes run on this thread. */
-    close() { dead = true; wake(); for (const s of [...slots]) { slots.splice(slots.indexOf(s), 1); try { s.w.terminate?.(); } catch { /* gone */ } for (const j of s.jobs.values()) here(j.path, j.bytes, j.levels).then(j.resolve, j.reject); } pump(); },
+    close() {
+      dead = true;
+      wake();
+      for (const s of [...slots]) {
+        slots.splice(slots.indexOf(s), 1);
+        try {
+          s.w.terminate?.();
+        } catch {
+          /* gone */
+        }
+        for (const j of s.jobs.values()) here(j.path, j.bytes, j.levels).then(j.resolve, j.reject);
+      }
+      pump();
+    },
   };
 }
 
@@ -217,5 +301,15 @@ export function decodeTextureOffThread(path, bytes, opts) {
   return _pool.decode(path, bytes, opts);
 }
 /** Test seams: drop the page's pool (the next decode opens a fresh one), or stand one in its place. */
-export function _resetTexturePool() { try { _pool?.close(); } catch { /* gone */ } _pool = null; }
-export function _useTexturePool(pool) { _resetTexturePool(); _pool = pool; }
+export function _resetTexturePool() {
+  try {
+    _pool?.close();
+  } catch {
+    /* gone */
+  }
+  _pool = null;
+}
+export function _useTexturePool(pool) {
+  _resetTexturePool();
+  _pool = pool;
+}

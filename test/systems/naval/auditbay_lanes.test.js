@@ -18,7 +18,9 @@ import { RAIDER_DROP_M } from '../../../src/systems/naval/navalRaiders.js';
 import { SHIP_STATES } from '../../../src/systems/naval/navalDamage.js';
 import { findHarbour } from '../../../src/systems/naval/shipLife.js';
 import { NATIVE_PIXEL, nativeOfPixel, pixelOfNative } from '../../../src/systems/seaRaiders.js';
-import { createWorldLanes } from '../../../src/scenes/naval/worldLanes.js';
+import { createWorldLanes, bayLaneWater } from '../../../src/scenes/naval/worldLanes.js';
+import { createLaneShips } from '../../../src/scenes/naval/laneShips.js';
+import { inBay } from '../../../src/world/tamriel/tamrielFrame.js';
 import { createWorldPorts } from '../../../src/world/worldWide/worldPorts.js';
 import { createWorldPlaces } from '../../../src/world/worldWide/worldPlaces.js';
 
@@ -396,10 +398,11 @@ test('AUDIT BAY A20: THE PORT\'S OWN HANDED ON - a player in port as the one who
 // ── the world's feed, lifted from world.js and run (test/systems/naval/sealanes.test.js's own lift) ─────────────────────────────
 
 function liftFeed() {
-  const i = WORLD.indexOf('  const LANE_LIST_MS = 2000');
-  const j = WORLD.indexOf('    naval.liners(list);\n  }\n', i);
+  const i = WORLD.indexOf('  const laneOpen = bayLaneWater(');
+  const end = '  function laneShips() { laneFeed.step(); }\n';
+  const j = WORLD.indexOf(end, i);
   assert.ok(i > 0 && j > i, 'the feed lifted');
-  return WORLD.slice(i, j + '    naval.liners(list);\n  }\n'.length);
+  return WORLD.slice(i, j + end.length);
 }
 
 test('AUDIT BAY A19: THE FEED HANDS EVERY PACKET OF THE LANES ABOUT THE PLAYER - wherever her clock puts her, each with her seeds, her leg in the scene, her ports by key and name and her home port\'s region; before, only those whose PLACE ON THE CLOCK lay within 1600 m were handed over, and a packet fallen that far behind her place (the wind leaves her short of her schedule\'s way: 1 km in 20 minutes) was let go beside the player (mutants: a distance filter put back; the leg\'s reverse not taken; the region unsaid)', () => {
@@ -411,16 +414,17 @@ test('AUDIT BAY A19: THE FEED HANDS EVERY PACKET OF THE LANES ABOUT THE PLAYER -
   const env = {
     tvWater: water, maps: { getClimateIndex: (px, py) => (water(px, py) ? OCEAN : 1), getRegion: () => ({ mapNames: PORTS.map((p) => p.name) }) },
     CLIMATES: { Ocean: OCEAN }, RAID_NATIVE_PIXEL: NATIVE_PIXEL, pixelOfNative,
+    bayLaneWater, inBay, undilatedClimateIndex: (m, px, py) => m.getClimateIndex(px, py), kernelSea: null,
     PORT_LOCATION_IDS: PORTS.map((p) => p.id),
     mapDict: new Map(PORTS.map((p, k) => [p.id & 0xfffff, { id: p.y * 1000 + p.x, regionIndex: 7 + k, mapIndex: k }])),
     getPixelFromPixelID: (id) => ({ x: id % 1000, y: Math.floor(id / 1000) }),
     // PIN MOVED (WW3, bible/03-World/World-Wide.md): the lanes are the world's book (scenes/naval/worldLanes.js), none past the Bay here
     createWorldLanes, worldPorts: createWorldPorts({ places: createWorldPlaces(), openSea: () => false }), tamrielLand: false,
-    packetsAt: LANES.packetsAt, LANE_PATH_PX: LANES.LANE_PATH_PX, LANE_MAX_PX: LANES.LANE_MAX_PX,
-    performance: { now: () => 1e4 },
+    LANE_PATH_PX: LANES.LANE_PATH_PX, LANE_MAX_PX: LANES.LANE_MAX_PX,
+    createLaneShips: (deps) => createLaneShips({ ...deps, now: () => 1e4 }),
     naval: { enabled: true, liners: (list) => got.push({ list }) },
     playerTravelPixel: () => ({ x: 200, y: 200 }), player: { feetAt: () => [0, 0, 0] }, raidNowMs: () => 1.7e12,
-    state: { localFromWorld: (x, z) => [(x - origin.x) / S, (z - origin.z) / S] },
+    state: { localFromWorld: (x, z) => [(x - origin.x) / S, (z - origin.z) / S], mapOrigin: { x: 200, y: 200 }, compensation: [0, 0, 0] },
   };
   const names = Object.keys(env);
   // eslint-disable-next-line no-new-func
@@ -437,7 +441,8 @@ test('AUDIT BAY A19: THE FEED HANDS EVERY PACKET OF THE LANES ABOUT THE PLAYER -
   assert.equal(got.at(-1).list.length, 0, '35 pixels off: not');
   env.playerTravelPixel = () => ({ x: 200, y: 200 });
   assert.deepEqual([lane.a.region, lane.b.region], [7, 8], 'each port\'s region');
-  const way = LANES.laneWay(lane, water, (x, z) => { const p = pixelOfNative(x, z); return water(p.x, p.y); });
+  const laneLaw = bayLaneWater(water, water);
+  const way = LANES.laneWay(lane, laneLaw, (x, z) => { const p = pixelOfNative(x, z); return laneLaw(p.x, p.y); });
   const want = LANES.packetsAt(lane, way, 1.7e12);
   const { list } = got[0];
   assert.deepEqual(list.map((l) => l.id), want.map((p) => p.id), 'every packet of the lane');

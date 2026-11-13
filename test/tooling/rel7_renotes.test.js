@@ -159,8 +159,8 @@ test('REL7: the workflow - by hand with a tag, or ON ITS OWN when a merged pull 
   } finally { rmSync(repo, { recursive: true, force: true }); }
   assert.match(wf, /- name: Write the notes again\n {8}if: steps\.release\.outputs\.tag != ''\n/, 'no release, no write');
   const write = runBlock(wf, 'Write the notes again');
-  assert.match(write, /^gh api "repos\/\$GITHUB_REPOSITORY\/releases\/tags\/\$TAG" > release\.json$/m);
+  assert.match(write, /^GH_TOKEN="\$HOST_TOKEN" gh api "repos\/\$RELEASE_REPO\/releases\/tags\/\$TAG" > release\.json$/m);
   assert.match(write, /^node scripts\/desktopRelease\.mjs renotes "\$TAG" current-body\.md > release-notes\.md$/m);
-  assert.match(write, /^gh api -X PATCH "repos\/\$GITHUB_REPOSITORY\/releases\/\$ID" -F body=@release-notes\.md --silent$/m);
+  assert.match(write, /^GH_TOKEN="\$HOST_TOKEN" gh api -X PATCH "repos\/\$RELEASE_REPO\/releases\/\$ID" -F body=@release-notes\.md --silent$/m);
   assert.doesNotMatch(write, /assets|upload|DELETE|git checkout/i, 'only the text: no file of a published release is touched (AUDIT INSTALL L3-2), and main\'s script runs');
 });

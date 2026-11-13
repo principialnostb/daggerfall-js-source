@@ -88,7 +88,7 @@ test('HOME-VENDOR law: the trader is a station with its licence and name; a vend
   for (const [code, words] of Object.entries(VENDOR_REFUSAL_WORDS)) assert.equal(accountRefusalText(code), words, code);
 });
 
-test('HOME-VENDOR service: the owner stocks the trader from the pack for thirty days, in the home\'s region whatever the client says; it stands on no board, only at the trader and in the region\'s directory; bought there off the buyer\'s record, the seller paid; bought anywhere else refused (mutants: the goods view unfiltered; the stall unchecked; the region taken from the client; the market\'s 72 hours)', async () => {
+test('HOME-VENDOR service: the owner stocks the trader from the pack for thirty days, in the home\'s region whatever the client says; it stands at the trader, in the region\'s directory and on the market board (VENDOR-MARKET); bought at the trader off the buyer\'s record, the seller paid; a buy naming another stall refused (mutants: the stall unchecked; the region taken from the client; the market\'s 72 hours)', async () => {
   const s = await stand();
   const { weapon, armour } = lootDrop(11);
   const eve = await s.seated('Eve', { items: [plain(weapon), plain(armour)] });
@@ -103,10 +103,10 @@ test('HOME-VENDOR service: the owner stocks the trader from the pack for thirty 
   const row = s.raw.prepare('SELECT region, vendor_map, vendor_id, expires_at, at FROM market_listings WHERE id = ?').get(l.body.listing.id);
   assert.deepEqual([row.region, row.vendor_map, row.vendor_id, row.expires_at - row.at], [DF, MAP, PIECE, VENDOR_LISTING_S], 'its home\'s region, its stall, thirty days');
   assert.deepEqual(s.record(eve).save.items.length, 1, 'out of the pack');
-  // on no board
+  // on the board too, naming its trader
   const goods = await s.call('/v1/market/read', { character: tom.character, region: DF, view: 'goods', hubs: HUBS }, tom.secret);
   assert.equal(goods.status, 200);
-  assert.deepEqual(goods.body.rows, [], 'the regional board does not carry it');
+  assert.deepEqual(goods.body.rows.map((r) => [r.id, r.vendor]), [[l.body.listing.id, { map: MAP, id: PIECE }]], 'the market board carries it');
   // at the trader, and in the directory
   const st = await s.stock(tom);
   assert.equal(st.status, 200, JSON.stringify(st.body));
@@ -115,9 +115,8 @@ test('HOME-VENDOR service: the owner stocks the trader from the pack for thirty 
   const dir = await s.board(tom);
   assert.deepEqual(dir.body.rows.map((r) => [r.owner, r.map, r.buildingKey, r.vendor.id, r.price]), [['Eve', MAP, KEY, PIECE, 50]]);
   assert.deepEqual((await s.board(tom, WR)).body.rows, [], 'another region\'s directory');
-  // bought at the trader alone
+  // at the trader, a buy names its own stall
   const listing = st.body.rows[0];
-  assert.equal((await s.buy(tom, listing, { vendor: undefined })).body.error, 'vendor-only', 'from a board');
   assert.equal((await s.buy(tom, listing, { vendor: { map: MAP, id: CHAIR } })).body.error, 'vendor-not-here');
   assert.equal((await s.buy(tom, listing, { region: WR })).body.error, 'vendor-not-here', 'from another region');
   const b = await s.buy(tom, listing);
@@ -134,6 +133,22 @@ test('HOME-VENDOR service: the owner stocks the trader from the pack for thirty 
   assert.deepEqual(page.body.sold.map((x) => [x.total, x.gets, x.vendor.id, x.item.templateIndex]), [[50, goldSaleOf(0, 50).gets, PIECE, weapon.templateIndex]]);
   assert.equal(page.body.gold, goldSaleOf(0, 50).gets);
   assert.deepEqual((await s.call('/v1/market/myvendors', { character: tom.character }, tom.secret)).body.traders, [], 'another\'s page holds none of hers');
+});
+
+test('VENDOR-MARKET service: a trader\'s piece is bought from any market board, no trader named, with the road\'s courier, the seller paid; a stall gone takes no board sale either (mutants: vendor-only kept; the stall unchecked from a board)', async () => {
+  const s = await stand();
+  const eve = await s.seated('Eve', { items: [plain(lootDrop(14).weapon), plain(lootDrop(15).weapon)] });
+  const tom = await s.seated('Tom', { goldPieces: 1000 });
+  s.home(eve);
+  const a = await s.list(eve, 0);
+  const b = await s.list(eve, 0);
+  assert.deepEqual([a.status, b.status], [200, 200], JSON.stringify([a.body, b.body]));
+  const bought = await s.buy(tom, a.body.listing, { vendor: undefined });
+  assert.equal(bought.status, 200, JSON.stringify(bought.body));
+  assert.ok(bought.body.delivery?.id, 'its delivery');
+  assert.equal(Number(s.raw.prepare('SELECT gold FROM market_gold WHERE player = ?').get(eve.id).gold), goldSaleOf(0, 50).gets, 'the seller\'s share held');
+  s.raw.prepare('UPDATE home_decor SET place = ? WHERE id = ?').run(place(), PIECE);
+  assert.equal((await s.buy(tom, b.body.listing, { vendor: undefined })).body.error, 'vendor-gone', 'a trader gone sells nothing from a board');
 });
 
 test('HOME-VENDOR service: a trader with goods stands - not removed, not unmade, its house not sold - and once empty it may go; a trader gone takes no sale (mutants: each guard)', async () => {

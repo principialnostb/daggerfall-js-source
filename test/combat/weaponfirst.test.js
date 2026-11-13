@@ -72,5 +72,5 @@ test('LOAD-HOLD: a vendored file the server refused once is fetched again on the
   assert.deepEqual(await arc.load('textures/sheath.dds'), new Uint8Array([7]), 'asked again, it is fetched again');
   assert.equal(calls, 2);
   assert.match(src, /const lease = setTimeout\(\(\) => \{ if \(done\(\)\) job\.reject\(new Error\('archive read timed out'\)\); \}, ARCHIVE_READ_LEASE_MS\);/);
-  assert.match(readFileSync('src/formats/morrowind/mwTextureClient.js', 'utf8'), /drop\(slot, 'mw texture worker stopped answering'\); \}, DECODE_TIMEOUT_MS\);/);
+  assert.match(readFileSync('src/formats/morrowind/mwTextureClient.js', 'utf8'), /drop\(slot, 'mw texture worker stopped answering'\);\s*\},\s*DECODE_TIMEOUT_MS\);/);
 });

@@ -26,6 +26,15 @@ const HARDCODED = {
   'src/systems/staffGlow.js': 6,   // GLOW-SET: /glow's help, usage and answers - a staff member's words, as the other /staff lines, never a player's
   'src/scenes/delve/delveLab.js': 18,   // DELVE II DLV5-6: the curated blocks' lab panel (the bench's `?dungeon=lab`; a lab's module, moved from src/tools/ to stand with the bench a played page boots - AUDIT ANTICHEAT A2's premise) - a designer's tool, never the game's
   'src/scenes/staffDragonHost.js': 6,   // DRAGON-RIDE: /dragon's answers, said to the Admin alone, as the staff commands' own (world.js runStaffCommand); DRAGON-BLUE: and the look changed in the saddle
+  // the toybox: a developer's own window, popups, forge and answers, never a player's, as the staff commands' are
+  'src/net/toyboxGrant.js': 8,
+  'src/scenes/toyboxHost.js': 2,
+  'src/scenes/toyboxWorld.js': 1,
+  'src/systems/toybox/toyboxLaw.js': 3,
+  'src/systems/toybox/toyboxSpecial.js': 15,
+  'src/ui/toybox/itemForge.js': 23,
+  'src/ui/toybox/toyboxPopups.js': 6,
+  'src/ui/toybox/toyboxWindow.js': 1,
   'src/characters/dwarvenDragon.js': 2,   // DWARVEN-DRAGON: its career's English (the save's and the staff list's - a player reads t()'s) and its census miss, never shown
   'src/characters/enemy/enemyBasics.js': 19,
   'src/characters/foeBodies.js': 1,
@@ -77,7 +86,7 @@ const HARDCODED = {
   'src/net/accountClient.js': 14,
   'src/net/arena/arenaBrain.js': 2,
   'src/net/arena/arenaLaw.js': 28,
-  'src/net/armoryLaw.js': 12,   // THANKS-POST: and the Crystal Spurs'; GUILD-SHOP: and the Insignia Armlet's (armory.test.js holds every piece's service name to its client words). ARMORY: ARMORY_NAME - the pieces' names and the Eternal set's in the service's English (the shop's receipt, the account's letters); the client says them through ui/armoryText.js, a pin holding the two equal
+  'src/net/armoryLaw.js': 17,   // the Tidebound line's five; THANKS-POST: and the Crystal Spurs'; GUILD-SHOP: and the Insignia Armlet's (armory.test.js holds every piece's service name to its client words). ARMORY: ARMORY_NAME - the pieces' names and the Eternal set's in the service's English (the shop's receipt, the account's letters); the client says them through ui/armoryText.js, a pin holding the two equal
   'src/net/effectLaw.js': 11,   // STOREFRONT: EFFECTS' names - the kill effects', portal skins' and mount looks' in the service's English (the shop's receipt); the client says them through ui/effectText.js, a pin holding the two equal
   'src/net/bagLaw.js': 26,
   'src/net/boardLaw.js': 4,
@@ -148,7 +157,7 @@ const HARDCODED = {
   'src/net/raid/raidClaims.js': 5,
   'src/net/realm/realmGoldLaw.js': 1,
   'src/net/realm/realmTradeLaw.js': 20,   // RPT1026-MARKET HOLD-SAID: -1, the law's named hold's words through t() (realm.held.lawNamed)
-  'src/net/recipeLaw.js': 109,
+  'src/net/recipeLaw.js': 110,   // SMITH-RRI: the Light Flail's name - a recipe's canonical product name, as the Battle Axe's and the War Axe's are
   'src/net/relayCfg.js': 3,
   'src/net/renown.js': 2,
   'src/net/royalLink.js': 10,
@@ -166,6 +175,7 @@ const HARDCODED = {
   'src/net/serpent/serpentLaw.js': 7,
   'src/net/serpent/serpentLink.js': 6,
   'src/net/serverPost.js': 5,
+  'src/net/discordShopLaw.js': 21,   // the Courier's Cabinet's wares' names and looks in the service's English (Discord's own words); the game says them through its own tables
   'src/net/shopLaw.js': 8,   // ARMORY: SHOP_KIND_NAME's 'Aura Armory' - the receipt's word for the ware's kind, the service's English (the shop's window says it through ui/enhanced/enhancedShop.js); STOREFRONT: +16, OWN_NAME - the new wares' names and the pass's kinds in the service's English (Stripe's line, the receipt); the window says them through ui/enhanced/enhancedShop.js shopWareName and the badges' own tables, pins holding them equal (test/ui/shop_window.test.js, storefront_badges.test.js); PASS-PANELS: 9 fewer, the passes', boosters' and Seasonal Collector's names gone with them
   'src/net/siege/siegeLink.js': 27,
   'src/net/siege/siegeRef.js': 4,
@@ -202,6 +212,7 @@ const HARDCODED = {
   'src/render/courtCrystals.js': 3,
   'src/render/deadlands.js': 4,
   'src/render/deepWatersRender.js': 13,
+  'src/render/depthPrepass.js': 1,   // the depth draw's fragment stage - GLSL the scan reads as prose (`in vec3`), as every pass's
   'src/render/dragon/dragonTelegraph.js': 1,   // DRAGON3: its draped stage - GLSL the scan reads as prose (`in vec3`), armoryPass.js's same line
   'src/render/dryFall.js': 1,   // ASHFALL1: the ash's fragment stage (GLSL, never a player's text - as windWisps.js's)
   'src/render/duelWall.js': 1,
@@ -225,13 +236,14 @@ const HARDCODED = {
   'src/render/lightningBolts.js': 2,
   'src/render/navalRender.js': 2,
   'src/render/nodeGlow.js': 1,
+  'src/render/newEraPass.js': 7,   // the New Era's seven shader sources - GLSL the scan reads as prose (`in vec3`), no word a player reads
   'src/render/npcMarkPass.js': 1,   // NPC-MARKS: its vertex stage's source (GLSL, never a player's words)
   'src/render/nodeGlint.js': 3,   // RESOURCE-HIGHLIGHTS: +1, the ring's program's label ('node outline ring') - a developer's word in a thrown fault
   'src/render/oceanHolesRender.js': 4,
   'src/render/orderedDither.js': 1,
   'src/render/partyPingDraw.js': 2,   // PARTY-PING: the route's two shaders - GLSL the scan reads as prose (`in vec3`), weaponGlowGlsl.js's same line
   'src/render/partyPingLabels.js': 1,   // PARTY-PING: the pin's SVG, markup the scan reads as prose
-  'src/render/precipitation.js': 6,
+  'src/render/precipitation.js': 5,
   'src/render/rainCurtains.js': 1,
   'src/render/realWindows.js': 11,
   'src/render/redMountainFire.js': 3,   // RED-MOUNTAIN: its shaders' sources, as every pass's - no word a player reads
@@ -256,7 +268,8 @@ const HARDCODED = {
   'src/render/serpentRender.js': 4,
   'src/render/shadowPass.js': 7,   // WL1: DEPTH_GLASS_FS, a building's glass cut out of its sun map - GLSL the scan reads as prose (`in vec2`), as DEPTH_BB_FS beside it
   'src/render/skyRenderer.js': 1,
-  'src/render/snowfallGlsl.js': 2,
+  'src/render/puddleProxyGlsl.js': 1,
+  'src/render/snowfallGlsl.js': 3,
   'src/render/spellImpactFx.js': 2,
   'src/render/spoilsGlow.js': 2,
   'src/render/sunbabySkyRenderer.js': 2,
@@ -315,6 +328,7 @@ const HARDCODED = {
   'src/scenes/oceanHolesAbyss.js': 3,
   'src/scenes/oceanHolesHost.js': 7,
   'src/scenes/portHost.js': 21,
+  'src/scenes/professionsHost.js': 35,   // HOST-SPLIT PROFESSIONS: moved verbatim out of world.js
   'src/scenes/quest/questProvinceSites.js': 3,   // AUDIT RELEASE R2-5b: the Imperial City plan's three fills (PLAN_FILL_NAMES - City Isle, Lake Rumare, Rumare Shore) - proper names its law compares a slice's name against, never shown, as imperialCity.js's own
   'src/scenes/riteHost.js': 5,
   'src/scenes/roadStands.js': 2,
@@ -334,15 +348,16 @@ const HARDCODED = {
   'src/scenes/snowfallHost.js': 3,
   'src/scenes/spoilsPool.js': 7,
   'src/scenes/standingHost.js': 14,
+  'src/scenes/testPresetHost.js': 3,   // HOST-SPLIT TEST-PRESET: moved verbatim out of world.js
   'src/scenes/townEconHost.js': 1,   // AUDIT TOWN-ECON 2 SVC-1: the `/town strike` answer, a developer's
   'src/scenes/townTalk.js': 9,
   'src/scenes/travelView.js': 39,
   'src/scenes/treeHost.js': 3,
   'src/scenes/windfallHost.js': 5,
   'src/scenes/vendorHost.js': 7,   // VENDOR-LOST: the home traders' words, moved verbatim out of world.js
-  'src/scenes/world.js': 314,   // ZONE-BANK (FIELD BUGS 2026-10-30b): -1, the zone bank's refusal through zoneSafe.js's t(). ZONE-HOMES: -1, the zone's house refusal through zoneSafe.js's t(). SHARED-HEALTH: -2, the battles' readouts print no 'Your vitality' line (my own health is my bar). THE SIXTH MERGE OF MAIN INTO #1184: MENTOR2 (main's): -1, mentoring's end through mentorText.js's t(). THE FOURTH MERGE OF MAIN INTO #1184: 319 measured on the merged host (RPT1026-MARKET's Collect through t() on main). BAY-LEFT-SEA: -4, the market's pieces' words moved verbatim to scenes/marketPiecesHost.js (HOST-SPLIT). TESA x MAIN (the merge of main into TESA, AUDIT RELEASE R3): 325 measured - TESA's -6 (the quick save's words moved whole to scenes/worldQuickSave.js) on main's 331. VENDOR-LOST: -7, the home traders' words moved verbatim to vendorHost.js; QUEST-AUDIT III SHARE-WORDS: -4, the share's lines through questShare.js's t(); AUDIT QA3: -2, the sender's (shareSentLine); STAFF-PANEL5-FOLLOW-FIX: -1 already at the relay base (ec3d522d61), written down; FB1020c ONE-SAVE: the kept words moved to the Stores page (BAG_PAGE_WORDS.kept); CABIN-FOES: Transport > Ship's helm refusal read off CABIN_REFUSAL; AUDIT SEA VENTURES C6: -1, /unstuck's outdoor refusal read off the zone's words; SEASON-BOOK: -1, /mail's refusal read off chatCommands.js pauseCommandRefusal (344 at the merge of main #1161: both -1s stand)
+  'src/scenes/world.js': 276,   // HOST-SPLIT TEST-PRESET: -3, the test room's words moved verbatim to scenes/testPresetHost.js. HOST-SPLIT PROFESSIONS: -35, the professions' words moved verbatim to scenes/professionsHost.js. ZONE-BANK (FIELD BUGS 2026-10-30b): -1, the zone bank's refusal through zoneSafe.js's t(). ZONE-HOMES: -1, the zone's house refusal through zoneSafe.js's t(). SHARED-HEALTH: -2, the battles' readouts print no 'Your vitality' line (my own health is my bar). THE SIXTH MERGE OF MAIN INTO #1184: MENTOR2 (main's): -1, mentoring's end through mentorText.js's t(). THE FOURTH MERGE OF MAIN INTO #1184: 319 measured on the merged host (RPT1026-MARKET's Collect through t() on main). BAY-LEFT-SEA: -4, the market's pieces' words moved verbatim to scenes/marketPiecesHost.js (HOST-SPLIT). TESA x MAIN (the merge of main into TESA, AUDIT RELEASE R3): 325 measured - TESA's -6 (the quick save's words moved whole to scenes/worldQuickSave.js) on main's 331. VENDOR-LOST: -7, the home traders' words moved verbatim to vendorHost.js; QUEST-AUDIT III SHARE-WORDS: -4, the share's lines through questShare.js's t(); AUDIT QA3: -2, the sender's (shareSentLine); STAFF-PANEL5-FOLLOW-FIX: -1 already at the relay base (ec3d522d61), written down; FB1020c ONE-SAVE: the kept words moved to the Stores page (BAG_PAGE_WORDS.kept); CABIN-FOES: Transport > Ship's helm refusal read off CABIN_REFUSAL; AUDIT SEA VENTURES C6: -1, /unstuck's outdoor refusal read off the zone's words; SEASON-BOOK: -1, /mail's refusal read off chatCommands.js pauseCommandRefusal (344 at the merge of main #1161: both -1s stand)
   'src/scenes/worldModes.js': 79,   // NOTICE-PANEL: 82 -> 80, the board's two plaque words out with its press; the merge of main: 79, main's set-down line gone to scenes/arrivalSetDown.js, through t()
-  'src/systems/aetheric.js': 168,   // SEA-SET: +17, the Eltheric Tidemail's nine names and lore, as the Weave's - the records' own data, minted onto the item; WITCH1: the Wyrd's Raiment's nine pieces, each its name and its affixes' names (+18) - an item's canonical name, as every Aetheric set's; STAR7: +18, the Starspun Weave's nine names and lore - the records' own data, minted onto the item, never read at load
+  'src/systems/aetheric.js': 181,   // +13, the Realm Defender's lore and the pieces' gear names, minted onto the item as every set's; SEA-SET: +17, the Eltheric Tidemail's nine names and lore, as the Weave's - the records' own data, minted onto the item; WITCH1: the Wyrd's Raiment's nine pieces, each its name and its affixes' names (+18) - an item's canonical name, as every Aetheric set's; STAR7: +18, the Starspun Weave's nine names and lore - the records' own data, minted onto the item, never read at load
   'src/systems/alchemyItems.js': 3,
   'src/systems/allyCast.js': 5,
   'src/systems/answerPipeline.js': 1,
@@ -416,7 +431,7 @@ const HARDCODED = {
   'src/systems/gate/gateOmen.js': 10,
   'src/systems/gate/gateSpoils.js': 4,   // PORTAL-BOOK: the Portal Book's canonical name, a template row's
   'src/systems/gateTier.js': 4,
-  'src/systems/gilded.js': 25,   // GILDED2: the Dragonfire Oath's and the Sunken Sovereign's names, powers, lore and hints - written as the Hourlock's are   // AUDIT PISTOLET A7 C1 D8: +1, the Sunken Sovereign's saber-era lore - an item's own story, as the records' are; KETCH: +9, Hammerfall's and Broadside's briefs and texts, Volendrung's Echo's lore and hint, the Ketchmaster's Word's name, lore and hint (the Echo's name and the two powers' a word or two the scan passes), The Hour Tolls' text re-read for the Pellet's dweamer in its old one's place (a kill returns the shot) - written as the Hourlock's are (AUDIT KETCH L5-10: the reason named the Hourlock's lore, unchanged, and left out the Echo and Broadside)
+  'src/systems/gilded.js': 29,   // +4, Retribution's Call's name, power, lore and hint, written as the Hourlock's are; GILDED2: the Dragonfire Oath's and the Sunken Sovereign's names, powers, lore and hints - written as the Hourlock's are   // AUDIT PISTOLET A7 C1 D8: +1, the Sunken Sovereign's saber-era lore - an item's own story, as the records' are; KETCH: +9, Hammerfall's and Broadside's briefs and texts, Volendrung's Echo's lore and hint, the Ketchmaster's Word's name, lore and hint (the Echo's name and the two powers' a word or two the scan passes), The Hour Tolls' text re-read for the Pellet's dweamer in its old one's place (a kill returns the shot) - written as the Hourlock's are (AUDIT KETCH L5-10: the reason named the Hourlock's lore, unchanged, and left out the Echo and Broadside)
   'src/systems/gravestoneLore.js': 16,
   'src/systems/guild/guilds.js': 3,
   'src/systems/handheldTorches.js': 12,
@@ -541,12 +556,11 @@ const HARDCODED = {
   'src/systems/sigil/sigil.js': 8,
   'src/systems/sigil/sigilBroker.js': 8,
   'src/systems/sigil/sigilSetPowers.js': 24,
-  'src/systems/sigil/sigilSets.js': 126,   // PIN MOVED (AUDIT HORIZONTAL D6): +1, SET-CATCHUP's pace English inside the set's English stage line until the sets' batch routes the line whole; SEA-SET: +9, the Eltheric Tidemail's name, prince, role, tiers and their words, as every set's; WITCH1: the Wyrd's Raiment - its name, its prince, its three tiers' names and lines (+9), as every set's; STAR7: +8, the Starspun Weave's name, role, tiers and their words, as every set's
+  'src/systems/sigil/sigilSets.js': 133,   // +7, the Realm Defender's name, role and tiers' words, as every set's; PIN MOVED (AUDIT HORIZONTAL D6): +1, SET-CATCHUP's pace English inside the set's English stage line until the sets' batch routes the line whole; SEA-SET: +9, the Eltheric Tidemail's name, prince, role, tiers and their words, as every set's; WITCH1: the Wyrd's Raiment - its name, its prince, its three tiers' names and lines (+9), as every set's; STAR7: +8, the Starspun Weave's name, role, tiers and their words, as every set's
   'src/systems/smithItems.js': 26,
   'src/systems/snowfall.js': 12,
   'src/systems/snowfallRuntime.js': 10,
   'src/systems/spell/spellEffects.js': 29,
-  'src/systems/eliteGates/spireKit.js': 1,
   'src/systems/staleChunk.js': 6,
   'src/systems/starfall/starglass.js': 1,   // AUDIT STAR I1: Starfall Glass's name - an item's canonical name is its row's, as the Soul Cake's and the Weir Key's
   'src/systems/startDungeon.js': 1,
@@ -737,7 +751,7 @@ const HARDCODED = {
   'src/ui/plus/plusPad.js': 18,
   'src/ui/plus/plusPadBinds.js': 31,   // TECH-KEY2: +1, the signature key's bind row, beside the technique's
   'src/ui/prisonScreen.js': 1,
-  'src/ui/professions/profPages.js': 28,   // FB1020c ONE-SAVE: the kept words, moved here from the world host; REFORGE-REPLACE: the Reforge with Essence's two words through t(); STOREFRONT: 1 fewer - class lists with a name built in them (`a-b a-${k}`), which the scan now reads as CSS
+  'src/ui/professions/profPages.js': 26,   // AUDIT FB1031 III I2: the bench bar's Put everything in and its answer line through t(); FB1020c ONE-SAVE: the kept words, moved here from the world host; REFORGE-REPLACE: the Reforge with Essence's two words through t(); STOREFRONT: 1 fewer - class lists with a name built in them (`a-b a-${k}`), which the scan now reads as CSS
   'src/ui/profileBadge.js': 4,
   'src/ui/profileIcons.js': 4,   // WITCH1: the four profile icons' names (ICON_TEXT) - the badge's words, as playerBadge.js's titles and auras
   'src/ui/profileWindow.js': 14,
@@ -823,7 +837,8 @@ const HARDCODED = {
   'src/world/oceanHoles.js': 9,
   'src/world/outdoors.js': 2,
   'src/world/passiveFish.js': 5,
-  'src/world/eliteGates/pseudoArchives.js': 58,   // AURUM-CACHES: +1, the coffer's row (AURUM_COFFER_ARCHIVE) - the registry's own words for a developer; FIGUREHEAD: +1, the carvings' pictures' row (FIGUREHEAD_ARCHIVE); AUDIT GUILD-SHOP R2: +1, the guild furniture's row (GUILD_ART_ARCHIVE, moved off the Spire's 38241) - the registry's own words for a developer; DRAGON7: +1, the Aetherbright's row (AETHERBRIGHT_ARCHIVE) - the registry's own words for a developer, as the brass's; DWARVEN-DRAGON: +1, its sprites' row (DWARVEN_DRAGON_ARCHIVE) - the registry's own words for a developer; GHOSTFENCE (AUDIT RED-MOUNTAIN, CI): +1, the Ghostfence's art row (GHOSTFENCE_ARCHIVE) - the registry's own words for a developer; LOCKPICK (main): +1, the Lockpick's picture's row (LOCKPICK_ARCHIVE) - the registry's own words for a developer; AUDIT TESA III (at URBANIZER's merge): +1, the towns' fabric's art row (URBAN_ARCHIVE) - the registry's own words for a developer; KETCH: +1, the Sky-Ketch's art row (KT_ARCHIVE) - the registry's own words for a developer; TESA10 (at the merge of main into TESA): +1, the capitals' row (CAPITAL_ARCHIVE) - the registry's own words for a developer; PISTOLET: +1, the Dwarven Pistolet's art row (PISTOLET_ARCHIVE) - the registry's own words for a developer; WITCH1: +1, the Witches' Festival's pictures' row (FESTIVAL_ARCHIVE) - the registry's own words for a developer; NAVAL-REFIT: +3, the ship's paint's, her cabin's and her name boards' rows (LIVERY_ARCHIVE, CABIN_ARCHIVE, PLAQUE_ARCHIVE) - the registry's own words for a developer, never a player's; STAR4/STAR7: +2, the star's two archives' rows; STOREFRONT: +1, the Brass Fissure's art row (FISSURE_ARCHIVE) - the registry's own words for a developer
+  'src/tools/floraPlayground.js': 2,   // SKYRIM-FLORA playground: status lines for artists on /2d-playground - never a player's
+  'src/world/eliteGates/pseudoArchives.js': 59,   // AURUM-CACHES: +1, the coffer's row (AURUM_COFFER_ARCHIVE) - the registry's own words for a developer; FIGUREHEAD: +1, the carvings' pictures' row (FIGUREHEAD_ARCHIVE); AUDIT GUILD-SHOP R2: +1, the guild furniture's row (GUILD_ART_ARCHIVE, moved off the Spire's 38241) - the registry's own words for a developer; DRAGON7: +1, the Aetherbright's row (AETHERBRIGHT_ARCHIVE) - the registry's own words for a developer, as the brass's; DWARVEN-DRAGON: +1, its sprites' row (DWARVEN_DRAGON_ARCHIVE) - the registry's own words for a developer; GHOSTFENCE (AUDIT RED-MOUNTAIN, CI): +1, the Ghostfence's art row (GHOSTFENCE_ARCHIVE) - the registry's own words for a developer; LOCKPICK (main): +1, the Lockpick's picture's row (LOCKPICK_ARCHIVE) - the registry's own words for a developer; AUDIT TESA III (at URBANIZER's merge): +1, the towns' fabric's art row (URBAN_ARCHIVE) - the registry's own words for a developer; KETCH: +1, the Sky-Ketch's art row (KT_ARCHIVE) - the registry's own words for a developer; SKYRIM-FLORA: +1, Skyrim plant flats row (SKYRIM_FLORA_ARCHIVE); TESA10 (at the merge of main into TESA): +1, the capitals' row (CAPITAL_ARCHIVE) - the registry's own words for a developer; PISTOLET: +1, the Dwarven Pistolet's art row (PISTOLET_ARCHIVE) - the registry's own words for a developer; WITCH1: +1, the Witches' Festival's pictures' row (FESTIVAL_ARCHIVE) - the registry's own words for a developer; NAVAL-REFIT: +3, the ship's paint's, her cabin's and her name boards' rows (LIVERY_ARCHIVE, CABIN_ARCHIVE, PLAQUE_ARCHIVE) - the registry's own words for a developer, never a player's; STAR4/STAR7: +2, the star's two archives' rows; STOREFRONT: +1, the Brass Fissure's art row (FISSURE_ARCHIVE) - the registry's own words for a developer
   'src/world/superDungeon/sdDungeon.js': 6,
   'src/world/superDungeon/sdRealm.js': 10,
   'src/world/spawnedDungeons.js': 3,

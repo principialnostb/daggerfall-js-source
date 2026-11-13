@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { hostText } from '../hostText.mjs';
 
-import { standService, T0 } from '../accountDb.mjs';
+import { standService, T0, clockPicksLodes } from '../accountDb.mjs';
 import { watchPixelOk, watchReceiptValid } from '../../src/net/watchReceipt.js';
 import { utcDay } from '../../src/net/marksLaw.js';
 import { motherlodeSites } from '../../src/net/motherlodeLaw.js';
@@ -79,6 +79,7 @@ test('AUDIT ETHER-OW C2-1, the service: the day\'s three read from witnessed gro
         }
       }
       const ann = await s.registered('Ann');
+      await clockPicksLodes(s);
       return s.call('/v1/prof/motherlodes', { character: ann.character }, ann.secret);
     };
     const isles = Array.from({ length: 6 }, (_, i) => [H.px + i, H.py, ETHER_REGION]);
@@ -147,7 +148,9 @@ test('AUDIT ETHER-OW C2-3: "Your Ship" is boarded from the Bay alone - past the 
       shipMemory: (m) => m, player: { pos: [0, 0, 0] }, groundFrameHeight: () => 0, state: { compensation: [0, 0, 0] }, cam: { yaw: 0 }, STREAMING_TERRAIN_SCALE: 1,
       RECORD_GROUND_STAMP: { terrainScale: 1, groundFrame: 2 },   // PIN MOVED (BAY-LEFT-GROUND, D5): the deck stamps its frame's law beside its scale
     };
+    // PIN MOVED (HOST-SPLIT, scenes/shipBoardHost.js): the board reads the Veil through its host
     return run(env, `${lift('  const veilRefused = (to = null) => {', '\n  };\n')}
+      const host = { veilRefused };
       ${W.slice(at, end)}    return t;\n  }\n  return boardOrDisembark;`);
   };
   // from past the Veil: refused, said

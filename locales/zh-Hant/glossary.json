@@ -95,5 +95,11 @@
  "the sprout (the new account's glyph)": "新芽徽記",
  "Offered by {giver} (a questline's giver, last in the sentence)": "委託人：{giver}",
  "dash in prose": "——（不用 ASCII「 - 」）",
- "one in {n} (a chance)": "1/{n}"
+ "one in {n} (a chance)": "1/{n}",
+ "Replacement (the Replacements pane: your own PNG in place of a game picture)": "替換",
+ "picture (a texture or sprite)": "圖片",
+ "Overhaul (a mod that changed a picture)": "全面改造",
+ "Skin card (profile)": "外觀卡片",
+ "Rejected: (a refused file)": "已拒絕：",
+ "Werewolf form / Wereboar form": "狼人形態 / 野豬人形態"
 }

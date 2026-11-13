@@ -22,8 +22,8 @@
 // every map draws for the zone and for the province is the province's own outline on the traced picture (zoneLineOf): a
 // map pixel is the zone's exactly when its middle lies inside it.
 //
-// KEPT WHILE THE PICTURE STANDS: the mask is built at the first ask and kept while the trace and the fit stand
-// (tamrielLandVersion, tamrielFit); either moved, the next ask builds it again.
+// KEPT WHILE THE PICTURE STANDS: the mask is made in the idle job's steps (cyrodiilMaskSteps) or at the first ask, and
+// kept while the trace and the fit stand (tamrielLandVersion, tamrielFit); either moved, it is made again.
 //
 // ONLINE, THE TRACE'S ALONE (AUDIT TESA II Z8): with no trace installed the province is the authored rings' - 56% of the
 // two shapes' union theirs alone on the freeware's picture - so a client whose trace had not landed yet (the boot's first
@@ -34,16 +34,24 @@
 // the authored shape still stands in for a missing trace.
 // ═══════════════════════════════════════════════════════════════════
 import { buildWildMask, wildInside } from './wildZone.js';
-import { lawLines, linkSteps, segKey, drain, squareEnds } from '../../world/tamriel/tamrielLines.js';   // SMOOTH-LAND: the land's own lines
+import { lawLines, linkSteps, segKey, drain, squareEnds } from '../../world/tamriel/tamrielLines.js'; // SMOOTH-LAND: the land's own lines
 import { theatreAt } from '../../world/worldWide/worldGrid.js';
-import { IMPERIAL_ID, PROVINCE_OF_ID, provinceKeyAt, tamrielLandVersion, tamrielTrace } from '../../world/tamriel/tamrielLand.js';
-import { isOnlinePage } from '../online/onlineLane.js';   // AUDIT TESA II Z8: online, the traced picture's zone alone
+import {
+  IMPERIAL_ID,
+  PROVINCE_OF_ID,
+  provinceKeyAt,
+  tamrielLandVersion,
+  tamrielTrace,
+} from '../../world/tamriel/tamrielLand.js';
+import { isOnlinePage } from '../online/onlineLane.js'; // AUDIT TESA II Z8: online, the traced picture's zone alone
 import { tamrielFit, pictureToBay, bayToPicture, PICTURE_W, PICTURE_H } from '../../world/tamriel/tamrielFrame.js';
 
 /** The province's theatre (world/worldWide/worldGrid.js: the Imperial Province, the picker's 9). */
 export const CYRODIIL_THEATRE = IMPERIAL_ID;
 /** A cell of the zone's mask, map pixels a side. */
 export const CYRODIIL_CELL_PX = 4;
+/** How many pixels a step of the mask's build asks the province's law: a few milliseconds of an idle period. */
+export const CYRODIIL_MASK_STEP_ASKS = 16384;
 
 /**
  * The province's box in map pixels, off the picture: every picture unit whose middle is the Imperial Province's, widened
@@ -51,16 +59,32 @@ export const CYRODIIL_CELL_PX = 4;
  * picture holds no such province.
  */
 export function cyrodiilBox() {
+  return drain(boxSteps());
+}
+
+/** cyrodiilBox a band of the picture's rows a step, some CYRODIIL_MASK_STEP_ASKS pixels: the land's law makes its
+ *  tiles as the rows first read them, so a landing's first reads are spread over the steps.
+ *  @returns {Generator<undefined, { x0: number, y0: number, x1: number, y1: number }|null, unknown>} */
+function* boxSteps() {
   const key = PROVINCE_OF_ID[IMPERIAL_ID];
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const rows = Math.max(1, Math.floor(CYRODIIL_MASK_STEP_ASKS / PICTURE_W));
+  let x0 = Infinity,
+    y0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity;
   for (let py = 0; py < PICTURE_H; py++) {
+    if (py > 0 && py % rows === 0) yield;
     for (let px = 0; px < PICTURE_W; px++) {
       if (provinceKeyAt(px + 0.5, py + 0.5) !== key) continue;
-      if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py;
+      if (px < x0) x0 = px;
+      if (px > x1) x1 = px;
+      if (py < y0) y0 = py;
+      if (py > y1) y1 = py;
     }
   }
   if (x1 < x0) return null;
-  const [ax, ay] = pictureToBay(x0 - 1, y0 - 1), [bx, by] = pictureToBay(x1 + 2, y1 + 2);
+  const [ax, ay] = pictureToBay(x0 - 1, y0 - 1),
+    [bx, by] = pictureToBay(x1 + 2, y1 + 2);
   return { x0: Math.floor(ax), y0: Math.floor(ay), x1: Math.ceil(bx), y1: Math.ceil(by) };
 }
 
@@ -85,12 +109,15 @@ export function provinceWaterAt(x, y) {
   const trace = tamrielTrace();
   if (!trace) return false;
   const [qx, qy] = bayToPicture(x + 0.5, y + 0.5);
-  if (provinceKeyAt(qx, qy) !== null) return false;   // land, by the land's own law (SMOOTH-LAND)
-  const px = Math.floor(qx), py = Math.floor(qy), { w, h, land, province } = trace;
+  if (provinceKeyAt(qx, qy) !== null) return false; // land, by the land's own law (SMOOTH-LAND)
+  const px = Math.floor(qx),
+    py = Math.floor(qy),
+    { w, h, land, province } = trace;
   if (px < 0 || py < 0 || px >= w || py >= h) return false;
   const bank = (dx, dy) => {
     for (let k = 1; k <= PROVINCE_WATER_REACH; k++) {
-      const bx = px + dx * k, by = py + dy * k;
+      const bx = px + dx * k,
+        by = py + dy * k;
       if (bx < 0 || by < 0 || bx >= w || by >= h) return false;
       if (land[by * w + bx]) return province[by * w + bx] === IMPERIAL_ID;
     }
@@ -101,29 +128,164 @@ export function provinceWaterAt(x, y) {
 
 let _mask = /** @type {any} */ (null);
 let _key = /** @type {string|null} */ (null);
+/** The build under way and the land it is for (`key`): the idle job's steps and an ask share it, so an ask before it
+ *  is whole finishes it rather than starting another. */
+let _building = /** @type {{ key: string, steps: Generator<undefined, any, unknown> }|null} */ (null);
+/** Test seam: how many builds of the mask have begun. An ask that finishes the idle job's build begins none of its
+ *  own, so a reader on the way costs only what the build has left. */
+let _begun = 0;
+export const maskBuildsBegun = () => _begun;
+/** The land a mask is made for: the trace's version and the fit. */
+const maskKey = () => {
+  const f = tamrielFit();
+  return `${tamrielLandVersion()}:${f.ox}:${f.oy}:${f.ppu}`;
+};
 /**
  * THE ZONE'S MASK - Cyrodiil's, on the cells' lattice over its box (null where the picture holds no Imperial Province -
  * AUDIT TESA II Z8: and online, while no trace is installed). Kept while the picture stands (the trace's version and the
- * fit); built again when either moves.
+ * fit). When either moves, the next ask makes the new land's mask whole: it finishes the idle job's build where that
+ * build is for this land, and makes its own where not.
  */
 export function cyrodiilMask() {
-  if (isOnlinePage() && !tamrielTrace()) return null;   // AUDIT TESA II Z8: no trace, no zone - never the authored rings' online
-  const f = tamrielFit();
-  const key = `${tamrielLandVersion()}:${f.ox}:${f.oy}:${f.ppu}`;
+  if (isOnlinePage() && !tamrielTrace()) return null; // AUDIT TESA II Z8: no trace, no zone - never the authored rings' online
+  const key = maskKey();
   if (_key === key) return _mask;
+  const build = _building?.key === key ? _building : { key, steps: maskSteps() };
+  _building = null;
   _key = key;
-  const box = cyrodiilBox();
-  if (!box) return (_mask = null);
-  const cell = CYRODIIL_CELL_PX;
-  const ox = Math.floor(box.x0 / cell) * cell, oy = Math.floor(box.y0 / cell) * cell;   // the world's one lattice
-  const width = Math.ceil((box.x1 + 1 - ox) / cell), height = Math.ceil((box.y1 + 1 - oy) / cell);
-  _mask = buildWildMask({ width, height, ox, oy, cell, pixelIn: (x, y) => theatreAt(x, y) === CYRODIIL_THEATRE || provinceWaterAt(x, y) });   // ZONE-LINE: the province's own law, a pixel at a time; NIBEN-SEA: and its own water
+  _mask = madeMask(drain(build.steps));
+  return _mask;
+}
+
+/**
+ * cyrodiilMask a step at a time, for the idle job (ui/tamrielInk.js tracedSteps): the law asked ahead,
+ * CYRODIIL_MASK_STEP_ASKS pixels a step, then the mask made off those answers in a step of its own. The mask kept stays
+ * the last whole one until this one is whole, so nothing reads a part; an ask on the way finishes it, and a land that
+ * moves on the way starts it again.
+ * @returns {Generator<undefined, void, unknown>}
+ */
+export function* cyrodiilMaskSteps() {
+  for (;;) {
+    if (isOnlinePage() && !tamrielTrace()) return;
+    const key = maskKey();
+    if (_key === key) return;
+    if (_building?.key !== key) _building = { key, steps: maskSteps() };
+    const build = _building;
+    let step;
+    try {
+      step = build.steps.next();
+    } catch (e) {
+      // as an ask whose build throws: the land's mask is taken as made, and the last whole one stays
+      _building = null;
+      _key = key;
+      throw e;
+    }
+    if (step.done) {
+      _building = null;
+      _key = key;
+      _mask = madeMask(step.value);
+    }
+    yield;
+  }
+}
+
+/** A mask made, kept with its line. */
+function madeMask(/** @type {any} */ mask) {
+  if (!mask) return null;
   const trace = tamrielTrace();
   // ZONE-LINE: the line the maps draw (untraced, the zone's own pixel edge); SMOOTH-LAND: the law's own, made the first
   // time a map asks it (the mask is the boot's; the line the map's)
-  const own = _mask;
-  Object.defineProperty(own, 'line', { enumerable: true, configurable: true, get: () => (trace ? zoneLineOf(trace, own) : null) });
-  return _mask;
+  Object.defineProperty(mask, 'line', {
+    enumerable: true,
+    configurable: true,
+    get: () => (trace ? zoneLineOf(trace, mask) : null),
+  });
+  return mask;
+}
+
+/**
+ * The mask's build, in steps: the box a band of rows a step, then the law asked ahead at the pixels buildWildMask asks
+ * (each cell's middle, then every pixel of a cell whose middle differs from a neighbour's), then the mask made off those
+ * answers. It is the mask a build asking the law itself makes: an answer is the law's whichever step asked it, the land
+ * the same between steps (cyrodiilMaskSteps starts again when it moves), and a pixel not asked ahead is asked when the
+ * build needs it.
+ * @returns {Generator<undefined, any, unknown>}
+ */
+function* maskSteps() {
+  _begun++;
+  const box = yield* boxSteps();
+  if (!box) return null;
+  yield;
+  const cell = CYRODIIL_CELL_PX;
+  const ox = Math.floor(box.x0 / cell) * cell,
+    oy = Math.floor(box.y0 / cell) * cell; // the world's one lattice
+  const width = Math.ceil((box.x1 + 1 - ox) / cell),
+    height = Math.ceil((box.y1 + 1 - oy) / cell);
+  // ZONE-LINE: the province's own law, a pixel at a time; NIBEN-SEA: and its own water
+  const pixelIn = (/** @type {number} */ x, /** @type {number} */ y) =>
+    theatreAt(x, y) === CYRODIIL_THEATRE || provinceWaterAt(x, y);
+  const count = width * height,
+    middle = Math.floor(cell / 2);
+  const middles = new Uint8Array(count),
+    edged = new Uint8Array(count),
+    pixels = new Uint16Array(count);
+  let asked = 0,
+    due = CYRODIIL_MASK_STEP_ASKS;
+  for (let i = 0; i < count; i++) {
+    const col = i % width,
+      row = (i - col) / width;
+    middles[i] = pixelIn(ox + col * cell + middle, oy + row * cell + middle) ? 1 : 0;
+    if (++asked >= due) {
+      due += CYRODIIL_MASK_STEP_ASKS;
+      yield;
+    }
+  }
+  // the cells asked a pixel at a time: both of two neighbours (eight ways) whose middles differ, and an inside cell on
+  // the grid's edge
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const i = row * width + col,
+        here = middles[i];
+      if (here && (col === 0 || row === 0 || col === width - 1 || row === height - 1)) edged[i] = 1;
+      if (col + 1 < width && middles[i + 1] !== here) edged[i] = edged[i + 1] = 1;
+      if (row + 1 < height) {
+        const j = i + width;
+        if (middles[j] !== here) edged[i] = edged[j] = 1;
+        if (col + 1 < width && middles[j + 1] !== here) edged[i] = edged[j + 1] = 1;
+        if (col > 0 && middles[j - 1] !== here) edged[i] = edged[j - 1] = 1;
+      }
+    }
+  }
+  for (let i = 0; i < count; i++) {
+    if (!edged[i]) continue;
+    const col = i % width,
+      row = (i - col) / width;
+    let bits = 0;
+    for (let dy = 0; dy < cell; dy++)
+      for (let dx = 0; dx < cell; dx++)
+        if (pixelIn(ox + col * cell + dx, oy + row * cell + dy)) bits |= 1 << (dy * cell + dx);
+    pixels[i] = bits;
+    if ((asked += cell * cell) >= due) {
+      due = asked + CYRODIIL_MASK_STEP_ASKS;
+      yield;
+    }
+  }
+  yield;
+  /** The law's answer at a pixel, as asked ahead, or asked now. */
+  const answer = (/** @type {number} */ x, /** @type {number} */ y) => {
+    const dx = x - ox,
+      dy = y - oy,
+      col = Math.floor(dx / cell),
+      row = Math.floor(dy / cell);
+    if (col >= 0 && row >= 0 && col < width && row < height) {
+      const i = row * width + col,
+        bit = (dy - row * cell) * cell + (dx - col * cell);
+      if (edged[i]) return ((pixels[i] >> bit) & 1) === 1;
+      if (bit === middle * cell + middle) return middles[i] === 1;
+    }
+    return pixelIn(x, y);
+  };
+  return buildWildMask({ width, height, ox, oy, cell, pixelIn: answer });
 }
 
 /**
@@ -154,75 +316,127 @@ export const ZONE_LINE_STEP = 4096;
 export function* zoneLineSteps(trace, mask) {
   const f = tamrielFit();
   const key = `${f.ox}:${f.oy}:${f.ppu}`;
-  if (_line?.land === trace.land && _line.province === trace.province && _line.mask === mask && _line.key === key) return _line.line;   // the picture's own arrays (tamrielLand.js setTamrielTrace keeps them)
+  if (_line?.land === trace.land && _line.province === trace.province && _line.mask === mask && _line.key === key)
+    return _line.line; // the picture's own arrays (tamrielLand.js setTamrielTrace keeps them)
   const lines = lawLines(trace);
   const inside = (/** @type {number} */ x, /** @type {number} */ y) => wildInside(mask, x, y);
   /** @type {import('../../world/tamriel/tamrielLines.js').Seg[]} */
   const segs = [];
   // the squares the zone's outline can cross: those about every cell of the mask that is neither whole nor empty, or
   // whose neighbour east or south is otherwise - each asked of the law's lines once (its labels and its crossings)
-  const { width, height, cell, bits } = mask, full = (1 << (cell * cell)) - 1, asked = new Set();
+  const { width, height, cell, bits } = mask,
+    full = (1 << (cell * cell)) - 1,
+    asked = new Set();
   /** NIBEN-SEA: a dam's own crossings (an edge between two pixels of one label - the law has none there): its middle. */
-  const own = new Map(), points = { get: (/** @type {number} */ id) => own.get(id) ?? lines.points.get(id) };
+  const own = new Map(),
+    points = { get: (/** @type {number} */ id) => own.get(id) ?? lines.points.get(id) };
   /** NIBEN-SEA: A DAM - a square the zone changes across where the law's label does not: its pieces the zone's own
    *  marching case, each edge crossed at the law's crossing where its labels differ and at its middle where they do not
    *  (a saddle's two zone pixels joined), `kind` 'water' - the red line's, never the held map's coast or border. */
   const dam = (/** @type {number} */ bx, /** @type {number} */ by, /** @type {boolean[]} */ [a, b, c, d]) => {
     const { top, right, bottom, left } = squareEnds(bx, by);
-    const E = [[a !== b, top, bx + 1, by + 0.5, [bx, by, bx + 1, by]], [b !== c, right, bx + 1.5, by + 1, [bx + 1, by, bx + 1, by + 1]],
-      [d !== c, bottom, bx + 1, by + 1.5, [bx, by + 1, bx + 1, by + 1]], [a !== d, left, bx + 0.5, by + 1, [bx, by, bx, by + 1]]];
-    for (const [cut, id, x, y] of E) if (cut && !lines.points.has(/** @type {number} */ (id)) && !own.has(id)) own.set(id, { x, y });
-    const piece = (/** @type {number} */ i, /** @type {number} */ j) => segs.push({ a: /** @type {number} */ (E[i][1]), b: /** @type {number} */ (E[j][1]), kind: 'water', pair: 0, side: /** @type {number[]} */ (E[i][4]) });
+    const E = [
+      [a !== b, top, bx + 1, by + 0.5, [bx, by, bx + 1, by]],
+      [b !== c, right, bx + 1.5, by + 1, [bx + 1, by, bx + 1, by + 1]],
+      [d !== c, bottom, bx + 1, by + 1.5, [bx, by + 1, bx + 1, by + 1]],
+      [a !== d, left, bx + 0.5, by + 1, [bx, by, bx, by + 1]],
+    ];
+    for (const [cut, id, x, y] of E)
+      if (cut && !lines.points.has(/** @type {number} */ (id)) && !own.has(id)) own.set(id, { x, y });
+    const piece = (/** @type {number} */ i, /** @type {number} */ j) =>
+      segs.push({
+        a: /** @type {number} */ (E[i][1]),
+        b: /** @type {number} */ (E[j][1]),
+        kind: 'water',
+        pair: 0,
+        side: /** @type {number[]} */ (E[i][4]),
+      });
     const cuts = [0, 1, 2, 3].filter((k) => E[k][0]);
     if (cuts.length === 2) piece(cuts[0], cuts[1]);
-    else if (a) { piece(0, 1); piece(3, 2); }   // a saddle, a and c the zone's: b's corner and d's cut off
-    else { piece(0, 3); piece(1, 2); }
+    else if (a) {
+      piece(0, 1);
+      piece(3, 2);
+    } // a saddle, a and c the zone's: b's corner and d's cut off
+    else {
+      piece(0, 3);
+      piece(1, 2);
+    }
   };
   /** @type {Array<[number, number]>} */
   const cand = [];
-  const fill = (/** @type {number} */ cx, /** @type {number} */ cy) => (cx < 0 || cy < 0 || cx >= width || cy >= height ? 0 : bits[cy * width + cx]);
+  const fill = (/** @type {number} */ cx, /** @type {number} */ cy) =>
+    cx < 0 || cy < 0 || cx >= width || cy >= height ? 0 : bits[cy * width + cx];
   for (let cy = -1; cy <= height; cy++) {
     for (let cx = -1; cx <= width; cx++) {
       const v = fill(cx, cy);
-      if ((v === 0 || v === full) && fill(cx + 1, cy) === v && fill(cx, cy + 1) === v && fill(cx + 1, cy + 1) === v) continue;
-      const x0 = mask.ox + cx * cell, y0 = mask.oy + cy * cell;
-      for (let by = y0; by < y0 + cell; by++) for (let bx = x0; bx < x0 + cell; bx++) { const k = `${bx},${by}`; if (!asked.has(k)) { asked.add(k); cand.push([bx, by]); } }
+      if ((v === 0 || v === full) && fill(cx + 1, cy) === v && fill(cx, cy + 1) === v && fill(cx + 1, cy + 1) === v)
+        continue;
+      const x0 = mask.ox + cx * cell,
+        y0 = mask.oy + cy * cell;
+      for (let by = y0; by < y0 + cell; by++)
+        for (let bx = x0; bx < x0 + cell; bx++) {
+          const k = `${bx},${by}`;
+          if (!asked.has(k)) {
+            asked.add(k);
+            cand.push([bx, by]);
+          }
+        }
     }
-    yield;   // a row of cells a step
+    yield; // a row of cells a step
   }
   for (let n = 0; n < cand.length; n++) {
     if (n % ZONE_LINE_STEP === ZONE_LINE_STEP - 1) yield;
     const [bx, by] = cand[n];
-    const ia = inside(bx, by), ib = inside(bx + 1, by), ic = inside(bx + 1, by + 1), id = inside(bx, by + 1);
+    const ia = inside(bx, by),
+      ib = inside(bx + 1, by),
+      ic = inside(bx + 1, by + 1),
+      id = inside(bx, by + 1);
     if (ia === ib && ia === ic && ia === id) continue;
     const rec = lines.square(bx, by);
     // NIBEN-SEA: the zone changes where the law's label does not - its own water (provinceWaterAt) against the sea's, a
     // river where its banks stop being the province's: the square is the zone's own marching case (`dam`)
-    const one = (/** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ qx, /** @type {number} */ qy) => lines.label(x, y) === lines.label(qx, qy);
-    if ((ia !== ib && one(bx, by, bx + 1, by)) || (ib !== ic && one(bx + 1, by, bx + 1, by + 1)) || (id !== ic && one(bx, by + 1, bx + 1, by + 1)) || (ia !== id && one(bx, by, bx, by + 1))) {
+    const one = (
+      /** @type {number} */ x,
+      /** @type {number} */ y,
+      /** @type {number} */ qx,
+      /** @type {number} */ qy,
+    ) => lines.label(x, y) === lines.label(qx, qy);
+    if (
+      (ia !== ib && one(bx, by, bx + 1, by)) ||
+      (ib !== ic && one(bx + 1, by, bx + 1, by + 1)) ||
+      (id !== ic && one(bx, by + 1, bx + 1, by + 1)) ||
+      (ia !== id && one(bx, by, bx, by + 1))
+    ) {
       dam(bx, by, [ia, ib, ic, id]);
       continue;
     }
-    if (!rec) continue;   // never: the zone changes only where the law's label does, or a dam's
+    if (!rec) continue; // never: the zone changes only where the law's label does, or a dam's
     // the law's own pieces of the square the zone's outline is: those the zone changes across (its two pixels one in the
     // zone, one out), each by what lies past the zone there - the water it does not enclose (a coast), or another
     // province's land (a border)
     for (const s of rec.segs) {
-      const [x, y, qx, qy] = s.side, i0 = inside(x, y);
+      const [x, y, qx, qy] = s.side,
+        i0 = inside(x, y);
       if (i0 === inside(qx, qy)) continue;
       const past = i0 ? lines.label(qx, qy) : lines.label(x, y);
       segs.push({ a: s.a, b: s.b, kind: past === 0 ? 'coast' : 'border', pair: 0, side: s.side });
     }
   }
   const chains = yield* linkSteps(segs, /** @type {any} */ (points));
-  const coast = yield* linkSteps(segs.filter((s) => s.kind === 'coast'), lines.points);
-  const borders = yield* linkSteps(segs.filter((s) => s.kind === 'border'), lines.points);
+  const coast = yield* linkSteps(
+    segs.filter((s) => s.kind === 'coast'),
+    lines.points,
+  );
+  const borders = yield* linkSteps(
+    segs.filter((s) => s.kind === 'border'),
+    lines.points,
+  );
   const line = {
     chains,
     coast,
     borders,
     /** The pieces the outline draws (tamrielLines.js segKey): the province ink's own are left off where they are these. */
-    keys: new Set(segs.filter((s) => s.kind !== 'water').map(segKey)),   // NIBEN-SEA: a dam's never the ink's to leave off
+    keys: new Set(segs.filter((s) => s.kind !== 'water').map(segKey)), // NIBEN-SEA: a dam's never the ink's to leave off
   };
   _line = { land: trace.land, province: trace.province, mask, key, line };
   return line;

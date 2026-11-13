@@ -775,7 +775,7 @@ export function composeMovementGroup(base, type, hasGroup) {
  *     (:2195-2196 - wasInJump is remembered, mInJump starts false);
  *   - in the air and not swimming, not levitating: InAir, and inJump
  *     (:2206-2212 - the reference's !inwater && !flying && solid gate;
- *     this port has no noclip, so solid is construction);
+ *     the toybox's no-clip flies, so solid is construction);
  *   - THE TAKEOFF FRAME (:2224-2227): a jump STARTING while still
  *     grounded sets mInJump - movement gates off one frame before the
  *     feet leave - but plays nothing yet; the `priorInAir` guard is

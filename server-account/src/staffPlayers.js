@@ -1,12 +1,12 @@
 // @ts-check
 // ═══════════════════════════════════════════════════════════════════
-// STAFF-PANEL3-PLAYERS (2026-10-22, mob: "do all 6"; design doc "DFO Staff Panel: design", build step 3, "Players and
-// nameplates") - THE PANEL'S PLAYERS: a search over every account, online or not, by handle or character name (mob,
+// STAFF-PANEL3-PLAYERS (2026-10-22; design doc "DFO Staff Panel: design", build step 3, "Players and
+// nameplates") - THE PANEL'S PLAYERS: a search over every account, online or not, by handle or character name (
 // 03:23Z); one account's profile, read tab by tab; its devices and Sign out everywhere; and the rename of an offensive
 // handle or character name (the last was done by hand, migration 0134). Admins alone: Moderators have no profile screen
-// (mob, 03:03Z: Moderators get "only chat report notifications with Mute and Ban").
+// (Moderators get "only chat report notifications with Mute and Ban").
 //
-// NOTHING NEW IS JUDGED (design doc, "Built on the save judge"; mob, 09:22Z: "use the validators the server already has").
+// NOTHING NEW IS JUDGED (design doc, "Built on the save judge").
 // Every flag a profile shows is one the judge stored at a checkpoint - the law finding standing on a character's row
 // (`law_sig`, verdict.js), the copies and claims the ledger keeps (item_dupes, item_uids, ledger.js), the gains past the
 // bucket (`measure` and `budget` findings, review.js's gains) - never a check of this module's own. A save is opened with
@@ -34,7 +34,9 @@ import { possessedItemLists, ledgerKeyOf } from './judge.js';
 import { receiptOf } from './review.js';
 import { lawExcused } from './verdict.js';   // RPT1026-LEDGERLAW: an excuse is of the values the law found too
 import { REALM_TRADE_KEEP_S } from './realmTrade.js';
-import { itemWorth } from '../../src/systems/item/itemLaw.js';
+import { itemWorth, lawTemplate } from '../../src/systems/item/itemLaw.js';
+import { isPotion, TEMPLATES } from '../../src/systems/item/itemKinds.js';   // a potion is a bare bottle
+import { potionRecipeByKey } from '../../src/systems/potions.js';
 import { liquidWorthOf, REALM_LETTER_TEMPLATE } from '../../src/net/realm/realmGoldLaw.js';
 import { bankTotalOf } from '../../src/net/repairLaw.js';   // STAFF-SET-BANK: the profile's bank, the one sum a bank set reads
 import { STAT_KEYS_ORDER } from '../../src/systems/statMods.js';
@@ -47,8 +49,7 @@ export const PLAYER_ROUTES = Object.freeze(['/v1/staff/players', '/v1/staff/play
   '/v1/staff/player/rename']);
 /** A profile's tabs, in their usual order - a tie on urgency goes to the earlier. */
 export const PLAYER_TABS = Object.freeze(['overview', 'skills', 'equipment', 'inventories', 'market', 'trades', 'economy', 'history']);
-/** STAFF-BANNED: the search's ban filter - the first the default (mob: "player that are banned need to be taken out of
- *  staff panel list of players"). */
+/** STAFF-BANNED: the search's ban filter - the first the default. */
 export const BAN_FILTERS = Object.freeze(['not-banned', 'banned', 'all']);
 /** Rows one page of a list answers; an inventory's, ITEMS_PAGE. */
 export const PLAYERS_PAGE = 25;
@@ -159,13 +160,34 @@ export function profileBadges(f) {
   return { tabs, first };
 }
 
+/** A PIECE'S NAME WHEN ITS SAVE WRITES NONE. A potion is a Glass Bottle carrying a recipe key and no name (loot.js createPotion), so its row read "(no name)" and a
+ *  search for "potion" found none: it is named as the pack names it (itemInfo.js namePartsOf, "Potion of Resist Fire"),
+ *  a recipe by the potion it teaches, any other nameless piece by its template. @param {any} o */
+export function pieceNameOf(piece) {
+  const own = str(piece?.name);
+  if (own) return own;
+  if (isPotion(piece)) return `${Number.isInteger(piece.potent) && piece.potent > 0 ? 'Potent ' : ''}Potion of ${potionRecipeByKey(piece.potionRecipeKey)?.displayName ?? 'Unknown Powers'}`;
+  if (piece?.group === 'MiscItems' && piece.templateIndex === TEMPLATES.Potion_recipe) {
+    const recipe = potionRecipeByKey(piece.potionRecipeKey);
+    return recipe ? `Potion recipe: ${recipe.displayName}` : 'Potion recipe';
+  }
+  return Number.isSafeInteger(piece?.templateIndex) ? str(lawTemplate(piece.templateIndex)?.name) : null;
+}
+/** The orders an Inventories read may ask for, each applied to every matching row before the page is cut: by name (A to
+ *  Z), by worth (the dearest first, a listing at its price) and by count (the biggest stack first). */
+export const ITEM_ORDERS = Object.freeze({
+  name: (/** @type {any} */ a, /** @type {any} */ b) => String(a.name ?? '').localeCompare(String(b.name ?? '')),
+  worth: (/** @type {any} */ a, /** @type {any} */ b) => (b.worth ?? b.price ?? 0) - (a.worth ?? a.price ?? 0),
+  count: (/** @type {any} */ a, /** @type {any} */ b) => (b.count ?? 0) - (a.count ?? 0),
+});
+
 /** ONE PIECE AS A ROW: where it lies, which list and place (`li`, `i`: the judge's own address for it), and what it is. */
 function itemRow(/** @type {any} */ it, /** @type {string} */ where, /** @type {number} */ li, /** @type {number} */ i) {
   const o = it && typeof it === 'object' ? it : {};
   let worth = 0, key = null;
   try { worth = liquidWorthOf(o) || itemWorth(o); key = ledgerKeyOf(o); } catch { /* a piece of no shape the game writes: the judge's own finding names it */ }
   return {
-    where, li, i, name: str(o.name), t: num(o.templateIndex), group: str(o.group ?? o.itemGroup, 32), material: num(o.material), quality: num(o.quality),
+    where, li, i, name: pieceNameOf(o), t: num(o.templateIndex), group: str(o.group ?? o.itemGroup, 32), material: num(o.material), quality: num(o.quality),
     count: Number.isSafeInteger(o.stackCount) && o.stackCount > 1 ? o.stackCount : 1, worth: Number.isSafeInteger(worth) ? worth : 0,
     slot: typeof o.equipSlot === 'number' || typeof o.equipSlot === 'string' ? o.equipSlot : null, key, letter: o.templateIndex === REALM_LETTER_TEMPLATE,
     ...itemMore(o),
@@ -173,8 +195,7 @@ function itemRow(/** @type {any} */ it, /** @type {string} */ where, /** @type {
 }
 /** How many enchantments a row carries at most. */
 const ITEM_ENCH_MAX = 12;
-/** INV-HOVER (mob 2026-10-24: "hover for item here with descriptons", "so i can see what enchants and amounts of gold on
- *  parchment are"): what a piece's hover in the profile says beyond its row - its enchantments ([type, param], the
+/** INV-HOVER: what a piece's hover in the profile says beyond its row - its enchantments ([type, param], the
  *  game's EnchantmentTypes; the maker's own rows left out), its condition, the gold written on it (`value`: a letter's,
  *  or any piece's that carries one), its message number and whether a quest owns it. Only what the piece has.
  *  @param {any} o */
@@ -336,7 +357,7 @@ async function sectionsOf(db, defs, body, row, map = (x) => x) {
 }
 
 /** A stored item record (a listing's, a delivery's, a vault slot's, an escrow's) as its name and template. @param {unknown} rec */
-const recOf = (rec) => { const o = objectOf(parse(rec)); return { name: str(o.name), t: num(o.templateIndex) }; };
+const recOf = (rec) => { const o = objectOf(parse(rec)); return { name: pieceNameOf(o), t: num(o.templateIndex) }; };
 /** A market row with its item record read. @param {any} r */
 const marketRow = (r) => (r.item ? { ...r, item: recOf(r.item) } : r);
 
@@ -427,9 +448,13 @@ async function tabOf(ctx, env, tab, p, chars, body, row) {
     const all = [...rows.map((r) => ({ ...r, char: c.id })), ...held].filter((/** @type {any} */ r) => (!where || (where === 'letters' ? r.letter === true : r.where === where))
       && (!q || String(r.name ?? '').toLowerCase().includes(q)) && (!type || String(r.group ?? '').toLowerCase() === type)
       && (!min || (r.worth ?? 0) >= min) && (!quality || (r.quality ?? 0) >= quality));
+    const order = Object.hasOwn(ITEM_ORDERS, body.order) ? ITEM_ORDERS[/** @type {keyof typeof ITEM_ORDERS} */ (body.order)] : null;
+    if (order) all.sort(order);
+    // the item groups this character holds, unfiltered, for the panel's Type list
+    const groups = [...new Set(rows.map((row) => row.group).filter(Boolean))].sort();
     const from = fromOf(body.from);
     return {
-      ...head, purse: view?.purse ?? null, banks: view?.banks ?? null, items: all.slice(from, from + ITEMS_PAGE),
+      ...head, purse: view?.purse ?? null, banks: view?.banks ?? null, groups, items: all.slice(from, from + ITEMS_PAGE),
       next: from + ITEMS_PAGE < all.length ? from + ITEMS_PAGE : null, total: all.length, findings: (law?.findings ?? []).filter(isPieceFinding),
     };
   }
@@ -525,8 +550,7 @@ export async function staffPlayers(ctx, env, path, body, who, audit) {
 
   // /v1/staff/players { q?, online?, ban?, from? } - every account with a handle whose handle, or a character's name, starts
   // with `q` (any case), `online` those a tab of which beat inside the play clock's grace; by handle, `from` the last one
-  // STAFF-BANNED (2026-10-23, mob: "player that are banned need to be taken out of staff panel list of players we need a
-  // tab for banned players as well", "add a ban status as well to player list", "so we can filter them"): `ban` is
+  // STAFF-BANNED (2026-10-23): `ban` is
   // 'not-banned' (the default, so a banned account is out of the list unless asked for), 'banned' or 'all' (BAN_FILTERS),
   // judged in the statement against banned_until and the clock, as sanctions.js isBanned judges it (a lapsed ban is none).
   // The page is cut after the filter, so its cursor - the last handle of the filtered page - goes on from there: no row
@@ -546,7 +570,7 @@ export async function staffPlayers(ctx, env, path, body, who, audit) {
     if (online) args.push(nowS - PLAY_GRACE_S);
     // the online read by the last play beat's index (idx_players_played) and only they sorted: a plain `played_at >=` beside
     // the handle's range let the planner walk every handle for the ORDER BY (STAFF-PANEL3-PLAYERS FIX, flaw review)
-    // STAFF-PANEL-SPEED (mob: "slow when moving in menus"): the cut page's characters ride its read as one JSON column, its audit row the same batch - one trip, was three
+    // STAFF-PANEL-SPEED: the cut page's characters ride its read as one JSON column, its audit row the same batch - one trip, was three
     const sql = `SELECT x.*, (SELECT json_group_array(json_array(c.id, c.name, c.lease, c.lease_at, c.dead_at, c.held)) FROM (SELECT id, name, lease, lease_at, dead_at, held
         FROM realm_characters WHERE player = x.id ORDER BY updated_at DESC) c) AS chars
       FROM (SELECT id, handle, handle_lc, created_at, played_at, muted_until, banned_until FROM players WHERE ${q ? `id IN (
@@ -575,9 +599,10 @@ export async function staffPlayers(ctx, env, path, body, who, audit) {
     byId ? db.prepare(CHARS_SQL).bind(body.target).all() : null]);
   if ('error' in p) return p;
 
-  // /v1/staff/player { target | name, tab?, char?, section?, from?, where?, q?, type?, quality?, min?, days? } - opened (no
+  // /v1/staff/player { target | name, tab?, char?, section?, from?, where?, q?, type?, quality?, min?, order?, days? } - opened (no
   // tab): the summary card, each tab's badge, the tab it opens on and that tab; a tab named: that tab alone. `where`, `q`,
-  // `type`, `quality` and `min` filter the Inventories (ITEM_PLACES; a name; a group; a quality and a worth at least);
+  // `type`, `quality` and `min` filter the Inventories (ITEM_PLACES; a name; a group; a quality and a worth at least), and
+  // `order` (ITEM_ORDERS) sorts them before the page is cut;
   // `days` the Economy's range (1 to ECONOMY_DAYS_MAX, a week else)
   if (path === '/v1/staff/player') {
     const chars = (early ?? await db.prepare(CHARS_SQL).bind(p.id).all())?.results ?? [];

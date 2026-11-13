@@ -43,7 +43,7 @@
  * program takes the fog block once, and no other block declares it (the shader evaluator, test/glsl.mjs, takes no
  * preprocessor, and a second declaration is a compile error).
  */
-import { HAZE_LAW_GLSL } from './hazeGlsl.js';   // BANTHA1: the jungle's haze - its one import, itself a leaf
+import { HAZE_LAW_GLSL } from './hazeGlsl.js'; // BANTHA1: the jungle's haze - its one import, itself a leaf
 
 export const FOCUS_GLSL = `uniform vec4 uFocus;
 vec3 focusOrigin() { return uFocus.w > 0.5 ? uFocus.xyz : uCamPos; }`;
@@ -94,3 +94,6 @@ vec3 dwWaterFogAdd(vec3 add, vec3 worldPos) {
   float d = dwWaterDistance(worldPos);
   return add * exp(-d * uDwFog[1].xyz) * uDwFog[2].w * (1.0 - dwWaterClose(d));
 }`;
+
+/** The fog block as a program's source takes it, ending its own line, so a pass reads it without the grass renderer. */
+export const FOG_FACTOR_GLSL = FOG_GLSL + '\n';

@@ -82,6 +82,7 @@ import { CORPSE_ACTIVATION_DISTANCE, liveFoeTargets, liveFoeFor } from '../playe
 import { WEAPON_REACH } from '../combat/playerWeapon.js';   // AUDIT WATCH1 B2: a peer's melee blow on my watch lands from the player's own reach, no farther   // AUDIT WORLD6b-iii(c) A1/C7: the owner reads the taker's reach
 import { createWeapon, bowDamageArrow } from '../combat/enemyEquipment.js';   // MAC-N1: the recovered shaft is CreateWeapon's arrow, value and all   // AUDIT WORLD6b-ii B2: a puppet's weapon is its owner's word, rebuilt from the descriptor   // AUDIT WORLD6b B3/C2: a cell's record projected and its puppets capped, the wire's law
 import { mintCorpseMarker, corpseTextureOf, tickCorpseMarkers, playBodyFall, playRareDrop, corpseLootTargets, physicalCorpseSources, corpseEntryFor, corpseContents, openCorpseLoot, pileBody, sayEnemyDied, raiseEnemyDeath, corpseEntityName } from './corpseMarker.js';
+import { createInvasionBossHost } from './invasionBossHost.js';   // an invasion's boss: its rise, its fall, its slam
 import { createStreetCorpsePrefabs } from './corpsePrefabHost.js';   // DEX5 / AUDIT DEX D11: a mod's corpse prefab - the pool's reach
 import { rollCorpseKit, savedSummon, restoredSummon } from '../systems/foeLootCap.js';   // KIT-ROLL: a plain foe's kit, laddered at its death by every body door; AUDIT RPT1026 F4: a summon's mark through a save
 import { floorLanding } from '../player/enterExit.js';   // REVENANT-FATE (the 2026-10-02 audit): a flyer kneels, and its pile lies, on the ground below
@@ -118,6 +119,7 @@ import { STAR_CIRCLE_SHARE } from '../net/starfall/starfallLaw.js';   // STAR5: 
 import { createHostNpcBodies, npcBodiesOn } from '../characters/npcBodies.js';   // MWNPC5c: the pool's foes in their Morrowind bodies
 import { isBodyFoe, foeActor, foeFx, foeWireLook, applyWireLook, kitWire } from '../characters/foeBodies.js';   // WATCH-PROTECTS: a townsperson's one blow
 import { raidLeaderNameOf } from '../systems/raidKinds.js';   // RAID5: a raid's leader, by its party's word
+import { toyboxRaidKey } from '../systems/staffEvents.js';
 import { huntMarkSeen } from '../systems/hunt/namedMark.js';   // HUNTERS-MARK-II: a hunter's named mark, read off its record
 import { elitesAllowed, promoteEliteFoe, promoteRaidLeader, rollOverworldElite, grantEliteLoot, eliteLoot, eliteGlow, setBatchEliteGlow, eliteSize, isEliteCorpse, markEliteCorpseBatch, isStaffBoss, promoteStaffBoss, STAFF_BOSS_SPELL_TAKEN, staffBossHit, STAFF_BOSS_FIGHTERS_MAX } from '../systems/eliteFoes.js';   // ELITE FOES: 5% of the wilds' foes   // HITFLASH1
 import { grantKindOf, grantElite } from '../net/grantLaw.js';   // GRANT3-GRANT4: a stand's grant - its kind, its member's elite (bible/11-Multiplayer/Spawn-Grants.md)
@@ -335,6 +337,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
   // array as soon as there is one, because EnemyAI COPIES the position
   // it is handed.
   const spawning = [];    // { feet, capped }
+  const invasion = createInvasionBossHost({ player: playerEntity, onHurt: (n) => onPlayerHurt?.(n, null) });
   const portals = createPortalSet({ renderer, audio });   // COMPANION-PORTAL: this pool's own, drawn with its foes
   let _eye = null;   // COMPANION-PORTAL: the camera, for a portal to stand behind its body
   // AUDIT-39r: THE SWEEP'S EPOCH. clearLive below is
@@ -912,7 +915,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
   /** AUDIT (the pre-merge audit, Q4): a party member within `r` of my shared quest foe - the fight is theirs too, and the
    *  cull that takes a foe past my own relevance took it off their screen with no fall (their copy had counted the
    *  wave as placed, so the quest stood nothing of its own and waited on a kill that could not come). */
-  /** PACK-KEEP (mob 2026-10-26: "if enemy despawn dont count them as well respawn them on another player"): a raid's or a
+  /** PACK-KEEP: a raid's or a
    *  staff event's monster (`raidKey`) stands while ANY player is near it. Its packs are stood about every player in the
    *  town (PACK-SPREAD), and the runner's 120 m cull took each one stood about a player that far from the runner on the
    *  frame it stood - never counted (no corpse), stood again about the same player, taken again. */
@@ -926,7 +929,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
   /** AUDIT PSCALE1 (Mac: "Whoever fights it"): how many players fight `f` - my own foe's, counted at this door from
    *  every blow it takes (systems/party/partyScale.js foeFighters); another player's puppet's, its owner's word on its record
    *  (`n`). Kept on the foe (`_fightN`) for the readers outside this pool (the Renown bonus, the sigil's forge). */
-  /** BOSS-EXACT (mob 2026-10-25: "the rat isnt takeing any dmage"): a shared foe whose health its fighters' toughness weighs -
+  /** BOSS-EXACT: a shared foe whose health its fighters' toughness weighs -
    *  never a staff event's mini boss, whose health is the exact number staff typed (BOSS-HP); over eight fighters' 4.5 a
    *  Daedric blow on a 10,000-health boss took four. Its blows at me still weigh by them (partyHit). */
   const _toughFoe = (f) => _sharedFoe(f) && !f.entity?.staffBoss;
@@ -947,6 +950,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     const bout = f.entity?.bout ?? null;   // ARENA2: a fighter on the arena's sand (scenes/arena/arenaBouts.js)
     if (fromPlayer && !peer && !bout) renownFoeStruck(f);   // RENOWN1: MY blow - a puppet's too, before the divert sends it to the owner; ARENA2: never a bout fighter's (no renown on the sand)
     if (f.yielded || f.executing || f.sparing || f.leaving || f.roaring) return;   // REVENANT-FATE: a beaten revenant takes no blow - its fate is the player's choice (RVN3: nor one tearing away; RVN4: nor one roaring)
+    if (invasion.takes(f, damage, kind, fromPlayer && !peer)) return;   // an invasion's foe is its cell's: my blow goes there to be judged, and its rising boss takes none
     // AUDIT PSCALE1 DOORS-1: a KILL is not a blow - a Disintegrate, a stat drained to zero (the sinks' `whole`), the
     // Razor's whole-health strike (its mark on the foe) - and no fighters' toughness divides it, here or at the owner
     // BOSS-SPELL-WARD: a staff event's mini boss takes a tenth of every spell, where its health is (a puppet's goes to its
@@ -1089,7 +1093,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
       // below. AUDIT 24: this one was never freed either, and unlike
       // the cull the record STAYS in `foes` (the tail splice spares
       // corpses), so the batch was unreachable and undead at once.
-      releaseFoeBatch(f);
+      if (!invasion.keeps(f)) releaseFoeBatch(f);   // an invasion's boss keeps it through its fall
       f.killedBy = peer ? 'peer' : fromPlayer ? 'player' : 'other';   // AUDIT FB1025i D2: whose hand, as the watch's pool marks it (cityGuards.js damageGuard) - a road stand slain by the player alone is a Murder reported (roadStands.js)
       // EnemyDeath:131-136 gates the clear on `senses.Target ==
       // PlayerEntityBehaviour` too - a foe killed while fighting
@@ -1108,7 +1112,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
       // nothing ever played BodyFall (:126-129).
       // TrackLooseObject runs INSIDE CreateEnemyCorpseMarker, so the
       // pixel is read at the death, not when the texture lands.
-      mintCorpse(f);   // WORLD6b: one home for the body, a puppet's too
+      invasion.lay(f, () => mintCorpse(f), () => releaseFoeBatch(f));   // WORLD6b: one home for the body, a puppet's too; an invasion's boss's after its fall
       return;
     }
     // C15 knockback, WeaponManager.cs:578-581. AUDIT 24 (wave 38): this
@@ -1136,7 +1140,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
       weight: () => enemyWeightClassicUnits(isClass, f.gender, mobileWeight, f.entity?.items),
     }, { audio, hitEffects, shake: fromPlayer && !peer && !striker ? shake : null, rolls });   // AUDIT TELL H6: my own blow's kick alone
     if (_tell === 'hold') return;
-    if (knockDir && !f.entity?.staffBoss && weaponKnockbackApplies(f.ai.knockbackSpeed, isClass, mobileWeight)) {   // BOSS-UNSHAKEN (mob 2026-10-25: "he got stun locked lets stop him from getting stunned"): a staff event's mini boss takes no shove and no Hurt
+    if (knockDir && !f.entity?.staffBoss && weaponKnockbackApplies(f.ai.knockbackSpeed, isClass, mobileWeight)) {   // BOSS-UNSHAKEN: a staff event's mini boss takes no shove and no Hurt
       // EW1: the foe's own kit is half of DFU's weight
       const w = enemyWeightClassicUnits(isClass, f.gender, mobileWeight, f.entity?.items);
       f.ai.knockbackSpeed = weaponKnockbackSpeed(damage, w) * (_tell === 'stagger' ? TELL.STAGGER_KNOCK : 1);
@@ -1585,6 +1589,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     if (eye) _eye = eye;
     portals.tick(_eye);   // COMPANION-PORTAL: each opening, holding, sealing
     hitEffects?.bleed?.(dt, foes, foeBleedView);   // BLOOD2c: the wounded drip, the dead bleed out - every body this pool walks, puppets included
+    invasion.tick();
     corpsePrefabs.frame(foes, dt);   // DEX5: a prefab's body on the foes' clock
     tickCorpseMarkers(corpseBatches, dt);   // AUDIT DEX B3: a body of more than one frame animates (the Hell Hound's)
     _peerFrame++;   // WORLD6b-ii: the peers are read once a frame
@@ -1599,6 +1604,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
       f.questBehaviour?.update();
       if (f._keptTag || f.questBehaviour) keptKillTick(f);   // KEPT-KILL: and a foe kept on a partner's word says its fall; DESYNC-ZERO: and my quest's own
       if (f.dead) continue;
+      if (invasion.frame(f, playerFeet, eye)) continue;   // an invasion's foe: walked where its cell says, its boss held while it rises
       if (!f.puppet && f.entity.bossWrathFrom != null && bossTraitsTick(f.entity, _bossS) === 'wrath') say?.(bossWrathLine(foeTitle(f.entity, enemyDisplayName(f.mobileType)) ?? ''));   // AUDIT WORLD-EVENTS L2-5: a wrath come due turns on its own clock, struck or not
       // WORLD6b: a PUPPET - posed by its owner's stream (the feet eased toward the streamed feet, a far jump snapped, the
       // yaw set), the walk while the streamed feet move, the hurt one-shot after a health drop, the strike edge once
@@ -2111,7 +2117,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     npcLane?.begin();
     _npcOffered = !!npcLane;
     for (const f of foes) {
-      if (f.dead || !f._mout) continue;
+      if ((f.dead && !invasion.falling(f)) || !f._mout) continue;   // an invasion's boss is drawn through its fall
       if (pilotFoe(f)) continue;   // STAFF-PILOT: the boss I steer - my camera stands inside it
       // A5 - EntityConcealmentBehaviour.Update/MakeConcealed
       // (:36-43, :56-62): "Handles magical concealment for entities
@@ -2155,6 +2161,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
         org[0] = f.ai.feet[0]; org[1] = spriteOriginY(f.ai.feet[1], f.idleH, sz.h, _bh); org[2] = f.ai.feet[2];
         f.batch.origin = org;
       } else f.batch.origin = _sg > 1 ? _sd.feet : f.ai.feet;
+      invasion.dress(f, _eye);   // an invasion's boss: risen, fallen
       // MWNPC5c: a class foe offered to its body, dressed as its billboard is; the billboard draws until drawBodies says
       // the body stands, and casts its shadow either way. One drawn grown on a wagon under the Overworld (WAGONS2) keeps
       // its sprite - the far view's, as the roads' bands are (MWNPC10c)
@@ -2530,7 +2537,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
    *  it, t the species, x the gender bit, f the feet in the world frame, y the yaw, h the health, d dead, a the attack
    *  count with the ranged bit low, m moving. CURSE-SYNC: a world quest's foe is no quest's here - it rides as an
    *  encounter's (`_questLike`). */
-  /** BOSS-BAR (mob 2026-10-25: "the bar never moved"): a foe's health as its record says it - past the wire's
+  /** BOSS-BAR: a foe's health as its record says it - past the wire's
    *  FOE_HEALTH_MAX (a staff event's mini boss, up to 1,000,000) at the same share of FOE_HEALTH_MAX its record's `k`
    *  holds, so every reader's bar falls with its owner's; clamped at the bound, it read full until 900,000 were gone. */
   const wireHealth = (e) => {
@@ -2787,7 +2794,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
       const took = _adopted.get(key);
       if (took) { _adopted.delete(key); if (r.d !== 1 && !took.dead && !took._gone) letGo(took); }
       if (_pupPending.has(key)) { _pupPending.set(key, { ...r, ls: r.ls ?? _pupPending.get(key).ls, ...(r.lw ? null : kitWire(_pupPending.get(key))), t: _pupPending.get(key).t, _site: _pupPending.get(key)._site, _deep: _pupPending.get(key)._deep, _quest: _pupPending.get(key)._quest, _raid: _pupPending.get(key)._raid, _camp: campTags.get(r.i) ?? _pupPending.get(key)._camp, _cp: _pupPending.get(key)._cp }); continue; }   // AUDIT ALL A1: a pending build's SPECIES is fixed at the build - a later word without `t` (or with another) neither moves it out of its class's count (an unbounded stand: a peer re-worded a pending watch as no species and stood ten more) nor lands a record of the wrong species on the build   OW6: and its camp, the newest word
-      if (r.d === 1 || r.t === undefined || !ENEMY_BASICS[r.t] || !r.f) continue;
+      if (r.d === 1 || r.t === undefined || !ENEMY_BASICS[r.t] || !r.f || toyboxRaidKey(raidTags.get(r.i))) continue;   // a toybox event's raider is an older build's: none stands
       if (heldOf(from) >= PEER_PUPPETS_TOTAL_MAX) { if (site) refused.add(site); continue; }   // FOE-FORGE: every allowance together, and what I took of theirs
       if (site && (isStarSite(site) ? livePuppetsOf(from, false, false, false, false, false, true) >= WOD_STAR_PUPPETS_MAX : livePuppetsOf(from, false, true) >= WOD_CAMP_PUPPETS_MAX)) { refused.add(site); continue; }   // WOD7: a shared camp's foes under their own allowance - AUDIT STARFALL C7: a fallen star's under its own, the most its law stands
       const deep = deepIds.has(r.i);
@@ -3009,8 +3016,8 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     renownFoeDied(f);
     if (f._pupQuest) _questShare?.onPuppetDied?.(f._pupQuest, f.puppet, f.seq);   // KEPT-KILL: whose foe, by its number - the kill the owner's pose may say too counts once   // QUEST-PARTY: a party's quest foe fell - my copy of the quest counts the kill (IncrementKills)   // RENOWN1: its owner's frame says it fell - it pays me if I fought it
     f.corpse = true;
-    releaseFoeBatch(f);
-    mintCorpse(f);
+    if (!invasion.keeps(f)) releaseFoeBatch(f);
+    invasion.lay(f, () => mintCorpse(f), () => releaseFoeBatch(f));
   }
   /** A puppet gone: its owner's roll no longer names it, its owner left the cell or went quiet, or the room changed.
    *  AUDIT WORLD6b B5/B7: the record ENDS here - spliced out of the roll (a flag left it standing for the next frame,
@@ -3070,7 +3077,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     const dmg = Number(data.dmg);
     if (f?.dead && data.cs === 1 && foes.includes(f)) { const s = hitSpellOf(data); return !!s && !!f.corpsePrefab?.struck(s.spell, s.level, null); }   // DEX5b: a copy's missile on my foe's prefab body (its bundle, the body's own entity)   // QUEST-PARTY: a quest's foe takes a peer's blow only from the party it rides to - any peer's word used to land on one it could not even see
     if (!f || f.dead || !Number.isFinite(dmg) || dmg < 0 || (dmg > PEER_HIT_DMG_MAX && !f.entity?.staffBoss)) return false;   // BOSS-BIG-HIT: a staff event's mini boss takes a blow past the bound at the bound (below) - every other foe refuses it whole
-    const blow = Math.min(PEER_HIT_DMG_MAX, dmg);   // BOSS-BIG-HIT (mob 2026-10-25: "magic hits 10 of thousands"): a peer's spell of tens of thousands on the mini boss lands as 10,000 - it was thrown away
+    const blow = Math.min(PEER_HIT_DMG_MAX, dmg);   // BOSS-BIG-HIT: a peer's spell of tens of thousands on the mini boss lands as 10,000 - it was thrown away
     // AUDIT CC-E1: ANOTHER's foe mauled my companion where it stands - the blow lands here, where he is real: the foe's
     // blow, not a player's (the knock-out arm his death), and he turns on the striker's puppet
     if (data.fb === 1) {

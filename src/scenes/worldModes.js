@@ -8899,7 +8899,7 @@ export function createWorldModes(host) {
         return true;
       }
       if (key.startsWith('droppedTorch:')) { interiorTorches.activate(key, getInteractionMode()); return true; }   // HT1: PickUpLightSource
-      if (key.startsWith('decor:') || key.startsWith('base:')) { (key.startsWith('base:') ? (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) === 'out' && decorTool.act('out', key.slice(5))) : (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) ? decorTool.act(plaqueActionFor(key), decorIdOfKey(key)) : activateDecor(decorIdOfKey(key)))); return true; }   // DECOR1c: a placed piece - its storage opens for its owner; decorating runs the plaque's lit row, and Take out on the room's own furniture
+      if (key.startsWith('decor:') || key.startsWith('base:')) { (key.startsWith('base:') ? (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) === 'out' && decorTool.act('out', key.slice(5))) : (decorTool.flying() && !decorTool.ghost() ? decorTool.act(plaqueActionFor(key) ?? 'move', decorIdOfKey(key)) : activateDecor(decorIdOfKey(key)))); return true; }   // DECOR1c: a placed piece - its storage opens for its owner; decorating runs the plaque's lit row (or Move when the fold missed), never opens the piece; Take out on the room's own furniture
       // INTERIOR-BODIES: ...AND THE PRESS ARM THE BODIES NEVER HAD.
       //
       // The same door the street opens (world.js / exterior.js) and the
@@ -9058,7 +9058,7 @@ export function createWorldModes(host) {
         }
         return true;
       }
-      (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) ? (interiorCtx.actions.objects.get(key)?.roomDoor ? decorTool.act('remove', interiorCtx.actions.objects.get(key).roomIndex) : (key.startsWith('act:decor:') ? decorTool.act(plaqueActionFor(key), key.slice(10)) : interiorCtx.actions.activate(key, { steal: getInteractionMode() === 'steal', doorSpell: doorSpellFor(playerEntity) }))) : interiorCtx.actions.activate(key, { steal: getInteractionMode() === 'steal', doorSpell: doorSpellFor(playerEntity) }));   // X1; decorating takes a swing door out, or runs the lit row of a placed one, instead of opening it
+      (decorTool.flying() && !decorTool.ghost() ? (interiorCtx.actions.objects.get(key)?.roomDoor ? decorTool.act('remove', interiorCtx.actions.objects.get(key).roomIndex) : (key.startsWith('act:decor:') ? decorTool.act(plaqueActionFor(key) ?? 'move', key.slice(10)) : interiorCtx.actions.activate(key, { steal: getInteractionMode() === 'steal', doorSpell: doorSpellFor(playerEntity) }))) : interiorCtx.actions.activate(key, { steal: getInteractionMode() === 'steal', doorSpell: doorSpellFor(playerEntity) }));   // X1; decorating takes a swing door out, or runs the lit row of a placed one (Move when the fold missed), instead of opening it
       return true;
     }
     // Verbatim BuildingTransitionExteriorLogic: the closest exterior

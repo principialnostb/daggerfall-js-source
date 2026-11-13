@@ -52,10 +52,16 @@ import { itemOwnStyleFields } from '../../systems/item/itemAppearanceKey.js';
 // ═══════════════════════════════════════════════════════════════════
 
 import { WEAPONS, WEAPON_MATERIALS } from '../../characters/weapons.js';
-import { OWN_MW_MODELS } from '../../characters/ownModels/ownWeaponModels.js';   // FIELD-GUN-MW2: the weapons Morrowind does not have
-import { OWN_MW_ARMOR, ownArmorModelFor, ownArmorParts } from '../../characters/ownModels/ownArmorModels.js';   // MW-BRIG1: the armour Morrowind does not have; MW-STEEL1: and its styles
-import { CLOAK_NAMES, CLOAK_PAINTINGS, cloakModel, ownCloakFor, ownOutfitFor } from '../../characters/ownModels/ownClothingModels.js';   // MW-CLOAK1: and the clothing; MW-FOLK1: and the townsfolk's outfits
-import { t } from '../../systems/textManager.js';   // L10N4: MW-FOLK1's notes in the player's language
+import { OWN_MW_MODELS } from '../../characters/ownModels/ownWeaponModels.js'; // FIELD-GUN-MW2: the weapons Morrowind does not have
+import { OWN_MW_ARMOR, ownArmorModelFor, ownArmorParts } from '../../characters/ownModels/ownArmorModels.js'; // MW-BRIG1: the armour Morrowind does not have; MW-STEEL1: and its styles
+import {
+  CLOAK_NAMES,
+  CLOAK_PAINTINGS,
+  cloakModel,
+  ownCloakFor,
+  ownOutfitFor,
+} from '../../characters/ownModels/ownClothingModels.js'; // MW-CLOAK1: and the clothing; MW-FOLK1: and the townsfolk's outfits
+import { t } from '../../systems/textManager.js'; // L10N4: MW-FOLK1's notes in the player's language
 import { ARMOR_MATERIAL } from '../../systems/armorMaterials.js';
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';
 import { selectedShieldLook } from '../../characters/ownModels/shieldLooks.js';
@@ -69,15 +75,24 @@ const HELM_TEMPLATE = ARMOR_ENUM.Helm;
 /** MW's CLOT types (loadclot.hpp). Gloves and jewellery exist in the
  *  enum and have no Daggerfall garment, so no row maps to them. */
 export const MW_CLOTHING_TYPE = Object.freeze({
-  Pants: 0, Shoes: 1, Shirt: 2, Belt: 3, Robe: 4,
-  RGlove: 5, LGlove: 6, Skirt: 7, Ring: 8, Amulet: 9,
+  Pants: 0,
+  Shoes: 1,
+  Shirt: 2,
+  Belt: 3,
+  Robe: 4,
+  RGlove: 5,
+  LGlove: 6,
+  Skirt: 7,
+  Ring: 8,
+  Amulet: 9,
 });
 
 /** Template index -> garment NAME for the wearable range (equipRules'
  *  MensClothing/WomensClothing, 141-216). The DB names garments and
  *  the rows below key on those names - two sexes, one law. */
-export const CLOTHING_NAME = Object.freeze(Object.fromEntries(
-  templates.filter((t) => t.index >= 141 && t.index <= 216).map((t) => [t.index, t.name])));
+export const CLOTHING_NAME = Object.freeze(
+  Object.fromEntries(templates.filter((t) => t.index >= 141 && t.index <= 216).map((t) => [t.index, t.name])),
+);
 
 /** DF garment name -> the MW CLOT type it resolves against, plus the
  *  reference slot behaviour it triggers. JUDGEMENT ROWS, recorded:
@@ -94,19 +109,32 @@ export const CLOTHING_NAME = Object.freeze(Object.fromEntries(
  *  `reserve` marks the reference's slot law: robes reserve eleven
  *  part slots, skirts three (npcanimation.cpp:635-650). */
 export const DF_CLOTHING_ROWS = Object.freeze({
-  'Straps': { type: MW_CLOTHING_TYPE.Shirt }, 'Challenger Straps': { type: MW_CLOTHING_TYPE.Shirt },
-  'Champion Straps': { type: MW_CLOTHING_TYPE.Shirt }, 'Armbands': { type: MW_CLOTHING_TYPE.Shirt },
-  'Fancy Armbands': { type: MW_CLOTHING_TYPE.Shirt }, 'Eodoric': { type: MW_CLOTHING_TYPE.Shirt },
-  'Formal Eodoric': { type: MW_CLOTHING_TYPE.Shirt }, 'Short Tunic': { type: MW_CLOTHING_TYPE.Shirt },
-  'Formal Tunic': { type: MW_CLOTHING_TYPE.Shirt }, 'Reversible Tunic': { type: MW_CLOTHING_TYPE.Shirt },
-  'Open Tunic': { type: MW_CLOTHING_TYPE.Shirt }, 'Short Shirt': { type: MW_CLOTHING_TYPE.Shirt },
-  'Long Shirt': { type: MW_CLOTHING_TYPE.Shirt }, 'Vest': { type: MW_CLOTHING_TYPE.Shirt },
-  'Brassiere': { type: MW_CLOTHING_TYPE.Shirt }, 'Formal Brassiere': { type: MW_CLOTHING_TYPE.Shirt },
-  'Peasant Blouse': { type: MW_CLOTHING_TYPE.Shirt }, 'Khajiit Suit': { type: MW_CLOTHING_TYPE.Shirt },
-  'Casual Pants': { type: MW_CLOTHING_TYPE.Pants }, 'Breeches': { type: MW_CLOTHING_TYPE.Pants },
-  'Loincloth': { type: MW_CLOTHING_TYPE.Pants }, 'Tights': { type: MW_CLOTHING_TYPE.Pants },
-  'Shoes': { type: MW_CLOTHING_TYPE.Shoes }, 'Sandals': { type: MW_CLOTHING_TYPE.Shoes },
-  'Boots': { type: MW_CLOTHING_TYPE.Shoes }, 'Tall Boots': { type: MW_CLOTHING_TYPE.Shoes },
+  'Straps': { type: MW_CLOTHING_TYPE.Shirt },
+  'Challenger Straps': { type: MW_CLOTHING_TYPE.Shirt },
+  'Champion Straps': { type: MW_CLOTHING_TYPE.Shirt },
+  'Armbands': { type: MW_CLOTHING_TYPE.Shirt },
+  'Fancy Armbands': { type: MW_CLOTHING_TYPE.Shirt },
+  'Eodoric': { type: MW_CLOTHING_TYPE.Shirt },
+  'Formal Eodoric': { type: MW_CLOTHING_TYPE.Shirt },
+  'Short Tunic': { type: MW_CLOTHING_TYPE.Shirt },
+  'Formal Tunic': { type: MW_CLOTHING_TYPE.Shirt },
+  'Reversible Tunic': { type: MW_CLOTHING_TYPE.Shirt },
+  'Open Tunic': { type: MW_CLOTHING_TYPE.Shirt },
+  'Short Shirt': { type: MW_CLOTHING_TYPE.Shirt },
+  'Long Shirt': { type: MW_CLOTHING_TYPE.Shirt },
+  'Vest': { type: MW_CLOTHING_TYPE.Shirt },
+  'Brassiere': { type: MW_CLOTHING_TYPE.Shirt },
+  'Formal Brassiere': { type: MW_CLOTHING_TYPE.Shirt },
+  'Peasant Blouse': { type: MW_CLOTHING_TYPE.Shirt },
+  'Khajiit Suit': { type: MW_CLOTHING_TYPE.Shirt },
+  'Casual Pants': { type: MW_CLOTHING_TYPE.Pants },
+  'Breeches': { type: MW_CLOTHING_TYPE.Pants },
+  'Loincloth': { type: MW_CLOTHING_TYPE.Pants },
+  'Tights': { type: MW_CLOTHING_TYPE.Pants },
+  'Shoes': { type: MW_CLOTHING_TYPE.Shoes },
+  'Sandals': { type: MW_CLOTHING_TYPE.Shoes },
+  'Boots': { type: MW_CLOTHING_TYPE.Shoes },
+  'Tall Boots': { type: MW_CLOTHING_TYPE.Shoes },
   'Short Skirt': { type: MW_CLOTHING_TYPE.Skirt, reserve: 'skirt' },
   'Long Skirt': { type: MW_CLOTHING_TYPE.Skirt, reserve: 'skirt' },
   'Wrap': { type: MW_CLOTHING_TYPE.Skirt, reserve: 'skirt' },
@@ -135,9 +163,9 @@ export const RESERVES = Object.freeze({
   robe: [4, 5, 21, 22, 13, 14, 19, 20, 11, 12, 3],
   skirt: [4, 21, 22],
 });
-import { DF_TO_MW_WEAPON, DF_TO_MW_MATERIAL, ARM_PARTS, MOD_WEAPON_TO_MW } from './mwFirstPerson.js';   // WEREWOLF1: ARM_PARTS, addPartGroup's first-person fallback parts; MW-ASSIGN: a mod's weapons
-import { drawnPiece } from '../../net/appearanceLaw.js';   // APPEARANCES: a worn piece's look
-import { modelLookFor } from '../../systems/modelLookSource.js';   // MODEL-LOOKS: the player's own 3D look of a piece (a leaf)
+import { DF_TO_MW_WEAPON, DF_TO_MW_MATERIAL, ARM_PARTS, MOD_WEAPON_TO_MW } from './mwFirstPerson.js'; // WEREWOLF1: ARM_PARTS, addPartGroup's first-person fallback parts; MW-ASSIGN: a mod's weapons
+import { drawnPiece } from '../../net/appearanceLaw.js'; // APPEARANCES: a worn piece's look
+import { modelLookFor } from '../../systems/modelLookSource.js'; // MODEL-LOOKS: the player's own 3D look of a piece (a leaf)
 
 /** DF armor material -> the token MW armor record ids carry. */
 // MW-D37: colour truth (see DF_MATERIAL_RGB): Elven is silver-white in
@@ -146,10 +174,19 @@ import { modelLookFor } from '../../systems/modelLookSource.js';   // MODEL-LOOK
 // ebony to the eye (Adamantium tries Tribunal's own first). Each value
 // is a CHAIN tried in order.
 export const DF_TO_MW_ARMOR_MATERIAL = Object.freeze({
-  Leather: ['netch'], Chain: ['chain', 'iron'], Chain2: ['chain', 'iron'],   // BARE-BOOTS: what imperial chain lacks, iron
-  Iron: ['iron'], Steel: ['steel'], Silver: ['steel'], Elven: ['steel'],
-  Dwarven: ['dwemer'], Mithril: ['ebony'], Adamantium: ['adamantium', 'ebony'],
-  Ebony: ['ebony'], Orcish: ['orcish'], Daedric: ['daedric'],
+  Leather: ['netch'],
+  Chain: ['chain', 'iron'],
+  Chain2: ['chain', 'iron'], // BARE-BOOTS: what imperial chain lacks, iron
+  Iron: ['iron'],
+  Steel: ['steel'],
+  Silver: ['steel'],
+  Elven: ['steel'],
+  Dwarven: ['dwemer'],
+  Mithril: ['ebony'],
+  Adamantium: ['adamantium', 'ebony'],
+  Ebony: ['ebony'],
+  Orcish: ['orcish'],
+  Daedric: ['daedric'],
 });
 
 /** Daggerfall's own colour per material and per clothing dye: the mean
@@ -159,14 +196,31 @@ export const DF_TO_MW_ARMOR_MATERIAL = Object.freeze({
  *  mapping's accuracy is a thing the eye checks in one row; the
  *  garment resolver picks the nearest-coloured CLOT by them. */
 export const DF_MATERIAL_RGB = Object.freeze({
-  Iron: [0x4e, 0x4e, 0x53], Steel: [0x79, 0x79, 0x79], Silver: [0xa3, 0xa3, 0xa7], Elven: [0xa6, 0xa6, 0xa7],
-  Dwarven: [0x97, 0x8a, 0x10], Mithril: [0x2a, 0x38, 0x49], Adamantium: [0x2e, 0x2e, 0x30], Ebony: [0x3a, 0x3a, 0x3a],
-  Orcish: [0x31, 0x40, 0x26], Daedric: [0x83, 0x2c, 0x10],
-  Leather: [0x8e, 0x63, 0x47], Chain: [0x6b, 0x6b, 0x75], Chain2: [0x6b, 0x6b, 0x75],
+  Iron: [0x4e, 0x4e, 0x53],
+  Steel: [0x79, 0x79, 0x79],
+  Silver: [0xa3, 0xa3, 0xa7],
+  Elven: [0xa6, 0xa6, 0xa7],
+  Dwarven: [0x97, 0x8a, 0x10],
+  Mithril: [0x2a, 0x38, 0x49],
+  Adamantium: [0x2e, 0x2e, 0x30],
+  Ebony: [0x3a, 0x3a, 0x3a],
+  Orcish: [0x31, 0x40, 0x26],
+  Daedric: [0x83, 0x2c, 0x10],
+  Leather: [0x8e, 0x63, 0x47],
+  Chain: [0x6b, 0x6b, 0x75],
+  Chain2: [0x6b, 0x6b, 0x75],
 });
 export const DF_CLOTHING_DYE_RGB = Object.freeze([
-  [0x4d, 0x6f, 0x9b], [0x6b, 0x6b, 0x75], [0x83, 0x2c, 0x10], [0x8e, 0x63, 0x47], [0x80, 0x59, 0x6f],
-  [0x8e, 0x72, 0x4e], [0x79, 0x79, 0x79], [0x4e, 0x7a, 0x7b], [0x97, 0x8a, 0x10], [0x56, 0x70, 0x53],
+  [0x4d, 0x6f, 0x9b],
+  [0x6b, 0x6b, 0x75],
+  [0x83, 0x2c, 0x10],
+  [0x8e, 0x63, 0x47],
+  [0x80, 0x59, 0x6f],
+  [0x8e, 0x72, 0x4e],
+  [0x79, 0x79, 0x79],
+  [0x4e, 0x7a, 0x7b],
+  [0x97, 0x8a, 0x10],
+  [0x56, 0x70, 0x53],
 ]);
 
 /** DF armor template -> how to find its MW records.
@@ -197,18 +251,18 @@ export const DF_ARMOR_ROWS = Object.freeze({
  *  is the classic ARMOR_MATERIAL the rows already translate (a fur piece is folded to Leather at its mint). Outside
  *  the classic rows every one of them stood as its classic picture - worn, on the icon and hung on a wall. */
 export const MOD_ARMOR_ROWS = Object.freeze({
-  515: DF_ARMOR_ROWS[ARMOR_ENUM.Cuirass],           // Hauberk
-  516: DF_ARMOR_ROWS[ARMOR_ENUM.Greaves],           // Chausses
-  517: DF_ARMOR_ROWS[ARMOR_ENUM.Left_Pauldron],     // Left Spaulder
-  518: DF_ARMOR_ROWS[ARMOR_ENUM.Right_Pauldron],    // Right Spaulder
-  519: DF_ARMOR_ROWS[ARMOR_ENUM.Boots],             // Sollerets
-  520: DF_ARMOR_ROWS[ARMOR_ENUM.Cuirass],           // Jerkin
-  521: DF_ARMOR_ROWS[ARMOR_ENUM.Greaves],           // Cuisse
-  522: DF_ARMOR_ROWS[ARMOR_ENUM.Helm],              // Helmet
-  523: DF_ARMOR_ROWS[ARMOR_ENUM.Boots],             // Boots
-  524: DF_ARMOR_ROWS[ARMOR_ENUM.Gauntlets],         // Gloves
-  525: Object.freeze({ tokens: ['bracer', 'gauntlet'], sides: ['left'] }),    // Left Vambrace
-  526: Object.freeze({ tokens: ['bracer', 'gauntlet'], sides: ['right'] }),   // Right Vambrace
+  515: DF_ARMOR_ROWS[ARMOR_ENUM.Cuirass], // Hauberk
+  516: DF_ARMOR_ROWS[ARMOR_ENUM.Greaves], // Chausses
+  517: DF_ARMOR_ROWS[ARMOR_ENUM.Left_Pauldron], // Left Spaulder
+  518: DF_ARMOR_ROWS[ARMOR_ENUM.Right_Pauldron], // Right Spaulder
+  519: DF_ARMOR_ROWS[ARMOR_ENUM.Boots], // Sollerets
+  520: DF_ARMOR_ROWS[ARMOR_ENUM.Cuirass], // Jerkin
+  521: DF_ARMOR_ROWS[ARMOR_ENUM.Greaves], // Cuisse
+  522: DF_ARMOR_ROWS[ARMOR_ENUM.Helm], // Helmet
+  523: DF_ARMOR_ROWS[ARMOR_ENUM.Boots], // Boots
+  524: DF_ARMOR_ROWS[ARMOR_ENUM.Gauntlets], // Gloves
+  525: Object.freeze({ tokens: ['bracer', 'gauntlet'], sides: ['left'] }), // Left Vambrace
+  526: Object.freeze({ tokens: ['bracer', 'gauntlet'], sides: ['right'] }), // Right Vambrace
 });
 /** The row a template resolves by - a classic one's, or a mod's (MW-ASSIGN). */
 export const armorRowOf = (templateIndex) => DF_ARMOR_ROWS[templateIndex] ?? MOD_ARMOR_ROWS[templateIndex] ?? null;
@@ -247,18 +301,31 @@ export const CLOTH_PICK_BAND = Object.freeze([1.5, 32]);
  *  CLOTH_PICK_NEAREST nearest the dye that lie within CLOTH_PICK_BAND of the nearest, where colours are measured, else
  *  among the pool. Neither, the resolution it
  *  always was: a player's garment, every peer's. */
-export function mwClothingRecord(clothes, name, { dye = null, colourOf = null, tier = null, pick = null, recordId = null } = {}) {
+export function mwClothingRecord(
+  clothes,
+  name,
+  { dye = null, colourOf = null, tier = null, pick = null, recordId = null } = {},
+) {
   const row = DF_CLOTHING_ROWS[name];
   if (!row) return { record: null, row: null, note: `"${name}" is not a garment row` };
   // WEREWOLF1: never the werewolf's robe - its parts are the wolf's body, not a garment (OpenMW hides it from the
   // inventory, class.cpp), and a dark Daggerfall robe measured nearest its fur would have dressed a person in it.
   // AUDIT C2: and never a record with no ground mesh - the reader keeps one for its parts (the robe may carry no MODL),
   // and a garment the item icon cannot draw is none of a Daggerfall item's
-  let pool = (clothes ?? []).filter((c) => c.type === row.type && !c.enchanted && c.id !== WEREWOLF_ROBE_ID && c.model)
+  let pool = (clothes ?? [])
+    .filter((c) => c.type === row.type && !c.enchanted && c.id !== WEREWOLF_ROBE_ID && c.model)
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  if (!pool.length) return { record: null, row, note: `no MW clothing of type ${row.type} in these archives - the classic sprite stands` };
+  if (!pool.length)
+    return {
+      record: null,
+      row,
+      note: `no MW clothing of type ${row.type} in these archives - the classic sprite stands`,
+    };
   // MODEL-LOOKS: the player's chosen garment of this type, when the archives hold it
-  if (recordId) { const chosen = pool.find((c) => c.id === recordId); if (chosen) return { record: chosen, row, note: 'the chosen look' }; }
+  if (recordId) {
+    const chosen = pool.find((c) => c.id === recordId);
+    if (chosen) return { record: chosen, row, note: 'the chosen look' };
+  }
   const picking = Number.isInteger(pick) && pick >= 0;
   if (Number.isInteger(tier) && tier >= 0 && tier <= 3) {
     // MWNPC17: the person's rung, else the nearest that has a record - one down before one up (a noble in fine
@@ -267,7 +334,10 @@ export function mwClothingRecord(clothes, name, { dye = null, colourOf = null, t
       const t = tier + d;
       if (t < 0 || t > 3) continue;
       const rung = pool.filter((c) => clothingTierOf(c.id) === t);
-      if (rung.length) { pool = rung; break; }
+      if (rung.length) {
+        pool = rung;
+        break;
+      }
     }
   }
   // MW-D37: THE DYE PICKS THE GARMENT. Daggerfall dyes a shirt one of
@@ -279,7 +349,8 @@ export function mwClothingRecord(clothes, name, { dye = null, colourOf = null, t
   // nothing measurable: the id-sorted first, as before.
   const want = dye != null ? DF_CLOTHING_DYE_RGB[dye | 0] : null;
   if (want && typeof colourOf === 'function') {
-    let best = null; let bestD = Infinity;
+    let best = null;
+    let bestD = Infinity;
     /** @type {{ c: any, d: number }[]} */
     const near = [];
     for (const c of pool) {
@@ -287,20 +358,28 @@ export function mwClothingRecord(clothes, name, { dye = null, colourOf = null, t
       if (!rgb) continue;
       const d = Math.hypot(rgb[0] - want[0], rgb[1] - want[1], rgb[2] - want[2]);
       if (picking) near.push({ c, d });
-      if (d < bestD) { bestD = d; best = c; }
+      if (d < bestD) {
+        bestD = d;
+        best = c;
+      }
     }
     if (picking && near.length) {
       // MWNPC17: the nearest few by colour, then the pool's own order for a tie - one of them the person's
       near.sort((a, b) => a.d - b.d || (a.c.id < b.c.id ? -1 : a.c.id > b.c.id ? 1 : 0));
       const band = near[0].d * CLOTH_PICK_BAND[0] + CLOTH_PICK_BAND[1];
       let k = Math.min(CLOTH_PICK_NEAREST, near.length);
-      while (k > 1 && near[k - 1].d > band) k--;   // AUDIT MWNPC16-18 C F2: the dye's colour, not merely the nearest few
+      while (k > 1 && near[k - 1].d > band) k--; // AUDIT MWNPC16-18 C F2: the dye's colour, not merely the nearest few
       const chosen = near[pick % k];
-      return { record: chosen.c, row, note: `picked by dye (distance ${Math.round(chosen.d)}, ${pick % k + 1} of the ${k} nearest)` };
+      return {
+        record: chosen.c,
+        row,
+        note: `picked by dye (distance ${Math.round(chosen.d)}, ${(pick % k) + 1} of the ${k} nearest)`,
+      };
     }
     if (best) return { record: best, row, note: `resolved by dye (distance ${Math.round(bestD)})` };
   }
-  if (picking) return { record: pool[pick % pool.length], row, note: `picked (${pick % pool.length + 1} of ${pool.length})` };   // MWNPC17
+  if (picking)
+    return { record: pool[pick % pool.length], row, note: `picked (${(pick % pool.length) + 1} of ${pool.length})` }; // MWNPC17
   return { record: pool[0], row, note: 'resolved' };
 }
 
@@ -309,9 +388,61 @@ export function mwClothingRecord(clothes, name, { dye = null, colourOf = null, t
  *  among the heavy (UESP's Morrowind armour classes). An id this names none of is no look (null). Order matters: the
  *  first prefix that matches wins (imperial_chain is medium, imperial_studded light, any other imperial heavy). */
 const ARMOR_WEIGHT_PREFIXES = Object.freeze([
-  ['light', ['netch', 'chitin', 'fur', 'glass', 'newtscale', 'heavy_leather', 'nordic_leather', 'left leather', 'right leather', 'cloth', 'imperial_studded', 'bm wolf', 'gondolier']],
-  ['medium', ['imperial_chain', 'chain', 'bonemold', 'orcish', 'dragonscale', 'dreugh', 'trollbone', 'nordic_ringmail', 'bm_nordicmail', 'bm bear', 'adamantium', 'morag_tong', 'redoran', 'cephalopod', 'mole_crab', 'dust_adept']],
-  ['heavy', ['iron', 'steel', 'dwemer', 'ebony', 'daedric', 'imperial', 'templar', 'indoril', 'silver', 'nordic_iron', 'bm_ice']],
+  [
+    'light',
+    [
+      'netch',
+      'chitin',
+      'fur',
+      'glass',
+      'newtscale',
+      'heavy_leather',
+      'nordic_leather',
+      'left leather',
+      'right leather',
+      'cloth',
+      'imperial_studded',
+      'bm wolf',
+      'gondolier',
+    ],
+  ],
+  [
+    'medium',
+    [
+      'imperial_chain',
+      'chain',
+      'bonemold',
+      'orcish',
+      'dragonscale',
+      'dreugh',
+      'trollbone',
+      'nordic_ringmail',
+      'bm_nordicmail',
+      'bm bear',
+      'adamantium',
+      'morag_tong',
+      'redoran',
+      'cephalopod',
+      'mole_crab',
+      'dust_adept',
+    ],
+  ],
+  [
+    'heavy',
+    [
+      'iron',
+      'steel',
+      'dwemer',
+      'ebony',
+      'daedric',
+      'imperial',
+      'templar',
+      'indoril',
+      'silver',
+      'nordic_iron',
+      'bm_ice',
+    ],
+  ],
 ]);
 /** The weight class of a Morrowind armour record, or null. */
 export function armorWeightOf(id) {
@@ -333,16 +464,28 @@ export function armorSideOf(id) {
 }
 /** A record's id without its side - a pair's left and right share it, and a look is chosen by it. */
 export function armorStemOf(id) {
-  return String(id ?? '').toLowerCase().replace(/left|right/g, '').replace(/(gauntlet|guantlet|pauldron|bracer)[lr]$/, '$1')
-    .replace(/_[lr]$/, '').replace(/[\s_-]+/g, '_').replace(/^_+|_+$/g, '');
+  return String(id ?? '')
+    .toLowerCase()
+    .replace(/left|right/g, '')
+    .replace(/(gauntlet|guantlet|pauldron|bracer)[lr]$/, '$1')
+    .replace(/_[lr]$/, '')
+    .replace(/[\s_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 }
 /** The records of this armour row a look's stem names - one, or one a side - or [] when the archives hold none. */
 export function armorLookRecords(armorRecords, row, stem) {
   if (!row || !stem) return [];
-  const pool = (armorRecords ?? []).filter((r) => {
-    const id = String(r.id || '').toLowerCase();
-    return !r.enchanted && armorStemOf(id) === stem && row.tokens.some((t) => id.includes(t)) && !(row.not ?? []).some((n) => id.includes(n));
-  }).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const pool = (armorRecords ?? [])
+    .filter((r) => {
+      const id = String(r.id || '').toLowerCase();
+      return (
+        !r.enchanted &&
+        armorStemOf(id) === stem &&
+        row.tokens.some((t) => id.includes(t)) &&
+        !(row.not ?? []).some((n) => id.includes(n))
+      );
+    })
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   if (!row.sides) return pool.slice(0, 1);
   const out = row.sides.map((side) => pool.find((r) => armorSideOf(r.id) === side)).filter(Boolean);
   return out.length === row.sides.length ? out : [];
@@ -355,47 +498,87 @@ export function armorLookRecords(armorRecords, row, stem) {
  */
 export function mwArmorRecords(armorRecords, templateIndex, material, looks = null, pick = null, ownStyle = null) {
   // MODEL-LOOKS: the player's chosen record first, when the archives hold it; else the resolution below, as ever
-  if (pick) { const chosen = armorLookRecords(armorRecords, armorRowOf(templateIndex), pick); if (chosen.length) return { records: chosen, row: armorRowOf(templateIndex), material: null, note: 'the chosen look' }; }
+  if (pick) {
+    const chosen = armorLookRecords(armorRecords, armorRowOf(templateIndex), pick);
+    if (chosen.length)
+      return { records: chosen, row: armorRowOf(templateIndex), material: null, note: 'the chosen look' };
+  }
   const shield = selectedShieldLook({ templateIndex, material, ownStyle }, looks);
-  if (shield) return { records: [{ id: `shield_look_${shield.value}`, model: shield.model, parts: [] }], row: armorRowOf(templateIndex), material: shield.material, note: 'compatible shield appearance' };
-  const row = armorRowOf(templateIndex);   // MW-ASSIGN: a mod's piece by the classic row of its shape
+  if (shield)
+    return {
+      records: [{ id: `shield_look_${shield.value}`, model: shield.model, parts: [] }],
+      row: armorRowOf(templateIndex),
+      material: shield.material,
+      note: 'compatible shield appearance',
+    };
+  const row = armorRowOf(templateIndex); // MW-ASSIGN: a mod's piece by the classic row of its shape
   if (!row) return { records: [], row: null, note: `template ${templateIndex} is not an armor row` };
   const mName = matName(ARMOR_MATERIAL, material);
   const chain = DF_TO_MW_ARMOR_MATERIAL[mName] ?? null;
   if (!chain) return { records: [], row, note: `no MW material for ${mName ?? material}` };
   // the chain in order: the first material token any candidate carries
-  const byToken = (tok) => (armorRecords ?? []).filter((r) => {
-    const id = String(r.id || '').toLowerCase();
-    if (!id.includes(tok)) return false;
-    if ((row.not ?? []).some((n) => id.includes(n))) return false;
-    return true;
-  });
+  const byToken = (tok) =>
+    (armorRecords ?? []).filter((r) => {
+      const id = String(r.id || '').toLowerCase();
+      if (!id.includes(tok)) return false;
+      if ((row.not ?? []).some((n) => id.includes(n))) return false;
+      return true;
+    });
   const byPiece = (list) => {
     for (const t of row.tokens) {
-      const hit = list.filter((r) => String(r.id || '').toLowerCase().includes(t));
+      const hit = list.filter((r) =>
+        String(r.id || '')
+          .toLowerCase()
+          .includes(t),
+      );
       if (hit.length) return hit;
     }
     return [];
   };
   // BARE-BOOTS: the chain walked by PIECE - the first material token that has THIS piece, never the first with any
-  let token = chain[chain.length - 1]; let pool = [];
-  for (const tok of chain) { const hit = byPiece(byToken(tok)); if (hit.length) { token = tok; pool = hit; break; } }
+  let token = chain[chain.length - 1];
+  let pool = [];
+  for (const tok of chain) {
+    const hit = byPiece(byToken(tok));
+    if (hit.length) {
+      token = tok;
+      pool = hit;
+      break;
+    }
+  }
   pool.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   if (!pool.length) {
-    return { records: [], row, material: token, note: `no ${chain.join('/')} ${row.tokens[0]} in these archives - the classic sprite stands` };
+    return {
+      records: [],
+      row,
+      material: token,
+      note: `no ${chain.join('/')} ${row.tokens[0]} in these archives - the classic sprite stands`,
+    };
   }
   if (!row.sides) return { records: [pool[0]], row, material: token, note: 'resolved' };
   const records = [];
   const missing = [];
   for (const side of row.sides) {
-    const hit = pool.find((r) => String(r.id || '').toLowerCase().includes(side));
-    if (hit) records.push(hit); else missing.push(side);
+    const hit = pool.find((r) =>
+      String(r.id || '')
+        .toLowerCase()
+        .includes(side),
+    );
+    if (hit) records.push(hit);
+    else missing.push(side);
   }
   if (!records.length) {
-    return { records: [], row, material: token, note: `no sided ${row.tokens[0]} (${row.sides.join('/')}) - the classic sprite stands` };
+    return {
+      records: [],
+      row,
+      material: token,
+      note: `no sided ${row.tokens[0]} (${row.sides.join('/')}) - the classic sprite stands`,
+    };
   }
   return {
-    records, row, material: token,
+    records,
+    row,
+    material: token,
     note: missing.length ? `resolved, but the ${missing.join(' and ')} side is missing` : 'resolved',
   };
 }
@@ -427,7 +610,14 @@ export function itemMapCoverage() {
   // material ladder to walk - `pickWeaponRecord` is not reached at all
   // - and inventing one would be a census that reports work nobody did.
   for (const [index, own] of Object.entries(OWN_MW_MODELS)) {
-    out.push({ kind: 'own', item: own.name, material: 'n/a', via: 'ownWeaponModels', index: Number(index), model: own.model });
+    out.push({
+      kind: 'own',
+      item: own.name,
+      material: 'n/a',
+      via: 'ownWeaponModels',
+      index: Number(index),
+      model: own.model,
+    });
   }
   for (const [wName] of Object.entries(WEAPONS)) {
     for (const [mName, m] of Object.entries(WEAPON_MATERIALS)) {
@@ -446,7 +636,18 @@ export function itemMapCoverage() {
       if (m === ARMOR_MATERIAL.None) continue;
       // MW-STEEL1: a classic piece the port dresses in its own model answers with the port's meshes, every style's
       const own = OWN_MW_ARMOR.find((a) => a.templateIndex === tmpl && a.material === m);
-      if (own) { out.push({ kind: 'own', item: aName, material: mName, via: 'armor', own: 'ownArmorModels', index: tmpl, model: ownModelsOf(own).join(' + ') }); continue; }
+      if (own) {
+        out.push({
+          kind: 'own',
+          item: aName,
+          material: mName,
+          via: 'armor',
+          own: 'ownArmorModels',
+          index: tmpl,
+          model: ownModelsOf(own).join(' + '),
+        });
+        continue;
+      }
       const hasRow = tmpl in DF_ARMOR_ROWS;
       const hasMat = mName in DF_TO_MW_ARMOR_MATERIAL;
       if (hasRow && hasMat) out.push({ kind: 'mapped', item: aName, material: mName, via: 'armor' });
@@ -459,7 +660,12 @@ export function itemMapCoverage() {
   for (const index of Object.keys(MOD_WEAPON_TO_MW)) {
     for (const [mName, m] of Object.entries(WEAPON_MATERIALS)) {
       if (m === WEAPON_MATERIALS.None) continue;
-      out.push({ kind: MOD_WEAPON_TO_MW[index] != null ? 'mapped' : 'UNMAPPED', item: `template ${index}`, material: mName, via: 'mod weapon' });
+      out.push({
+        kind: MOD_WEAPON_TO_MW[index] != null ? 'mapped' : 'UNMAPPED',
+        item: `template ${index}`,
+        material: mName,
+        via: 'mod weapon',
+      });
     }
   }
   for (const index of Object.keys(MOD_ARMOR_ROWS)) {
@@ -468,7 +674,18 @@ export function itemMapCoverage() {
       // MW-BRIG1: a template and material the port dresses in its own model - still a row of the mod's space, and
       // one that answers with the port's meshes rather than a retail record
       const own = OWN_MW_ARMOR.find((a) => a.templateIndex === Number(index) && a.material === m);
-      if (own) { out.push({ kind: 'own', item: `template ${index}`, material: mName, via: 'mod armor', own: 'ownArmorModels', index: Number(index), model: ownModelsOf(own).join(' + ') }); continue; }
+      if (own) {
+        out.push({
+          kind: 'own',
+          item: `template ${index}`,
+          material: mName,
+          via: 'mod armor',
+          own: 'ownArmorModels',
+          index: Number(index),
+          model: ownModelsOf(own).join(' + '),
+        });
+        continue;
+      }
       const ok = !!MOD_ARMOR_ROWS[index] && mName in DF_TO_MW_ARMOR_MATERIAL;
       out.push({ kind: ok ? 'mapped' : 'UNMAPPED', item: `template ${index}`, material: mName, via: 'mod armor' });
     }
@@ -480,8 +697,20 @@ export function itemMapCoverage() {
   // wears the one shirt the type resolves to.
   for (const [idx, name] of Object.entries(CLOTHING_NAME)) {
     // MW-CLOAK1: a cloak answers with the port's own meshes, every dye's
-    if (CLOAK_NAMES.includes(name)) { out.push({ kind: 'own', item: `${name} (${idx})`, material: 'any dye', via: 'clothing', own: 'ownClothingModels', index: Number(idx), model: CLOAK_PAINTINGS.map(cloakModel).join(' + ') }); continue; }
-    if (name in DF_CLOTHING_ROWS) out.push({ kind: 'mapped', item: `${name} (${idx})`, material: 'any dye', via: 'clothing' });
+    if (CLOAK_NAMES.includes(name)) {
+      out.push({
+        kind: 'own',
+        item: `${name} (${idx})`,
+        material: 'any dye',
+        via: 'clothing',
+        own: 'ownClothingModels',
+        index: Number(idx),
+        model: CLOAK_PAINTINGS.map(cloakModel).join(' + '),
+      });
+      continue;
+    }
+    if (name in DF_CLOTHING_ROWS)
+      out.push({ kind: 'mapped', item: `${name} (${idx})`, material: 'any dye', via: 'clothing' });
     else out.push({ kind: 'UNMAPPED', item: `${name} (${idx})`, material: 'any dye' });
   }
   return out;
@@ -494,7 +723,10 @@ export function itemMapCoverage() {
  * the reason - before ever equipping one. Weapons ride the existing
  * pickWeaponRecord; this covers the half that is new.
  */
-export function mwItemReport(armorRecords, { weapons = null, clothes = null, colourOf = null, pickWeapon = null } = {}) {
+export function mwItemReport(
+  armorRecords,
+  { weapons = null, clothes = null, colourOf = null, pickWeapon = null } = {},
+) {
   const rows = [];
   const hex = (c) => (c ? `#${c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}` : null);
   // MW-D37: every row carries Daggerfall's colour for the material or
@@ -503,14 +735,17 @@ export function mwItemReport(armorRecords, { weapons = null, clothes = null, col
   // accuracy of a mapping is two swatches in one row, not an argument.
   for (const [aName, tmpl] of Object.entries(ARMOR_ENUM)) {
     for (const mName of Object.keys(DF_TO_MW_ARMOR_MATERIAL)) {
-      if (mName === 'Chain2') continue;   // one report line for chain
+      if (mName === 'Chain2') continue; // one report line for chain
       // MW-STEEL1: a piece the port dresses itself names its own meshes - the archives are not asked
       const own = ownArmorModelFor({ templateIndex: tmpl, material: ARMOR_MATERIAL[mName] });
       if (own) {
         rows.push({
-          family: 'armor', item: `${mName} ${aName.replaceAll('_', ' ')}`, found: ownModelsOf(own),
-          note: 'the port\'s own model (characters/ownModels/ownArmorModels.js) - no record of the archives is asked',
-          dfColour: hex(DF_MATERIAL_RGB[mName]), mwColour: null,
+          family: 'armor',
+          item: `${mName} ${aName.replaceAll('_', ' ')}`,
+          found: ownModelsOf(own),
+          note: "the port's own model (characters/ownModels/ownArmorModels.js) - no record of the archives is asked",
+          dfColour: hex(DF_MATERIAL_RGB[mName]),
+          mwColour: null,
         });
         continue;
       }
@@ -538,7 +773,9 @@ export function mwItemReport(armorRecords, { weapons = null, clothes = null, col
           // read the armor table here and called every elven weapon a
           // fallback (armor says steel, the weapon id says silver).
           note: rec
-            ? ((DF_TO_MW_MATERIAL[mName] ?? []).some((tok) => rec.id.includes(tok)) ? 'resolved' : `resolved to the type's first - no ${(DF_TO_MW_MATERIAL[mName] ?? []).join('/')} of this type`)
+            ? (DF_TO_MW_MATERIAL[mName] ?? []).some((tok) => rec.id.includes(tok))
+              ? 'resolved'
+              : `resolved to the type's first - no ${(DF_TO_MW_MATERIAL[mName] ?? []).join('/')} of this type`
             : 'no record of this type - the classic sprite stands',
           dfColour: hex(DF_MATERIAL_RGB[mName]),
           mwColour: colourOf && rec ? hex(colourOf(rec)) : null,
@@ -549,13 +786,30 @@ export function mwItemReport(armorRecords, { weapons = null, clothes = null, col
   if (clothes) {
     for (const [name, row] of Object.entries(DF_CLOTHING_ROWS)) {
       for (let dye = 0; dye < DF_CLOTHING_DYE_RGB.length; dye++) {
-        const dyeName = ['Blue', 'Grey', 'Red', 'Dark Brown', 'Purple', 'Light Brown', 'White', 'Aquamarine', 'Yellow', 'Green'][dye];
+        const dyeName = [
+          'Blue',
+          'Grey',
+          'Red',
+          'Dark Brown',
+          'Purple',
+          'Light Brown',
+          'White',
+          'Aquamarine',
+          'Yellow',
+          'Green',
+        ][dye];
         // MW-CLOAK1: a cloak wears the port's own painting - the archives are not asked
         const cloak = ownCloakFor({ kind: 'clothing', name, dye });
         if (cloak) {
-          rows.push({ family: 'clothing', item: `${dyeName} ${name}`, found: [cloak.model],
+          rows.push({
+            family: 'clothing',
+            item: `${dyeName} ${name}`,
+            found: [cloak.model],
             note: `the port's own cloak (characters/ownModels/ownClothingModels.js), the ${cloak.painting.replace('_', ' ')} painting - no record of the archives is asked`,
-            dfColour: hex(DF_CLOTHING_DYE_RGB[dye]), mwColour: null, reserve: null });
+            dfColour: hex(DF_CLOTHING_DYE_RGB[dye]),
+            mwColour: null,
+            reserve: null,
+          });
           continue;
         }
         const res = mwClothingRecord(clothes, name, { dye, colourOf });
@@ -627,8 +881,15 @@ export function dfWornEquipment(slots, EQUIP_SLOTS, ARMOR_ENUM_) {
   for (const k of ['ChestClothes', 'LegsClothes', 'Feet', 'Cloak1', 'Cloak2']) {
     const it = slots[S[k]];
     if (it && typeof it.templateIndex === 'number' && it.templateIndex in CLOTHING_NAME) {
-      const look = modelLookFor(it);   // MODEL-LOOKS: the player's own garment look (null on anyone else's)
-      worn.push({ ...itemOwnStyleFields(it), kind: 'clothing', templateIndex: it.templateIndex, name: CLOTHING_NAME[it.templateIndex], dye: it.dye ?? 0, ...(look ? { mwRecord: look } : {}) });
+      const look = modelLookFor(it); // MODEL-LOOKS: the player's own garment look (null on anyone else's)
+      worn.push({
+        ...itemOwnStyleFields(it),
+        kind: 'clothing',
+        templateIndex: it.templateIndex,
+        name: CLOTHING_NAME[it.templateIndex],
+        dye: it.dye ?? 0,
+        ...(look ? { mwRecord: look } : {}),
+      });
     }
   }
   return worn;
@@ -640,10 +901,16 @@ export function dfWornEquipment(slots, EQUIP_SLOTS, ARMOR_ENUM_) {
 export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
   const worn = [];
   const take = (piece) => {
-    const item = drawnPiece(piece);   // APPEARANCES (bible/04-Characters/Wardrobe.md): a piece wearing a look dresses the body as the look - the player's and every peer's
-    if (item && typeof item.templateIndex === 'number' && armorRowOf(item.templateIndex)) {   // MW-ASSIGN: a mod's pieces are worn too
-      const look = modelLookFor(piece);   // MODEL-LOOKS: the player's own 3D look (null on anyone else's)
-      worn.push({ ...itemOwnStyleFields(piece), templateIndex: item.templateIndex, material: item.material ?? 0, ...(look ? { mwRecord: look } : {}) });
+    const item = drawnPiece(piece); // APPEARANCES (bible/04-Characters/Wardrobe.md): a piece wearing a look dresses the body as the look - the player's and every peer's
+    if (item && typeof item.templateIndex === 'number' && armorRowOf(item.templateIndex)) {
+      // MW-ASSIGN: a mod's pieces are worn too
+      const look = modelLookFor(piece); // MODEL-LOOKS: the player's own 3D look (null on anyone else's)
+      worn.push({
+        ...itemOwnStyleFields(piece),
+        templateIndex: item.templateIndex,
+        material: item.material ?? 0,
+        ...(look ? { mwRecord: look } : {}),
+      });
     }
   };
   const S = EQUIP_SLOTS;
@@ -669,10 +936,24 @@ export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
  * is the race record's Beast flag, `beastWear` the two switches'
  * modes for one (BEAST-BOOTS, beastCut below).
  */
-export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, looks = null, cloakStyle = 'classic', cloakLooks = null, beast = false, beastWear = BEAST_WEAR_WORN }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
+export function composeWornArmor({
+  pieces,
+  armors,
+  clothes,
+  bodyPool,
+  female = false,
+  colourOf = null,
+  helmStyle = undefined,
+  looks = null,
+  cloakStyle = 'classic',
+  cloakLooks = null,
+  beast = false,
+  beastWear = BEAST_WEAR_WORN,
+}) {
+  // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
   const palette = wolfArmorPalette(pieces, cloakLooks);
   const notes = [];
-  const wear = beast ? beastWear : null;   // BEAST-BOOTS
+  const wear = beast ? beastWear : null; // BEAST-BOOTS
   const bodyById = new Map((bodyPool ?? []).map((b) => [String(b.id || '').toLowerCase(), b]));
   // ── THE PRIORITY LAW (Audit 30's recording, now consumed) ────────
   // Every PRT slot is an arbitration: the skin holds it at priority 1,
@@ -693,12 +974,16 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
   const claim = (part, prio, add, under = null) => {
     const slot = slots[part];
     if (!slot || prio <= slot.prio) return;
-    slot.prio = prio; slot.add = add; slot.shadow = true; slot.under = under;
+    slot.prio = prio;
+    slot.add = add;
+    slot.shadow = true;
+    slot.under = under;
   };
   const ordered = [...(pieces ?? [])].sort((a, b) => wornOrder(a) - wornOrder(b));
   let hairHidden = 0;
-  let cloakAdd = null; let cloakName = null;   // MW-CLOAK1: the cloak, which no slot holds
-  let outfitAdd = null;   // MW-FOLK1: a townsperson's whole outfit, which no slot holds either
+  let cloakAdd = null;
+  let cloakName = null; // MW-CLOAK1: the cloak, which no slot holds
+  let outfitAdd = null; // MW-FOLK1: a townsperson's whole outfit, which no slot holds either
   const covers = new Set();
   // MW-FP-SEAM: a part's `hides` is a skin fallback, not permission to
   // evict another armour mesh that fills that slot. Resolve these claims
@@ -713,11 +998,28 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       const o = ownOutfitFor(piece.id);
       // each note opens with its piece's label, `outfit <id>:` - the card's rows find a piece's reason by it
       // (fpArm.js wornVerdicts), so it stands outside the player's language as every label does; the rest is theirs
-      if (!o) { notes.push(`outfit ${piece.id}: ${t('body.outfit.unknown', 'no outfit the port carries')}`); continue; }
-      if (outfitAdd) { notes.push(`outfit ${o.id}: ${t('body.outfit.second', 'a second outfit - the first ({first}) is the one drawn', { first: outfitAdd.recordId })}`); continue; }
+      if (!o) {
+        notes.push(`outfit ${piece.id}: ${t('body.outfit.unknown', 'no outfit the port carries')}`);
+        continue;
+      }
+      if (outfitAdd) {
+        notes.push(
+          `outfit ${o.id}: ${t('body.outfit.second', 'a second outfit - the first ({first}) is the one drawn', { first: outfitAdd.recordId })}`,
+        );
+        continue;
+      }
       const prio = ((0 + 1) << 1) + 0;
-      outfitAdd = { slot: `outfit (${o.id})`, partName: 'outfit', bones: [], model: o.model, recordId: o.id, piece, hides: o.hides };
-      for (const h of o.hides) deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: outfitAdd });
+      outfitAdd = {
+        slot: `outfit (${o.id})`,
+        partName: 'outfit',
+        bones: [],
+        model: o.model,
+        recordId: o.id,
+        piece,
+        hides: o.hides,
+      };
+      for (const h of o.hides)
+        deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: outfitAdd });
       for (const c of o.covers) covers.add(c);
       continue;
     }
@@ -733,11 +1035,20 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       // never-traps reading is a Daggerfall garment's, where a skin stands under every miss; the wolf has no skin.
       for (const { ref, row, body } of partGroupPicks(piece.record, bodyById, female, false)) {
         if (!body) {
-          notes.push(`${piece.record.id}: ${row.name} wants "${(female && ref.female) || ref.male || ref.female || '(none)'}" and no BODY record answers it - the slot is held empty (reserveIndividualPart)`);
+          notes.push(
+            `${piece.record.id}: ${row.name} wants "${(female && ref.female) || ref.male || ref.female || '(none)'}" and no BODY record answers it - the slot is held empty (reserveIndividualPart)`,
+          );
           claim(ref.part, prio, null);
           continue;
         }
-        claim(ref.part, prio, { slot: `${row.name} (${piece.record.id})`, partName: row.name, bones: row.bones, model: body.model, recordId: String(body.id || '').toLowerCase(), piece });
+        claim(ref.part, prio, {
+          slot: `${row.name} (${piece.record.id})`,
+          partName: row.name,
+          bones: row.bones,
+          model: body.model,
+          recordId: String(body.id || '').toLowerCase(),
+          piece,
+        });
       }
       for (const part of RESERVES[piece.reserve] ?? []) claim(part, prio, null);
       continue;
@@ -747,17 +1058,42 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       // MW-CLOAK1: A CLOAK IS THE PORT'S OWN (characters/ownModels/ownClothingModels.js) - one skinned mesh hung down the back,
       // claiming NO slot and reserving none: the armour and the clothes under it stay drawn. Daggerfall wears two
       // (Cloak1, Cloak2); one cloak is drawn, the first, and the second says so - two of one mesh would be one.
-      const cloak = ownCloakFor({ ...piece, name }, { style: piece.cloakStyle ?? cloakStyle, look: cloakLooks?.[piece.templateIndex] ?? 'classic' });
+      const cloak = ownCloakFor(
+        { ...piece, name },
+        { style: piece.cloakStyle ?? cloakStyle, look: cloakLooks?.[piece.templateIndex] ?? 'classic' },
+      );
       if (cloak) {
-        if (cloakAdd) { notes.push(`${name}: a second cloak - the first (${cloakName}) is the one drawn`); continue; }
-        cloakAdd = { slot: `cloak (${cloak.id})`, partName: 'cloak', bones: [], model: cloak.model, recordId: cloak.id, piece };
+        if (cloakAdd) {
+          notes.push(`${name}: a second cloak - the first (${cloakName}) is the one drawn`);
+          continue;
+        }
+        cloakAdd = {
+          slot: `cloak (${cloak.id})`,
+          partName: 'cloak',
+          bones: [],
+          model: cloak.model,
+          recordId: cloak.id,
+          piece,
+        };
         cloakName = name;
         continue;
       }
-      const res = mwClothingRecord(clothes, name, { dye: piece.dye ?? null, colourOf, tier: piece.tier ?? null, pick: piece.pick ?? null, recordId: piece.mwRecord ?? null });   // MODEL-LOOKS: the player's chosen garment   // MWNPC17: a person's rung and pick (characters/wardrobe.js)
-      if (!res.record) { notes.push(`${name ?? piece.templateIndex}: ${res.note}`); continue; }
+      const res = mwClothingRecord(clothes, name, {
+        dye: piece.dye ?? null,
+        colourOf,
+        tier: piece.tier ?? null,
+        pick: piece.pick ?? null,
+        recordId: piece.mwRecord ?? null,
+      }); // MODEL-LOOKS: the player's chosen garment   // MWNPC17: a person's rung and pick (characters/wardrobe.js)
+      if (!res.record) {
+        notes.push(`${name ?? piece.templateIndex}: ${res.note}`);
+        continue;
+      }
       const cut = wear ? beastCut(res.record, wear) : null;
-      if (cut?.refused) { notes.push(`${name}: ${beastRefusal(cut.refused, res.record.id)}`); continue; }
+      if (cut?.refused) {
+        notes.push(`${name}: ${beastRefusal(cut.refused, res.record.id)}`);
+        continue;
+      }
       if (cut?.bared) notes.push(`${name}: ${beastBared(res.record.id)}`);
       const base = res.row.reserve === 'robe' ? 11 : res.row.reserve === 'skirt' ? 3 : 0;
       const prio = ((base + 1) << 1) + 0;
@@ -768,15 +1104,19 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
     const prio = ((0 + 1) << 1) + 1;
     // BEAST-BOOTS: helmets hidden - any helm-shaped piece (a mod's helmet too), an own model's or a record's, before
     // either is resolved, so it hides no hair either
-    if (wear?.helm === 'hidden' && armorRowOf(piece.templateIndex) === DF_ARMOR_ROWS[HELM_TEMPLATE]) { notes.push(`armor ${piece.templateIndex}: ${beastNoHelm()}`); continue; }
+    if (wear?.helm === 'hidden' && armorRowOf(piece.templateIndex) === DF_ARMOR_ROWS[HELM_TEMPLATE]) {
+      notes.push(`armor ${piece.templateIndex}: ${beastNoHelm()}`);
+      continue;
+    }
     // MW-BRIG1: THE PORT'S OWN WORN MODEL stands where the ARMO and its
     // BODY records would (characters/ownModels/ownArmorModels.js) - claimed at an
     // armour's priority, part by part, as composeRefs claims a record's.
-    const own = piece.mwRecord ? null : ownArmorModelFor(piece);   // MODEL-LOOKS: a chosen Morrowind record stands over the port's own model
+    const own = piece.mwRecord ? null : ownArmorModelFor(piece); // MODEL-LOOKS: a chosen Morrowind record stands over the port's own model
     if (own) {
-      const ownParts = ownArmorParts(own, { helmStyle, looks, pieceStyle: piece.ownStyle });   // MW-STEEL1: the style the Steel Helm switch asks for
+      const ownParts = ownArmorParts(own, { helmStyle, looks, pieceStyle: piece.ownStyle }); // MW-STEEL1: the style the Steel Helm switch asks for
       // BEAST-BOOTS: an own part is a head part when it hangs on the head or covers it (the closed helm's `hides`)
-      const ownHead = wear && wear.helm !== 'worn' && ownParts.some((p) => p.part === 'head' || (p.hides ?? []).includes('head'));
+      const ownHead =
+        wear && wear.helm !== 'worn' && ownParts.some((p) => p.part === 'head' || (p.hides ?? []).includes('head'));
       const ownFeet = wear?.feet === 'hidden' && ownParts.some((p) => BEAST_FEET.has(p.part));
       if (ownHead || ownFeet) {
         notes.push(`armor ${piece.templateIndex}: ${beastRefusal(ownHead ? 'helm' : 'feet', own.id)}`);
@@ -784,27 +1124,54 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       }
       for (const p of ownParts) {
         // an own boot is one mesh on the foot, with no ankle piece of its own to keep: it goes whole, its `hides` with it
-        if (wear?.feet === 'shafts' && BEAST_FEET.has(p.part)) { notes.push(`armor ${piece.templateIndex}: ${beastBared(own.id)}`); continue; }
+        if (wear?.feet === 'shafts' && BEAST_FEET.has(p.part)) {
+          notes.push(`armor ${piece.templateIndex}: ${beastBared(own.id)}`);
+          continue;
+        }
         const at = ARMO_PART.findIndex((r) => r.name === p.part);
         const row = ARMO_PART[at];
-        const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: wolfArmorModel(p.model, palette), recordId: own.id, piece, ...(p.showsSkin ? { showsSkin: true } : {}),
-          ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}) };   // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
+        const add = {
+          slot: `${row.name} (${own.id})`,
+          partName: row.name,
+          bones: row.bones,
+          model: wolfArmorModel(p.model, palette),
+          recordId: own.id,
+          piece,
+          ...(p.showsSkin ? { showsSkin: true } : {}),
+          ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}),
+        }; // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
         claim(at, prio, add);
-        if (p.showsSkin && row.shadows) covers.add(row.shadows);   // MW-IRON1: open where its picture is - the skin under it stays drawn, but it is covered
+        if (p.showsSkin && row.shadows) covers.add(row.shadows); // MW-IRON1: open where its picture is - the skin under it stays drawn, but it is covered
         // MW-STEEL1: what the part covers beyond its own slot is OCCUPIED with no mesh (reserveIndividualPart), so its
         // skin is not drawn under the plate - at the armour's priority, the law's own gate. MW-FIT1: under that part
-        for (const h of p.hides ?? []) deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: add });
+        for (const h of p.hides ?? [])
+          deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: add });
       }
       continue;
     }
-    const res = mwArmorRecords(armors, piece.templateIndex, piece.material, looks, piece.mwRecord ?? null, piece.ownStyle ?? null);
-    if (!res.records.length) { notes.push(`armor ${piece.templateIndex}: ${res.note}`); continue; }
+    const res = mwArmorRecords(
+      armors,
+      piece.templateIndex,
+      piece.material,
+      looks,
+      piece.mwRecord ?? null,
+      piece.ownStyle ?? null,
+    );
+    if (!res.records.length) {
+      notes.push(`armor ${piece.templateIndex}: ${res.note}`);
+      continue;
+    }
     // BEAST-BOOTS: a refused helm is not worn, so it hides no hair either - the cut comes before the rule below
-    const refused = wear ? res.records.map((r) => ({ id: r.id, why: beastCut(r, wear).refused })).find((r) => r.why) : null;
-    if (refused) { notes.push(`armor ${piece.templateIndex}: ${beastRefusal(refused.why, refused.id)}`); continue; }
+    const refused = wear
+      ? res.records.map((r) => ({ id: r.id, why: beastCut(r, wear).refused })).find((r) => r.why)
+      : null;
+    if (refused) {
+      notes.push(`armor ${piece.templateIndex}: ${beastRefusal(refused.why, refused.id)}`);
+      continue;
+    }
     // AUDIT 30 F1: A HELMET HIDES THE HAIR - an engine rule, not a
     // part reference (npcanimation.cpp:615), prior to the refs.
-    if (armorRowOf(piece.templateIndex) === DF_ARMOR_ROWS[HELM_TEMPLATE]) hairHidden = Math.max(hairHidden, prio);   // MW-ASSIGN: any helm-shaped piece (a mod's helmet)
+    if (armorRowOf(piece.templateIndex) === DF_ARMOR_ROWS[HELM_TEMPLATE]) hairHidden = Math.max(hairHidden, prio); // MW-ASSIGN: any helm-shaped piece (a mod's helmet)
     // IG3 (Mac: "shields when equipped do not appear"): a SHIELD is the
     // one worn piece whose ladder ends at the item's own GROUND MESH -
     // getShieldMesh (actoranimation.cpp:108-139) tries the PRT_Shield
@@ -820,14 +1187,23 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
     for (const armo of res.records) {
       if (isShield) {
         const mesh = shieldMeshOf(armo, female, bodyById, notes);
-        if (mesh === null) { claim(PRT_SHIELD, prio, null); continue; }
+        if (mesh === null) {
+          claim(PRT_SHIELD, prio, null);
+          continue;
+        }
         claim(PRT_SHIELD, prio, {
-          slot: `shield (${armo.id})${mesh.ground ? ' - ground mesh, the reference\'s own fallback' : ''}`,
-          bones: ARMO_PART[PRT_SHIELD].bones, model: mesh.model, recordId: mesh.recordId, piece,
+          slot: `shield (${armo.id})${mesh.ground ? " - ground mesh, the reference's own fallback" : ''}`,
+          bones: ARMO_PART[PRT_SHIELD].bones,
+          model: mesh.model,
+          recordId: mesh.recordId,
+          piece,
         });
         continue;
       }
-      if (!armo.parts?.length) { notes.push(`${armo.id}: no worn part references - the ground mesh is not a body`); continue; }
+      if (!armo.parts?.length) {
+        notes.push(`${armo.id}: no worn part references - the ground mesh is not a body`);
+        continue;
+      }
       const cut = wear ? beastCut(armo, wear) : null;
       if (cut?.bared) notes.push(`armor ${piece.templateIndex}: ${beastBared(armo.id)}`);
       composeRefs(cut?.rec ?? armo, prio, female, bodyById, claim, notes, piece);
@@ -840,7 +1216,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
   for (const h of deferredHides) {
     const slot = slots[h.part];
     if (slot && !slot.add) claim(h.part, h.prio, null, h.under);
-    else if (slot?.add?.showsSkin) slot.hiddenUnder = true;   // MW-IRON5: a part that shows its skin still hides it when another part covers it whole
+    else if (slot?.add?.showsSkin) slot.hiddenUnder = true; // MW-IRON5: a part that shows its skin still hides it when another part covers it whole
   }
   if (hairHidden) claim(1, hairHidden, null);
   const adds = [];
@@ -849,14 +1225,14 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
   for (let i2 = 0; i2 < slots.length; i2++) {
     if (!slots[i2].shadow) continue;
     if (slots[i2].add) adds.push(slots[i2].add);
-    const key = slots[i2].add?.showsSkin && !slots[i2].hiddenUnder ? null : ARMO_PART[i2].shadows;   // MW-IRON1: a part that shows the skin under it hides none - unless another hides it (MW-IRON5)
+    const key = slots[i2].add?.showsSkin && !slots[i2].hiddenUnder ? null : ARMO_PART[i2].shadows; // MW-IRON1: a part that shows the skin under it hides none - unless another hides it (MW-IRON5)
     if (key) shadows.add(key);
     // MW-FIT1: A PART THE FIRST PERSON DOES NOT DRAW HIDES NOTHING FROM IT. A pauldron sleeves the upper arm, but it
     // hangs on the clavicle and the first person draws the arm-bone parts alone - so there the upper arm under it is
     // the skin's, not a hole. Every other occupation is the third person's and the first person's alike.
     if (key && !(slots[i2].under && !fpWornAdds([slots[i2].under]).length)) fpShadows.add(key);
   }
-  if (outfitAdd) adds.push(outfitAdd);   // MW-FOLK1
+  if (outfitAdd) adds.push(outfitAdd); // MW-FOLK1
   if (cloakAdd) adds.push(cloakAdd);
   return { adds, shadows: [...shadows], fpShadows: [...fpShadows], covers: [...covers], notes };
 }
@@ -872,7 +1248,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
 export const MODESTY_SHIRT = Object.freeze({ kind: 'clothing', name: 'Short Shirt' });
 export function composeWornModest(args, show) {
   const worn = composeWornArmor(args);
-  if (show || !args.female || worn.shadows.includes('chest') || worn.covers.includes('chest')) return worn;   // MW-FOLK1: or an outfit dresses it
+  if (show || !args.female || worn.shadows.includes('chest') || worn.covers.includes('chest')) return worn; // MW-FOLK1: or an outfit dresses it
   return composeWornArmor({ ...args, pieces: [...(args.pieces ?? []), MODESTY_SHIRT] });
 }
 
@@ -895,7 +1271,7 @@ export const BEAST_WEAR_WORN = Object.freeze({ feet: 'worn', helm: 'worn' });
 const BEAST_FEET = new Set(['right foot', 'left foot']);
 // each cut's note: its piece's label before it stands outside the player's language, as every label does
 const beastRefused = (id) => t('body.beast.helm', '{id} covers the head - a beast race wears no closed helm', { id });
-const beastBared = (id) => t('body.beast.feet', '{id} - a beast race\'s feet stay bare', { id });
+const beastBared = (id) => t('body.beast.feet', "{id} - a beast race's feet stay bare", { id });
 const beastNoFootwear = (id) => t('body.beast.noFootwear', '{id} - a beast race wears no footwear', { id });
 const beastNoHelm = () => t('body.beast.noHelm', 'a beast race wears no helmet');
 
@@ -909,7 +1285,11 @@ function beastCut(rec, wear) {
   if (wear.feet === 'hidden' && parts.some((r) => BEAST_FEET.has(name(r)))) return { refused: 'feet', rec, bared: 0 };
   if (wear.feet !== 'shafts') return { refused: null, rec, bared: 0 };
   const kept = parts.filter((r) => !BEAST_FEET.has(name(r)));
-  return { refused: null, rec: kept.length === parts.length ? rec : { ...rec, parts: kept }, bared: parts.length - kept.length };
+  return {
+    refused: null,
+    rec: kept.length === parts.length ? rec : { ...rec, parts: kept },
+    bared: parts.length - kept.length,
+  };
 }
 const beastRefusal = (refused, id) => (refused === 'helm' ? beastRefused(id) : beastNoFootwear(id));
 
@@ -931,8 +1311,10 @@ function shieldMeshOf(armo, female, bodyById, notes) {
     if (!id) continue;
     const body = bodyById.get(id);
     if (!body || body.bodyKind !== 2) {
-      notes.push(`${armo.id}: shield body "${id}" ${!body ? 'is in no BODY record' : 'is not armor-kind'} - `
-        + 'the slot reserves EMPTY (getShieldMesh\'s own refusal)');
+      notes.push(
+        `${armo.id}: shield body "${id}" ${!body ? 'is in no BODY record' : 'is not armor-kind'} - ` +
+          "the slot reserves EMPTY (getShieldMesh's own refusal)",
+      );
       return null;
     }
     if (body.model) return { model: body.model, recordId: id };
@@ -970,7 +1352,10 @@ const CLOTHING_FIT_SLOTS = Object.freeze({
 function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
   for (const ref of rec.parts ?? []) {
     const row = ARMO_PART[ref.part];
-    if (!row) { notes.push(`${rec.id}: INDX ${ref.part} is outside the enum`); continue; }
+    if (!row) {
+      notes.push(`${rec.id}: INDX ${ref.part} is outside the enum`);
+      continue;
+    }
     if (row.name === 'weapon') continue;
     const id = (female && ref.female) || ref.male || ref.female;
     // EMPTY-PART (Mac's screenshot, 2026-10-26: the leather glove's outer arm in skin): a reference that names no body
@@ -978,19 +1363,36 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
     // priority)` - so the skin under it is not drawn. Retail's netch gauntlet names its wrist so (INDX 9, no model): the
     // wrist is the cuff's, and the body's fuller wrist came out through it. (A NAMED part no BODY record carries keeps
     // its skin, below - the never-traps law, MW-D29's.)
-    if (!id) { notes.push(`${rec.id}: ${row.name} names no body part`); claim(ref.part, prio, null); continue; }
+    if (!id) {
+      notes.push(`${rec.id}: ${row.name} names no body part`);
+      claim(ref.part, prio, null);
+      continue;
+    }
     const body = bodyById.get(id);
-    if (!body) { notes.push(`${rec.id}: ${row.name} wants "${id}" and no BODY record carries it`); continue; }
+    if (!body) {
+      notes.push(`${rec.id}: ${row.name} wants "${id}" and no BODY record carries it`);
+      continue;
+    }
     // `slot` names the record for the notes; `partName` is the part's own
     // identity, which is what the binder's rules key on - the reference
     // tests the part TYPE (npcanimation.cpp:799-801's PRT_Hair filter),
     // never a display string.
     claim(ref.part, prio, {
-      slot: `${row.name} (${rec.id})`, partName: row.name,
-      bones: row.bones, model: body.model, recordId: id, piece,
+      slot: `${row.name} (${rec.id})`,
+      partName: row.name,
+      bones: row.bones,
+      model: body.model,
+      recordId: id,
+      piece,
       ...(piece?.kind === 'clothing' && CLOTHING_FIT_SLOTS[row.name]
-        ? { fitBodySlots: CLOTHING_FIT_SLOTS[row.name],
-            fitMode: DF_CLOTHING_ROWS[piece.name ?? CLOTHING_NAME[piece.templateIndex]]?.type === MW_CLOTHING_TYPE.Pants ? 'conform' : 'clearance' } : {}),
+        ? {
+            fitBodySlots: CLOTHING_FIT_SLOTS[row.name],
+            fitMode:
+              DF_CLOTHING_ROWS[piece.name ?? CLOTHING_NAME[piece.templateIndex]]?.type === MW_CLOTHING_TYPE.Pants
+                ? 'conform'
+                : 'clearance',
+          }
+        : {}),
     });
   }
 }
@@ -1000,14 +1402,14 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
  *  gauntlets, shirt, pants, carried. Ties in priority go to the LATER
  *  rank, which this sort makes true by walking earlier ranks first. */
 function wornOrder(piece) {
-  if (piece.kind === 'outfit') return 0;   // MW-FOLK1: a whole outfit, first as a robe is
-  if (piece.kind === 'record') return piece.reserve === 'robe' ? 0 : piece.reserve === 'skirt' ? 1 : 11;   // WEREWOLF1
+  if (piece.kind === 'outfit') return 0; // MW-FOLK1: a whole outfit, first as a robe is
+  if (piece.kind === 'record') return piece.reserve === 'robe' ? 0 : piece.reserve === 'skirt' ? 1 : 11; // WEREWOLF1
   if (piece.kind === 'clothing') {
     const row = DF_CLOTHING_ROWS[piece.name ?? CLOTHING_NAME[piece.templateIndex]];
     if (row?.reserve === 'robe') return 0;
     if (row?.reserve === 'skirt') return 1;
     if (row?.type === MW_CLOTHING_TYPE.Shirt) return 10;
-    return 11;                                   // pants, shoes, belts
+    return 11; // pants, shoes, belts
   }
   const t = piece.templateIndex;
   if (t === ARMOR_ENUM.Helm) return 2;
@@ -1017,7 +1419,7 @@ function wornOrder(piece) {
   if (t === ARMOR_ENUM.Right_Pauldron) return 6;
   if (t === ARMOR_ENUM.Boots) return 7;
   if (t === ARMOR_ENUM.Gauntlets) return 8;
-  return 12;                                     // shields, the carried pair
+  return 12; // shields, the carried pair
 }
 
 /** WEREWOLF1: THE WEREWOLF'S ROBE - the CLOT record "werewolfrobe"
@@ -1081,8 +1483,17 @@ export function firstPersonPartGroup(rec, bodyPool, female = false) {
   for (const { ref, row, body } of partGroupPicks(rec, bodyById, female, true)) {
     if (held.has(ref.part)) continue;
     held.add(ref.part);
-    if (!body) { reserved.push(ref.part); continue; }
-    adds.push({ slot: `${row.name} (${rec.id})`, partName: row.name, bones: row.bones, model: body.model, recordId: String(body.id || '').toLowerCase() });
+    if (!body) {
+      reserved.push(ref.part);
+      continue;
+    }
+    adds.push({
+      slot: `${row.name} (${rec.id})`,
+      partName: row.name,
+      bones: row.bones,
+      model: body.model,
+      recordId: String(body.id || '').toLowerCase(),
+    });
   }
   return { adds, reserved };
 }
@@ -1097,9 +1508,16 @@ export function firstPersonPartGroup(rec, bodyPool, female = false) {
  *  covers the upper arm; omitting it leaves exposed skin where worn shoulder
  *  armour should appear. Head, torso, and legs remain third-person only. */
 const FP_WORN_BONES = new Set([
-  'left hand', 'right hand', 'left wrist', 'right wrist',
-  'left forearm', 'right forearm', 'left upper arm', 'right upper arm',
-  'left clavicle', 'right clavicle', // worn pauldrons sleeve the upper arm
+  'left hand',
+  'right hand',
+  'left wrist',
+  'right wrist',
+  'left forearm',
+  'right forearm',
+  'left upper arm',
+  'right upper arm',
+  'left clavicle',
+  'right clavicle', // worn pauldrons sleeve the upper arm
   'shield bone',
 ]);
 export function fpWornAdds(adds) {
@@ -1114,14 +1532,19 @@ export function shadowSkinRows(rows, shadows) {
   const sided = new Map();
   for (const s of shadows ?? []) {
     const [slot, side] = String(s).split(':');
-    if (side) { if (!sided.has(slot)) sided.set(slot, new Set()); sided.get(slot).add(side); }
-    else whole.add(slot);
+    if (side) {
+      if (!sided.has(slot)) sided.set(slot, new Set());
+      sided.get(slot).add(side);
+    } else whole.add(slot);
   }
   const out = [];
   for (const row of rows ?? []) {
     if (whole.has(row.slot)) continue;
     const sides = sided.get(row.slot);
-    if (!sides) { out.push(row); continue; }
+    if (!sides) {
+      out.push(row);
+      continue;
+    }
     const bones = (row.bones ?? []).filter((b) => ![...sides].some((sd) => b.startsWith(`${sd} `)));
     if (bones.length) out.push({ ...row, bones });
   }

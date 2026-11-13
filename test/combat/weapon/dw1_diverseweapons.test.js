@@ -118,19 +118,19 @@ test('DW1: the atlas asks by the per-template name under the flag, and by the cl
   assert.match(fp, /const askName = atlasFileName\(item, fileName, undefined, plain \? false : undefined\);/);   // PIN MOVED (WEAPON-GLOW1): the plain set asked while an element shows (bible/05-Combat/Weapon-Glow.md)
   assert.match(fp, /export const frameName = \(askName, record, frame, metal\) => `\$\{askName\}_\$\{record\}-\$\{frame\}\$\{metal \? `_\$\{metal\}` : ''\}`;/, 'GetNameCifRci’s spelling, one home (AUDIT-DW)');
   assert.match(fp, /const name = frameName\(askName, r, f, metal\);/);
-  assert.match(fp, /const customs = await customFrames\(askName, metal, cif, customImage\);/, 'AUDIT-DW F2: every frame asked together');
+  assert.match(fp, /const customs = await customFrames\(askName, metal, cif, own \? playerWeaponFrame : customImage\);/, 'AUDIT-DW F2: every frame asked together');
   assert.match(fp, /const custom = customs\[r\]\[f\];/);
   assert.match(fp, /records\.push\(\{ width: size\.width, height: size\.height, frames \}\);/, 'the record keeps the classic box');
   const ww = src('src/combat/weapon/weaponWidget.js');
   assert.match(ww, /const file = atlasFileName\(w\.specificWeapon, classic, undefined, ctx\?\.glow \? false : undefined\);/);   // PIN MOVED (WEAPON-GLOW1): the plain set asked while an element shows, as the loader asks it
   assert.match(ww, /for \(const name of customTextureNames\(file, record, frame, metal, w\.s\.doubleScale\)\) \{/);
-  assert.match(ww, /customWeaponImage\(name\)\.then/);
+  assert.match(ww, /customWeaponImage\(name\)\n\s*\.then/);
   // and the rig's art cache carries the name the atlas is asked by, or
   // a longsword and a broadsword share the first one's frames
   const rig = src('src/combat/weapon/weaponRig.js');
   // PIN MOVED (WEAPON-GLOW1, bible/05-Combat/Weapon-Glow.md): the name asked is the plain set's while the weapon's
   // element shows, and the loader is told so - still the asked name in the key, still SpecificWeapon at the loader
-  assert.match(rig, /const key = `\$\{type\}:\$\{item\?\.material \?\? 0\}:\$\{thunderlock \? \(gilded \? 'gilded' : ''\) : atlasFileName\(item, WEAPON_FILE\[type\] \?\? '', undefined, plain \? false : undefined\)\}`;/);
+  assert.match(rig, /const key = `\$\{type\}:\$\{item\?\.material \?\? 0\}:\$\{thunderlock \? \(gilded \? 'gilded' : ''\) : atlasFileName\(item, WEAPON_FILE\[type\] \?\? '', undefined, plain \? false : undefined\)\}:\$\{playerPicturesGeneration\(\)\}`;/);
   assert.match(rig, /loadFpsWeaponArt\(fetchBytes, palette, renderer, type, item\?\.material \?\? 0, item, \{ plain \}\)/, 'SpecificWeapon reaches the loader');
 });
 
@@ -146,7 +146,7 @@ test('DW1: the names one frame is asked by - the metal suffix, and the w_ ask fa
   // forgets them with the atlas
   const ww = src('src/combat/weapon/weaponWidget.js');
   assert.match(ww, /if \(misses\.has\(name\)\) continue;/);
-  assert.match(ww, /if \(!img\) \{ misses\.add\(name\); return; \}/);
+  assert.match(ww, /if \(!img\) \{\n\s*misses\.add\(name\);\n\s*return;\n\s*\}/);
   assert.match(ww, /w\.customMisses = new Set\(\);/);
 });
 

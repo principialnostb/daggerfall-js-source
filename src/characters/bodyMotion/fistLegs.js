@@ -32,28 +32,42 @@ const mixRot = (a, b, k) => {
   if (!a || !b || a.length !== b.length) return b ?? a;
   const m = a.map((v, i) => v + (b[i] - v) * k);
   if (m.length === 9) return orthonormal(m);
-  const l = Math.hypot(...m) || 1;   // a quaternion
+  const l = Math.hypot(...m) || 1; // a quaternion
   return m.map((v) => v / l);
 };
-const mixVec = (a, b, k) => (a && b ? a.map((v, i) => v + (b[i] - v) * k) : b ?? a);
+const mixVec = (a, b, k) => (a && b ? a.map((v, i) => v + (b[i] - v) * k) : (b ?? a));
 
 /** Do the fists stand to punch: drawn, on the ground, not travelling. */
 export function fistsStand(word) {
-  return !!word?.on && carryClassOf(word) === 'fists' && !word.busy && !word.swimming && !word.levitating && word.grounded !== false
-    && !(Number(word.speed) > FIST_LEGS.still);
+  return (
+    !!word?.on &&
+    carryClassOf(word) === 'fists' &&
+    !word.busy &&
+    !word.swimming &&
+    !word.levitating &&
+    word.grounded !== false &&
+    !(Number(word.speed) > FIST_LEGS.still)
+  );
 }
 
 export function createFistLegs(config = FIST_LEGS) {
-  let w = 0, since = Infinity, stance = null, taking = false, cached = null;
+  let w = 0,
+    since = Infinity,
+    stance = null,
+    taking = false,
+    cached = null;
   const layer = {
     step(dt, on, word) {
-      const d = Math.max(0, dt), stand = !!on && fistsStand(word);
+      const d = Math.max(0, dt),
+        stand = !!on && fistsStand(word);
       since = stand && word.blow ? 0 : since + d;
       const want = stand && since < config.after;
-      taking = stand && !word.blow && !(w > 1e-3);   // the stance is read only while nothing holds it
+      taking = stand && !word.blow && !(w > 1e-3); // the stance is read only while nothing holds it
       w = ease(w, want ? 1 : 0, want ? config.in : config.out, d);
-      if (!stand) { w = 0; stance = null; }
-      else if (!want && w < 1e-3) w = 0;
+      if (!stand) {
+        w = 0;
+        stance = null;
+      } else if (!want && w < 1e-3) w = 0;
     },
     weight: () => w,
     apply(skeleton, pose) {
@@ -61,24 +75,40 @@ export function createFistLegs(config = FIST_LEGS) {
       const refs = lowerRefs(skeleton);
       if (taking) {
         stance = new Map();
-        for (const ref of refs) { const p = pose.get(ref) ?? skeleton.nodes.get(ref)?.rest; if (p) stance.set(ref, { rotation: p.rotation ? [...p.rotation] : null, translation: p.translation ? [...p.translation] : null, scale: p.scale }); }
+        for (const ref of refs) {
+          const p = pose.get(ref) ?? skeleton.nodes.get(ref)?.rest;
+          if (p)
+            stance.set(ref, {
+              rotation: p.rotation ? [...p.rotation] : null,
+              translation: p.translation ? [...p.translation] : null,
+              scale: p.scale,
+            });
+        }
         return null;
       }
       if (!(w > 1e-3) || !stance) return null;
       const k = clamp01(w);
       for (const ref of refs) {
-        const held = stance.get(ref); if (!held) continue;
+        const held = stance.get(ref);
+        if (!held) continue;
         const now = pose.get(ref) ?? skeleton.nodes.get(ref)?.rest;
-        pose.set(ref, { rotation: mixRot(now?.rotation, held.rotation, k), translation: mixVec(now?.translation, held.translation, k), scale: now?.scale ?? held.scale });
+        pose.set(ref, {
+          rotation: mixRot(now?.rotation, held.rotation, k),
+          translation: mixVec(now?.translation, held.translation, k),
+          scale: now?.scale ?? held.scale,
+        });
       }
       return { held: k };
     },
     slot(inner) {
       if (cached && cached.inner === inner) return cached.fn;
-      cached = { inner, fn: (skeleton, pose, root, skelMats) => {
-        layer.apply(skeleton, pose);
-        return inner ? inner(skeleton, pose, root, skelMats) : null;
-      } };
+      cached = {
+        inner,
+        fn: (skeleton, pose, root, skelMats) => {
+          layer.apply(skeleton, pose);
+          return inner ? inner(skeleton, pose, root, skelMats) : null;
+        },
+      };
       return cached.fn;
     },
   };

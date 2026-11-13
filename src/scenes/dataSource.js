@@ -1287,7 +1287,9 @@ async function registerTextureStoreNow({ warm }) {
   const { setDfmodSources, setDfmodDetailSource } = await import('../systems/dfmodTextures.js');   // DFMOD1
   const { installVanillaEnhancedPack } = await import('../systems/vanillaEnhanced/vanillaEnhancedPack.js');   // VE4
   const { getPref } = await import('../systems/uiPrefs.js');
+  const { registerPlayerReplacements } = await import('../systems/replacements/replacementStore.js');
   setDfmodDetailSource(() => getPref('dfmodTextureDetail'));   // DFMOD2: the packs card's detail choice
+  await registerPlayerReplacements();   // the Replacements pane's pictures, which outrank every pack
   const { testBuildPaperdollPacks } = await import('../systems/testBuildPaperdoll.js');
   installVanillaEnhancedPack(await testBuildPaperdollPacks());   // VE4: the shipped mods, in one load order with the attached
   const names = await storedTextureNames();

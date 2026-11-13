@@ -24,7 +24,7 @@ const VIEW = 1n << 10n, SEND = 1n << 11n, EMBED = 1n << 14n, ADMIN = 1n << 3n;
 const CARDS = String(VIEW | SEND | EMBED);
 
 /** A Discord that answers each path as told, and keeps every call. */
-const fakeDiscord = ({ app = { id: APP, bot: { id: BOT }, verify_key: KEY, interactions_endpoint_url: null }, channel = { id: CHANNEL, guild_id: GUILD, permission_overwrites: [] }, roles = [{ id: GUILD, permissions: '0' }, { id: BOT_ROLE, permissions: CARDS }], member = { roles: [BOT_ROLE] }, patch = [200], put = 200, chanStatus = 200 } = {}) => {
+const fakeDiscord = ({ app = { id: APP, bot: { id: BOT }, verify_key: KEY, interactions_endpoint_url: null }, channel = { id: CHANNEL, guild_id: GUILD, permission_overwrites: [] }, roles = [{ id: GUILD, permissions: '0' }, { id: BOT_ROLE, permissions: CARDS }], member = { roles: [BOT_ROLE] }, patch = [200], put = 200, chanStatus = 200, globals = [] } = {}) => {
   const calls = [];
   const patches = [...patch];
   const answer = (status, json) => ({ ok: status >= 200 && status < 300, status, text: async () => (json === undefined ? '' : JSON.stringify(json)) });
@@ -38,6 +38,8 @@ const fakeDiscord = ({ app = { id: APP, bot: { id: BOT }, verify_key: KEY, inter
       return s === 200 ? answer(200, { ...app, interactions_endpoint_url: JSON.parse(init.body).interactions_endpoint_url }) : answer(s, { message: 'interactions_endpoint_url: The specified interactions endpoint url could not be verified.' });
     }
     if (path === `/applications/${APP}/guilds/${GUILD}/commands` && init.method === 'PUT') return answer(put, put === 200 ? JSON.parse(init.body) : { message: 'Missing Access' });
+    if (path === `/applications/${APP}/commands` && init.method === 'GET') return answer(200, globals);
+    if (path.startsWith(`/applications/${APP}/commands/`) && init.method === 'PATCH') return answer(200, { ...globals.find((g) => path.endsWith(g.id)), ...JSON.parse(init.body) });
     if (path === `/guilds/${GUILD}/roles`) return answer(200, roles);
     if (path === `/guilds/${GUILD}/members/${BOT}`) return answer(200, { user: { id: BOT }, ...member });
     return answer(404, { message: 'Unknown' });
@@ -51,9 +53,9 @@ test('DISCORD-SETUP: from the token alone - the application read, the server rea
   const d = fakeDiscord();
   const two = [MOD_COMMAND, { name: 'probe', description: 'A second command', type: 1 }];
   const done = await discordSetup(args(d, { commands: two }));
-  assert.deepEqual(done, { app: APP, guild: GUILD, pointed: true, commands: ['mod', 'probe'], missing: [] });
+  assert.deepEqual(done, { app: APP, guild: GUILD, pointed: true, commands: ['mod', 'probe'], missing: [], pdaMissing: ['Manage Channels', 'Pin Messages'], activity: { on: false } });
   assert.deepEqual(d.calls.map(route),
-    ['GET /applications/@me', `GET /channels/${CHANNEL}`, 'PATCH /applications/@me', `PUT /applications/${APP}/guilds/${GUILD}/commands`, `GET /guilds/${GUILD}/roles`, `GET /guilds/${GUILD}/members/${BOT}`]);
+    ['GET /applications/@me', `GET /channels/${CHANNEL}`, 'PATCH /applications/@me', `PUT /applications/${APP}/guilds/${GUILD}/commands`, `GET /guilds/${GUILD}/roles`, `GET /guilds/${GUILD}/members/${BOT}`, `GET /applications/${APP}/commands`]);
   assert.deepEqual(JSON.parse(d.calls[2].body), { interactions_endpoint_url: DOOR }, 'the PATCH carries the URL and nothing else');
   assert.deepEqual(JSON.parse(d.calls[3].body), two, 'every command in the list, so the server holds exactly the list');
   for (const c of d.calls) {
@@ -139,9 +141,11 @@ test('DISCORD-CODE: what the cards need and the bot lacks in the moderators\' ch
   assert.ok(mute.calls.some((c) => c.method === 'PATCH') && mute.calls.some((c) => c.method === 'PUT'), 'the URL and the commands were still done');
   const red = setupReport(done, DOOR);
   assert.match(red.error, /^the bot lacks Send Messages, Embed Links in the moderators' channel - give its role those permissions there/);
-  assert.equal(red.lines.length, 2);
+  assert.equal(red.lines.length, 4);
+  assert.match(red.lines[3], /the journal's Activity: off\. .*Enable Activities.*URL Mappings, `\/` to `accounts\.example\.workers\.dev`/, 'what only a person can do, said plainly');
   assert.match(red.lines[0], /set now/);
-  assert.match(red.lines[1], /\/mod, written in server 222222222222222222/);
+  assert.match(red.lines[1], /\/mod, DFO Profile \(Apps menu\), written in server 222222222222222222/);
+  assert.match(red.lines[2], /the PDA: the bot lacks Manage Channels, Pin Messages across the server/, 'the PDA\'s gap is said, never red');
   const green = setupReport({ ...done, missing: [], pointed: false }, DOOR);
   assert.equal(green.error, null);
   assert.match(green.lines[0], /already set/);
@@ -155,7 +159,10 @@ test('DISCORD-CODE: every declared command and subcommand reaches a handler in t
   const troll = await s.registered('Troll');
   const ctx = { db: s.env.DB, nowS: Math.floor(Date.now() / 1000), rand: (b) => { globalThis.crypto.getRandomValues(b); }, subtle: globalThis.crypto.subtle };
   const io = { fetchFn: async () => Response.json({ ok: true }), later: (p) => { p.catch(() => {}); } };
-  const ask = async (data) => (await discordInteraction(ctx, s.env, { type: 2, member: { user: { id: '111111111111111111' } }, data }, io))?.data?.content;
+  const ask = async (data) => {
+    const a = (await discordInteraction(ctx, s.env, { type: 2, member: { user: { id: '111111111111111111' } }, data }, io))?.data;
+    return a?.content ?? (a?.components ? JSON.stringify(a.components) : undefined); // a PDA command answers in layout components
+  };
   const valueOf = (o) => (o.type === 3 ? (o.name === 'player' ? troll.id : 'a reason') : o.type === 4 ? (o.min_value ?? 1) : o.type === 5 ? true : 'x');
   const optionsOf = (opts = []) => opts.filter((o) => o.type !== 1 && o.type !== 2).map((o) => ({ name: o.name, type: o.type, value: valueOf(o) }));
   const nothing = await ask({ name: 'no-such-command' });
@@ -173,8 +180,8 @@ test('DISCORD-CODE: every declared command and subcommand reaches a handler in t
       if (subs.length) assert.notEqual(said, usage, `${label} is handled, not answered with the usage`);
     }
   }
-  assert.equal(usageOf('mod'), 'Use /mod lookup, mute, unmute, ban or unban.');
-  assert.deepEqual(subcommandsOf('mod'), ['lookup', 'mute', 'unmute', 'ban', 'unban']);
+  assert.equal(usageOf('mod'), 'Use /mod lookup, mute, unmute, ban, unban or logo.');
+  assert.deepEqual(subcommandsOf('mod'), ['lookup', 'mute', 'unmute', 'ban', 'unban', 'logo']);
 });
 
 test('DISCORD-CODE: the commands live under server-account/, and the deploy\'s path filter holds the setup tool\'s whole import graph - a change to either deploys, and so reaches Discord', () => {
@@ -201,4 +208,19 @@ test('DISCORD-SETUP: the deploy runs it LAST, the token an env var from the repo
   assert.match(run, /grep -oP '\^DISCORD_PUBLIC_KEY[^']*' "\$toml"/, 'and the key');
   assert.match(run, /if \[ -z "\$\{DISCORD_BOT_TOKEN\}" \] \|\| \[ -z "\$channel" \] \|\| \[ -z "\$key" \]; then[\s\S]*?exit 0\n\s+fi/, 'unset is said and skipped');
   assert.match(run, /else\n\s+echo "\$out"\n[\s\S]*?Not finished:[\s\S]*?::error::Discord's setup did not finish[^\n]*\n\s+exit 1/, 'what was done is said, what stopped it goes to the summary, and the deploy turns red');
+});
+
+test('JOURNAL-ACTIVITY: Activities on - the launcher entry Discord made is found among the global commands and given the journal\'s name, once; no other global command is touched, and none is made', async () => {
+  const { ENTRY_NAME, ENTRY_DESCRIPTION } = await import('../../tools/discordModCommands.mjs');
+  const d = fakeDiscord({ globals: [{ id: '999999999999999991', type: 1, name: 'other' }, { id: '999999999999999992', type: 4, name: 'launch', description: 'Launch an activity', handler: 2 }] });
+  const done = await discordSetup(args(d));
+  assert.deepEqual(done.activity, { on: true, renamed: true, id: '999999999999999992' });
+  const patches = d.calls.filter((c) => c.method === 'PATCH' && c.url.includes('/commands/'));
+  assert.equal(patches.length, 1);
+  assert.match(patches[0].url, /999999999999999992$/);
+  assert.deepEqual(JSON.parse(patches[0].body), { name: ENTRY_NAME, description: ENTRY_DESCRIPTION }, 'its name and words alone: Discord keeps launching it');
+  assert.ok(!d.calls.some((c) => c.method === 'POST' || (c.method === 'PUT' && /\/applications\/\d+\/commands$/.test(c.url))), 'no global command made or overwritten');
+  assert.match(setupReport(done, DOOR).lines.join('\n'), /the journal's Activity: on, launched as `\/journal`/);
+  const again = fakeDiscord({ globals: [{ id: '999999999999999992', type: 4, name: ENTRY_NAME, description: ENTRY_DESCRIPTION, handler: 2 }] });
+  assert.equal((await discordSetup(args(again))).activity.renamed, false, 'named already: left alone');
 });

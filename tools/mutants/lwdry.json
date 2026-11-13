@@ -11,8 +11,8 @@
   {
     "name": "LW-DRY-axes-crossed",
     "file": "src/world/dryGround.js",
-    "old": "const x0 = Math.min(span - 1, Math.max(0, Math.floor(fx * span))), y0 = Math.min(span - 1, Math.max(0, Math.floor(fz * span)));",
-    "new": "const x0 = Math.min(span - 1, Math.max(0, Math.floor(fz * span))), y0 = Math.min(span - 1, Math.max(0, Math.floor(fx * span)));",
+    "old": "    const x0 = Math.min(span - 1, Math.max(0, Math.floor(fx * span))),\n      y0 = Math.min(span - 1, Math.max(0, Math.floor(fz * span)));",
+    "new": "    const x0 = Math.min(span - 1, Math.max(0, Math.floor(fz * span))),\n      y0 = Math.min(span - 1, Math.max(0, Math.floor(fx * span)));",
     "tests": [
       "test/systems/livingWorld/lwdry_ground.test.js"
     ]
@@ -47,8 +47,8 @@
   {
     "name": "LW-DRY-ground-unread",
     "file": "src/systems/livingWorld/trips.js",
-    "old": "    const way = innsAlong(wayOf(plan, world.dryAt), plan, world, home, to);   // LW9: the inns on its road\n    const [trim0, trim1] = wayTrims(home, /** @type {LwTown} */ (to), way);   // WALL-WAY: past each town's walls",
-    "new": "    const way = innsAlong(wayOf(plan), plan, world, home, to);   // LW9: the inns on its road\n    const [trim0, trim1] = wayTrims(home, /** @type {LwTown} */ (to), way);   // WALL-WAY: past each town's walls",
+    "old": "  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan, world.dryAt), plan, world, home, to) : wayOf(plan, world.dryAt);",
+    "new": "  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan), plan, world, home, to) : wayOf(plan, world.dryAt);",
     "tests": [
       "test/systems/livingWorld/lwdry_ground.test.js"
     ]
@@ -56,8 +56,8 @@
   {
     "name": "LW-DRY-dive-ground-unread",
     "file": "src/systems/livingWorld/trips.js",
-    "old": "    const way = wayOf(plan, world.dryAt);\n    const [trim0, trim1] = wayTrims(home, to, way);   // WALL-WAY: past each town's walls\n    const walk = Math.max(0, way.len - trim0 - trim1) / pace;\n    const estDays = 2 * Math.ceil(walk / ((WALK_TO_H - WALK_FROM_H) * 60)) + Math.ceil(inside / DAY_MIN) + 1;",
-    "new": "    const way = wayOf(plan);\n    const [trim0, trim1] = wayTrims(home, to, way);   // WALL-WAY: past each town's walls\n    const walk = Math.max(0, way.len - trim0 - trim1) / pace;\n    const estDays = 2 * Math.ceil(walk / ((WALK_TO_H - WALK_FROM_H) * 60)) + Math.ceil(inside / DAY_MIN) + 1;",
+    "old": "  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan, world.dryAt), plan, world, home, to) : wayOf(plan, world.dryAt);",
+    "new": "  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan, world.dryAt), plan, world, home, to) : wayOf(plan);",
     "tests": [
       "test/systems/livingWorld/lwdry_ground.test.js"
     ]
@@ -196,8 +196,8 @@
   {
     "name": "LW-DRY-trouble-early",
     "file": "src/systems/livingWorld/trouble.js",
-    "old": "      for (t0 = Math.ceil(t0); t0 < end; t0++) { const a = partyAt(trip, t0); if (a.s != null && dir * (a.s - s) >= 0) break; }\n",
-    "new": "",
+    "old": "      for (t0 = Math.ceil(t0); t0 < end; t0++) {\n        const a = partyAt(trip, t0);\n        if (a.s != null && dir * (a.s - s) >= 0) break;\n      }\n      t0 = Math.min(t0, end); // the leg's end: met as it comes to its town",
+    "new": "      t0 = Math.min(t0, end); // the leg's end: met as it comes to its town",
     "tests": [
       "test/systems/livingWorld/lwdry_ground.test.js"
     ]

@@ -29,7 +29,7 @@
 // (discord.js MOD_CHANNEL_NEEDS); one missing turns the deploy red and is named, where before a card simply never came.
 import { isMain } from './lib/isMain.mjs';
 import { DISCORD_USER_AGENT, MOD_CHANNEL_NEEDS } from '../server-account/src/discord.js';
-import { DISCORD_COMMANDS, MOD_COMMAND } from '../server-account/src/discordCommands.js';
+import { DISCORD_COMMANDS, MOD_COMMAND, commandLabel } from '../server-account/src/discordCommands.js';
 
 export { DISCORD_COMMANDS, MOD_COMMAND };
 
@@ -53,26 +53,51 @@ export function channelPermissions({ guildId, roles, memberRoles, userId, overwr
   let p = of.get(guildId) ?? 0n;
   for (const id of memberRoles) p |= of.get(id) ?? 0n;
   if ((p & ADMINISTRATOR) === ADMINISTRATOR) return ALL;
-  const apply = (allow, deny) => { p &= ~deny; p |= allow; };
+  const apply = (allow, deny) => {
+    p &= ~deny;
+    p |= allow;
+  };
   const everyone = overwrites.find((o) => o.id === guildId);
   if (everyone) apply(BigInt(everyone.allow), BigInt(everyone.deny));
-  let allow = 0n, deny = 0n;
-  for (const o of overwrites) if (o.type === 0 && o.id !== guildId && memberRoles.includes(o.id)) { allow |= BigInt(o.allow); deny |= BigInt(o.deny); }
+  let allow = 0n,
+    deny = 0n;
+  for (const o of overwrites)
+    if (o.type === 0 && o.id !== guildId && memberRoles.includes(o.id)) {
+      allow |= BigInt(o.allow);
+      deny |= BigInt(o.deny);
+    }
   apply(allow, deny);
   const own = overwrites.find((o) => o.type === 1 && o.id === userId);
   if (own) apply(BigInt(own.allow), BigInt(own.deny));
   return p;
 }
 
+/** What the PDA does across the server, as Discord's permission bits: make its Terminal's channel, pin the card there,
+ *  and post its cards and direct messages. A gap here is said, never red: the PDA's other screens still work. */
+export const PDA_SERVER_NEEDS = Object.freeze([
+  ['Manage Channels', 1n << 4n],
+  ['Pin Messages', 1n << 51n],
+  ['Send Messages', 1n << 11n],
+]);
+
 /** DISCORD-SETUP: the application pointed at `url`, every command written in the server `channel` is in, and the bot's
  *  permissions there read. Answers `{ app, guild, pointed, commands, missing }` (`pointed`: the URL was changed, not
  *  already right; `missing`: what the cards need that the bot lacks there), or throws an Error saying which step Discord
  *  refused and its words - never the token. */
-export async function discordSetup({ token, channel, publicKey, url, commands = DISCORD_COMMANDS, fetchFn = (u, i) => globalThis.fetch(u, i), wait = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
+export async function discordSetup({
+  token,
+  channel,
+  publicKey,
+  url,
+  commands = DISCORD_COMMANDS,
+  fetchFn = (u, i) => globalThis.fetch(u, i),
+  wait = (ms) => new Promise((r) => setTimeout(r, ms)),
+}) {
   if (!token) throw new Error('no bot token');
   if (!SNOWFLAKE_RE.test(channel ?? '')) throw new Error(`DISCORD_MOD_CHANNEL is not a channel id: "${channel ?? ''}"`);
   if (!/^[0-9a-f]{64}$/i.test(publicKey ?? '')) throw new Error('DISCORD_PUBLIC_KEY is not a 64-character hex key');
-  if (!/^https:\/\/[^\s/]+\/v1\/discord\/interactions$/.test(url ?? '')) throw new Error(`not the service's interactions door: "${url ?? ''}"`);
+  if (!/^https:\/\/[^\s/]+\/v1\/discord\/interactions$/.test(url ?? ''))
+    throw new Error(`not the service's interactions door: "${url ?? ''}"`);
   const call = async (what, path, method = 'GET', body) => {
     const res = await fetchFn(`${DISCORD_API}${path}`, {
       method,
@@ -83,35 +108,100 @@ export async function discordSetup({ token, channel, publicKey, url, commands = 
     if (!res.ok) return { error: `${what}: Discord said ${res.status}: ${text.slice(0, 300)}`, status: res.status };
     return { json: text ? JSON.parse(text) : null };
   };
-  const got = (r) => { if (r.error) throw new Error(r.error); return r.json; };
+  const got = (r) => {
+    if (r.error) throw new Error(r.error);
+    return r.json;
+  };
   const app = got(await call('reading the application', '/applications/@me'));
   if (!SNOWFLAKE_RE.test(app?.id ?? '')) throw new Error('reading the application: Discord named no application id');
-  if (!SNOWFLAKE_RE.test(app?.bot?.id ?? '')) throw new Error('reading the application: it has no bot user - add one in the Developer Portal');
+  if (!SNOWFLAKE_RE.test(app?.bot?.id ?? ''))
+    throw new Error('reading the application: it has no bot user - add one in the Developer Portal');
   if (String(app.verify_key ?? '').toLowerCase() !== publicKey.toLowerCase()) {
-    throw new Error(`DISCORD_PUBLIC_KEY is not this application's public key - set it to ${app.verify_key} in server-account/wrangler.toml`);
+    throw new Error(
+      `DISCORD_PUBLIC_KEY is not this application's public key - set it to ${app.verify_key} in server-account/wrangler.toml`,
+    );
   }
   // DISCORD-CODE: the first live run's refusal (2026-10-17) - a 404 is no channel at all, where a channel the bot cannot
   // see is a 403: the id copied was another thing's (a server's, a user's, the application's look the same)
-  const read = await call('reading the moderators\' channel (is the bot in the server, with View Channel there?)', `/channels/${channel}`);
-  if (read.status === 404) throw new Error(`reading the moderators' channel: Discord knows no channel ${channel} (404) - DISCORD_MOD_CHANNEL is likely a server's, a user's or the application's id; with Developer Mode on (User Settings, Advanced), right-click the channel itself and Copy Channel ID`);
+  const read = await call(
+    "reading the moderators' channel (is the bot in the server, with View Channel there?)",
+    `/channels/${channel}`,
+  );
+  if (read.status === 404)
+    throw new Error(
+      `reading the moderators' channel: Discord knows no channel ${channel} (404) - DISCORD_MOD_CHANNEL is likely a server's, a user's or the application's id; with Developer Mode on (User Settings, Advanced), right-click the channel itself and Copy Channel ID`,
+    );
   const chan = got(read);
-  if (!SNOWFLAKE_RE.test(chan?.guild_id ?? '')) throw new Error('the moderators\' channel is in no server - DISCORD_MOD_CHANNEL must name a server\'s channel');
+  if (!SNOWFLAKE_RE.test(chan?.guild_id ?? ''))
+    throw new Error("the moderators' channel is in no server - DISCORD_MOD_CHANNEL must name a server's channel");
   let pointed = false;
   if (app.interactions_endpoint_url !== url) {
     for (let n = 1; ; n++) {
-      const r = await call('setting the Interactions Endpoint URL', '/applications/@me', 'PATCH', { interactions_endpoint_url: url });
+      const r = await call('setting the Interactions Endpoint URL', '/applications/@me', 'PATCH', {
+        interactions_endpoint_url: url,
+      });
       if (!r.error) break;
       if (n >= SETUP_TRIES) throw new Error(r.error);
       await wait(SETUP_RETRY_MS);
     }
     pointed = true;
   }
-  got(await call('registering the commands', `/applications/${app.id}/guilds/${chan.guild_id}/commands`, 'PUT', commands));
-  const roles = got(await call('reading the server\'s roles', `/guilds/${chan.guild_id}/roles`));
-  const member = got(await call('reading the bot\'s roles in the server', `/guilds/${chan.guild_id}/members/${app.bot.id}`));
-  const have = channelPermissions({ guildId: chan.guild_id, roles: roles ?? [], memberRoles: member?.roles ?? [], userId: app.bot.id, overwrites: chan.permission_overwrites ?? [] });
+  got(
+    await call('registering the commands', `/applications/${app.id}/guilds/${chan.guild_id}/commands`, 'PUT', commands),
+  );
+  const roles = got(await call("reading the server's roles", `/guilds/${chan.guild_id}/roles`));
+  const member = got(
+    await call("reading the bot's roles in the server", `/guilds/${chan.guild_id}/members/${app.bot.id}`),
+  );
+  const have = channelPermissions({
+    guildId: chan.guild_id,
+    roles: roles ?? [],
+    memberRoles: member?.roles ?? [],
+    userId: app.bot.id,
+    overwrites: chan.permission_overwrites ?? [],
+  });
   const missing = MOD_CHANNEL_NEEDS.filter(([, bit]) => (have & bit) !== bit).map(([name]) => name);
-  return { app: app.id, guild: chan.guild_id, pointed, commands: commands.map((c) => c.name), missing };
+  const base = channelPermissions({
+    guildId: chan.guild_id,
+    roles: roles ?? [],
+    memberRoles: member?.roles ?? [],
+    userId: app.bot.id,
+    overwrites: [],
+  });
+  const pdaMissing = PDA_SERVER_NEEDS.filter(([, bit]) => (base & bit) !== bit).map(([name]) => name);
+  const activity = await activityEntry(call, app.id);
+  return {
+    app: app.id,
+    guild: chan.guild_id,
+    pointed,
+    commands: commands.map((c) => c.name),
+    missing,
+    pdaMissing,
+    activity,
+  };
+}
+
+/** The journal's Activity's entry in the App Launcher: its name and words. */
+export const ENTRY_NAME = 'journal';
+export const ENTRY_DESCRIPTION = 'Open your DFO Online journal and the Eltheric Ocean.';
+/**
+ * THE ACTIVITY'S LAUNCHER ENTRY. Discord makes it (a global command of type 4, PRIMARY_ENTRY_POINT, launched by Discord
+ * itself) when a person turns Activities on in the Developer Portal, which no API can do. The deploy finds it among the
+ * global commands and gives it the journal's name; it never makes one, and never touches another global command.
+ * Answers `{ on, renamed, id }`, or `{ on: false }` when Activities are off or the list could not be read.
+ */
+export async function activityEntry(call, appId) {
+  const list = await call('reading the global commands', `/applications/${appId}/commands`);
+  if (list.error) return { on: false, unread: true };
+  const entry = (Array.isArray(list.json) ? list.json : []).find((c) => c?.type === 4);
+  if (!entry) return { on: false };
+  if (entry.name === ENTRY_NAME && entry.description === ENTRY_DESCRIPTION)
+    return { on: true, renamed: false, id: entry.id };
+  const r = await call("naming the Activity's launcher entry", `/applications/${appId}/commands/${entry.id}`, 'PATCH', {
+    name: ENTRY_NAME,
+    description: ENTRY_DESCRIPTION,
+  });
+  return { on: true, renamed: !r.error, id: entry.id, ...(r.error ? { why: r.error } : {}) };
 }
 
 /** What the deploy says of a setup: its lines, and what stops it (`error` - the deploy goes red on it): the cards'
@@ -119,20 +209,48 @@ export async function discordSetup({ token, channel, publicKey, url, commands = 
 export function setupReport(done, url) {
   const lines = [
     `- the Interactions Endpoint URL: \`${url}\` (${done.pointed ? 'set now' : 'already set'})`,
-    `- the commands: ${done.commands.map((n) => `/${n}`).join(', ')}, written in server ${done.guild} for application ${done.app}`,
+    `- the commands: ${done.commands.map((n) => commandLabel(DISCORD_COMMANDS.find((c) => c.name === n) ?? { name: n })).join(', ')}, written in server ${done.guild} for application ${done.app}`,
+    done.pdaMissing?.length
+      ? `- the PDA: the bot lacks ${done.pdaMissing.join(', ')} across the server - the Terminal is not made or pinned until it has them (or DISCORD_TERMINAL_CHANNEL names a channel it can post in)`
+      : '- the PDA: the bot can make, post and pin its Terminal',
+    done.activity?.on
+      ? `- the journal's Activity: on, launched as \`/${ENTRY_NAME}\` and from the App Launcher${done.activity.renamed ? ' (named now)' : ''}${done.activity.why ? ` - ${done.activity.why}` : ''}`
+      : `- the journal's Activity: off. A person turns it on once in the Developer Portal (no API can): Activities, Settings, Enable Activities, with Web, iOS and Android ticked; then Activities, URL Mappings, \`/\` to \`${String(
+          url,
+        )
+          .replace(/^https:\/\//, '')
+          .replace(/\/v1\/discord\/interactions$/, '')}\`. The next deploy names its launcher entry.`,
   ];
-  if (!done.missing.length) return { lines: [...lines, '- the bot\'s permissions in the moderators\' channel: everything the cards need'], error: null };
-  return { lines, error: `the bot lacks ${done.missing.join(', ')} in the moderators' channel - give its role ${done.missing.length === 1 ? 'that permission' : 'those permissions'} there (the channel's settings, Permissions), or no case card can be posted` };
+  if (!done.missing.length)
+    return {
+      lines: [...lines, "- the bot's permissions in the moderators' channel: everything the cards need"],
+      error: null,
+    };
+  return {
+    lines,
+    error: `the bot lacks ${done.missing.join(', ')} in the moderators' channel - give its role ${done.missing.length === 1 ? 'that permission' : 'those permissions'} there (the channel's settings, Permissions), or no case card can be posted`,
+  };
 }
 
 async function main() {
-  if (process.argv.includes('--print')) { console.log(JSON.stringify(DISCORD_COMMANDS, null, 2)); return; }
+  if (process.argv.includes('--print')) {
+    console.log(JSON.stringify(DISCORD_COMMANDS, null, 2));
+    return;
+  }
   if (process.argv.includes('--setup')) {
-    const { DISCORD_BOT_TOKEN: token, DISCORD_MOD_CHANNEL: channel, DISCORD_PUBLIC_KEY: publicKey, DISCORD_INTERACTIONS_URL: url } = process.env;
+    const {
+      DISCORD_BOT_TOKEN: token,
+      DISCORD_MOD_CHANNEL: channel,
+      DISCORD_PUBLIC_KEY: publicKey,
+      DISCORD_INTERACTIONS_URL: url,
+    } = process.env;
     try {
       const report = setupReport(await discordSetup({ token, channel, publicKey, url }), url);
       console.log(report.lines.join('\n'));
-      if (report.error) { console.error(report.error); process.exit(1); }
+      if (report.error) {
+        console.error(report.error);
+        process.exit(1);
+      }
     } catch (e) {
       console.error(String(e?.message ?? e));
       process.exit(1);
@@ -146,12 +264,15 @@ async function main() {
   }
   const res = await fetch(`https://discord.com/api/v10/applications/${app}/guilds/${guild}/commands`, {
     method: 'PUT',
-    headers: { 'content-type': 'application/json', authorization: `Bot ${token}`, 'user-agent': DISCORD_USER_AGENT },   // AUDIT SAFE DISCORD-10
+    headers: { 'content-type': 'application/json', authorization: `Bot ${token}`, 'user-agent': DISCORD_USER_AGENT }, // AUDIT SAFE DISCORD-10
     body: JSON.stringify(DISCORD_COMMANDS),
   });
   const text = await res.text();
-  if (!res.ok) { console.error(`Discord said ${res.status}: ${text}`); process.exit(1); }
-  console.log(`${DISCORD_COMMANDS.map((c) => `/${c.name}`).join(', ')} registered in guild ${guild}.`);
+  if (!res.ok) {
+    console.error(`Discord said ${res.status}: ${text}`);
+    process.exit(1);
+  }
+  console.log(`${DISCORD_COMMANDS.map(commandLabel).join(', ')} registered in guild ${guild}.`);
 }
 
 if (isMain(import.meta.url)) await main();

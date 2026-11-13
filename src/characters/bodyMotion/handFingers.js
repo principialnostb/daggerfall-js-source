@@ -44,7 +44,7 @@ export const OPEN = Object.freeze({
   'bip01 r finger1': Object.freeze([0.9951, -0.0062, 0.0434, 0.0888]),
   'bip01 r finger11': Object.freeze([0.9894, 0, 0, 0.1454]),
   'bip01 r finger2': Object.freeze([0.9931, 0.0007, 0.0192, 0.1161]),
-  'bip01 r finger21': Object.freeze([0.9417, 0, 0, 0.3364])
+  'bip01 r finger21': Object.freeze([0.9417, 0, 0, 0.3364]),
 });
 
 /** The share of the way to the FIST a hand closed on something stands: `fist` a fist drawn, `hilt` a hand on a weapon (the
@@ -55,21 +55,27 @@ export const FINGERS = Object.freeze({ fist: 1, hilt: 0.85, grip: 0.8, ease: 0.1
  *  keeps them (an empty hand, a torch, a spell, a bow, a hand busy in a recoil or a climb). */
 export function fingerShares(word) {
   if (!word || !word.on || word.busy || word.equip || word.rifle || word.spell) return { L: null, R: null };
-  const cls = carryClassOf(word), shield = !!word.shield;
+  const cls = carryClassOf(word),
+    shield = !!word.shield;
   const fist = (k) => ({ fist: k, open: 0 });
   const left = !word.torch && !word.spellHand && shield ? fist(FINGERS.grip) : null;
   // FIST-BESIDE-SHIELD: the right beside a shield is a free hand - open, as the free hand beside a sword
   if (cls === 'fists' && !shield && guardTraveling(word)) return { L: null, R: null };
-  if (cls === 'fists') return shield ? { R: { fist: 0, open: 1 }, L: fist(FINGERS.grip) } : { R: fist(FINGERS.fist), L: fist(FINGERS.fist) };
+  if (cls === 'fists')
+    return shield
+      ? { R: { fist: 0, open: 1 }, L: fist(FINGERS.grip) }
+      : { R: fist(FINGERS.fist), L: fist(FINGERS.fist) };
   if (cls === 'one') return { R: fist(FINGERS.hilt), L: left };
-  if (cls === 'two' || cls === 'wide' || cls === 'spear' || cls === 'dual') return { R: fist(FINGERS.hilt), L: fist(FINGERS.hilt) };
+  if (cls === 'two' || cls === 'wide' || cls === 'spear' || cls === 'dual')
+    return { R: fist(FINGERS.hilt), L: fist(FINGERS.hilt) };
   if (cls === 'free') return { R: null, L: left };
   return { L: null, R: null };
 }
 
 const nlerp = (a, b, w) => {
   const s = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3] < 0 ? -1 : 1;
-  const q = a.map((v, i) => v + (b[i] * s - v) * w), l = Math.hypot(...q) || 1;
+  const q = a.map((v, i) => v + (b[i] * s - v) * w),
+    l = Math.hypot(...q) || 1;
   return q.map((v) => v / l);
 };
 
@@ -79,19 +85,22 @@ export function createHandFingers() {
   return {
     step(dt, on, word) {
       const s = on ? fingerShares(word) : { L: null, R: null };
-      for (const side of ['L', 'R']) for (const key of ['fist', 'open']) {
-        const want = s[side]?.[key] ?? 0;
-        share[side][key] = ease(share[side][key], want, FINGERS.ease, Math.max(0, dt));
-        if (Math.abs(share[side][key] - want) < 1e-3) share[side][key] = want;
-      }
+      for (const side of ['L', 'R'])
+        for (const key of ['fist', 'open']) {
+          const want = s[side]?.[key] ?? 0;
+          share[side][key] = ease(share[side][key], want, FINGERS.ease, Math.max(0, dt));
+          if (Math.abs(share[side][key] - want) < 1e-3) share[side][key] = want;
+        }
     },
     apply(skeleton, pose) {
       for (const side of ['L', 'R']) {
-        const kf = clamp01(share[side].fist), ko = clamp01(share[side].open);
+        const kf = clamp01(share[side].fist),
+          ko = clamp01(share[side].open);
         if (!(kf > 1e-3 || ko > 1e-3)) continue;
         for (const name of Object.keys(FIST)) {
           if (name[6] !== side.toLowerCase()) continue;
-          const ref = skeleton.byName.get(name), node = ref != null ? skeleton.nodes.get(ref) : null;
+          const ref = skeleton.byName.get(name),
+            node = ref != null ? skeleton.nodes.get(ref) : null;
           if (!node) continue;
           const cur = pose.get(ref) ?? node.rest;
           let q = mat33ToQuat(Array.from(cur.rotation));
@@ -102,6 +111,8 @@ export function createHandFingers() {
       }
     },
     status: () => ({ L: { ...share.L }, R: { ...share.R } }),
-    reset() { for (const side of ['L', 'R']) share[side].fist = share[side].open = 0; },
+    reset() {
+      for (const side of ['L', 'R']) share[side].fist = share[side].open = 0;
+    },
   };
 }

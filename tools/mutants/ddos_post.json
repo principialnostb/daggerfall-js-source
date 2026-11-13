@@ -1,0 +1,20 @@
+[
+  {
+    "name": "DDOS-the-aurum",
+    "file": "src/net/giftLaw.js",
+    "old": "ddos: Object.freeze({ aurum: 500,",
+    "new": "ddos: Object.freeze({ aurum: 50,",
+    "tests": [
+      "test/server/ddos_post.test.js"
+    ]
+  },
+  {
+    "name": "DDOS-the-statement-unsent",
+    "file": "tools/sendServerPost.mjs",
+    "old": "export const ddosPostSql = () => giftPostSql(DDOS_POST);",
+    "new": "export const ddosPostSql = () => giftPostSql({ ...DDOS_POST, handles: 'Nobody' });",
+    "tests": [
+      "test/server/ddos_post.test.js"
+    ]
+  }
+]
