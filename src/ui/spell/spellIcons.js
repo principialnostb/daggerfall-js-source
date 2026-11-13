@@ -30,7 +30,13 @@ import { loadImg, drawImgCrop } from '../native/nativePanel.js';
 import { ImgFile } from '../../formats/imgFile.js';
 import { bitmapToColor32 } from '../../formats/color32Order.js';
 import { playerPicturesGeneration } from '../../systems/replacements/playerPictures.js';
-import { playerSpellIcons, composeIconSheet, overhaulIconSheet, overhaulIconKey, SPELL_ICON_FILE } from '../../systems/replacements/spellIconSheet.js';
+import {
+  playerSpellIcons,
+  composeIconSheet,
+  overhaulIconSheet,
+  overhaulIconKey,
+  SPELL_ICON_FILE,
+} from '../../systems/replacements/spellIconSheet.js';
 import { packImgUrl } from '../../systems/uiPack.js';
 // ONE HOME: SpellIconCollection.SpellIconCount is already declared in
 // systems/spell/spellMaker.js, where S1's SetIcon wrap reads it. This is

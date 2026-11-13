@@ -176,7 +176,8 @@ export function setPlayerReplacements(entries) {
   const was = _player;
   _player = new Map();
   for (const entry of entries ?? []) {
-    if (!Number.isFinite(entry?.archive) || !Number.isFinite(entry?.record) || typeof entry.load !== 'function') continue;
+    if (!Number.isFinite(entry?.archive) || !Number.isFinite(entry?.record) || typeof entry.load !== 'function')
+      continue;
     const frame = Number(entry.frame ?? 0);
     const dye = entry.dye ?? null;
     const key = textureKey(entry.archive, entry.record, frame, 'Albedo', dye);
@@ -188,7 +189,10 @@ export function setPlayerReplacements(entries) {
       dye,
       fileName: `replacement:${key}`,
       src: `replacement:${key}:${entry.stamp ?? 0}`,
-      box: entry.box?.width > 0 && entry.box?.height > 0 ? { width: Number(entry.box.width), height: Number(entry.box.height) } : null,
+      box:
+        entry.box?.width > 0 && entry.box?.height > 0
+          ? { width: Number(entry.box.width), height: Number(entry.box.height) }
+          : null,
       load: entry.load,
     });
   }
@@ -205,7 +209,8 @@ export const playerReplacementBox = (archive, record, frame = 0, dye = null) =>
 /** The records of `archive` the player replaced (frame 0): what a ground tile set lays over itself. */
 export function playerRecordsOf(archive) {
   const records = new Set();
-  for (const entry of _player.values()) if (entry.archive === Number(archive) && entry.frame === 0) records.add(entry.record);
+  for (const entry of _player.values())
+    if (entry.archive === Number(archive) && entry.frame === 0) records.add(entry.record);
   return [...records].sort((first, second) => first - second);
 }
 /** The player's entry that answers a lookup key: the one for the dye it asks with, else the one for every dye. */
@@ -1105,7 +1110,8 @@ export function picturesCoveredBelowPlayer() {
   const covered = new Set();
   for (const tier of [_vendor, _index, _bundle])
     for (const [key, entry] of tier)
-      if (entry.map === 'Albedo' && answersBelowPlayer(key)) covered.add(textureKey(entry.archive, entry.record, entry.frame));
+      if (entry.map === 'Albedo' && answersBelowPlayer(key))
+        covered.add(textureKey(entry.archive, entry.record, entry.frame));
   return covered;
 }
 /** The entry an overhaul, a pack or a mod draws a record's plain picture from: the dye's own entry, else its undyed
@@ -1117,15 +1123,25 @@ function entryCoveringBelowPlayer(archive, record, frame, dye = null) {
   if (answersBelowPlayer(bare)) return entryBelowPlayer(bare);
   for (const tier of [_vendor, _index, _bundle])
     for (const [key, entry] of tier)
-      if (entry.archive === Number(archive) && entry.record === Number(record) && entry.frame === Number(frame) &&
-        entry.map === 'Albedo' && answersBelowPlayer(key))
+      if (
+        entry.archive === Number(archive) &&
+        entry.record === Number(record) &&
+        entry.frame === Number(frame) &&
+        entry.map === 'Albedo' &&
+        answersBelowPlayer(key)
+      )
         return entryBelowPlayer(key);
   return null;
 }
 /** The picture the player's replacement covers - an overhaul's, a pack's or a mod's - as a top-down RGBA
  *  `{ width, height, data }`, or null where the classic record draws. Decoded apart from the draw's own pictures, so the
  *  Replacements pane never moves what the world holds. Never throws. */
-export async function pictureBelowPlayer(archive, record, frame = 0, { decode = decodePng, dye = null, derive = null } = {}) {
+export async function pictureBelowPlayer(
+  archive,
+  record,
+  frame = 0,
+  { decode = decodePng, dye = null, derive = null } = {},
+) {
   const entry = entryCoveringBelowPlayer(archive, record, frame, dye);
   if (!entry) return null;
   try {

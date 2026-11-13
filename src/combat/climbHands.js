@@ -52,7 +52,11 @@ import { FEEL, tremble } from '../player/climb/climbFeel.js';
 import { PARKOUR_GRIP_LOW, PARKOUR_HANG_DROP, PARKOUR_LIP_FOLLOW } from '../player/parkour.js';
 import { POSE, gait, shimmyGait, wallFrame } from '../player/climb/climbPose.js';
 import { decodePng } from '../systems/textureReplacement.js';
-import { playerPictureRgba, playerPictureStamp, playerPicturesGeneration } from '../systems/replacements/playerPictures.js'; // the Replacements pane's paintings
+import {
+  playerPictureRgba,
+  playerPictureStamp,
+  playerPicturesGeneration,
+} from '../systems/replacements/playerPictures.js'; // the Replacements pane's paintings
 import { toScreenOrder } from '../formats/color32Order.js';
 import { APP_ROOT } from '../systems/appRoot.js';
 import { wrapAngle } from '../world/mat4.js'; // the one home for an angle into (-PI, PI] (audit24's ratchet)
@@ -675,7 +679,9 @@ export function createClimbHands({ renderer, fetchBytes = null, decode = decodeP
               return new Uint8Array(await r.arrayBuffer());
             })();
       const img = own ?? (await decode(bytes));
-      const textureKey = own ? `climbhands:${art.picture}#${playerPictureStamp(art.picture)}` : `climbhands:${art.file}`;
+      const textureKey = own
+        ? `climbhands:${art.picture}#${playerPictureStamp(art.picture)}`
+        : `climbhands:${art.file}`;
       if (img?.width) {
         tex.set(key, renderer.uploadTexture('img', textureKey, toScreenOrder(img))); // a PNG's rows are top-first: a screen quad wants them so (HT3)
         shown.set(art.file, tex.get(key));

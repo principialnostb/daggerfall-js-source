@@ -912,7 +912,8 @@ export function dfmodGroundLayers(archive, tex, { decode = decodePng } = {}) {
   const n = tex?.recordCount ?? 0;
   const studio = n ? studioRecordsOf(archive).filter((r) => r < n) : []; // STUDIO1: the studio's records, worn with the gate shut too
   // The player's own replaced tiles are laid over the set as the studio's are, and outrank them (the record's door answers the player's first)
-  for (const record of n ? playerRecordsOf(archive) : []) if (record < n && !studio.includes(record)) studio.push(record);
+  for (const record of n ? playerRecordsOf(archive) : [])
+    if (record < n && !studio.includes(record)) studio.push(record);
   if (!n || (!textureReplacementEnabled() && !studio.length)) return Promise.resolve(null);
   const id = `${Number(archive)}:${n}:${looseTextureGeneration()}${studio.length ? `:${textureTierEpoch()}` : ''}`;
   const hit = _groundCache.get(id);

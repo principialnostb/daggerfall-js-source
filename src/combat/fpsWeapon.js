@@ -442,7 +442,9 @@ export async function loadFpsWeaponArt(
       const c32 = custom ?? frameToColor32((own ?? cif).getDFBitmap(r, f), palette, dye);
       // a player's picture keys apart by when it was kept: a mod's frame of the same name, or their earlier one, is not it
       const customKey = custom?.ownStamp ? `fpw:${name}#${custom.ownStamp}` : `fpw:${name}`;
-      frames.push(renderer.uploadTexture('img', custom ? customKey : `fpw:${fileName}${ownKey}:${material}:${r}:${f}`, c32));
+      frames.push(
+        renderer.uploadTexture('img', custom ? customKey : `fpw:${fileName}${ownKey}:${material}:${r}:${f}`, c32),
+      );
     }
     records.push({ width: size.width, height: size.height, frames });
   }

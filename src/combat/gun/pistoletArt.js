@@ -195,12 +195,12 @@ export async function loadPistoletArt(
   const bytes = own
     ? null
     : fetchStrip
-    ? await fetchStrip(file)
-    : await (async () => {
-        const r = await fetch(stripUrl(file));
-        if (!r.ok) throw new Error(`${file}: ${r.status}`);
-        return new Uint8Array(await r.arrayBuffer());
-      })();
+      ? await fetchStrip(file)
+      : await (async () => {
+          const r = await fetch(stripUrl(file));
+          if (!r.ok) throw new Error(`${file}: ${r.status}`);
+          return new Uint8Array(await r.arrayBuffer());
+        })();
   const strip = own ?? (await decode(bytes));
   if (!strip?.width) return null;
   const { union, anchor, frames: cropped, muzzle } = bledFrames(strip, { gilded, magic }) ?? {};
@@ -209,7 +209,9 @@ export async function loadPistoletArt(
   const type = magic ? WEAPON_TYPES.Pistolet_Magic : WEAPON_TYPES.Pistolet;
   const look = gilded ? ':gilded' : magic ? ':magic' : '';
   const ownKey = own ? `#${playerPictureStamp('pistol-frames')}` : '';
-  const textures = cropped.map((rgba, i) => renderer.uploadTexture('img', `pistolet${look}${ownKey}:${i}`, toScreenOrder(rgba)));
+  const textures = cropped.map((rgba, i) =>
+    renderer.uploadTexture('img', `pistolet${look}${ownKey}:${i}`, toScreenOrder(rgba)),
+  );
   const anchorW = anchor.w * scale,
     anchorH = anchor.h * scale;
   return {

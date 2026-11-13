@@ -38,7 +38,13 @@ import { frameToColor32 } from './fpsWeapon.js'; // the ONE indexed-bitmap bake
 import { weaponOffsetHeight } from '../ui/hud/hudLarge.js';
 import { validCastRate } from '../systems/castSpeed.js'; // CAST-SPEED: the rate a cast runs at
 import { toScreenOrder } from '../formats/color32Order.js';
-import { cifPictureName, playerPictureRgba, playerPictureStamp, playerCifCopy, playerFileStamp } from '../systems/replacements/playerPictures.js';
+import {
+  cifPictureName,
+  playerPictureRgba,
+  playerPictureStamp,
+  playerCifCopy,
+  playerFileStamp,
+} from '../systems/replacements/playerPictures.js';
 import { dfmodCifRciImage, dfmodGeneration } from '../systems/dfmodTextures.js';
 
 /** nativeScreenWidth / nativeScreenHeight (:44-45). NOT 320x200: the
@@ -155,7 +161,11 @@ export async function loadSpellCastArt(getBytes, palette, renderer, element) {
   const own = await playerCifCopy(fileName, palette, cif);
   const names = Array.from({ length: cif.recordCount }, (_, record) => cifPictureName(fileName, record, 0));
   const pictures = await Promise.all(names.map((name) => playerPictureRgba(name)));
-  const mods = await Promise.all(names.map((_, record) => (own || pictures[record] ? null : dfmodCifRciImage(fileName, record, 0).catch(() => null))));
+  const mods = await Promise.all(
+    names.map((_, record) =>
+      own || pictures[record] ? null : dfmodCifRciImage(fileName, record, 0).catch(() => null),
+    ),
+  );
   const records = [];
   for (let r = 0; r < cif.recordCount; r++) {
     const size = cif.getSize(r);
