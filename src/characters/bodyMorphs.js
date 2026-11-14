@@ -1,29 +1,30 @@
 // Character body morph settings for the Morrowind player.
 // Values are normalized to [-1, 1] and persisted per browser profile.
+import { normalizeSavedHairColor } from './hairColor.js';
 import { getBool, setValue, saveSettings, onSettingChange } from '../systems/settings/settings.js';
 // BODY-SHAPE (characters/bodyShape.js): each label names what the slider visibly does on the Better Bodies mesh.
 // Height, arm length and leg length are gone: a vertex morph cannot lengthen a body whose head, hands and worn
 // armour hang from bones - they need the skeleton's own scale, a separate change.
 export const BODY_MORPH_FIELDS = [
-  ['breastSize', 'Размер груди', 'chest'],
+  ['breastSize', 'Объём груди', 'chest'],
   ['breastProjection', 'Выступ груди вперёд', 'chest'],
-  ['breastLift', 'Подъём груди', 'chest'],
-  ['breastSpacing', 'Расстановка груди', 'chest'],
-  ['waistWidth', 'Талия: ширина', 'waist'],
-  ['waistDepth', 'Талия: глубина (сбоку)', 'waist'],
-  ['abdomenVolume', 'Живот', 'waist'],
-  ['hipWidth', 'Ширина бёдер (таз)', 'hips'],
+  ['breastLift', 'Высота груди', 'chest'],
+  ['breastSpacing', 'Расстояние между грудями', 'chest'],
+  ['waistWidth', 'Ширина талии спереди', 'waist'],
+  ['waistDepth', 'Толщина талии сбоку', 'waist'],
+  ['abdomenVolume', 'Выступ живота вперёд', 'waist'],
+  ['hipWidth', 'Ширина таза', 'hips'],
   ['buttockSize', 'Объём ягодиц', 'hips'],
   ['buttockProjection', 'Выступ ягодиц назад', 'hips'],
   ['buttockLift', 'Подъём ягодиц', 'hips'],
-  ['thighThickness', 'Полнота бёдер', 'legs'],
-  ['calfThickness', 'Икры', 'legs'],
-  ['legGap', 'Расстановка ног', 'legs'],
+  ['thighThickness', 'Толщина бёдер', 'legs'],
+  ['calfThickness', 'Толщина икр', 'legs'],
+  ['legGap', 'Расстояние между ногами', 'legs'],
   ['shoulderWidth', 'Ширина плеч', 'upper'],
-  ['ribcageWidth', 'Грудная клетка', 'upper'],
+  ['ribcageWidth', 'Ширина грудной клетки', 'upper'],
   ['armThickness', 'Толщина рук', 'upper'],
   ['bodyWidth', 'Ширина фигуры', 'overall'],
-  ['bodyFullness', 'Полнота (вид сбоку)', 'overall'],
+  ['bodyFullness', 'Толщина фигуры сбоку', 'overall'],
   ['headScale', 'Размер головы', 'overall'],
 ];
 // v2: the sliders' meanings moved (v1's "breast" moved the belly), so v1's values are not carried over
@@ -132,10 +133,11 @@ export function getAppearanceIdentity() {
       female: typeof saved.female === 'boolean' ? saved.female : null,
       headId: cleanPartId(saved.headId),
       hairId: cleanPartId(saved.hairId),
+      ...(normalizeSavedHairColor(saved.hairColor) ? { hairColor: normalizeSavedHairColor(saved.hairColor) } : {}),
     };
   } catch { return null; }
 }
-export function setAppearanceIdentity({ race, faceIndex, female, headId, hairId } = {}) {
+export function setAppearanceIdentity({ race, faceIndex, female, headId, hairId, hairColor } = {}) {
   const normalizedRace = String(race || '').trim().toLowerCase();
   const index = Number(faceIndex);
   if (!normalizedRace || !Number.isInteger(index) || index < 0 || index > 9) return getAppearanceIdentity();
@@ -145,6 +147,7 @@ export function setAppearanceIdentity({ race, faceIndex, female, headId, hairId 
   };
   const identity = {
     race, faceIndex: index,
+    ...(normalizeSavedHairColor(hairColor) ? { hairColor: normalizeSavedHairColor(hairColor) } : {}),
     ...(typeof female === 'boolean' ? { female } : {}),
     ...(cleanPartId(headId) ? { headId: cleanPartId(headId) } : {}),
     ...(cleanPartId(hairId) ? { hairId: cleanPartId(hairId) } : {}),

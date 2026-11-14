@@ -2194,7 +2194,6 @@ function itemNodes(item, ctx) {
   if (item.startsWith('catalog:')) return [enhancedModCatalog({
     section: item.slice(8), render,
     rebuild: rebuildMorrowindBody,
-    editAppearance: async () => { const { openAppearanceEditor } = await import('../appearanceEditor.js'); openAppearanceEditor({ fpArm }); },
     restart: () => ask('Перезапустить игру', 'Сохраните игру перед перезапуском. Несохранённый прогресс будет потерян.', 'Перезапустить', () => location.reload()),
     openFiles: () => { category = 'mods'; selectedSectionByTab.mods = 'files'; render(); },
 

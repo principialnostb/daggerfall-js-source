@@ -1,5 +1,12 @@
 # Cloaks: classic placement, secondary motion, and Simply Animated Cloaks
 
+The cloth force blends continuously from walk to run as the gait weight
+changes. The idle wave runs on its own clock.
+As gait weight falls, the cloth briefly damps its residual velocity.
+Animated cloth fits its resting shape over the standing body and the
+arm poses that affect the pinned shoulders. Moving legs push the hem in
+the live solve, so deep strides do not set the standing silhouette.
+
 This note documents the current implementation contract. The classic cloak path is the reference; the Simply mesh is adapted to that path rather than given an unrelated placement system.
 
 ## Required behavior

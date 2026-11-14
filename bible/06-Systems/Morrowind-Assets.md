@@ -118,9 +118,10 @@ The currently good-looking blue pants are the visual control item. The new Bette
 ### Pants-to-body fitting (MW-BB-FIT2)
 The existing triangle-BVH clearance fitter in `src/formats/morrowind/mwSkinTransfer.js`
 moves a private clothing position buffer toward the measured body surface; it
-does not rewrite the NIF, texture, UVs, or body mesh. For pants, the caller uses
-`fitMode: 'conform'`, a small 0.18-unit fabric clearance, and the body slots
-`groin`, `upperleg`, and `knee`.
+does not rewrite the NIF, texture, UVs, or body mesh. The retail trouser pass
+uses the groin, thigh, knee, and ankle surfaces, with the relevant slots
+selected per panel.
+
 The fitter now also receives the side of the clothing part (left/right). Each
 body surface is tagged with the BODY slot and skeleton bone used to bind it.
 When fitting a sided leg panel, the search keeps shared groin surfaces but
@@ -134,6 +135,27 @@ rear, at idle and while running. If a seam or crotch deforms badly, record the
 exact clothing record/body slot and fix that region rather than globally
 increasing clearance. Keep the blue pants as the unchanged visual control and
 do not alter camera grounding or the existing armor-fitting rules.
+
+
+### Retail trouser geometry
+
+The retail trouser NIFs in the local Morrowind archive attach rigid
+panels to the skeleton. The shared worn-body assembly now fits those panels
+at rest, including both thighs, knees and ankles, and converts the fitted
+positions back into each panel's attachment space. Side filtering keeps each
+leg on its own body surfaces. The fit retains part of the authored volume
+and rebuilds the normals. The NIF, UVs, material and attachment stay intact.
+The selector uses the clothing record and original trouser model path.
+Expensive Pants 6 and trousers pointing to custom model paths bypass the fit.
+Mod replacements should be evaluated as mesh/material pairs before selection.
+The Common 1 A quilted trousers and Common 1 E hide trousers use a stronger
+fit across the four panels. Their patterns match the front and rear views
+from Bothway Garden. Check the panel joins in motion before extending the
+stronger fit to other records.
+
+DFU's `StaticNPC.SetLayoutData` keeps appearance as a billboard archive and
+record. DFO's fitted wearable geometry is a departure for its 3D bodies.
+
 ### How to verify what actually wins
 In the browser console, run:
 ```js

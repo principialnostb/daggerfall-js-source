@@ -62,16 +62,16 @@ const EN = new Map([
     "not connected"
   ],
   [
-    "Открыть редактор персонажа",
-    "Open character editor"
+    "Редактор персонажа",
+    "Character editor"
   ],
   [
     "Редактор персонажа и экипировки",
     "Character and equipment editor"
   ],
   [
-    "Интеграция и настройка: BLOODBATH",
-    "Integration and configuration: BLOODBATH"
+    "Настройка внешности. Откройте «Внешность» в инвентаре.",
+    "Customize your appearance from the Appearance button in the inventory."
   ],
   [
     "Настройка внешности и выбор доступных вариантов брони, оружия и плащей. Недоступный сохранённый вариант заменяется стандартным.",

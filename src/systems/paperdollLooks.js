@@ -129,6 +129,8 @@ export function paperdollLookChoices(item, identity = undefined) {
         .filter((l) => hoodUp({ ...piece, templateIndex: l.t ?? piece.templateIndex, variant: l.v }) === hooded)
       : Object.keys(PAPERDOLL_CLASSES).map(Number).filter((x) => classKey(x) === classKey(piece.templateIndex)).map((x) => ({ t: x }));
   for (const look of candidates) {
+    // The Tanto image is excluded from the Longsword's 2D card.
+    if (piece.templateIndex === 120 && look.t === 114) continue;
     const id = drawnIdentity(piece, look);
     if (seen.has(id)) continue;
     seen.add(id);

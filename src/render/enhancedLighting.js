@@ -459,7 +459,7 @@ float wetFresnel(float vdoth) {
 ${powChainGlsl('elSpecLobe', EL_SPEC_GLOSS)}
 float elSpecK = 1.0;   // the ground turns this down in the rain; every other caller leaves it
 float elWetPow = ${EL_WET_GLOSS}.0;   // a puddle tightens the wet lobe to a mirror's; every other caller leaves it
-vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) {
+vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint, float twoSided) {
   vec3 acc = vec3(0.0);
   glint = vec3(0.0);
   highp uvec2 cell = elCluster(wp);   // LC1
@@ -477,22 +477,24 @@ vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) {
     // LIGHT-REACH: a surface turned from the light takes none of it, and pays for no shadow taps. AUDIT LIGHT-REACH S2:
     // its diffuse was zero, but its glint and wet glint were not - an eye grazing it from the far side of the lamp has
     // N.H near 1 - so a lamp behind a wall glinted on its face. The skip closes that leak; it is not free of pixels.
-    if (dot(n, Ln) <= 0.0) continue;
+    float facing = dot(n, Ln);
+    if (facing <= 0.0 && twoSided == 0.0) continue;
+    vec3 biasNormal = twoSided > 0.0 && facing < 0.0 ? -n : n;
     int k = uCasterOf[i];   // EL8: the light's caster slot in one lookup
     // EL2: the lantern's map; EL8: every other lantern a contact shadow off the previous frame's depth;
     // F3/MAC-T1: never for the light in the hand - by name, -2 in the caster table (LIGHT-NEAR1: and no longer by its distance to the camera, which dropped the lamp overhead too);
     // F5: and only within the share of the range where the light is worth a shadow
     // LA-COST5: ...EASED OUT over the last of that share (EL_CONTACT_FADE_START to the edge) - a hard edge there was a
     // shell of fragments a flickering lamp's range carried in and out of the march fourteen times a second
-    float sh = k >= 0 ? casterShadowAt(k, uPointLights[i], wp, n)   // DISC15: a 512 slot or a lo one - indoors, every light has one
+    float sh = k >= 0 ? casterShadowAt(k, uPointLights[i], wp, biasNormal)   // DISC15: a 512 slot or a lo one - indoors, every light has one
       : (k == -2 || d > uPointLights[i].w * ${glslFloat(AIR_CONTACT_RANGE_FRACTION)}) ? 1.0   // MAC-T1: -2 is the hand's light, by name
-      : mix(contactShadow(wp, n, Ln, d), 1.0, smoothstep(uPointLights[i].w * ${glslFloat(EL_CONTACT_FADE_START)}, uPointLights[i].w * ${glslFloat(AIR_CONTACT_RANGE_FRACTION)}, d));
+      : mix(contactShadow(wp, biasNormal, Ln, d), 1.0, smoothstep(uPointLights[i].w * ${glslFloat(EL_CONTACT_FADE_START)}, uPointLights[i].w * ${glslFloat(AIR_CONTACT_RANGE_FRACTION)}, d));
     // EL4: a glint - Blinn-Phong, a low gloss for stone and wood, a twelfth of the light: wet stone under a torch
     vec3 H = normalize(Ln + V);
     float spec = elSpecLobe(max(dot(n, H), 0.0)) * ${EL_SPEC_STRENGTH};
     spec *= elSpecK;   // 1 everywhere but wet ground
     float att = sh * elAttenuation(d, uPointLights[i].w);
-    acc += att * (max(dot(n, Ln), 0.0) + spec) * uPointColors[i];
+    acc += att * (mix(max(facing, 0.0), 0.24 + 0.76 * abs(facing), twoSided) + spec * (1.0 - twoSided)) * uPointColors[i];
     if (wet > 0.0) {
       float g = pow(max(dot(n, H), 0.0), elWetPow);
       // Blinn on flat ground stretches a lamp into a column; squeeze along the view on the plane
@@ -507,6 +509,7 @@ vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) {
   glint *= ${glslFloat(EL_WET_STRENGTH)} * wet;
   return acc + winLit(wp, n, 0.0, 1.0);   // WL1: the windows' light, through their glass
 }
+vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) { return elPointLitWet(wp, n, wet, glint, 0.0); }
 vec3 elPointLit(vec3 wp, vec3 n) { vec3 g; return elPointLitWet(wp, n, 0.0, g); }
 // a flat's lantern term, attenuation only; its shadow is read at the
 // flat's base (one value for the whole sprite - a sprite in its own map
@@ -1219,11 +1222,13 @@ void main() {
   // but the sun contributes nothing; diff reaches the light exactly
   // once, as uSunColor * (uSunScale * diff), so gating it on either is
   // output-identical rather than an approximation.
-  float ndl = max(dot(n, uLightDir), 0.0);
-  float diff = (uSunScale > 0.0 && ndl > 0.0) ? ndl * cloudShadowAt(vWorldPos) * sunShadowAt(vWorldPos, n) : 0.0;   // EL2: the sun map
-  float mdiff = max(dot(n, uMoonDir), 0.0);
+  float ndl = charDiffuse(n, uLightDir);
+  vec3 biasNormal = uHairLight > 0.0 && dot(n, uLightDir) < 0.0 ? -n : n;
+  float diff = (uSunScale > 0.0 && ndl > 0.0) ? ndl * cloudShadowAt(vWorldPos) * sunShadowAt(vWorldPos, biasNormal) : 0.0;   // EL2: the sun map
+  float mdiff = charDiffuse(n, uMoonDir);
+  vec3 glint;
   vec3 lit = albedo * (uAmbient + uSunColor * (uSunScale * diff) + uMoonColor * (uMoonScale * mdiff)
-    + elPointLit(vWorldPos, n) + elIndirectLit(vWorldPos, n));   // EL3
+    + elPointLitWet(vWorldPos, n, 0.0, glint, uHairLight) + elIndirectLit(vWorldPos, n));   // EL3
   outColor = vec4(elFinish(lit, vWorldPos), 1.0);
 }`;
 

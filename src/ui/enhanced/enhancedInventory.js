@@ -2,6 +2,7 @@ import { modResourceSignature } from '../../systems/enhancedModResources.js';
 import { inventoryModelSource } from './inventoryPresentation.js';
 import { inventoryFacePicker, inventoryDollPixels, refreshInventoryDoll } from './inventoryFaces.js';
 import { inventoryFaceIndex } from '../../systems/inventoryFace.js';
+import { appearanceEditorAvailable } from '../../characters/activeAppearance.js';
 import { openAppearanceEditor } from '../appearanceEditor.js';
 // ═══════════════════════════════════════════════════════════════════
 // U53 — THE ENHANCED PACK, and THE SLOT MAP
@@ -4587,7 +4588,7 @@ function render() {
     // PACK-SORT: the pack's one-shot Sort, first of the header's presses - gone while the pack chooses what to break
     if (!salvageSel) head.append(sortButton(sortPack));
     // MWV2-APPEARANCE: keep the editor beside the character name, immediately before Codex.
-    if (!deps.loot && deps.fpArm) {
+    if (!deps.loot && deps.fpArm && appearanceEditorAvailable()) {
       const appearanceButton = el('button', 'act mw-appearance-open', 'Внешность');
       appearanceButton.type = 'button';
       appearanceButton.title = 'Настроить доступные пропорции тела персонажа';

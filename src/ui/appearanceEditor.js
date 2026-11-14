@@ -1,21 +1,44 @@
-import { modSetting, setModSetting } from '../systems/modSettings.js';
-import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, getUnderwearEnabled, setUnderwearEnabled, getBodyHairEnabled, setBodyHairEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
+import { HAIR_SWATCHES } from '../characters/hairColor.js';
+import { appearanceEditorAvailable } from '../characters/activeAppearance.js';
+import { editorPreviewRaster } from './enhanced/previewPixelation.js';
+import { charPixelRows } from '../render/charPixelLayer.js';
+import { CHAR_PIXEL_TIERS } from '../systems/charPixel.js';
+import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, getUnderwearEnabled, setUnderwearEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 
 // BODY-SHAPE: the groups follow the fields' own zones, the figure's curves first
 const GROUPS = [
+  { id: 'overall', title: 'Общее', description: 'Силуэт целиком и голова', keys: ['bodyWidth', 'bodyFullness', 'headScale'] },
   { id: 'chest', title: 'Грудь', description: 'Объём, выступ, подъём и расстановка', keys: ['breastSize', 'breastProjection', 'breastLift', 'breastSpacing'] },
   { id: 'waist', title: 'Талия и живот', description: 'Ширина и глубина талии, живот', keys: ['waistWidth', 'waistDepth', 'abdomenVolume'] },
   { id: 'hips', title: 'Бёдра и ягодицы', description: 'Ширина таза, объём, выступ и подъём ягодиц', keys: ['hipWidth', 'buttockSize', 'buttockProjection', 'buttockLift'] },
-  { id: 'legs', title: 'Ноги', description: 'Полнота бёдер и икр, расстановка ног', keys: ['thighThickness', 'calfThickness', 'legGap'] },
-  { id: 'upper', title: 'Плечи и руки', description: 'Плечевой пояс, грудная клетка, руки', keys: ['shoulderWidth', 'ribcageWidth', 'armThickness'] },
-  { id: 'overall', title: 'Общее', description: 'Силуэт целиком и голова', keys: ['bodyWidth', 'bodyFullness', 'headScale'] },
+  { id: 'legs', title: 'Бёдра, икры и постановка ног', description: 'Полнота бёдер и икр, расстановка ног', keys: ['thighThickness', 'calfThickness', 'legGap'] },
+  { id: 'upper', title: 'Плечи, грудная клетка и руки', description: 'Плечевой пояс, грудная клетка, руки', keys: ['shoulderWidth', 'ribcageWidth', 'armThickness'] },
 ];
 // EDITOR-B: figure presets - a starting point the sliders then refine; a value not named is 0
 const PRESETS = [
-  { id: 'hourglass', title: 'Песочные часы', values: { breastSize: 0.6, breastLift: 0.3, waistWidth: -0.7, waistDepth: -0.4, hipWidth: 0.6, buttockSize: 0.5, buttockProjection: 0.35, buttockLift: 0.3, thighThickness: 0.25 } },
-  { id: 'athletic', title: 'Атлетичная', values: { shoulderWidth: 0.45, ribcageWidth: 0.25, armThickness: 0.35, waistWidth: -0.3, abdomenVolume: -0.4, buttockLift: 0.45, buttockProjection: 0.2, thighThickness: 0.3, calfThickness: 0.35 } },
-  { id: 'curvy', title: 'Пышная', values: { breastSize: 0.85, breastProjection: 0.4, bodyFullness: 0.3, waistWidth: 0.1, abdomenVolume: 0.25, hipWidth: 0.8, buttockSize: 0.85, buttockProjection: 0.5, thighThickness: 0.7, calfThickness: 0.35, armThickness: 0.3 } },
-  { id: 'slender', title: 'Стройная', values: { bodyWidth: -0.35, bodyFullness: -0.3, breastSize: -0.25, waistWidth: -0.4, hipWidth: -0.2, buttockSize: -0.2, thighThickness: -0.45, calfThickness: -0.35, armThickness: -0.4, shoulderWidth: -0.2 } },
+  {
+    id: 'hourglass', title: 'Обычная',
+    values: {
+      breastSize: 0.52, breastProjection: -0.61, breastLift: -0.21, breastSpacing: -0.54,
+      waistWidth: -0.09, waistDepth: -1,
+      hipWidth: 0.46, buttockSize: 0.26,
+      thighThickness: 0.61, calfThickness: 0.59,
+    },
+  },
+];
+const hourglass = PRESETS[0].values;
+PRESETS.push(
+  { id: 'slender', title: 'Стройная', values: { ...hourglass, bodyWidth: -0.26, bodyFullness: -0.16, breastSize: 0.15, hipWidth: 0.16, buttockSize: 0.04, thighThickness: 0.12, calfThickness: 0.1, armThickness: -0.22 } },
+);
+PRESETS.reverse();
+PRESETS.push({
+  id: 'athletic', title: 'Атлетичная',
+  values: { ...hourglass, shoulderWidth: 0.28, ribcageWidth: 0.15, armThickness: 0.24, abdomenVolume: -0.16, thighThickness: 0.72, calfThickness: 0.66 },
+});
+const MALE_PRESETS = [
+  { id: 'male-lean', title: 'Худощавый', values: { bodyWidth: -0.2, bodyFullness: -0.24, shoulderWidth: -0.12, armThickness: -0.25, thighThickness: -0.22, calfThickness: -0.18 } },
+  { id: 'male-regular', title: 'Обычный', values: {} },
+  { id: 'male-athletic', title: 'Атлетичный', values: { shoulderWidth: 0.48, ribcageWidth: 0.3, armThickness: 0.36, waistWidth: -0.22, abdomenVolume: -0.15, thighThickness: 0.28, calfThickness: 0.22 } },
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
 
@@ -209,6 +232,7 @@ const STYLE = `
 #mw-appearance-editor .mw-presets-title{margin:0 0 8px;color:#e9c17d;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 #mw-appearance-editor .mw-preset-list{display:grid;gap:5px}
 #mw-appearance-editor .mw-preset{justify-content:flex-start;text-align:left;min-height:34px}
+#mw-appearance-editor :is(.mw-zone-btn,.mw-preset)[hidden]{display:none}
 #mw-appearance-editor .mw-preset.active{border-color:#c08a3e;color:#f1d39b;box-shadow:inset 3px 0 #c08a3e}
 #mw-appearance-editor .mw-preset-note{margin-top:8px;color:#aeb9aa;font-size:11px;line-height:1.35}
 #mw-appearance-editor .mw-body-col{display:flex;flex-direction:column;min-height:0;overflow:hidden;border-left:1px solid #39414b;background:#1b2027}
@@ -221,6 +245,20 @@ const STYLE = `
 #mw-appearance-editor .mw-body-col .mw-control-list{flex:1}
 @media(max-width:1100px){#mw-appearance-editor .mw-main{grid-template-columns:minmax(220px,260px) minmax(0,1fr) minmax(290px,340px)}}
 @media(max-width:860px){#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,1fr);overflow:auto}#mw-appearance-editor .mw-preview-side{min-height:420px}#mw-appearance-editor .mw-identity-col,#mw-appearance-editor .mw-body-col{overflow:visible;border:0}}
+#mw-appearance-editor .mw-options-grid .mw-garment{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;color:#e8c581;border-color:#655438;background:#24221d;font-weight:650}
+#mw-appearance-editor .mw-garment select{width:100%;min-width:0;padding:5px 7px;border:1px solid #655438;background:#17191d;color:#e9e4d9;font:inherit}
+#mw-appearance-editor .mw-model-picker{display:grid;gap:6px;margin:0;padding:8px 9px;background:#20242b;border-color:#454033}
+#mw-appearance-editor .mw-model-picker label,#mw-appearance-editor .mw-hair-title,#mw-appearance-editor .mw-preview-pixel-label{color:#e8c581;font-size:12px;font-weight:650}
+#mw-appearance-editor .mw-model-nav{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;gap:4px;min-width:0}
+#mw-appearance-editor .mw-model-nav .mw-btn{min-height:32px;padding:0;font-size:19px;line-height:1}
+#mw-appearance-editor .mw-model-nav select,#mw-appearance-editor .mw-preview-pixels{appearance:none;min-width:0;min-height:32px;width:100%;padding:4px 26px 4px 9px;border:1px solid #655438;border-radius:2px;color:#f0e5cd;background:linear-gradient(45deg,transparent 50%,#e8c581 50%) right 12px center/5px 5px no-repeat,linear-gradient(135deg,#e8c581 50%,transparent 50%) right 7px center/5px 5px no-repeat,linear-gradient(#2b3037,#191d23);color-scheme:dark;font:inherit;cursor:pointer}
+#mw-appearance-editor select option{background:#20242b;color:#f0e5cd}
+#mw-appearance-editor .mw-model-nav :focus-visible,#mw-appearance-editor .mw-preview-pixels:focus-visible,#mw-appearance-editor .mw-hair-color button:focus-visible{outline:2px solid #e8c581;outline-offset:2px}
+#mw-appearance-editor .mw-identity-grid .mw-hair-color{display:grid;gap:7px;margin:0;padding:9px;background:#20242b;border-color:#454033}
+#mw-appearance-editor .mw-hair-swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+#mw-appearance-editor .mw-hair-swatch{min-width:0;min-height:24px;padding:0;border:1px solid #70644e;background:var(--hair-color,#191d23);color:#f0e5cd;box-shadow:inset 0 0 0 2px #14151a;cursor:pointer}
+#mw-appearance-editor .mw-hair-swatch[aria-pressed=true]{border-color:#f2ce85;box-shadow:inset 0 0 0 1px #14151a,inset 0 0 0 3px #f2ce85}
+#mw-appearance-editor .mw-preview-pixel-label{display:grid;gap:4px;flex-shrink:0}
 @media(prefers-reduced-motion:reduce){#mw-appearance-editor .mw-btn{transition:none}}
 `;
 
@@ -229,14 +267,14 @@ const STYLE = `
 export function identityChanged(saved, next) {
   const norm = (v) => ({
     race: String(v?.race || '').toLowerCase(), faceIndex: Number(v?.faceIndex) | 0,
-    female: typeof v?.female === 'boolean' ? v.female : null, headId: v?.headId || null, hairId: v?.hairId || null,
+    female: typeof v?.female === 'boolean' ? v.female : null, headId: v?.headId || null, hairId: v?.hairId || null, hairColor: v?.hairColor || null,
   });
   const a = norm(saved), b = norm(next);
-  return a.race !== b.race || a.faceIndex !== b.faceIndex || a.female !== b.female || a.headId !== b.headId || a.hairId !== b.hairId;
+  return a.race !== b.race || a.faceIndex !== b.faceIndex || a.female !== b.female || a.headId !== b.headId || a.hairId !== b.hairId || a.hairColor !== b.hairColor;
 }
 
 export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
-  if (typeof document === 'undefined' || !document.body) return null;
+  if (typeof document === 'undefined' || !document.body || !appearanceEditorAvailable()) return null;
   document.getElementById('mw-appearance-editor')?.remove();
 
   let yaw = 0, zoom = 1, frame = 0, morphPreviewTimer = 0, previewRetryTimer = 0, previewBuildAttempts = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
@@ -247,7 +285,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   let selectedFace = Math.max(0, Math.min(9, Number(savedIdentity?.faceIndex ?? initialIdentity.faceIndex) || 0));
   let selectedHead = savedIdentity?.headId || null;
   let selectedHair = savedIdentity?.hairId || null;
-  let choicesRequest = 0, appearanceAuditLogged = false;
+  let hairColor = savedIdentity?.hairColor ?? null;
+  let choicesRequest = 0;
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   const style = document.createElement('style');
@@ -275,7 +314,31 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const canvasWrap = document.createElement('div');
   canvasWrap.className = 'mw-canvas-wrap';
   const preview = document.createElement('canvas');
-  preview.width = 900; preview.height = 1080;
+  let previewFrameInfo, figureFrame;
+  let panY = 0;
+  const pixelMode = document.createElement('select');
+  pixelMode.className = 'mw-preview-pixels';
+  const pixelLabel = document.createElement('label');
+  pixelLabel.className = 'mw-preview-pixel-label';
+  pixelLabel.textContent = 'Пикселизация превью';
+  const pixelRows = charPixelRows('player');
+  for (const [rows, name] of CHAR_PIXEL_TIERS) {
+    const option = document.createElement('option');
+    option.value = String(rows);
+    option.textContent = name;
+    pixelMode.append(option);
+  }
+  pixelMode.value = String(pixelRows);
+  if (!pixelMode.value) {
+    const option = document.createElement('option');
+    option.value = String(pixelRows);
+    option.textContent = 'Как в игре';
+    pixelMode.prepend(option);
+    pixelMode.value = option.value;
+  }
+  pixelMode.addEventListener('change', queuePreview);
+  pixelLabel.append(pixelMode);
+  previewHead.append(pixelLabel);
   preview.setAttribute('aria-label', '3D-предпросмотр персонажа');
   const statusMessage = document.createElement('div');
   statusMessage.className = 'mw-status-message';
@@ -291,11 +354,24 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const zoomIn = makeButton('+', false, 'mw-btn-icon'); zoomIn.setAttribute('aria-label', 'Приблизить модель');
   const zoomReset = makeButton('Сбросить вид');
   const previewHint = document.createElement('div'); previewHint.className = 'mw-hint';
-  const setZoom = (next) => { zoom = Math.max(0.6, Math.min(2.4, next)); zoomLabel.textContent = Math.round(zoom * 100) + '%'; drawPreview(); };
+  const setZoom = (next, anchorY = 0) => {
+    const previous = zoom;
+    zoom = Math.max(0.6, Math.min(3.5, next));
+    panY = anchorY + (panY - anchorY) * zoom / previous;
+    zoomLabel.textContent = Math.round(zoom * 100) + '%';
+    queuePreview();
+  };
   zoomOut.addEventListener('click', () => setZoom(zoom - 0.15));
   zoomIn.addEventListener('click', () => setZoom(zoom + 0.15));
-  zoomReset.addEventListener('click', () => { yaw = 0; setZoom(1); drawPreview(); });
-  preview.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(zoom + (e.deltaY < 0 ? 0.1 : -0.1)); }, { passive: false });
+  zoomReset.addEventListener('click', () => { yaw = panY = 0; setZoom(1); });
+  preview.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const bounds = preview.getBoundingClientRect();
+    if (!bounds.height) return;
+    const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? bounds.height : 1);
+    const anchor = (e.clientY - bounds.top) / bounds.height - .5;
+    setZoom(zoom * Math.exp(-Math.max(-200, Math.min(200, delta)) * .002), anchor);
+  }, { passive: false });
   toolGroup.append(zoomOut, zoomLabel, zoomIn);
   previewTools.append(toolGroup, zoomReset, previewHint);
 
@@ -331,84 +407,61 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   }
   raceSelect.value = selectedRace;
   raceRow.append(raceLabel, raceSelect);
-  const faceRow = document.createElement('label'); faceRow.className = 'mw-underwear';
-  const faceLabel = document.createElement('span'); faceLabel.textContent = 'Лицо';
-  const headSelect = document.createElement('select'); headSelect.setAttribute('aria-label', 'Модель лица');
-  headSelect.style.cssText = sexSelect.style.cssText;
-  faceRow.append(faceLabel, headSelect);
-  const hairRow = document.createElement('label'); hairRow.className = 'mw-underwear';
-  const hairLabel = document.createElement('span'); hairLabel.textContent = 'Причёска';
-  const hairSelect = document.createElement('select'); hairSelect.setAttribute('aria-label', 'Модель причёски');
-  hairSelect.style.cssText = sexSelect.style.cssText;
-  hairRow.append(hairLabel, hairSelect);
-  // Keep all four identity selectors in the same compact grid and use the same
-  // label/select treatment for face and hair as for race and sex.
-  identityGrid.append(sexRow, raceRow, faceRow, hairRow);
+  const face = modelPicker('Лицо', 'head');
+  const hair = modelPicker('Причёска', 'hair');
+  const headSelect = face.select;
+  const hairSelect = hair.select;
+  const colorRow = hairPalette(hairColor, (color) => {
+    hairColor = color;
+    rebuildRacePreview();
+  });
+  identityGrid.append(sexRow, raceRow, face.row, hair.row, colorRow);
   const optionsGrid = document.createElement('div'); optionsGrid.className = 'mw-options-grid';
-  const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
-  const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
-  const underwearCopy = document.createElement('span'); underwearCopy.innerHTML = '<strong>Нижнее бельё</strong><small>Выключено — голая модель; включено — вариант тела с бельём.</small>';
-  underwearRow.append(underwearToggle, underwearCopy);
-  const bodyHairRow = document.createElement('label'); bodyHairRow.className = 'mw-underwear';
-  const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled(); bodyHairToggle.disabled = underwearToggle.checked;
-  const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
-  bodyHairRow.append(bodyHairToggle, bodyHairCopy);
-  // HD-BODY: the high-resolution female pack's own mesh and 2048px skin (mwBetterBodies.js), a test switch for one look
-  const hdRow = document.createElement('label'); hdRow.className = 'mw-underwear';
-  const hdToggle = document.createElement('input'); hdToggle.type = 'checkbox';
-  hdToggle.checked = modSetting('morrowind-textures', 'HighResolutionBetterBodyFemaleTexturesSource') === 2;
-  const hdCopy = document.createElement('span'); hdCopy.innerHTML = '<strong>HD-кожа · тест</strong><small>Женское тело: меш и текстура 2048px из High Resolution Better Body Female Textures.</small>';
-  hdRow.append(hdToggle, hdCopy);
-  optionsGrid.append(underwearRow, bodyHairRow, hdRow);
+  const underwearRow = document.createElement('label');
+  underwearRow.className = 'mw-underwear mw-garment';
+  underwearRow.htmlFor = 'mw-body-garment';
+  underwearRow.textContent = 'Нижнее бельё';
+  const underwearSelect = document.createElement('select');
+  underwearSelect.id = 'mw-body-garment';
+  underwearSelect.innerHTML = '<option value="on">В белье</option><option value="off">Без белья</option>';
+  underwearSelect.value = getUnderwearEnabled() ? 'on' : 'off';
+  underwearRow.append(underwearSelect);
+  optionsGrid.append(underwearRow);
   controlsHead.append(identityGrid, optionsGrid);
-  hdToggle.addEventListener('change', () => {
-    setModSetting('morrowind-textures', 'HighResolutionBetterBodyFemaleTexturesSource', hdToggle.checked ? 2 : 1);
-    bodyHairToggle.dispatchEvent(new globalThis.Event('change'));   // the same live + preview rebuild
-  });
-  bodyHairToggle.addEventListener('change', async () => {
-    setBodyHairEnabled(bodyHairToggle.checked);
-    statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
-    if (previewBuildPending) previewRebuildRequested = true;
-    previewRig?.unload?.(); previewRig = null; previewError = '';
-    try {
-      if (typeof fpArm?.refreshBodyVariant === 'function') {
-        const refreshed = await fpArm.refreshBodyVariant();
-        if (refreshed?.ok === false && !refreshed?.queued) {
-          previewError = refreshed.error || 'Не удалось обновить текстуру игрового персонажа.';
-        }
-      }
-      await buildPreviewRig();
-    } catch (error) { previewError = String(error?.message || error); }
-    drawPreview();
-  });
   const rebuildRacePreview = () => {
     previewRig?.unload?.(); previewRig = null; previewError = '';
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Загрузка выбранных моделей лица и причёски…';
     if (previewBuildPending) previewRebuildRequested = true;
     else void buildPreviewRig();
     window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: {
-      race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair,
+      race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair, hairColor,
     } }));
   };
-  const fillModelSelect = (select, items, selectedId, emptyLabel) => {
+  const fillModelSelect = ({ select, setEnabled }, items, selectedId, emptyLabel) => {
     select.replaceChildren();
     if (!items.length) {
       const option = document.createElement('option'); option.value = ''; option.textContent = emptyLabel; select.append(option);
-      select.disabled = true; return '';
+      setEnabled(false); return '';
     }
-    select.disabled = false;
     for (const [index, item] of items.entries()) {
       const option = document.createElement('option'); option.value = item.id;
-      option.textContent = (select === headSelect ? 'Лицо ' : 'Причёска ') + (index + 1);
+      option.textContent = select === headSelect ? 'Лицо ' + (index + 1)
+        : item.bald ? 'Без волос' : 'Причёска ' + (index + 1);
       select.append(option);
     }
-    const chosen = items.some((item) => item.id === selectedId) ? selectedId : items[0].id;
+    const id = String(selectedId ?? '').toLowerCase();
+    const chosen = items.find(item => (item.aliases ?? [item.id]).some(alias => alias.toLowerCase() === id))?.id ?? items[0].id;
     select.value = chosen;
+    setEnabled(true);
     return chosen;
   };
   async function refreshAppearanceChoices({ rebuild = true } = {}) {
     const request = ++choicesRequest;
+    done.disabled = true;
+    face.setEnabled(false);
+    hair.setEnabled(false);
     if (typeof fpArm?.getAppearanceChoices !== 'function') {
+      done.disabled = false;
       previewError = 'Список моделей лица и причёсок недоступен.';
       drawPreview();
       return;
@@ -418,37 +471,32 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       const result = await fpArm.getAppearanceChoices({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace });
       if (closed || request !== choicesRequest) return;
       if (!result?.ok) throw new Error(result?.error || 'Не удалось получить список моделей.');
-      if (!appearanceAuditLogged && Array.isArray(result.audit)) {
-        appearanceAuditLogged = true;
-        const duplicates = result.audit.reduce((sum, pool) => sum + pool.duplicateHeads + pool.duplicateHairs, 0);
-        console.info('[Appearance editor] race/sex head-hair pool audit', {
-          combinations: result.audit.length, duplicateModelEntriesRemoved: duplicates, pools: result.audit,
-        });
-      }
-      selectedHead = fillModelSelect(headSelect, result.heads || [], selectedHead || result.selected?.headId, 'Нет доступных моделей лица');
-      selectedHair = fillModelSelect(hairSelect, result.hairs || [], selectedHair || result.selected?.hairId, 'Нет доступных моделей причёсок');
+      selectedHead = fillModelSelect(face, result.heads || [], selectedHead || result.selected?.headId, 'Нет доступных моделей лица');
+      selectedHair = fillModelSelect(hair, result.hairs || [], selectedHair || result.selected?.hairId, 'Нет доступных моделей причёсок');
       if (rebuild) rebuildRacePreview();
     } catch (error) {
       if (closed || request !== choicesRequest) return;
       previewError = String(error?.message || error);
       statusMessage.textContent = 'Ошибка списка моделей: ' + previewError;
       drawPreview();
+    } finally {
+      if (!closed && request === choicesRequest) done.disabled = false;
     }
   }
   // Identity controls are draft-only; the live player changes only on «Готово».
   raceSelect.addEventListener('change', () => {
-    selectedRace = raceSelect.value; selectedHead = null; selectedHair = null;
+    selectedRace = raceSelect.value; selectedHead = null;
     void refreshAppearanceChoices();
   });
   sexSelect.addEventListener('change', () => {
     selectedFemale = sexSelect.value === 'female'; selectedHead = null; selectedHair = null;
+    syncFigureControls();
     void refreshAppearanceChoices();
   });
   headSelect.addEventListener('change', () => { selectedHead = headSelect.value || null; rebuildRacePreview(); });
   hairSelect.addEventListener('change', () => { selectedHair = hairSelect.value || null; rebuildRacePreview(); });
-  underwearToggle.addEventListener('change', async () => {
-    bodyHairToggle.disabled = underwearToggle.checked;
-    setUnderwearEnabled(underwearToggle.checked);
+  underwearSelect.addEventListener('change', async () => {
+    setUnderwearEnabled(underwearSelect.value === 'on');
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка модели…';
     // If the first preview build is still loading, queue a second build after
     // it settles. Otherwise the checkbox could persist the new value while
@@ -547,11 +595,24 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       button.setAttribute('aria-pressed', presetId === id ? 'true' : 'false');
     }
   }
-  for (const preset of PRESETS) {
+  for (const preset of [...PRESETS, ...MALE_PRESETS]) {
     const button = makeButton(preset.title, false, 'mw-preset');
     button.setAttribute('aria-pressed', 'false');
     button.addEventListener('click', () => { setDraft(preset.values); markPreset(preset.id); });
     presetButtons.set(preset.id, button); presetList.append(button);
+  }
+  function syncFigureControls() {
+    const chest = zoneButtons.get('chest');
+    chest.hidden = !selectedFemale;
+    if (!selectedFemale && activeZone === 'chest') zoneButtons.get('overall').click();
+    const shown = selectedFemale ? PRESETS : MALE_PRESETS;
+    for (const [id, button] of presetButtons) button.hidden = !shown.some(preset => preset.id === id);
+    markPreset(null);
+  }
+  syncFigureControls();
+  function activeMorphs() {
+    if (selectedFemale) return draftMorphs;
+    return Object.fromEntries(BODY_MORPH_FIELDS.map(([key, , zone]) => [key, zone === 'chest' ? 0 : draftMorphs[key]]));
   }
   const presetNote = document.createElement('div'); presetNote.className = 'mw-preset-note';
   presetNote.textContent = 'Пресет — отправная точка: доведите фигуру ползунками справа.';
@@ -568,7 +629,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     const previousLabel = done.textContent;
     done.textContent = 'Применение…';
     try {
-      const identity = { race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair };
+      const identity = { race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair, hairColor };
       // The race/sex choice is a DISPLAY override: the gameplay entity's race
       // and gender stay untouched. The live body wears it all the same - every
       // player rig build reads the saved identity (fpArm build, playerAppearance)
@@ -577,8 +638,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       // ready, and the rig's subscribers repaint the pack's figure then.
       // Commit body morphs only after confirmation. The preview used draftMorphs
       // directly, so cancelling the editor leaves the live character untouched.
-      for (const [key] of BODY_MORPH_FIELDS) setBodyMorph(key, draftMorphs[key] ?? 0);
-      window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: { ...draftMorphs } }));
+      const morphs = activeMorphs();
+      for (const [key] of BODY_MORPH_FIELDS) setBodyMorph(key, morphs[key] ?? 0);
+      window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: { ...morphs } }));
       if (identityChanged(getAppearanceIdentity(), identity) && typeof fpArm?.applyAppearanceIdentity === 'function') {
         void fpArm.applyAppearanceIdentity(identity).catch((err) => console.warn('[appearance] live rebuild failed:', err?.message ?? err));
       } else setAppearanceIdentity(identity);
@@ -612,34 +674,33 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const keydown = (e) => { if (e.key === 'Escape') close(); };
   window.addEventListener('keydown', keydown);
   document.body.append(root);
-  const resizeObserver = typeof ResizeObserver === 'function'
-    ? new ResizeObserver(() => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => { frame = 0; drawPreview(); });
-    })
-    : null;
+  const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(queuePreview) : null;
+  window.addEventListener('resize', queuePreview);
   resizeObserver?.observe(preview);
   drawPreview();
   void refreshAppearanceChoices({ rebuild: false }).then(() => buildPreviewRig());
 
   let drag = null;
-  let suppressPreviewClick = false;
   preview.addEventListener('pointerdown', (e) => {
-    suppressPreviewClick = false;
-    drag = { x: e.clientX, y: e.clientY, yaw };
+    if (e.button !== 0 || drag) return;
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw, panY };
     preview.setPointerCapture?.(e.pointerId);
     preview.style.cursor = 'grabbing';
   });
   preview.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    if (Math.abs(e.clientX - drag.x) > 4 || Math.abs(e.clientY - drag.y) > 4) suppressPreviewClick = true;
-    yaw = drag.yaw + (e.clientX - drag.x) * 0.018;
-    if (frame) return;
-    frame = requestAnimationFrame(() => { frame = 0; drawPreview(); });
+    if (drag?.id !== e.pointerId) return;
+    yaw = drag.yaw + (e.clientX - drag.x) * 0.012;
+    panY = drag.panY + (e.clientY - drag.y) / Math.max(1, preview.clientHeight);
+    queuePreview();
   });
-  const release = () => { drag = null; preview.style.cursor = 'grab'; };
+  const release = (e) => {
+    if (drag?.id !== e.pointerId) return;
+    drag = null;
+    preview.style.cursor = 'grab';
+  };
   preview.addEventListener('pointerup', release);
   preview.addEventListener('pointercancel', release);
+  preview.addEventListener('lostpointercapture', release);
 
 
   // Morphs are applied during poseAssembly, but a preview rig can retain
@@ -674,11 +735,12 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     previewRebuildRequested = false;
     previewBuildPending = true;
     try {
-      const result = await fpArm.createAppearancePreviewRig({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair });
+      const result = await fpArm.createAppearancePreviewRig({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair, hairColor });
       if (closed || previewRebuildRequested) {
         result?.rig?.unload?.();
       } else if (result?.ok && result.rig) {
         previewRig = result.rig;
+        previewFrameInfo = result.frameInfo;
         previewBuildAttempts = 0;
         if (previewRetryTimer) window.clearTimeout(previewRetryTimer);
         previewRetryTimer = 0;
@@ -728,6 +790,11 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     }
   }
 
+  function queuePreview() {
+    if (frame || closed) return;
+    frame = requestAnimationFrame(() => { frame = 0; drawPreview(); });
+  }
+
   function drawPreview() {
     if (closed) return;
     if (!previewRig) {
@@ -737,26 +804,42 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       return;
     }
     try {
-      const image = previewRig.figure({ yaw, height: Math.min(1024, Math.max(640, Math.round(preview.height * 0.95))), force: true, neutral: true, bodyProportions: draftMorphs });
+      const width = preview.clientWidth, height = preview.clientHeight;
+      if (!width || !height) return;
+      const morphs = activeMorphs();
+      const morphKey = JSON.stringify(morphs);
+      if (figureFrame?.rig !== previewRig || figureFrame.yaw !== yaw || figureFrame.morphKey !== morphKey) {
+        const image = previewRig.figure({ yaw, height: 1024, force: true, neutral: true, stableFrame: true, bodyProportions: morphs });
+        const source = document.createElement('canvas');
+        if (image?.data) {
+          source.width = image.width;
+          source.height = image.height;
+          source.getContext('2d')?.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+          figureFrame = { rig: previewRig, yaw, morphKey, source };
+        } else figureFrame = null;
+      }
+      const raster = editorPreviewRaster(width, height, Number(pixelMode.value), previewFrameInfo?.(), window.innerHeight, window.devicePixelRatio || 1);
+      if (preview.width !== raster.width) preview.width = raster.width;
+      if (preview.height !== raster.height) preview.height = raster.height;
+      preview.style.imageRendering = raster.pixelated ? 'pixelated' : 'auto';
       const ctx = preview.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, preview.width, preview.height);
-      if (!image?.data) {
+      if (!figureFrame) {
         statusMessage.style.display = 'block';
         statusMessage.textContent = 'Модель собрана, но изображение недоступно.';
         previewHint.textContent = 'Ошибка отображения';
         return;
       }
       statusMessage.style.display = 'none';
-      const imageCanvas = document.createElement('canvas');
-      imageCanvas.width = image.width; imageCanvas.height = image.height;
-      const imageCtx = imageCanvas.getContext('2d');
-      if (!imageCtx) return;
-      imageCtx.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
-      const scale = Math.min((preview.width * .98) / image.width, (preview.height * .98) / image.height) * zoom;
-      const dw = image.width * scale, dh = image.height * scale;
-      ctx.drawImage(imageCanvas, (preview.width - dw) / 2, (preview.height - dh) / 2, dw, dh);
-      previewHint.textContent = 'Без экипировки · нейтральная стойка';
+      const source = figureFrame.source;
+      const scale = Math.min(width / source.width, height / source.height) * .96 * zoom;
+      const dw = source.width * scale * preview.width / width;
+      const dh = source.height * scale * preview.height / height;
+      const maxPan = Math.max(0, (dh / preview.height - 1) / 2);
+      panY = Math.max(-maxPan, Math.min(maxPan, panY));
+      ctx.drawImage(source, (preview.width - dw) / 2, (preview.height - dh) / 2 + panY * preview.height, dw, dh);
+      previewHint.textContent = 'Мышь: поворот и сдвиг · Колесо: масштаб';
     } catch (error) {
       statusMessage.style.display = 'block';
       statusMessage.textContent = 'Ошибка предпросмотра: ' + String(error?.message || error);
@@ -773,11 +856,78 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     morphPreviewTimer = 0;
     previewRetryTimer = 0;
     resizeObserver?.disconnect?.();
+    window.removeEventListener('resize', queuePreview);
     previewRig?.unload?.(); previewRig = null;
     window.removeEventListener('keydown', keydown);
     root.remove(); onClose();
   }
   return { close };
+}
+
+function hairPalette(current, onChange) {
+  const row = document.createElement('div');
+  row.className = 'mw-underwear mw-hair-color';
+  const title = document.createElement('strong');
+  title.className = 'mw-hair-title';
+  title.textContent = 'Цвет волос';
+  const swatches = document.createElement('div');
+  swatches.className = 'mw-hair-swatches';
+  swatches.setAttribute('role', 'group');
+  swatches.setAttribute('aria-label', title.textContent);
+  const buttons = new Map();
+  for (const [color, label] of HAIR_SWATCHES) {
+    if (!color) continue;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'mw-hair-swatch';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(current === color));
+    button.style.setProperty('--hair-color', color);
+    button.addEventListener('click', () => {
+      if (current === color) return;
+      buttons.get(current)?.setAttribute('aria-pressed', 'false');
+      current = color;
+      button.setAttribute('aria-pressed', 'true');
+      onChange(color);
+    });
+    buttons.set(color, button);
+    swatches.append(button);
+  }
+  row.append(title, swatches);
+  return row;
+}
+
+function modelPicker(label, slot) {
+  const row = document.createElement('div');
+  row.className = 'mw-underwear mw-model-picker';
+  const title = document.createElement('label');
+  title.textContent = label;
+  const select = document.createElement('select');
+  select.id = `mw-model-${slot}`;
+  title.htmlFor = select.id;
+  const nav = document.createElement('div');
+  nav.className = 'mw-model-nav';
+  const step = (direction) => {
+    const button = makeButton(direction < 0 ? '‹' : '›');
+    button.setAttribute('aria-label', `${label} — ${direction < 0 ? 'назад' : 'вперёд'}`);
+    button.addEventListener('click', () => {
+      const count = select.options.length;
+      if (select.disabled || count < 2) return;
+      select.selectedIndex = (select.selectedIndex + direction + count) % count;
+      select.dispatchEvent(new globalThis.Event('change'));
+    });
+    return button;
+  };
+  const back = step(-1), next = step(1);
+  nav.append(back, select, next);
+  row.append(title, nav);
+  const setEnabled = enabled => {
+    select.disabled = !enabled;
+    back.disabled = next.disabled = !enabled || select.options.length < 2;
+  };
+  setEnabled(false);
+  return { row, select, setEnabled };
 }
 
 function formatValue(value) {

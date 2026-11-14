@@ -114,3 +114,5 @@ the assembly calls.
 - `test/player/eyeOfTheBeholder/holster_flail.test.js` - the flail on the back
 - `test/net/layered_peers.test.js` - a walker's warm
 - `test/player/viewtoggle.test.js` - the perspective toggle
+
+The world host samples the perspective key before the interior or dungeon takes over the frame.

@@ -80,6 +80,7 @@
 // playerAttackGrunt's clip pick. The curse is COMPLETE against
 // VampirismEffect.cs.
 
+import { playerVoiceGender } from '../characters/activeAppearance.js';
 import { VAMPIRE_CLANS, LYCANTHROPY_TYPES } from './infection.js';
 import { MINUTES_PER_DAY, isDayFromMinutes } from './gameDate.js';
 import { spellRecordOfIndex } from './loot/loot.js';
@@ -350,7 +351,7 @@ export const racialSuppressPaperDollBodyAndItems = (entity) => !!liveLycanthropy
 export function vampireAttackVoice(entity, rolls = Math.random) {
   if (!liveVampirism(entity)) return null;
   const bark = Math.floor(rolls() * 100) < 20;
-  return entity?.gender === 'female'
+  return playerVoiceGender(entity?.gender) === 'female'
     ? (bark ? SOUND.EnemyFemaleVampireBark : SOUND.EnemyFemaleVampireAttack)
     : (bark ? SOUND.EnemyVampireBark : SOUND.EnemyVampireAttack);
 }

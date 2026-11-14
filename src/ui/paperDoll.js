@@ -46,7 +46,7 @@ import { ITEM_TEMPLATES } from '../systems/item/itemTemplates.js';
 
 import { ImgFile } from '../formats/imgFile.js';
 import { paperdollLookOf, lookedPiece } from '../systems/paperdollLooks.js';   // PAPERDOLL-LOOKS: the player's 2D card look
-import { activeAppearanceIdentity, appearanceDisplayKey } from '../characters/activeAppearance.js';
+import { activeAppearanceIdentity, appearanceDisplayKey, appearanceEditorEnabled } from '../characters/activeAppearance.js';
 import { modGroupEnabled } from '../systems/enhancedModResources.js';
 import { packImgTexture } from './packArt.js';   // OVH2: a worn UI pack's backdrop
 import { racialPaperDollBackground, racialOverrideHeadArt, racialSuppressPaperDollBodyAndItems } from '../systems/vampirism.js';   // V5: the curse art laws, both curses' one switch
@@ -307,7 +307,8 @@ const PAPERDOLL_RACE_FOR_APPEARANCE = Object.freeze({
  * Daggerfall paperdoll body family where no matching classic body exists.
  */
 export function paperDollDisplayIdentity(entity, appearance = activeAppearanceIdentity()) {
-  const editor = appearance ?? getAppearanceIdentity();
+  const editor = appearanceEditorEnabled() ? (appearance ?? getAppearanceIdentity()) : null;
+  if (!appearanceEditorEnabled()) appearance = null;
   if (!modGroupEnabled('bodies')) appearance = null;
   const actual = {
     race: entity?.race ?? 'Breton',

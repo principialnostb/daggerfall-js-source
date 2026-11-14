@@ -416,6 +416,11 @@ uniform mat3 uSkinNrm;
 uniform float uSkinFlip;
 uniform float uFrontCW;
 vec3 vNormal;
+uniform float uHairLight;
+float charDiffuse(vec3 n, vec3 light) {
+  float facing = dot(n, light);
+  return mix(max(facing, 0.0), 0.24 + 0.76 * abs(facing), uHairLight);
+}
 vec3 charFaceNormal() {
   vec3 d = cross(dFdx(vRel), dFdy(vRel));
   if (uSkin < 0.5) return vNormalV;
@@ -535,9 +540,9 @@ void main() {
   vec4 texel = uUseTex > 0.5 ? texture(uTex, vUV) : vec4(1.0);
   if (uAlphaCut > 0.0 && texel.a < uAlphaCut) discard;
   vec3 albedo = vColor * texel.rgb;
-  float diff = max(dot(n, uLightDir), 0.0);
+  float diff = charDiffuse(n, uLightDir);
   diff *= cloudShadowAt(vWorldPos);   // VC4: the cloud's shadow on the sun term
-  float mdiff = max(dot(n, uMoonDir), 0.0);
+  float mdiff = charDiffuse(n, uMoonDir);
   vec3 lit = albedo * (uAmbient + uSunColor * (uSunScale * diff) + uMoonColor * (uMoonScale * mdiff));
   vec3 pointAcc = vec3(0.0);
   for (int i = 0; i < 16; i++) {
@@ -545,7 +550,7 @@ void main() {
     vec3 L = uPointLights[i].xyz - vWorldPos;
     float d = length(L);
     float att = clamp(1.0 - d / uPointLights[i].w, 0.0, 1.0);
-    pointAcc += att * att * max(dot(n, L / max(d, 1e-4)), 0.0) * uPointColors[i];
+    pointAcc += att * att * charDiffuse(n, L / max(d, 1e-4)) * uPointColors[i];
   }
   lit += albedo * pointAcc;
   lit += albedo * winLit(vWorldPos, n, 0.0, 1.0);   // WL1
@@ -1433,13 +1438,15 @@ export function holdBlendedBillboards(batches, out = []) {
  *  eye - AMBIENT and KEY are the two dials. */
 export const STUDIO_AMBIENT = 0.6;
 export const STUDIO_KEY = 0.7;
-export function studioLight(view) {
+export function studioLight(view, soft = false) {
+  // Keep the fill high and the peak below clipping for close inspection of layered meshes.
+  const ambient = soft ? .76 : STUDIO_AMBIENT;
   const back = [view[2], view[6], view[10]];
   const bl = Math.hypot(back[0], back[1], back[2]) || 1;
   return {
     lightDir: new Float32Array([back[0] / bl, back[1] / bl, back[2] / bl]),
-    ambient: new Float32Array([STUDIO_AMBIENT, STUDIO_AMBIENT, STUDIO_AMBIENT]),
-    sunScale: STUDIO_KEY,
+    ambient: new Float32Array([ambient, ambient, ambient]),
+    sunScale: soft ? .22 : STUDIO_KEY,
     sunColor: new Float32Array([1, 1, 1]),
     pointLights: new Float32Array(0),
     indirect: new Float32Array([0, 0, 0, 0]),
@@ -2556,6 +2563,7 @@ export class Renderer {
       tex: gl.getUniformLocation(cp, 'uTex'),
       useTex: gl.getUniformLocation(cp, 'uUseTex'),
       alphaCut: gl.getUniformLocation(cp, 'uAlphaCut'),
+      hairLight: gl.getUniformLocation(cp, 'uHairLight'),
       skin: gl.getUniformLocation(cp, 'uSkin'),   // MWNPC1: the GPU skin's three a draw (the palette's unit and the front face are the program's, _charSkinProgram)
       skinNrm: gl.getUniformLocation(cp, 'uSkinNrm'),
       skinFlip: gl.getUniformLocation(cp, 'uSkinFlip'),
@@ -3241,6 +3249,7 @@ export class Renderer {
       gpu: this.gpuName,
       world: f ? [f.width, f.height] : p ? [p[2], p[3]] : [c.width, c.height],
       canvas: [c.width, c.height],
+      worldDisplayHeight: (f?.view?.h ?? (p ? p[3] / c.height : 1)) * c.clientHeight,
       dpr: Number(globalThis.devicePixelRatio) || 1,
       scale: f?.kind === 'scale' ? f.scale : 1,
       retro: f?.kind === 'retro',
@@ -4024,6 +4033,7 @@ export class Renderer {
         if (skin) gl.uniform1f(c.skinFlip, r.piece && r.piece.mirrored ? -1 : 1);   // MWNPC1: packFpArm's flip, per piece
         gl.uniform1f(c.useTex, r.tex ? 1 : 0);
         gl.uniform1f(c.alphaCut, r.alphaCut || 0);
+        gl.uniform1f(c.hairLight, !this._studioDepth && r.slot === 'hair' ? 1 : 0);
         gl.bindTexture(gl.TEXTURE_2D, r.tex || this._blackTex);
         this._tex0Bound = null;   // PERF-TEX3: this path owns unit 0 - the shadow may not speak for it
         gl.drawArrays(gl.TRIANGLES, r.first, r.count);
@@ -4042,6 +4052,7 @@ export class Renderer {
     this._tex0Bound = null;   // PERF-TEX3: this path owns unit 0 - the shadow may not speak for it
     gl.uniform1f(c.useTex, 0);
     gl.uniform1f(c.alphaCut, 0);
+    gl.uniform1f(c.hairLight, 0);
     if (skin) {
       // MWNPC1: the identity back on the unit - this body's palette may be deleted before the next character draws
       gl.uniform1f(c.skin, 0);
@@ -4508,7 +4519,7 @@ export class Renderer {
    *  inventory's figure panel is DOM, not a world quad, so the body has
    *  to leave the GPU as an image. Y is flipped on the way out (GL rows
    *  run bottom-up); the RT is borrowed and returned exactly as above. */
-  renderCharacterSpriteImage(mesh, modelMatrix, proj, view, pw, ph, { studio = true } = {}) {
+  renderCharacterSpriteImage(mesh, modelMatrix, proj, view, pw, ph, { studio = true, softStudio = false } = {}) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
     const gl = this.gl;
     // PX23 (Mac: the new sprites and the character display are quite
@@ -4529,7 +4540,7 @@ export class Renderer {
     } : null;
     if (studio) {
       if (this._cloudShadow) { this._cloudShadow = null; this._csStamp++; }   // VC4
-      const st = studioLight(view);
+      const st = studioLight(view, softStudio);
       this._lightDir = st.lightDir; this._ambient = st.ambient; this._sunScale = st.sunScale;
       this._sunColor = st.sunColor; this._pointLights = st.pointLights; this._indirect = st.indirect;
       this._moonScale = 0;

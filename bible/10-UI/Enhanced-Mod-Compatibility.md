@@ -74,6 +74,8 @@ Prerequisites use green checkmarks and red crosses with text labels; color is no
 
 ## 2D card looks for every piece (PAPERDOLL-LOOKS)
 
+The Longsword's 2D choices omit the Tanto image.
+
 The owner extended the 2D customization past the helm on 2026-11-08, covering armour, weapons, clothing, plain 2D and Paperdoll Enhanced. It changes the player's own inventory card only - the paperdoll figure and the piece's list icon - never the world, a peer or the item. The 3D look stays the separate model choice. Daggerfall Unity draws a piece's own record only (ItemHelper.GetItemImage); choosing another of the game's records for it is a departure. It is not the Wardrobe (`bible/04-Characters/Wardrobe.md`): that look is drawn first, and a piece wearing one is customised as the piece it is drawn as.
 
 `src/systems/paperdollLooks.js` decides what a piece may wear. Armour 102-108 takes the styles of its own material family (`clampArmorVariant`), the owner's choice: a plate cuirass 1-3, plate greaves 2-5, a helm its six. Clothing with styles takes any style of its template, its dye kept. A weapon or shield takes another template's record of its class and hands (blades, hafted, bows, shields; `getItemHands` joins the key), so the doll's either-hand record law still holds. Artifacts and gilded pieces keep their own art. A choice that resolves to the piece's own record or to an earlier one is dropped. Choices live in the `paperdollLooks` pref per template and material; the old `helmetPaperdollLooks` entries still read. Turning paperdoll customization off clears both.

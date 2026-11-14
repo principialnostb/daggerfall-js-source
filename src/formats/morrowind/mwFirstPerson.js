@@ -175,12 +175,14 @@ import { GRAPH_ROOT, ACCUM_ROOT_NAMES, blendPoseMaps } from './mwSkin.js';
 import { editPose, fitPieces } from './mwPoseLab.js';   // POSE-LAB: the Animation Lab's seam, off in the game
 import { CUFF_FIT, fitCuffsToHand, handStart, trimToCuff, wristFrame } from './mwCuffFit.js';   // CUFF-FIT: the worn cuff sat on the donor hand
 import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
+import { rebuildNormals } from './mwCloakPhysics.js';
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
 import { batchMoves, posePartBatch, nodeAffineAt, nodeClockAt, clockFor } from './mwPartClock.js';   // MW-BOW1: a part's own clock
 import { applyClimbRig } from '../../combat/climbRig.js';   // CLIMB6: the climb's pose on the rig's own bones
 import { applyMirrorRig, limbSkeleton, offWeaponBoneAddon, WEAPON_BONE_LEFT_SOURCE, mirrorBindSources } from '../../combat/twoHands/mirrorRig.js';   // TWO-HANDS: the second hand - an arm, or the body, in the mirror; the left hand's weapon bone   // MIRROR-BIND: the skins it is mirrored by
-import { ownFacePools } from '../../characters/ownModels/ownHeadModels.js';   // MW-HEADS1: the port's own heads and hairs - a race's pools where it has them
+import { normalizeVfsPath } from './mwTexture.js';
+import { OWN_HEADS, ownFacePools } from '../../characters/ownModels/ownHeadModels.js';   // MW-HEADS1: the port's own heads and hairs - a race's pools where it has them
 
 /** The four parts allowed to fall back to a third-person mesh when the
  *  first-person record is missing (rule 3 / npcanimation.cpp:1217-1253).
@@ -1713,7 +1715,8 @@ export function facePools(parts, race, female, { has = null, own: ownAsked = fal
     // replacement mesh because the stable sort preserves the earlier entry.
     const latest = new Map();
     for (const p of parts ?? []) {
-      if (p.race === want && p.slot === slot && p.skin && p.playable && !p.firstPerson) {
+      if (p.race === want && p.slot === slot && p.skin && p.playable && !p.firstPerson
+          && (slot !== 'hair' || female || !(femaleHairAsset(p.id) || femaleHairAsset(p.model)))) {
         latest.set(String(p.id).toLowerCase(), p);
       }
     }
@@ -1723,6 +1726,35 @@ export function facePools(parts, race, female, { has = null, own: ownAsked = fal
       .slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   };
   return { heads: pool('head'), hairs: pool('hair') };
+}
+
+// BODY flags can disagree with the sex encoded in a replacer's record or path.
+export function femaleHairAsset(value) {
+  return /(?:^|[\s_./\\-])female(?:$|[\s_./\\-])|(?:^|[\s_./\\-])f[\s_-]+hair/i.test(String(value ?? ''));
+}
+
+export function appearanceHairPool(parts, female, has) {
+  const eligible = (p) => p.slot === 'hair' && p.skin && p.playable && !p.firstPerson && !p.vampire && p.female === !!female
+    && !/^(argonian|khajiit)$/i.test(p.race)
+    && (female || !(femaleHairAsset(p.id) || femaleHairAsset(p.model)));
+  const latest = new Map((parts ?? []).map(p => [String(p.id).toLowerCase(), p]));
+  const own = Object.keys(OWN_HEADS).flatMap(race => ownFacePools(race, female)?.hairs ?? []);
+  return [...latest.values(), ...own].filter(eligible)
+    .filter(p => p.model && (!has || has(normalizeVfsPath(`meshes/${p.model}`))))
+    .sort((a, b) => a.id.localeCompare(b.id, 'en'));
+}
+
+export function distinctAppearanceModels(records, has) {
+  const byModel = new Map();
+  for (const record of records) {
+    if (!record.model) continue;
+    const path = normalizeVfsPath(`meshes/${record.model}`);
+    if (has && !has(path)) continue;
+    const existing = byModel.get(path);
+    if (existing) existing.aliases.push(record.id);
+    else byModel.set(path, { id: record.id, aliases: [record.id] });
+  }
+  return [...byModel.values()];
 }
 
 /** WEREWOLF1: THE WEREWOLF'S HEAD AND HAIR - the BODY records `WerewolfHead`
@@ -1832,18 +1864,19 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
         chosen = sorted[((faceIndex % sorted.length) + sorted.length) % sorted.length];
         how = wantId ? `derived (curated "${wantId}" is not in these archives)` : 'derived';
       }
-      // The character editor's independent head/hair selections override the
-      // portrait-derived pair, but only when the requested model exists in this
-      // race/sex pool. NPC seed-walks remain authoritative.
-      if (!walk) {
-        const appearanceId = slot === 'head' ? appearanceHeadId : appearanceHairId;
-        const explicit = appearanceId ? poolRecord(sorted, appearanceId) : null;
-        if (explicit) { chosen = explicit; how = 'selected in appearance editor'; }
-      }
+    }
+    const earRecord = slot === 'hair' && (appearanceHairId || (!walk && appearanceHeadId)) ? chosen : null;
+    if (!walk || slot === 'hair') {
+      const explicit = slot === 'head'
+        ? poolRecord(sorted, appearanceHeadId)
+        : appearanceHairId && poolRecord(appearanceHairPool(parts, female, has), appearanceHairId);
+      if (explicit) { chosen = explicit; how = walk ? 'selected from the NPC hair pool' : 'selected in appearance editor'; }
     }
     rows.push({
       slot,
       record: chosen,
+      ...(earRecord ? { earRecord } : {}),
+      ...(slot === 'hair' && how?.startsWith('selected') ? { splitHair: true } : {}),
       verdict: chosen ? (how ? `third-person record found, ${how}` : 'third-person record found') : 'NOTHING for this slot',
       counts: { all: sorted.length },   // AUDIT MW-HEADS1 (L2-F7): the pool chosen among - the port's own where it stands
     });
@@ -2369,9 +2402,9 @@ export function bindPartsInto(assembly, parts) {
     // Prefer the actual rendered Better Bodies surface when present; otherwise use the matching BODY records.
     // This is geometry-only fitting, not weight transfer, so the full-body replacement is safe as a filtered surface.
     const bodyReplacement = parts.find((candidate) => candidate.slot === 'betterBodies')?.bytes ?? null;
-    const fitSourceNifs = part.fitSources?.map((src) => bodyReplacement ? { ...src, bytes: bodyReplacement } : src) ?? [];
+    const fitSourceNifs = part.fitSources ?? [];
     // Clothing fit is a private vertex-position pass; the garment keeps its authored skinning/material path.
-    const fitSources = fitSourceNifs.length ? bindGarmentFitSources(assembly, fitSourceNifs) : [];
+    const fitSources = fitSourceNifs.length ? bindGarmentFitSources(assembly, fitSourceNifs, bodyReplacement) : [];
     const fitCtx = fitSources.length ? clothingFitContext(assembly) : null;
     // MW-D6: the nameless-shape extension binds ONCE for the part; a
     // NAMED shape binds once PER SIDE, filtered. See the block below.
@@ -2391,7 +2424,7 @@ export function bindPartsInto(assembly, parts) {
       }
       let bound;
       try {
-        bound = bindElbowSkin(skeleton, mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), underNode: part.underNode, excludeNode: part.excludeNode }));   // WS1: a subtree of the file
+        bound = bindElbowSkin(skeleton, mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), underNode: part.underNode, excludeNode: part.excludeNode, hairMode: part.hairMode }));   // WS1: a subtree of the file
       } catch (err) {
         notes.push(`${part.slot} @ ${bone}: ${err.message}`);
         continue;
@@ -2404,9 +2437,9 @@ export function bindPartsInto(assembly, parts) {
           if (geomFitCandidate(original, part)) {
             const sideMatch = String(part.partName ?? part.slot).toLowerCase().match(/\b(left|right)\b/);
             const fitted = fitGarmentClearance(original, fitSources, fitCtx, {
-              clearance: part.fitMode === 'conform' ? 0.18 : 0.2,
-              maxDistance: part.fitMode === 'conform' ? 4.0 : 2.5,
-              maxPush: 1.25, conform: part.fitMode === 'conform',
+              clearance: 0.2,
+              maxDistance: 2.5,
+              maxPush: 1.25,
               // A leg panel must not snap to the opposite thigh just because
               // baggy source geometry happens to be closer to that surface.
               side: sideMatch?.[1] ?? null,
@@ -2547,7 +2580,11 @@ export function bindPartsInto(assembly, parts) {
         const nodeRef = bone ? skeleton.byName.get(bone.toLowerCase()) : null;
         const nodeName = nodeRef != null && skeleton.nodes.has(nodeRef) ? skeleton.nodes.get(nodeRef).name : (bone || '');
         const mirror = nodeName.includes('Left');
-        for (const batch of bound.attached) {
+        for (const original of bound.attached) {
+          const batch = part.fitMode === 'trousers' && fitCtx && geomFitCandidate(original, part)
+            ? fitRigidTrousers(original, bound, mirror, bone, fitSources, fitCtx, part.trouserEase,
+              bodyReplacement ? () => bindGarmentFitSources(assembly, fitSourceNifs) : null)
+            : original;
           const normals = posedNormals(batch);   // MW-SMOOTH
           pieces.push({ slot: part.slot, bone, kind: 'rigid', mirrored: mirror, tag: part.tag ?? null,   // WS1: a part's own tag (the quiver slot's index)
             hang: part.hang ?? null,   // HT-WAIST: a part that HANGS from its bone (hangAffine) rather than riding it
@@ -3278,11 +3315,18 @@ export function armPieceRows(pieces) {
  * its authored skinning, UVs and material; only its private vertex positions
  * are adjusted against these already-bound body surfaces.
  */
-function bindGarmentFitSources(assembly, fitSources) {
+function bindGarmentFitSources(assembly, fitSources, replacement = null) {
   const mod = assembly.fns;
   const { skeleton, notes } = assembly;
   const sources = [];
   for (const src of fitSources) {
+    if (replacement && replacement !== src.bytes) {
+      const replacementSources = bindGarmentFitSources(assembly, [{ ...src, bytes: replacement }]);
+      if (replacementSources.length) {
+        sources.push(...replacementSources);
+        continue;
+      }
+    }
     let srcNif;
     try { srcNif = mod.parseNif(src.bytes); }
     catch (err) { notes.push(`clothing fit: body ${src.slot}: ${err.message}`); continue; }
@@ -3313,6 +3357,33 @@ function bindGarmentFitSources(assembly, fitSources) {
 
 function geomFitCandidate(batch, part) {
   return !!part.fitSources?.length && !!batch?.positions?.length && !!batch?.indices?.length;
+}
+
+function fitRigidTrousers(batch, { attachRef, boneOffset }, mirror, bone, sources, ctx, ease = 0.35, fallback = null) {
+  const at = ctx.mats.get(attachRef);
+  const inverse = at && invert33(at.a);
+  if (!inverse) return batch;
+  const offset = boneOffset || ZERO3;
+  const placed = { ...batch, positions: placeAtBone(batch.positions, at, mirror, undefined, offset) };
+  const options = {
+    conform: true, clearance: 0.24, ease, maxDistance: 6,
+    side: bone?.toLowerCase().match(/\b(left|right)\b/)?.[1],
+  };
+  let fitted = fitGarmentClearance(placed, sources, ctx, options);
+  if (fitted === placed && fallback) fitted = fitGarmentClearance(placed, fallback(), ctx, options);
+  if (fitted === placed) return batch;
+  const positions = new Float32Array(fitted.positions.length);
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = fitted.positions[i] - at.t[0];
+    const y = fitted.positions[i + 1] - at.t[1];
+    const z = fitted.positions[i + 2] - at.t[2];
+    positions[i] = (inverse[0] * x + inverse[1] * y + inverse[2] * z - offset[0]) * (mirror ? -1 : 1);
+    positions[i + 1] = inverse[3] * x + inverse[4] * y + inverse[5] * z - offset[1];
+    positions[i + 2] = inverse[6] * x + inverse[7] * y + inverse[8] * z - offset[2];
+  }
+  const normals = new Float32Array(positions.length);
+  rebuildNormals(positions, batch.indices, normals, batch.normals);
+  return { ...batch, positions, normals };
 }
 
 /**

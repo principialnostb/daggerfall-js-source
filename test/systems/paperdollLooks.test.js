@@ -101,7 +101,8 @@ test('all clothing choices preserve coverage and use the requested body sheet, i
 
 test('a weapon or shield is drawn as another template of its class and hands; the hand law follows the picture', keep(() => {
   const longsword = Object.freeze({ group: 'Weapons', templateIndex: 120, material: 2, equipSlot: EQUIP_SLOTS.RightHand });
-  assert.deepEqual(ids(paperdollLookChoices(longsword)), ['t113', 't114', 't116', 't117', 't118', 't119', 't121']);
+  assert.deepEqual(ids(paperdollLookChoices(longsword)), ['t113', 't116', 't117', 't118', 't119', 't121']);
+  assert.equal(setPaperdollLook(longsword, { t: 114 }), false);
   assert.deepEqual(ids(paperdollLookChoices({ group: 'Weapons', templateIndex: 122, material: 2 })), ['t123']);   // two-handed blades
   assert.deepEqual(ids(paperdollLookChoices({ group: 'Weapons', templateIndex: 129, material: 2 })), ['t130']);   // bows
   assert.deepEqual(ids(paperdollLookChoices({ group: 'Armor', templateIndex: 110, material: 513 })), ['t109', 't111', 't112']);   // shields

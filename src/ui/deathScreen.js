@@ -26,6 +26,7 @@
 // TitleMenuFromDeath). ENTER skips to that end; the F11 hint is the
 // real quickload binding (InputManager.SetupDefaults: F9/F11).
 
+import { playerVoiceGender } from '../characters/activeAppearance.js';
 import { drawText, measureText } from './text.js';
 import { PlayerDeathSequence, DEATH_TIME_BEFORE_RESET } from '../systems/playerDeath.js'; // D1
 import { playerEntity } from '../characters/playerEntity.js'; // D1: the death clip's race/gender
@@ -180,7 +181,7 @@ export class DeathScreen {
         onReset?.();
       },
       race: entity?.raceId ?? null,
-      gender: entity?.gender ?? null,
+      gender: playerVoiceGender(entity?.gender ?? null),
       playSound: (clip) => audio.playOneShot(clip, 1),
     });
   }

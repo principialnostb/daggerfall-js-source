@@ -1,11 +1,23 @@
 import { charPixelRows, blockPixels } from '../../render/charPixelLayer.js';
-export function previewRasterSize(width, height, displayHeight, viewportHeight, rows) {
+export function previewRasterSize(width, height, displayHeight, viewportHeight = globalThis.innerHeight ?? 1080, rows = charPixelRows('player')) {
   const block = blockPixels(viewportHeight, rows);
   if (block <= 1) return { width, height };
   const scale = Math.min(1, displayHeight / (height * block));
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 export const previewImageRendering = () => blockPixels(globalThis.innerHeight ?? 1080, charPixelRows('player')) > 1 ? 'pixelated' : 'auto';
+// Match a block in the world render target to its presented size in CSS pixels.
+export function editorPreviewRaster(width, height, rows, frameInfo, viewportHeight, dpr = 1) {
+  const targetHeight = frameInfo?.world?.[1] || viewportHeight * dpr;
+  const displayHeight = frameInfo?.worldDisplayHeight || viewportHeight;
+  const block = blockPixels(targetHeight, rows);
+  const pitch = block > 1 ? Math.max(1 / dpr, block * displayHeight / targetHeight) : 1 / dpr;
+  return {
+    width: Math.max(1, Math.round(width / pitch)),
+    height: Math.max(1, Math.round(height / pitch)),
+    pixelated: block > 1,
+  };
+}
 export const previewPixelKey = () => `${charPixelRows('player')}:${globalThis.innerHeight ?? 1080}`;
 // A 68px item card gets 36/27/23/20 rows, independent of the screen's height.
 const ITEM_PREVIEW_ROWS = new Map([[540, 36], [360, 27], [270, 23], [200, 20]]);
@@ -18,7 +30,7 @@ export function itemPreviewRasterSize(width, height, displayHeight, rows) {
 export const itemPreviewImageRendering = () => charPixelRows('player') > 0 ? 'pixelated' : 'auto';
 export function paintPreview(canvas, pixels, displayHeight) {
   canvas.style?.setProperty('image-rendering', previewImageRendering());
-  const size = previewRasterSize(pixels.width, pixels.height, displayHeight, globalThis.innerHeight ?? 1080, charPixelRows('player'));
+  const size = previewRasterSize(pixels.width, pixels.height, displayHeight);
   canvas.width = size.width; canvas.height = size.height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;

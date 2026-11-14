@@ -12,6 +12,7 @@ import { plainFoeLootRule, capFoeLoot, plainFoeRarityWeights, capLootList } from
 import { renownLootQuarters, lootEased } from '../systems/renownLoot.js';   // RENOWN-LOOT: LOOT-EASE's buff by the roller's Renown
 import { SKILLS, tallySkill, skillValue, SKILL_NAMES } from '../systems/skills.js';
 import { effectiveLevel, lootGateLevel } from '../systems/mentorMode.js';   // SOFTCAP2: mentor mode - the level the world is built around; MENTOR2: the gate's, the real one
+import { playerVoiceGender } from '../characters/activeAppearance.js';
 import { vampireAttackVoice } from '../systems/vampirism.js';   // V5: GetCustomRaceGenderAttackSoundData
 import { liveLycanthropy } from '../systems/lycanthropy.js';   // AUDIT 39: SuppressOptionalCombatVoices, the racial override's own gate
 import {
@@ -458,7 +459,7 @@ export function playerAttackGrunt(playerEntity, isBow, rolls = Math.random) {
   // of NPCs, by its own comment. A male High Elf player has been
   // grunting as a Wood Elf since the C2 slice.
   return playerVoice({
-    race: RACES[playerEntity.race] ?? 1, gender: playerEntity.gender ?? 'male', isAttack: true, rolls,
+    race: RACES[playerEntity.race] ?? 1, gender: playerVoiceGender(playerEntity.gender ?? 'male'), isAttack: true, rolls,
   });
 }
 
@@ -473,7 +474,7 @@ export function playerClimbStrain(playerEntity, rolls = Math.random) {
   const vamp = vampireAttackVoice(playerEntity, rolls);
   if (vamp != null) return { clip: vamp, pitchLift: 0 };
   return playerVoice({
-    race: RACES[playerEntity.race] ?? 1, gender: playerEntity.gender ?? 'male', isAttack: true, rolls,
+    race: RACES[playerEntity.race] ?? 1, gender: playerVoiceGender(playerEntity.gender ?? 'male'), isAttack: true, rolls,
   });
 }
 
@@ -509,7 +510,7 @@ export function playerPainVoice(playerEntity, damage, rolls = Math.random) {
   if (!dice100(PAIN_VOICE_CHANCE, rolls())) return null;
   return playerVoice({
     race: RACES[playerEntity.race] ?? 1,
-    gender: playerEntity.gender ?? 'male',
+    gender: playerVoiceGender(playerEntity.gender ?? 'male'),
     isAttack: false,
     heavyDamage: isHeavyDamage(damage, playerEntity.maxHealth ?? 0),
     rolls,

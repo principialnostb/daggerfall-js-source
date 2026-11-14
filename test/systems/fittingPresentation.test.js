@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewRasterSize, itemPreviewRasterSize } from '../../src/ui/enhanced/previewPixelation.js';
+import { editorPreviewRaster, previewRasterSize, itemPreviewRasterSize } from '../../src/ui/enhanced/previewPixelation.js';
 import { stepFittingCloth } from '../../src/render/fittingCloth.js';
 import { createCloakPhysics } from '../../src/formats/morrowind/mwCloakPhysics.js';
 import { getPref, setPref } from '../../src/systems/uiPrefs.js';
@@ -11,6 +11,22 @@ test('preview resolution follows player screen-row intensity and off retains ful
   assert.deepEqual(previewRasterSize(384,640,500,800,200), {width:75,height:125});
   assert.deepEqual(previewRasterSize(96,96,68,800,0), {width:96,height:96});
   assert.deepEqual(previewRasterSize(96,96,68,800,800), {width:96,height:96});
+});
+
+test('editor matches displayed world blocks across all five tiers and render scales', () => {
+  const native = { world: [1920, 1080], worldDisplayHeight: 1080 };
+  assert.deepEqual([0, 540, 360, 270, 200].map(rows => editorPreviewRaster(300, 480, rows, native, 1080)), [
+    { width: 300, height: 480, pixelated: false },
+    { width: 150, height: 240, pixelated: true },
+    { width: 100, height: 160, pixelated: true },
+    { width: 75, height: 120, pixelated: true },
+    { width: 60, height: 96, pixelated: true },
+  ]);
+  const scaled = { world: [960, 540], worldDisplayHeight: 1080 };
+  assert.deepEqual(editorPreviewRaster(300, 480, 270, scaled, 1080), { width: 75, height: 120, pixelated: true });
+  assert.deepEqual(editorPreviewRaster(300, 480, 540, scaled, 1080, 2), { width: 600, height: 960, pixelated: false });
+  const smallViewport = { world: [600, 600], worldDisplayHeight: 300 };
+  assert.deepEqual(editorPreviewRaster(300, 480, 200, smallViewport, 1080, 2), { width: 200, height: 320, pixelated: true });
 });
 
 test('small item cards retain distinct detail budgets without the full-screen block size', () => {

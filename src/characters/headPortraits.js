@@ -96,6 +96,7 @@ export async function playerHeadImage(who, { px = 128, ph = px, renderer = portr
       ownHeads: o.ownHeads,
       appearanceHeadId: identity?.headId || o.appearanceHeadId,
       appearanceHairId: identity?.hairId || o.appearanceHairId,
+      hairColor: identity?.hairColor,
       px,
       ph,
     });
@@ -108,6 +109,7 @@ export async function playerHeadImage(who, { px = 128, ph = px, renderer = portr
     faceIndex: identity?.faceIndex ?? (Number.isInteger(who.faceIndex) ? who.faceIndex : 0),
     appearanceHeadId: identity?.headId,
     appearanceHairId: identity?.hairId,
+    hairColor: identity?.hairColor,
     ownHeads: !who.npc,
     px,
     ph,

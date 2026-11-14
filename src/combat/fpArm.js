@@ -9,7 +9,9 @@ import { modGroupEnabled, modGroupReady, modResourceSignature } from '../systems
 import { modResourceGlob } from '../systems/enhancedModResources.js';
 import { isWolfCloakSlot } from '../characters/ownModels/wolfCloak.js';
 import { createWolfPeltMotion, stepWolfPeltMotion } from '../formats/morrowind/mwWolfPeltMotion.js';
-import { getBodyMorphs, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
+import { HAIR_SWATCHES, hairColorMips, hairGeometryKey, selectHairBatches } from '../characters/hairColor.js';
+import { activeAppearanceIdentity, appearanceEditorEnabled } from '../characters/activeAppearance.js';
+import { getBodyMorphs, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { setPlayerBusyProbe } from '../characters/playerBuildHold.js';   // LOAD-STALL 3
 import { modDiagnostics } from '../systems/modDiagnostics.js';   // MOD-DIAG1: trace cloak resolution through the live third-person build
 // MW-D8: THE MORROWIND FIRST-PERSON ARM, IN THE GAME.
@@ -69,6 +71,7 @@ import {
 } from '../formats/morrowind/mwAnim.js';
 import { accumRootRef, buildSkeleton, GRAPH_ROOT } from '../formats/morrowind/mwSkin.js';
 import { nodeTransformOf } from '../formats/morrowind/mwCharacter.js';
+import { normalizeBsaPath } from '../formats/morrowind/mwBsaFile.js';
 import { parseNif } from '../formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../formats/morrowind/mwNifMesh.js';
 import {
@@ -83,7 +86,7 @@ import {
   lightRecords, pickTorchRecord, blendMaskBones, overlayTracks, overlaySampler, weaponFlags, MW_TWO_HANDED,   // MW-D51: the held torch
   pickLanternRecord, hangAnchor, hookOnBone, hangAffine,   // HT-WAIST: the lantern at the waist, and the part that hangs
   tpAnimSources, TP_BASE_MODEL, playerBodyRows, werewolfHeadRows, MW_UNITS_PER_METER, resolveBodyParts, ARM_PARTS, raceRecords, armorRecords, clothingRecords,
-  facePools, meshBounds, curatedAnswersFace,   // AUDIT MW-HEADS1: the match stands down where the curated table answers
+  appearanceHairPool, distinctAppearanceModels, facePools, femaleHairAsset, meshBounds, curatedAnswersFace,   // AUDIT MW-HEADS1: the match stands down where the curated table answers
   movementAnimState, composeMovementGroup, MOVEMENT_FALLBACK_SPEED, MOVEMENT_SPEED_CAP, turnAnimSpeed,
   jumpAnimState,
   sourcesKeyTime, sourceVelocityOf,
@@ -410,7 +413,7 @@ import { diffuseAt, emissiveAt } from '../formats/morrowind/mwNifMesh.js';   // 
 import { fpLightingOn } from './fpsWeapon.js';   // MAC-P: the first-person lighting switch, shared with the classic sprite it stands in for
 import { createParticleSystem, packParticleQuads, particleDrawState, affineOfTransform, affineMul, affineApply, affineScale } from '../formats/morrowind/mwParticles.js';   // MAC-Q: the torch's flame, and any other particle system a part carries
 import { boneSourcesFor, resolveHolsterParts, holsterPartPaths, holsterHidden, HOLSTER_SLOTS } from '../systems/weaponSheathing.js';   // WS1
-import { fitCloakOver, fitStowedGear, followCloak, posePiecePositions, CLOAK_STILL_POSES, HIP_PITCH_LIMIT, CLOAK_PUSH_LIMIT, SLUNG_MOVE_LIMIT } from '../formats/morrowind/mwCloakFit.js';   // MW-CLOAK1: the cloak over what the body wears, stowed gear against it; AUDIT MW-CLOAK: and going with it
+import { fitCloakOver, fitStowedGear, followCloak, posePiecePositions, CLOAK_STILL_POSES, CLOAK_ANIMATED_FIT_POSES, HIP_PITCH_LIMIT, CLOAK_PUSH_LIMIT, SLUNG_MOVE_LIMIT } from '../formats/morrowind/mwCloakFit.js';   // MW-CLOAK1: the cloak over what the body wears, stowed gear against it; AUDIT MW-CLOAK: and going with it
 import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact, releaseCloakShieldContact } from '../formats/morrowind/mwCloakPhysics.js';
 import { cloakColliders, cloakGearDue } from '../formats/morrowind/mwCloakColliders.js';   // CLOAK-CONTACT
 import { isCloakSlot, ownCloakFor, isOutfitSlot, isSimplyCloakModel } from '../characters/ownModels/ownClothingModels.js';   // MW-CLOAK1; AUDIT MW-CLOAK: and its picture; AUDIT MW-FOLK1: an outfit's add, by its label
@@ -491,6 +494,51 @@ export async function loadFromArchives(archives, paths, urgent = false) {   // L
     jobs.push(archiveRead(() => arc.load(path), urgent).catch(() => null));
   }
   if (jobs.length) await Promise.all(jobs);
+}
+
+// Same-path aliases collapse first. Compare rendered geometry across the remaining files.
+async function appearanceHairChoices(archives, records, female) {
+  const choices = distinctAppearanceModels(records);
+  const paths = new Map(records.map(record => [record.id, normalizeBsaPath(`meshes/${record.model}`)]));
+  await loadFromArchives(archives, [...new Set(paths.values())], true);
+  const groups = new Map();
+  for (const choice of choices) {
+    const path = paths.get(choice.id);
+    let key;
+    try {
+      const bytes = archives.find(archive => archive.has(path))?.get(path);
+      const batches = flattenNif(parseNif(bytes));
+      const hair = selectHairBatches(batches, 'hair');
+      if (!female && hair.some(batch => femaleHairAsset(batch.material?.textureFile))) continue;
+      key = hairGeometryKey(batches);
+    } catch { continue; }
+    const existing = groups.get(key);
+    if (existing) existing.aliases.push(...choice.aliases);
+    else groups.set(key, { ...choice, bald: !key });
+  }
+  return [...groups.values()];
+}
+
+const npcHairPalettes = new WeakMap();
+async function npcHairOf(archives, parts, race, female, walk, beast) {
+  if (!walk || beast || /^(argonian|khajiit)$/i.test(race)) return null;
+  let palettes = npcHairPalettes.get(parts);
+  if (!palettes) npcHairPalettes.set(parts, (palettes = new Map()));
+  const sex = !!female;
+  if (!palettes.has(sex)) {
+    const records = appearanceHairPool(parts, sex, archiveHas(archives));
+    palettes.set(sex, appearanceHairChoices(archives, records, sex).then(choices =>
+      choices.filter(choice => !choice.bald)).catch(() => {
+      palettes.delete(sex);
+      return [];
+    }));
+  }
+  const choices = await palettes.get(sex);
+  const choice = choices[walk.hair % choices.length];
+  if (!choice) return null;
+  const colors = HAIR_SWATCHES.slice(1);
+  const color = colors[(Math.imul(walk.hair ^ walk.head, 0x9e3779b1) >>> 0) % colors.length][0];
+  return { id: choice.id, color };
 }
 
 /** LOAD-STALL 4 (the owner, 2026-10-28: "[mw] weapon swap Claymore in 102187 ms - ... meshes 36508, textures 65357"):
@@ -2282,7 +2330,7 @@ export function fitThirdPersonCloak(arm, underSlots) {
   const isGear = (p) => HOLSTER_SLOTS.includes(p.slot) || /^shield-back\b/i.test(p.slot ?? '');
   const isFollowGear = (p) => isGear(p) && !isHipSheath(p) && !/^shield-back\b/i.test(p.slot ?? '');   // SHIELD-SEAT: the seated shield presses the cloth, it is not held clear of it
   const covered = (slot) => underSlots.has(slot) && slot !== 'tail' && !/^shield\b/.test(slot);
-  const cloak = underSlots && !arm.pieces.some((p) => isWolfCloakSlot(p.slot)) ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot), poses: CLOAK_STILL_POSES }) : null;   // CLOAK-BODY: the collar is pinned, so the arms' and blows' poses are fitted for the animated cloak too
+  const cloak = underSlots && !arm.pieces.some((p) => isWolfCloakSlot(p.slot)) ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot), poses: vanillaAnimatedCloaksEnabled() || simplyAnimatedCloaksEnabled() ? CLOAK_ANIMATED_FIT_POSES : CLOAK_STILL_POSES }) : null;   // CLOAK-BODY: the pinned collar still clears the arms' striking poses
   // Give the back-mounted shield a real air gap from the torso, not just the
   // cloak's one-unit clearance. fitStowedGear moves rigid slung pieces along -Y
   // until they clear the cloak; the larger clearance is isolated to this call
@@ -2664,6 +2712,8 @@ export function ownBodyPaths(add, rows) {
  *  the legacy skinFrom path remains available for existing armor that explicitly opts into it. */
 export function ownBodyPart(add, rows, find) {
   if (add.fitBodySlots) return {
+    fitMode: add.fitMode,
+    trouserEase: add.trouserEase,
     fitSources: ownBodyPaths(add, rows).map((b) => ({ slot: b.slot, bytes: nifBytes(find(b.path), b.path) })).filter((b) => b.bytes),
   };
   if (!add.skinFrom) return {};
@@ -2688,13 +2738,21 @@ const capsHead = (a) => a.partName === 'head' || a.partName === 'hair' || (a.hid
  * part but hides the hair under it (`hides`): it covers them as a helm does, once a piece of it bound. Never the
  * wolf's (its hair is its head's own law, WEREWOLF1). Rows in the skin rows' shape ({ slot, bones, model }).
  */
+function skinPartsOf(row) {
+  const part = { slot: row.slot, bones: PART_BONES[row.slot] ?? [], model: row.record.model };
+  return row.earRecord || row.splitHair ? [
+    { ...part, hairMode: 'hair' },
+    ...(row.earRecord ? [{ ...part, model: row.earRecord.model, hairMode: 'ears' }] : []),
+  ] : [part];
+}
+
 export function bareHeadRows(rows, worn, pieces, werewolf = false) {
   if (werewolf) return [];
   const hidden = ['head', 'hair'].filter((slot) => (worn?.shadows ?? []).includes(slot));
   if (!hidden.length) return [];
   const caps = new Set((worn?.adds ?? []).filter(capsHead).map((a) => a.slot));
   if ((pieces ?? []).some((p) => caps.has(p.slot))) return [];
-  return (rows ?? []).filter((r) => r.record && hidden.includes(r.slot)).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model }));
+  return (rows ?? []).filter((r) => r.record && hidden.includes(r.slot)).flatMap(skinPartsOf);
 }
 
 /**
@@ -2712,7 +2770,7 @@ export function bareHeadRows(rows, worn, pieces, werewolf = false) {
  */
 async function buildTpBody({
   race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn, archives, parts, allWeapons, find, gen = null, texGen = gen,
-  appearanceHeadId = null, appearanceHairId = null,
+  appearanceHeadId = null, appearanceHairId = null, hairColor = null,
   torch = false, allLights = [],   // MW-D51
   sheathing = true, ammoCount = null,   // WS1: the holster, and the quiver's count (null: a full quiver when there is ammunition)
   hipLight = false,   // HT-WAIST: a lit lantern at the waist
@@ -2757,7 +2815,8 @@ async function buildTpBody({
     const skeletonBytes = nifBytes(skelArc, skeletonPath);
 
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
-    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
+    const npcHair = werewolf ? null : await npcHairOf(archives, parts, race, female, walk, beast);
+    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId: npcHair?.id ?? appearanceHairId });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
     // Better Bodies is selected by the actor's own race and sex. The matching
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
@@ -2840,7 +2899,7 @@ async function buildTpBody({
     // every miss is a note and the skin stands.
     missing.push(...worn.notes);
     let skinRows = shadowSkinRows(
-      rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })),
+      rows.filter((r) => r.record).flatMap(skinPartsOf),
       worn.shadows);
     if (betterBodiesPart) {
       // The full-body NIF includes chest, groin, arms, legs, hands and feet;
@@ -2877,7 +2936,7 @@ async function buildTpBody({
       // universal weight-transfer source: nearest-surface skin transfer across
       // the whole body can assign cuirass/glove vertices to leg bones.
       partBytes.push({
-        slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
+        slot: row.hairMode === 'ears' ? 'ears' : row.slot, partName: row.hairMode ? 'hair' : row.partName, hairMode: row.hairMode, bones: row.bones, bytes: nifBytes(arc, path),
         // Simply Animated Cloak has a foreign skin-root frame; retarget its unknown
         // cloak bones to the actor's chest (Bip01 Spine2), preserving the intended
         // attachment behavior from before the later coordinate experiments.
@@ -3067,7 +3126,7 @@ async function buildTpBody({
       await loadFromArchives(archives, bare.map((r) => `meshes/${r.model}`), urgent);
       const back = bare.flatMap((r) => {
         const path = `meshes/${r.model}`, arc = find(path);
-        return arc ? [{ slot: r.slot, bones: r.bones, bytes: nifBytes(arc, path) }] : [];
+        return arc ? [{ ...r, slot: r.hairMode === 'ears' ? 'ears' : r.slot, partName: r.hairMode ? 'hair' : undefined, bytes: nifBytes(arc, path) }] : [];
       });
       const again = back.length ? await assembleFirstPersonArm({ skeletonBytes, parts: [...partBytes, ...back], boneSources, parseNif: parseNifOnce, offWeaponBone: true }) : null;
       if (again?.ok) {
@@ -3365,6 +3424,7 @@ async function buildTpBody({
       groupSet,
       mwType: resolvedWeapon.mwType,
       textures,
+      hairColor: werewolf ? null : (npcHair?.color ?? hairColor),
       skeletonPath,
       settingsSkeleton,
       weapon: resolvedWeapon.weaponInfo,
@@ -3681,7 +3741,7 @@ export function headBounds(pieces, model, heads, hoods) {
 /** PORTRAIT3D: the head as the body wears it - its skin rows, the parts worn on it, assembled on the skeleton at rest -
  *  rendered to a picture `pw` x `ph` (`{ width, height, data }` top-down RGBA, transparent round the head), or null when
  *  the skeleton, a mesh or a texture is not in hand or nothing of the head stands. */
-async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads, rows, worn, werewolf, skin }, pw, ph) {
+async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads, rows, worn, werewolf, skin, hairColor }, pw, ph) {
   const find = (p) => cat.archives.find((a) => a.has(p)) ?? null;
   await loadFromArchives(cat.archives, [skeletonPath, ...[...skinRows, ...heads].map((r) => `meshes/${r.model}`), ...heads.flatMap((a) => ownBodyPaths(a, rows)).map((b) => b.path)]);
   const skelArc = find(skeletonPath);
@@ -3689,7 +3749,7 @@ async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads
   const skeletonBytes = nifBytes(skelArc, skeletonPath);
   const partOf = (row) => {
     const path = `meshes/${row.model}`, arc = find(path);
-    return arc ? { slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path), ...ownBodyPart(row, rows, find) } : null;
+    return arc ? { slot: row.hairMode === 'ears' ? 'ears' : row.slot, partName: row.hairMode ? 'hair' : row.partName, hairMode: row.hairMode, bones: row.bones, bytes: nifBytes(arc, path), ...ownBodyPart(row, rows, find) } : null;
   };
   const parts = [...skinRows, ...heads].map(partOf).filter(Boolean);
   let arm = await assembleFirstPersonArm({ skeletonBytes, parts, parseNif: parseNifOnce });
@@ -3720,7 +3780,7 @@ async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads
     const entry = r.textureFile ? textures.get(r.textureFile) : null;
     if (!entry) continue;
     const m = r.piece.material;
-    r.tex = acquireCharacterTexture(renderer, skin ? skinnedMipsOf(entry.image, skin, skinUseOf(r.piece, r.textureFile)) : entry.image.mips, wrapModes(m ? m.clampMode : 3));   // SHADOW-FANG: the wolf in its skin
+    r.tex = acquireCharacterTexture(renderer, skin ? skinnedMipsOf(entry.image, skin, skinUseOf(r.piece, r.textureFile)) : hairColorMips(entry.image.mips, r.slot, werewolf ? null : hairColor, m), wrapModes(m ? m.clampMode : 3));   // SHADOW-FANG: the wolf in its skin
     r.alphaCut = m && m.alphaTest ? (m.alphaThreshold || 0) / 255 : 0;
   }
   try {
@@ -3744,8 +3804,8 @@ const beastWearPref = () => ({ feet: getPref('mwBeastFeet'), helm: getPref('mwBe
  *  `skin`); and what is worn on it (`armor`, the build's own list - a helm, a hooded outfit); a player's (`ownHeads`) the
  *  port's own heads where its race has them, as a player's body wears them (MW-HEADS2). `{ width, height, data }`
  *  or null (no data attached, no renderer, no head for the race, the skeleton or a mesh or a texture not in hand).
- *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, appearanceHeadId?: string|null, appearanceHairId?: string|null, px?: number, ph?: number, deps?: any }} [opts] */
-export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, appearanceHeadId = null, appearanceHairId = null, px = 128, ph = px, deps = null } = {}) {
+ *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, appearanceHeadId?: string|null, appearanceHairId?: string|null, hairColor?: string|null, px?: number, ph?: number, deps?: any }} [opts] */
+export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, appearanceHeadId = null, appearanceHairId = null, hairColor = null, px = 128, ph = px, deps = null } = {}) {
   if (!getPref('morrowind3dPaperDoll')) return null;
   if (!renderer || !race) return null;
   const d = deps || await import('../scenes/dataSource.js');
@@ -3756,9 +3816,11 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
   const beast = !!(raceRec && raceRec.radt && raceRec.beast);   // AUDIT MW-A F1: the race record's own bit, as the build reads it
   const pools = werewolf || npcFace ? null : facePools(cat.parts, race, female, { has: exists, own: ownHeads });
   const faceMatch = await faceMatchOf({ race, female, faceIndex, werewolf, npcFace, pools, archives: cat.archives, gen: cat.gen, d });
+  const npcHair = werewolf ? null : await npcHairOf(cat.archives, cat.parts, race, female, npcFace, beast);
+  hairColor = npcHair?.color ?? hairColor;
   const rows = (werewolf ? werewolfHeadRows(cat.parts) : playerBodyRows(cat.parts, race, female, {
     beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads,
-    appearanceHeadId: npcFace ? null : appearanceHeadId, appearanceHairId: npcFace ? null : appearanceHairId,
+    appearanceHeadId: npcFace ? null : appearanceHeadId, appearanceHairId: npcHair?.id ?? (npcFace ? null : appearanceHairId),
   })).filter((r) => r.slot === 'head' || r.slot === 'hair');
   if (!rows.some((r) => r.slot === 'head' && r.record)) return null;
   // what is worn on the head, composed as the body composes it - the wolf wears nothing (WEREWOLF1), and the clothes
@@ -3768,20 +3830,20 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
     ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks'), beast, beastWear: beastWearPref() })
     : { adds: [], shadows: [], notes: [] };
   const heads = worn.adds.filter((a) => capsHead(a) || (a.bones ?? []).some((b) => /^head$/i.test(b)));
-  let skinRows = shadowSkinRows(rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })), worn.shadows);
+  let skinRows = shadowSkinRows(rows.filter((r) => r.record).flatMap(skinPartsOf), worn.shadows);
   if (werewolf && worn.shadows.includes('head')) skinRows = skinRows.filter((r) => r.slot !== 'hair');
   const skeletonPath = correctActorModelPath(tpSkeletonPath({ female, beast, werewolf }), exists);
-  const key = [cat.gen, skeletonPath, ...skinRows.map((r) => r.model), ...heads.map((a) => `${a.slot}=${a.model}`), werewolf ? 'wolf' : '', skin ?? '', `${px | 0}x${ph | 0}`].join(':');
+  const key = [cat.gen, skeletonPath, ...skinRows.map((r) => `${r.hairMode ?? r.slot}=${r.model}`), ...heads.map((a) => `${a.slot}=${a.model}`), werewolf ? 'wolf' : '', skin ?? '', hairColor ?? '', `${px | 0}x${ph | 0}`].join(':');
   const hit = HEAD_PORTRAIT_CACHE.get(key);
   if (hit) return hit;
-  const picture = renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads, rows, worn, werewolf, skin }, px, ph).catch(() => null);
+  const picture = renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads, rows, worn, werewolf, skin, hairColor }, px, ph).catch(() => null);
   HEAD_PORTRAIT_CACHE.set(key, picture);
   picture.then((img) => { if (!img && HEAD_PORTRAIT_CACHE.get(key) === picture) HEAD_PORTRAIT_CACHE.delete(key); });
   return picture;
 }
 
 export async function buildFpArm({
-  race, female = false, beast = null, faceIndex = 0, appearanceHeadId = null, appearanceHairId = null, weapon = null, hasAmmo = false, armor = null, deps = null,
+  race, female = false, beast = null, faceIndex = 0, appearanceHeadId = null, appearanceHairId = null, hairColor = null, weapon = null, hasAmmo = false, armor = null, deps = null,
   torch = false,   // MW-D51: a lit Daggerfall torch in hand at the build
   sheathing = true, ammoCount = null,   // WS1: the holster on the third-person body, and the quiver's count
   hipLight = false,   // HT-WAIST: a lit lantern hung at the waist at the build (the third-person body's alone)
@@ -4325,7 +4387,7 @@ export async function buildFpArm({
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, texGen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, texGen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId, hairColor, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // Make a third-person refusal explicit: a successful first-person arm build does
     // not mean the player body assembled. This is especially important for cloak
@@ -5529,13 +5591,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  clamp (3, WRAP_S_WRAP_T, when there is no material), and the
    *  NiAlphaProperty threshold (0-255 in the file). One home for the
    *  icon, the body and the arm (AUDIT 68 S08-fparm-texture-hang-triplicate). */
-  function hangRangeTextures(ranges, textures, { skin = null } = {}) {
+  function hangRangeTextures(ranges, textures, { skin = null, hairColor = null } = {}) {
     for (const r of ranges) {
       if (!r.textureFile) continue;
       const entry = textures.get(r.textureFile);
       if (!entry) continue;
       const m = r.piece.material;
-      r.tex = acquireCharacterTexture(renderer, skin ? skinnedMipsOf(entry.image, skin, skinUseOf(r.piece, r.textureFile)) : modelDyeMips(entry.image.mips, r.slot, r.textureFile), wrapModes(m ? m.clampMode : 3));   // MWNPC3: one GL copy a picture, every body
+      r.tex = acquireCharacterTexture(renderer, skin ? skinnedMipsOf(entry.image, skin, skinUseOf(r.piece, r.textureFile)) : hairColorMips(modelDyeMips(entry.image.mips, r.slot, r.textureFile), r.slot, hairColor, m), wrapModes(m ? m.clampMode : 3));   // MWNPC3: one GL copy a picture, every body
       r.alphaCut = m && m.alphaTest ? (m.alphaThreshold || 0) / 255 : 0;
     }
   }
@@ -5750,7 +5812,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // cannot display those edits. When any player morph is active, deliberately
     // drop the GPU layout and use the CPU path for both posing and mesh upload.
     // Accept the editor's draft values here: they are not persisted until Done.
-    const morphs = playerAppearance && modGroupEnabled('bodies')
+    const morphs = playerAppearance && appearanceEditorEnabled() && modGroupEnabled('bodies')
       ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs())
       : null;
     const morphActive = morphs && Object.values(morphs).some((value) => Math.abs(Number(value) || 0) > 1e-6);
@@ -5794,7 +5856,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         const packed = packSkinStream(thirdSkin, pieceLanes);
         thirdMesh = renderer.createSkinnedCharacterMesh(packed.stream, { floats: packed.floats, pairs: thirdSkin.pairs, width: thirdSkin.width, height: thirdSkin.height });
         thirdMesh.ranges = packed.ranges;
-        hangRangeTextures(thirdMesh.ranges, t.textures, { skin: bodySkin() });   // SHADOW-FANG
+        hangRangeTextures(thirdMesh.ranges, t.textures, { skin: bodySkin(), hairColor: t.hairColor });   // SHADOW-FANG
       } else {
         // MW-BOW1 x MWNPC1: a part the weapon clock re-posed (the bow drawing, the arrow on its ArrowBone) - its corners alone
         for (const m of restreamMovedRows(thirdSkin, pieceLanes)) renderer.updateSkinStream(thirdMesh, m.offset, m.data);
@@ -5809,7 +5871,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     if (!thirdMesh) {
       thirdMesh = renderer.createCharacterMesh(thirdPacked.packed, { uv: true, bounds: false });   // MW-CROWD: drawn only through the sprite target (drawBodyPicture), which casts nothing - no sphere to walk at every pose
       thirdMesh.ranges = thirdPacked.ranges;
-      hangRangeTextures(thirdMesh.ranges, t.textures, { skin: bodySkin() });   // SHADOW-FANG
+      hangRangeTextures(thirdMesh.ranges, t.textures, { skin: bodySkin(), hairColor: t.hairColor });   // SHADOW-FANG
     } else {
       renderer.updateCharacterMesh(thirdMesh, thirdPacked.packed);
     }
@@ -7050,7 +7112,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       return this.build({
         ...lastBuildOpts, race: saved.race, faceIndex: saved.faceIndex, beast: null,
         ...(typeof saved.female === 'boolean' ? { female: saved.female } : {}),
-        appearanceHeadId: saved.headId, appearanceHairId: saved.hairId,
+        appearanceHeadId: saved.headId, appearanceHairId: saved.hairId, hairColor: saved.hairColor ?? null,
       });
     },
     async getAppearanceChoices({ race = null, female = false, faceIndex = 0 } = {}) {
@@ -7059,43 +7121,21 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (!cat) return { ok: false, error: 'Morrowind data is not loaded.' };
       const raceKey = String(race || lastBuildOpts?.race || 'nord');
       const exists = archiveHas(cat.archives);
-      const poolsFor = (raceName, isFemale) => facePools(cat.parts, raceName, isFemale, { has: exists, own: true });
-      const unique = (items) => {
-        const seen = new Set();
-        return items.filter((item) => {
-          const key = String(item.model || item.id || '').toLowerCase();
-          if (!key || seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        }).map((item) => ({ id: item.id, model: item.model, label: String(item.id).replace(/[_]+/g, ' ') }));
-      };
-      // Audit every playable race/sex pool, not just the currently displayed
-      // one. Duplicate mesh paths are collapsed independently for heads/hairs.
-      const raceKeys = ['breton', 'dark elf', 'high elf', 'imperial', 'nord', 'orc', 'redguard', 'wood elf', 'argonian', 'khajiit'];
-      const audit = raceKeys.flatMap((name) => [false, true].map((isFemale) => {
-        const pool = poolsFor(name, isFemale);
-        const heads = unique(pool.heads), hairs = unique(pool.hairs);
-        return {
-          race: name, female: isFemale,
-          headCount: pool.heads.length, uniqueHeads: heads.length, duplicateHeads: pool.heads.length - heads.length,
-          hairCount: pool.hairs.length, uniqueHairs: hairs.length, duplicateHairs: pool.hairs.length - hairs.length,
-        };
-      }));
-      const pools = poolsFor(raceKey, !!female);
-      const heads = unique(pools.heads);
-      const hairs = unique(pools.hairs);
+      const pools = facePools(cat.parts, raceKey, !!female, { has: exists, own: true });
       const index = Number.isInteger(faceIndex) ? faceIndex : 0;
       const faceMatch = await faceMatchOf({ race: raceKey, female: !!female, faceIndex: index, pools, archives: cat.archives, gen: cat.gen, d });
       const rows = playerBodyRows(cat.parts, raceKey, !!female, { faceIndex: index, faceMatch, has: exists, ownHeads: true });
       return {
-        ok: true, heads, hairs, audit,
+        ok: true,
+        heads: distinctAppearanceModels(pools.heads, exists),
+        hairs: await appearanceHairChoices(cat.archives, appearanceHairPool(cat.parts, female, exists), female),
         selected: {
-          headId: rows.find((row) => row.slot === 'head')?.record?.id ?? heads[0]?.id ?? null,
-          hairId: rows.find((row) => row.slot === 'hair')?.record?.id ?? hairs[0]?.id ?? null,
+          headId: rows.find((row) => row.slot === 'head')?.record?.id ?? null,
+          hairId: rows.find((row) => row.slot === 'hair')?.record?.id ?? null,
         },
       };
     },
-    async createAppearancePreviewRig({ race = null, female = null, faceIndex = null, headId = null, hairId = null } = {}) {
+    async createAppearancePreviewRig({ race = null, female = null, faceIndex = null, headId = null, hairId = null, hairColor = null } = {}) {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
       const previewRig = createFpArm({ playerAppearance: true });
       previewRig.attach(renderer, camera);
@@ -7107,7 +7147,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         female: typeof female === 'boolean' ? female : !!lastBuildOpts.female,
         faceIndex: Number.isInteger(faceIndex) ? faceIndex : (lastBuildOpts.faceIndex | 0),
         appearanceHeadId: headId || null,
-        appearanceHairId: hairId || null,
+        appearanceHairId: hairId || null, hairColor,
         beast: null,
         werewolf: false,
         vampire: false,
@@ -7132,7 +7172,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         previewRig.unload();
         return { ok: false, error: builtPreview?.error || builtPreview?.stage || 'Could not build the preview model.' };
       }
-      return { ok: true, rig: previewRig };
+      return { ok: true, rig: previewRig, frameInfo: () => renderer?.frameInfo };
     },
     active,
     ready,
@@ -7172,12 +7212,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // The appearance editor stores an appearance-only identity. Apply it to every
       // subsequent player rig rebuild (equipment changes included), so closing the
       // editor or rebuilding the rig cannot silently restore the original face/race.
-      if (playerAppearance && modGroupEnabled('bodies') && opts && !opts.werewolf && !opts.appearanceIdentityDraft) {
-        const appearanceIdentity = getAppearanceIdentity();
+      if (playerAppearance && opts && !opts.werewolf && !opts.appearanceIdentityDraft) {
+        const appearanceIdentity = activeAppearanceIdentity();
         if (appearanceIdentity) opts = {
           ...opts, race: appearanceIdentity.race, faceIndex: appearanceIdentity.faceIndex, beast: null,
           ...(typeof appearanceIdentity.female === 'boolean' ? { female: appearanceIdentity.female } : {}),
-          appearanceHeadId: appearanceIdentity.headId, appearanceHairId: appearanceIdentity.hairId,
+          appearanceHeadId: appearanceIdentity.headId, appearanceHairId: appearanceIdentity.hairId, hairColor: appearanceIdentity.hairColor ?? null,
         };
       }
       opts = drawnOpts(opts);   // APPEARANCES (bible/04-Characters/Wardrobe.md): the hands hold what their pieces are drawn as
@@ -8675,7 +8715,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
             hold: rifleHold('third', t) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash
             motion: bodyWeight.slot(motion.slot),   // ARM-CLEARANCE (bodyWeight.js's slot) over BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
-            bodyProportions: playerAppearance && modGroupEnabled('bodies') ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
+            bodyProportions: playerAppearance && appearanceEditorEnabled() && modGroupEnabled('bodies') ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             // BOW-AIM (combat/spineAim.js): a ranged weapon drawn, the spine pitched by the look - rot[0] is + down, cam.pitch + up.
             // Asked only while the look pitches and the upper body is past WeaponEquipped (the factor's own first test): every
             // peer's and townsperson's body runs this rig at pitch 0
@@ -9635,7 +9675,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         sampleTrack,
         time: pose?.state?.startTime ?? 0,
         accumRoot: t.accumRoot,
-        bodyProportions: playerAppearance && modGroupEnabled('bodies') ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : false,   // MWV2-APPEARANCE: editor draft or persisted player proportions
+        bodyProportions: playerAppearance && appearanceEditorEnabled() && modGroupEnabled('bodies') ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : false,   // MWV2-APPEARANCE: editor draft or persisted player proportions
         mirror: portraitMirror(),   // TWO-HANDS AUDIT
         skin: true,   // portraits must apply CPU vertex morphs before upload
       });
@@ -9684,7 +9724,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const pw = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(ph * halfW / halfH)));
       const eye = [win.center[0], win.center[1], win.center[2] + 4];
       const view = lookAt(eye, win.center, [0, 1, 0]);
-      return renderer.renderCharacterSpriteImage(thirdMesh, model, ortho(halfW, halfH, 0.1, 8), view, pw, ph);
+      return renderer.renderCharacterSpriteImage(thirdMesh, model, ortho(halfW, halfH, 0.1, 8), view, pw, ph, { softStudio: neutral });
     },
 
     /** PROFILE-SLOTS (bible/04-Characters/Aura-Armory.md section 10): THE PORTRAIT ON A STAGE - figure()'s body, posed and

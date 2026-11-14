@@ -76,9 +76,82 @@ the same glob when the owner judges it in play.
 
 The owner chose B of the drawn designs ("тёмное золото с пресетами фигуры"; then "редактор прикольный. пойдет"). Three
 columns: the look (sex, race, face, hair, the switches) with the figure presets; the model; the body's zones as tabs,
-one at a time (`appearanceEditor.js:"const GROUPS = ["`). Four presets (`appearanceEditor.js:"const PRESETS = ["`) -
-hourglass, athletic, curvy, slender - set the whole draft, a slider's touch unmarks them, «Сбросить» returns every
-slider to 0. Breakpoints at 1100 px and 860 px (one column).
+one at a time (`appearanceEditor.js:"const GROUPS = ["`). Three presets per sex set the whole draft.
+The men's panel hides breast controls and uses neutral values for them in the preview and on confirmation.
+A slider's touch unmarks the preset, and «Сбросить» returns every slider to 0.
+Breakpoints at 1100 px and 860 px (one column). The hair picker shows only color swatches.
+
+The November 14 hourglass preset uses the owner's screenshots. Chest size,
+projection, lift and spacing are +52%, -61%, -21% and -54%. Waist width and
+depth are -9% and -100%. Hip width and buttock volume are +46% and +26%.
+Thigh and calf fullness are +61% and +59%. Every other slider is zero.
+
+### Dev editor controls
+
+EMC's character editor card credits BLOODBATH and controls the saved appearance override.
+Open the editor from «Внешность» in the inventory with Better Bodies and Better Hands connected
+and the «Тела и руки» group enabled. Turning off the editor suspends the saved identity and
+body sliders. The underwear selector shares Show Nudity as described above. The experimental
+HD skin and body hair controls from section 3 were removed from the editor.
+
+«Общее» opens first. The editor opens with the effective third-person player pixel
+setting. Its local HD/Light/Medium/Classic/Retro selector lasts until the editor
+closes. The preview uses the world target's height and its presented CSS height
+to match the third-person block size (`previewPixelation.js:"export function editorPreviewRaster"`).
+Zoom changes the projected character size at a fixed screen block size. Dragging
+rotates the character horizontally and pans the view vertically. The wheel zooms
+toward the pointer, and reset restores the centered front view.
+
+DFU's `DaggerfallEntity.GetRaceGenderAttackSound` and `PlayerDeath.GetRaceGenderPain3Sound`
+select clips by gameplay identity. DFO's local attack, strain, pain and combat-voice death
+playback use the confirmed appearance's sex with the character's original race. The shared
+voice selectors serve world.js, exterior.js, worldModes.js and dungeonContext.js.
+
+The local appearance editor offers both arrow navigation and a list. Faces remain
+race- and sex-specific. The hair list combines installed playable records of the
+selected sex across races, excluding Argonian and Khajiit hair slots. Matching
+mesh paths or matching rendered geometry collapse to one entry, including
+texture variants of the same haircut. Saved aliases reopen on that entry. The hair palette contains
+natural swatches and the original color. Previously saved colors outside the palette fall back to the original. The chosen color
+is stored with the local appearance and used on the 3D body and head portrait.
+Some Morrowind hair-slot meshes contain ears. The tint skips explicit skin,
+head and ear materials as well as separately textured pins, wraps and bands.
+The editor splits identifiable ear batches from the selected hair and binds the
+ear batches of the race's face-derived default hair in a separate untinted slot.
+The split uses material metadata and the side-band bounds of retail ear shapes. The donor contributes only lateral triangles so its nape cannot cover the selected hair.
+A single batch with inseparable hair and ear geometry still needs asset authoring.
+The haircut list compares the remaining triangles independently of vertex and
+batch order. Binding drops coincident surfaces repeated between hair batches.
+Hair meshes with no remaining triangles share a single bald choice and keep
+their old record IDs as aliases. The random NPC palette excludes that choice.
+Male palettes check the BODY flag, record and model names, and the rendered
+hair material for female markers. The actor keeps its own ear geometry.
+Tinting anchors each texture to the palette using its alpha-weighted mean
+luminance, with gradual compression of shadows and highlights and the original alpha. Saved
+light blond and the two former white swatches resolve to their muted replacements. This extends
+DFU's classic `FaceDetails.faceIndex` portrait selection with independent 3D parts
+and a local color override.
+
+The neutral figure uses a softer studio key and a stronger fill. A visible
+inner hair layer facing away from the camera gets less directional contrast,
+and highlights stay below the clipping point of the studio light. This applies
+with the original texture and with every swatch.
+
+Recoloring retains more of the fine strand marks from the original texture
+with a bounded local luminance adjustment. Transparent atlas pixels do not
+contribute to the detail boost, and the swatch still sets the base color. The tint retains deeper strand shadows and blends highlights toward a neutral reflection. The palette includes a dark blond inspired by the reference portrait, and lighter swatches gradually reduce the reflection strength.
+
+In the world, hair ranges receive two-sided diffuse light with a small grazing
+fill. Both sides of thin locks respond to torches, sun and moon without the
+one-sided lighting cut between shells. World light colors, attenuation and
+shadow visibility still apply. The shared character draw serves the local
+player, NPCs and peers. Studio readbacks retain their own light.
+
+3D NPCs with a wardrobe seed pick from the editor's installed, deduplicated
+catalog for their sex. The existing head pick and racial ear donor stay tied
+to that seed, and an independent mix of the head and hair seeds selects a
+natural swatch. The body and portrait resolve the same pick. Beast races
+and werewolves use their authored head parts.
 
 ## 5. BEASTS - Better Bodies 3.2's Argonians and Khajiit
 

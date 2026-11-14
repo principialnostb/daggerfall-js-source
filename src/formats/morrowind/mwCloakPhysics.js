@@ -255,6 +255,11 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   const motionGain = 1;
   const gait = typeof motion === 'object' && motion !== null ? motion.gait : motion;
   const move = Math.max(0, Math.min(1, Number(gait) || 0));
+  // Briefly absorb more inertia as the gait fades, then resume the idle tuning.
+  const gaitDrop = Math.max(0, (state.previousGait ?? move) - move);
+  state.previousGait = move;
+  state.stopDamping = Math.min(1, (state.stopDamping ?? 0) * Math.exp(-step / 0.16) + gaitDrop);
+  const damping = DAMPING - 0.045 * state.stopDamping;
   const gaitPhase = typeof motion === 'object' && motion !== null
     ? Number(motion.gaitPhase) || 0
     : state.time * 0.32;
@@ -290,18 +295,18 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     const vertexPhase = base[o] * 0.11 + hemWeight * 0.75;
     const walkWave = Math.sin(stride + vertexPhase);
     const idleWave = Math.sin(state.time * 1.35 + vertexPhase);
-    let dx = (x - prev[o]) * DAMPING
+    let dx = (x - prev[o]) * damping
       // Calm, slowly decaying-looking idle sway; walking and running are
       // phase-locked to the stride and alternate left/right instead of jittering.
-      + (idleWave * idleWeight * 18 + walkWave * move * (move > 0.8 ? 78 : 42)
+      + (idleWave * idleWeight * 18 + walkWave * move * (42 + 36 * Math.max(0, (move - 0.65) / 0.35))
         + turn * (16 + 38 * hemWeight)) * dt2;
     // Running has a stronger sustained backward drag and a larger hem wave.
-    let dy = (y - prev[o + 1]) * DAMPING
+    let dy = (y - prev[o + 1]) * damping
       + (Math.cos(state.time * 1.8 + vertexPhase) * idleWeight * 8
         + Math.cos(stride + vertexPhase) * move * (move > 0.8 ? 28 : 14)) * dt2
       - move * move * (move > 0.8 ? 52 : 18) * dt2
       - attackPulse * overhead * (70 + 105 * hemWeight) * dt2;
-    let dz = (z - prev[o + 2]) * DAMPING - GRAVITY * dt2
+    let dz = (z - prev[o + 2]) * damping - GRAVITY * dt2
       - move * (move > 0.8 ? 10 : 3) * dt2
       - attackPulse * overhead * (18 + 28 * hemWeight) * dt2;
     const length = Math.hypot(dx, dy, dz);

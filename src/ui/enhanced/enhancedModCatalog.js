@@ -8,6 +8,7 @@ import { invalidatePaperDoll } from '../paperDoll.js';
 import { setInventory2D } from './inventoryPresentation.js';
 import { MOD_PACKS, MOD_GROUPS } from '../../systems/enhancedModCatalog.js';
 import { noteModPresentationChanged, modPackState, modGroupReady, modGroupEnabled, setModGroupEnabled, attachModFolder, removeModResources, resourceError, resourcesChanged } from '../../systems/enhancedModResources.js';
+import { appearanceEditorEnabled, appearanceEditorRequirements } from '../../characters/activeAppearance.js';
 import { getPref, setPref } from '../../systems/uiPrefs.js';
 import { attachedDfmods, setDfmodEnabled } from '../../systems/dfmodTextures.js';
 const node=(tag,cls,text)=>{
@@ -41,7 +42,7 @@ function requirements(items){
 }
 function button(label,run){const b=node('button','act',label);b.type='button';b.classList.add(/Удалить/.test(label)?'emc-remove':/Отключить|выключена/.test(label)?'emc-disable':/Включить|включена/.test(label)?'emc-enable':'emc-connect');b.onclick=async()=>{b.disabled=true;try{await run();}catch(error){const message=node('p','meta emc-error',String(error?.message||error));b.closest('.card')?.append(message);}finally{b.disabled=false;}};return b;}
 function link(label,url){const a=node('a','act',label);a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a;}
-export function enhancedModCatalog({ section, render, openFiles, textureNodes, paperdollAttach, paperdollRemove, restart, rebuild, editAppearance }) {
+export function enhancedModCatalog({ section, render, openFiles, textureNodes, paperdollAttach, paperdollRemove, restart, rebuild }) {
   const page=node('div','emc-catalog');
   const intro=node('div','card emc-intro');
   intro.append(node('h3',null,'Enhanced Mod Compatibility'),node('p','meta','Для модификаций на основе Morrowind обязательно подключите 3D-ресурсы в Mods & files.'),button('Открыть Mods & files',openFiles));
@@ -70,9 +71,20 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
       box.append(readiness);
       if(group.id==='bodies'){
         const editor=node('div','card');
-        const open=button('Открыть редактор персонажа',editAppearance);
-        open.disabled=!available || !modGroupEnabled('bodies');
-        editor.append(node('h3',null,'Редактор персонажа и экипировки'),node('p','meta','Интеграция и настройка: BLOODBATH'),node('p','meta','Настройка внешности и выбор доступных вариантов брони, оружия и плащей. Недоступный сохранённый вариант заменяется стандартным.'),open);
+        const deps = appearanceEditorRequirements();
+        const enabled = appearanceEditorEnabled();
+        const toggleEditor = button(enabled ? 'Отключить' : 'Включить', async () => {
+          setPref('appearanceEditor', !enabled);
+          noteModPresentationChanged();
+          invalidatePaperDoll();
+          await rebuild();
+          render();
+        });
+        toggleEditor.disabled = !enabled && deps.some(([ready]) => !ready);
+        toggleEditor.setAttribute('aria-pressed', String(enabled));
+        editor.append(node('h3',null,'Редактор персонажа'),node('p','meta','Автор: BLOODBATH'),
+          node('p','meta','Настройка внешности. Откройте «Внешность» в инвентаре.'),
+          requirements(deps),toggleEditor);
         box.append(editor);
       }
 
