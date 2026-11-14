@@ -981,6 +981,10 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
     if (!id) { notes.push(`${rec.id}: ${row.name} names no body part`); claim(ref.part, prio, null); continue; }
     const body = bodyById.get(id);
     if (!body) { notes.push(`${rec.id}: ${row.name} wants "${id}" and no BODY record carries it`); continue; }
+    const trousers = rec.type === MW_CLOTHING_TYPE.Pants;
+    const retailTrousers = trousers && /^c[\\/]c_[fm]_pants_/i.test(body.model)
+      && ![rec.id, rec.name].some((name) => /^expen[sc]ive[ _]+pants[ _]+0?6$/i.test(name ?? ''));
+    const bulkyTrousers = /(?:^|[\\/])c_[fm]_pants_common_1_[ae]_(?:g|ul|k|a)\.nif$/i.test(body.model);
     // `slot` names the record for the notes; `partName` is the part's own
     // identity, which is what the binder's rules key on - the reference
     // tests the part TYPE (npcanimation.cpp:799-801's PRT_Hair filter),
@@ -988,9 +992,10 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
     claim(ref.part, prio, {
       slot: `${row.name} (${rec.id})`, partName: row.name,
       bones: row.bones, model: body.model, recordId: id, piece,
-      ...(piece?.kind === 'clothing' && CLOTHING_FIT_SLOTS[row.name]
+      ...(piece?.kind === 'clothing' && CLOTHING_FIT_SLOTS[row.name] && (!trousers || retailTrousers)
         ? { fitBodySlots: CLOTHING_FIT_SLOTS[row.name],
-            fitMode: DF_CLOTHING_ROWS[piece.name ?? CLOTHING_NAME[piece.templateIndex]]?.type === MW_CLOTHING_TYPE.Pants ? 'conform' : 'clearance' } : {}),
+            fitMode: retailTrousers ? 'trousers' : 'clearance',
+            ...(retailTrousers && bulkyTrousers ? { trouserEase: 0.12 } : {}) } : {}),
     });
   }
 }

@@ -15,7 +15,7 @@ test('APPLY-NOW: identityChanged - each field moves it, a missing head/hair/sex 
   const base = { race: 'nord', faceIndex: 3, female: true, headId: 'h1', hairId: 'r1' };
   assert.equal(identityChanged(base, { ...base, race: 'NORD' }), false);
   assert.equal(identityChanged(base, { ...base }), false);
-  for (const [k, v] of [['race', 'breton'], ['faceIndex', 4], ['female', false], ['headId', 'h2'], ['hairId', null]]) {
+  for (const [k, v] of [['race', 'breton'], ['faceIndex', 4], ['female', false], ['headId', 'h2'], ['hairId', null], ['hairColor', '#a15627']]) {
     assert.equal(identityChanged(base, { ...base, [k]: v }), true, `${k} unread`);
   }
   assert.equal(identityChanged(null, base), true, 'nothing saved yet is a change');

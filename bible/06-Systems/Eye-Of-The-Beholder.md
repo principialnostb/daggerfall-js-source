@@ -201,6 +201,10 @@ Three, each marked where it lands in `src/systems/modSettings.js`.
    like how we handle morrowind."* The key is still listed, because the
    pane is a record of what the mod ships and a key quietly deleted is
    a key nobody can ask about.
+   In the world host, sample the perspective key before the interior or
+   dungeon takes over the frame. Those modes share the world input and
+   render their own third-person camera.
+
    **VIEW-TOGGLE (2026-09-28, Mac: "Also add a force first person/third
    person toggle")** gives the idea back as the PORT's own action beside
    the wheel, not the mod's key: `TogglePerspective` (Controls >

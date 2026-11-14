@@ -195,6 +195,7 @@ export const PREF_DEFAULTS = Object.freeze({
   morrowind3dPaperDoll: true,
   paperdollCustomization: true,
   modelCustomization: false,
+  appearanceEditor: true,
   emcLanguage: 'ru',
   enhancedBattleaxes: false,
   extraArmorLooks: true,

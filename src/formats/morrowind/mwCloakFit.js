@@ -98,6 +98,11 @@ export const CLOAK_STILL_POSES = Object.freeze([...CLOAK_FIT_POSES,
   Object.freeze({ 'bip01 r thigh': ['z', 50], 'bip01 l thigh': ['z', -40], 'bip01 l calf': ['z', 60] }),
   Object.freeze({ 'bip01 l thigh': ['z', 50], 'bip01 r thigh': ['z', -40], 'bip01 r calf': ['z', 60] }),
 ]);
+// Animated cloth clears the moving legs in the live solve. Its standing mesh
+// only needs the rest pose and the arm envelope for the pinned shoulders.
+export const CLOAK_ANIMATED_FIT_POSES = Object.freeze(CLOAK_STILL_POSES.filter((pose) =>
+  Object.keys(pose).every((bone) => bone.endsWith('upperarm'))));
+
 /** AUDIT MW-CLOAK: the follow's solve - its rounds of a linear law re-taken where the last left the gear, the sweeps of
  *  each, a unit's slide priced as a turn of `slideCost` radians, the most it turns and slides a pose, and the cell of
  *  the gear's (x, z) one contact stands for (the gear sampled at the same spacing). */

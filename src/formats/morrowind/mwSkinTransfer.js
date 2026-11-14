@@ -329,7 +329,7 @@ function nearestSurfacePoint(p, root, normals, maxDistance2) {
  * it does not remesh the garment or infer designer intent.
  */
 export function fitGarmentClearance(garment, sources, ctx, {
-  clearance = 0.35, maxDistance = 3.0, maxPush = 2.5, conform = false, side = null,
+  clearance = 0.35, maxDistance = 3.0, maxPush = 2.5, conform = false, side = null, ease = 0,
 } = {}) {
   if (!garment?.positions?.length || !sources?.length) return garment;
   const surfaces = [];
@@ -394,7 +394,7 @@ export function fitGarmentClearance(garment, sources, ctx, {
       // Pants are often authored with a much larger volume than the current
       // body. Project their vertices onto the nearest body surface plus a
       // small fabric clearance instead of only pushing intersections outward.
-      const target = [0, 1, 2].map((k) => best.point[k] + best.normal[k] * clearance);
+      const target = [0, 1, 2].map((k) => p[k] * ease + (best.point[k] + best.normal[k] * clearance) * (1 - ease));
       if (Math.hypot(p[0] - target[0], p[1] - target[1], p[2] - target[2]) > 1e-4) {
         positions[i] = target[0]; positions[i + 1] = target[1]; positions[i + 2] = target[2];
         adjusted++;

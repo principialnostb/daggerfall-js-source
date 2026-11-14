@@ -7,6 +7,7 @@
 // hands unskinned parts an attachment bone, so one pose drives
 // everything. Pure data, like the rest of the format layer.
 
+import { selectHairBatches } from '../../characters/hairColor.js';
 import { deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { particleSystemOf, affineInverse } from './mwParticles.js';   // MAC-Q: a part's particle systems, off the same walk; MWNPC9: a creature node's rest undone
@@ -246,7 +247,7 @@ export function bindPart(skeleton, partNif, opts = {}) {
   // then place that whole frame at the actor's chest.
   const actorRestMats = retargetRef === undefined ? null : skeletonSpaceMatrices(skeleton, new Map(), GRAPH_ROOT);
   const sourceSkeleton = retargetRef === undefined ? null : buildSkeleton(partNif);
-  for (const batch of batches) {
+  for (const batch of selectHairBatches(batches, opts.hairMode)) {
     if (!batch.skinned || !batch.skin) {
       attached.push(batch);
       continue;
