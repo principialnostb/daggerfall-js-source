@@ -56,6 +56,15 @@
       <div class="state">
         <p id="status" aria-live="polite"></p>
         <p id="detail"></p>
+        <div id="test-dock" class="test-dock" hidden>
+          <p id="test-play-requirement" role="status" hidden></p>
+          <button id="test-dock-action" class="plaque small" type="button">Enter invitation</button>
+          <form id="test-dock-emc" class="test-dock-emc" hidden>
+            <label for="test-dock-link">Temporary EMC download link</label>
+            <div class="test-inline"><input id="test-dock-link" placeholder="Paste the offer from your administrator" maxlength="12000" autocomplete="off" spellcheck="false" required><button class="plaque small primary" type="submit">Install EMC</button></div>
+            <p id="test-dock-feedback" role="status" hidden></p>
+          </form>
+        </div>
         <div id="progress" class="progress" hidden>
           <div class="track" role="progressbar" aria-labelledby="status" aria-valuemin="0" aria-valuemax="100"><i></i></div>
           <span class="label" aria-hidden="true"></span>
@@ -144,11 +153,14 @@
     </header>
     <div class="test-body">
       <div id="test-login">
-        <button type="button" id="test-github" class="plaque primary">Sign in with GitHub</button>
         <form id="test-redeem" class="test-field">
-          <label for="test-code">Test invitation</label>
-          <div class="test-inline"><input id="test-code" required maxlength="48" autocomplete="off"><button class="plaque" type="submit">Activate</button></div>
+          <label for="test-code">Tester invitation code</label>
+          <div class="test-inline"><input id="test-code" required maxlength="48" autocomplete="off" spellcheck="false"><button class="plaque" type="submit">Activate</button></div>
         </form>
+        <div class="test-developer">
+          <span>Developer access</span>
+          <button type="button" id="test-github" class="plaque small">Sign in with GitHub</button>
+        </div>
       </div>
       <section id="test-admin" hidden>
         <nav class="test-tabs" aria-label="Test management">
@@ -183,8 +195,9 @@
         </section>
       </section>
       <form id="test-emc-form" class="test-field" hidden>
-        <label for="test-emc">EMC download offer</label>
-        <div class="test-inline"><input id="test-emc" maxlength="12000" autocomplete="off" required><button class="plaque" type="submit">Install EMC</button></div>
+        <label for="test-emc">Temporary EMC download link</label>
+        <p id="test-emc-help" class="test-help">Paste the full download offer from the administrator to install the EMC resources.</p>
+        <div class="test-inline"><input id="test-emc" maxlength="12000" autocomplete="off" spellcheck="false" aria-describedby="test-emc-help" required><button class="plaque primary" type="submit">Install EMC</button></div>
       </form>
     </div>
     <footer class="test-footer"><p id="test-status" role="status" aria-live="polite"></p><button type="button" id="test-sign-out" class="plaque small" hidden>Sign out</button></footer>

@@ -3,7 +3,7 @@
   if (!call) return;
   const get = (id) => document.getElementById('test-' + id);
   const admin = (profile) => ['owner', 'developer'].includes(profile?.role);
-  let mode, profile, rows = [], confirming, busy = false;
+  let profile, rows = [], confirming, issuedId, busy = false;
   const status = (message) => { get('status').textContent = message; };
   function display() {
     const search = get('search').value.trim().toLowerCase();
@@ -23,6 +23,18 @@
       actions.className = 'test-row-actions';
       row.insertCell().append(actions);
       if (item.revoked) return row;
+      if (item.canCopy && confirming !== item.id) {
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'plaque small';
+        copy.textContent = 'Copy code';
+        copy.setAttribute('aria-label', 'Copy code · ' + item.label);
+        copy.addEventListener('click', () => run(async () => {
+          await call('copy-existing', item.id);
+          status('Invitation copied.');
+        }));
+        actions.append(copy);
+      }
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'plaque small test-danger';
@@ -37,6 +49,7 @@
         }
         run(async () => {
           await call('revoke', item.id);
+          if (issuedId === item.id) clearIssued();
           status('Access revoked for ' + item.label + '.');
           await list();
         });
@@ -57,6 +70,7 @@
   async function list() {
     rows = await call('list');
     confirming = null;
+    if (issuedId && !rows.some((item) => item.id === issuedId && !item.revoked)) clearIssued();
     display();
   }
   function draw(value) {
@@ -72,9 +86,8 @@
     }
     get('identity').textContent = value ? value.login + ' · ' + value.role : '';
     get('login').hidden = !!value;
-    get('redeem').hidden = mode !== 'public';
     get('admin').hidden = !developer;
-    get('emc-form').hidden = mode !== 'public' || value?.role !== 'tester';
+    get('emc-form').hidden = !value;
     get('sign-out').hidden = !value;
   }
   async function run(work) {
@@ -90,13 +103,19 @@
     status('');
     await list();
   }
-  function opened() {
+  function opened(target) {
     get('dialog').showModal();
     status('');
     run(async () => {
       draw(await call('profile'));
+      if (target && !get(target === 'emc' ? 'emc-form' : 'login').hidden) get(target).focus();
       if (admin(profile)) await list();
     });
+  }
+  function clearIssued() {
+    issuedId = null;
+    get('issued').value = '';
+    get('issued-row').hidden = true;
   }
   function formState(show) {
     get('create').hidden = !show;
@@ -110,7 +129,8 @@
     get('package').hidden = testers;
     status('');
   }
-  get('open').addEventListener('click', opened);
+  get('open').addEventListener('click', () => opened());
+  get('dock-action').addEventListener('click', () => opened('code'));
   get('close').addEventListener('click', () => get('dialog').close());
   get('github').addEventListener('click', () => run(signIn));
   get('tab-testers').addEventListener('click', () => tab(true));
@@ -125,7 +145,8 @@
     run(async () => {
       draw(await call('invite', get('code').value.trim()));
       get('code').value = '';
-      status('Invitation activated.');
+      status('Invitation activated. Paste your temporary EMC link if needed.');
+      get('emc').focus();
     });
   });
   get('create').addEventListener('submit', (event) => {
@@ -136,6 +157,7 @@
       const result = await call('create', label);
       get('label').value = '';
       formState(false);
+      issuedId = result.id;
       get('issued').value = result.code;
       get('issued-row').hidden = false;
       get('copy').focus();
@@ -144,7 +166,7 @@
     });
   });
   get('copy').addEventListener('click', () => run(async () => {
-    await call('copy-invite', get('issued').value);
+    await call('copy-existing', issuedId);
     status('Invitation copied.');
   }));
   get('sign-out').addEventListener('click', () => run(async () => {
@@ -152,27 +174,42 @@
     draw(null);
     rows = [];
     confirming = null;
-    get('issued').value = '';
-    get('issued-row').hidden = true;
+    clearIssued();
     formState(false);
     tab(true);
     status('Signed out.');
   }));
-  get('emc-form').addEventListener('submit', (event) => {
-    event.preventDefault();
-    run(async () => {
-      status('Downloading EMC…');
-      const installed = await call('emc', get('emc').value.trim());
-      get('emc').value = '';
-      status('Installed ' + installed.files + ' EMC files. Restart the game to use them.');
+  function bindEmc(form, input, report) {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (busy) return;
+      run(async () => {
+        const button = form.querySelector('button');
+        button.disabled = true;
+        report('Downloading and verifying EMC…');
+        try {
+          const installed = await call('emc', input.value.trim());
+          input.value = '';
+          report('Installed ' + installed.files + ' EMC files.');
+        } catch {
+          report('Download failed. Check your test access and ask the administrator for a fresh EMC link.');
+        } finally {
+          button.disabled = false;
+        }
+      });
     });
+  }
+  bindEmc(get('emc-form'), get('emc'), status);
+  bindEmc(get('dock-emc'), get('dock-link'), (message) => {
+    const feedback = get('dock-feedback');
+    feedback.textContent = message;
+    feedback.hidden = false;
   });
   get('emc-link').addEventListener('click', () => run(async () => {
     await call('emc-link');
     status('Temporary EMC offer copied.');
   }));
   call('enabled').then(async (enabled) => {
-    mode = enabled;
     get('open').hidden = !enabled;
     if (!enabled) return;
     if (await call('open-developer')) {

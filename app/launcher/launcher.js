@@ -202,6 +202,14 @@
     const play = $('play');
     play.disabled = !v.play.enabled;
     play.textContent = v.play.label;
+    const requirement = $('test-play-requirement');
+    const dockAction = $('test-dock-action');
+    const gate = v.testPlayGate;
+    requirement.textContent = gate?.message ?? '';
+    requirement.hidden = !gate || !!gate.emc;
+    $('test-dock').hidden = !gate;
+    dockAction.hidden = !!gate?.emc;
+    $('test-dock-emc').hidden = !gate?.emc;
 
     $('news').hidden = v.panel !== 'news';
     $('hero').hidden = v.panel !== 'news' || !v.news.items.length;

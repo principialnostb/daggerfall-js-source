@@ -39,7 +39,6 @@ await build({ ...config, configFile: false, root, plugins: [{
     }
     if (path.endsWith('/src/combat/fpArm.js')) replace("=== 2 && beast && !werewolf && !vampire", "=== 2 && false && beast && !werewolf && !vampire");
     if (path.endsWith('/src/scenes/dungeonPropPreviews.js')) replace('unbind: import.meta.env?.DEV ?', 'unbind: true ?');
-    if (path.endsWith('/src/systems/modSettings.js')) replace('default: 1, // TEST-PR: the owner', 'default: 2, // TEST-PR: the owner');
     for (const [file, edits] of Object.entries(defaults)) if (path.endsWith(file)) for (const [old, next] of edits) replace(old, next);
     if (path.endsWith('/src/systems/modSettings.js')) for (const key of textureKeys) {
       replace(key + ': Object.freeze({\n        default: false', key + ': Object.freeze({\n        default: true');

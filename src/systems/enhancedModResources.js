@@ -7,6 +7,7 @@ const bundled = new Map();
 const registeredPatterns = new Set();
 let database, pending;
 const desktopPack = new Map();
+export const desktopEmcResource = (path) => desktopPack.get(path);
 export let resourceError = '';
 export let resourcesChanged = false;
 const stateKey = 'enhanced-mod-groups-v1';

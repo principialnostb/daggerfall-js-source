@@ -554,7 +554,7 @@ function handleDagger(req) {
 // and its answer is kept in news.json, so the panel is never empty while
 // the next one is asked for, or when GitHub does not answer.
 const TEST_CONFIG = TEST_UPDATE_BUILD ? require('./test-update-build.json') : null;
-const TEST_EMC = TEST_CONFIG?.public ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net) : null;
+const TEST_EMC = TEST_CONFIG ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net) : null;
 const TEST_ACCESS = TEST_CONFIG
   ? require('./lib/publicTestChannel.cjs').publicTestChannel({
     userData: app.getPath('userData'), net, safeStorage, emc: TEST_EMC,
@@ -1088,6 +1088,7 @@ async function checkForUpdatesViaUpdater() {
  *  (REL5), or the release page where there is no one file to name. */
 async function fetchLatestRelease() {
   try {
+    if (TEST_ACCESS && TEST_RELEASES !== TEST_ACCESS) await TEST_ACCESS.authorizeUpdate();
     const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };
     const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LATEST_API, options));
     if (!res.ok) return null;
@@ -1772,9 +1773,29 @@ function openLauncherWindow() {
   return win;
 }
 
+const testAccessGate = { message: 'Activate an invitation or sign in as a developer.' };
+let testPlayGate = TEST_ACCESS ? testAccessGate : null;
+let testPlayCheck;
+function refreshTestPlay() {
+  if (!TEST_ACCESS) return Promise.resolve(true);
+  testPlayCheck ??= (async () => {
+    try {
+      await TEST_ACCESS.authorizeUpdate();
+      testPlayGate = TEST_EMC.ready() ? null : { message: 'Install the EMC resources to play.', emc: true };
+    } catch { testPlayGate = testAccessGate; }
+    renderLauncher();
+    return !testPlayGate;
+  })().finally(() => { testPlayCheck = null; });
+  return testPlayCheck;
+}
+
 function renderLauncher() {
   const w = launcher?.win;
-  if (w && !w.isDestroyed()) w.webContents.send('launcher:view', viewOf(launcher.state));
+  if (w && !w.isDestroyed()) {
+    const view = viewOf(launcher.state);
+    if (testPlayGate) view.play = { ...view.play, enabled: false };
+    w.webContents.send('launcher:view', { ...view, testPlayGate });
+  }
 }
 
 /** One event into the launcher; the state moves, the window redraws, and
@@ -1946,7 +1967,12 @@ async function reinstallFromLauncher() {
  *  it shows and the launcher closes - in that order, so the app is never
  *  without a window (window-all-closed would quit it). The version is
  *  kept as the one last played: the next launch marks what came since. */
-function launchGame() {
+async function launchGame() {
+  if (!await refreshTestPlay()) {
+    if (launcher?.state.launch === 'requested') launcherDispatch({ type: 'test-access-required' });
+    return;
+  }
+  if (!launcher || launcher.state.launch === 'started') return;
   launcherDispatch({ type: 'launching' });
   saveConfig({ ...loadConfig(), lastPlayed: gameVersion() });   // DA13: the game's version, the channel's or the install's
   const l = launcher;
@@ -2083,21 +2109,33 @@ async function runDirect(dir) {
 // actions; a link is a name from LAUNCHER_LINKS, never a URL from the page.
 ipcMain.handle('launcher:test-access', async (e, action, value) => {
   if (!fromLauncher(e)) return null;
-  if (action === 'enabled') return TEST_ACCESS ? (TEST_EMC ? 'public' : 'developer') : false;
+  if (action === 'enabled') return TEST_ACCESS ? 'public' : false;
   if (action === 'open-developer') return process.argv.includes('--dfo-open-developer');
   if (!TEST_ACCESS?.action || typeof action !== 'string' || (value !== undefined && (typeof value !== 'string' || value.length > (action === 'emc' ? 12000 : action === 'github-token' ? 512 : 80)))) return null;
+  const refresh = ['invite', 'github-login', 'sign-out', 'emc'].includes(action);
+  if (refresh) await testPlayCheck;
   const answer = await TEST_ACCESS.action(action, value);
-  if (answer?.role && TEST_EMC && action === 'invite') startLaunchCheck();
+  if (refresh) {
+    await refreshTestPlay();
+    if (answer?.role) startLaunchCheck();
+  }
   return answer;
 });
-ipcMain.on('launcher:ready', (e) => { if (fromLauncher(e)) renderLauncher(); });
+ipcMain.on('launcher:ready', (e) => {
+  if (!fromLauncher(e)) return;
+  renderLauncher();
+  if (!TEST_ACCESS) return;
+  refreshTestPlay();
+  const timer = setInterval(refreshTestPlay, 60000);
+  e.sender.once('destroyed', () => clearInterval(timer));
+});
 ipcMain.on('launcher:act', async (e, msg) => {
   if (!fromLauncher(e)) return;
   const { action, arg } = msg ?? {};
   const st = launcher.state;
   switch (action) {
-    case 'play': launcherDispatch({ type: 'play' }); break;
-    case 'play-now': stopStallWatch(); launcherDispatch({ type: 'play-now' }); break;
+    case 'play': if (testPlayGate) break; launcherDispatch({ type: 'play' }); break;
+    case 'play-now': if (testPlayGate) break; stopStallWatch(); launcherDispatch({ type: 'play-now' }); break;
     case 'download': if (st.update.download) openTestSetupOrLink(st.update.download); break;
     case 'skip-setup':
       if (reduce(st, { type: 'skip-setup' }).setup.status !== st.setup.status) {
@@ -2353,7 +2391,7 @@ app.whenReady().then(() => {
   // check that installed on quit and told no one. DA10: and it waits for
   // Play, with the patch notes and the player's options.
   // DA12: `--play` (a game manager's, a couch's) goes past it, straight into the game, when there is nothing to ask.
-  const direct = directPlay(process.argv, loadConfig());
+  const direct = TEST_ACCESS ? null : directPlay(process.argv, loadConfig());
   if (direct === null) runLauncher();
   else runDirect(direct);
   // DA10: a dock click with no window open (macOS keeps the app alive) opens the launcher, as a launch does

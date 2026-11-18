@@ -13,8 +13,10 @@ const MAX_PACK = 2 * 1024 ** 3 - 1;
 const MAX_INDEX = 8 * 1024 ** 2;
 const ASSET_NAME = 'DFO-13.11-EMC.pack';
 const deny = { 'Cache-Control': 'no-store' };
+const paperdollFiles = ['dfmod', 'index.json'].map((ext) => 'Mods/Paperdoll/Paperdoll Enhanced/paperdoll-enhanced.' + ext);
+const hasPaperdoll = (files) => paperdollFiles.every((name) => files.some((file) => file.path === name));
 const allowedPath = (value) => isSafeGamePath(value) && /^Mods\/[^/]+\/[^/]+\/.+/i.test(value)
-  && /\.(?:kf|nif|dds|tga|esp)$/i.test(value);
+  && (/\.(?:kf|nif|dds|tga|esp)$/i.test(value) || paperdollFiles.includes(value));
 
 function readPack(file) {
   const fd = fs.openSync(file, 'r');
@@ -81,6 +83,7 @@ function emcStore(root, net) {
       await pipeline(Readable.fromWeb(response.body), check, fs.createWriteStream(temp, { flags: 'w' }));
       if (size !== offer.size || hash.digest('hex') !== offer.sha256) throw new Error('EMC checksum failed');
       const next = readPack(temp);
+      if (!hasPaperdoll(next)) throw new Error('This EMC package is outdated. Ask for a new temporary link.');
       fs.renameSync(temp, file);
       files = next;
       return { files: next.length };
@@ -91,6 +94,7 @@ function emcStore(root, net) {
   }
 
   function serve(parts) {
+    if (!fs.existsSync(file)) files = undefined;
     files ??= fs.existsSync(file) ? readPack(file) : [];
     if (parts.length === 1) return Response.json(files.map((entry) => entry.path), { headers: deny });
     const id = parts[1];
@@ -100,7 +104,13 @@ function emcStore(root, net) {
     return new Response(Readable.toWeb(entry.stored ? stream.pipe(createBrotliDecompress()) : stream), { headers: { ...deny, 'Content-Type': 'application/octet-stream' } });
   }
 
-  return { install, serve };
+  return {
+    install, serve,
+    ready() {
+      try { return fs.existsSync(file) && hasPaperdoll(files ??= readPack(file)); }
+      catch { return false; }
+    },
+  };
 }
 
-module.exports = { ASSET_NAME, MAX_PACK, MAX_INDEX, allowedPath, readPack, temporaryUrl, offerOf, emcStore };
+module.exports = { ASSET_NAME, MAX_PACK, MAX_INDEX, allowedPath, readPack, temporaryUrl, offerOf, emcStore, hasPaperdoll, paperdollFiles };

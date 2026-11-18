@@ -39,31 +39,34 @@ test('public invitations authorize updates and removal blocks the next release c
 test('EMC download checks its digest before exposing a package on disk', async (t) => {
   const root = profile(t);
   const contents = Buffer.from('model');
-  const header = Buffer.from(JSON.stringify([{ path: 'Mods/Bodies/Example/model.nif', size: contents.length }]));
+  const paths = ['Mods/Bodies/Example/model.nif', ...emcPack.paperdollFiles];
+  const header = Buffer.from(JSON.stringify(paths.map((path) => ({ path, size: contents.length }))));
   const length = Buffer.alloc(4);
   length.writeUInt32LE(header.length);
-  const bytes = Buffer.concat([length, header, contents]);
+  const bytes = Buffer.concat([length, header, ...paths.map(() => contents)]);
   const store = emcPack.emcStore(root, { fetch: async (url, options) => {
     assert.equal(url, temporary);
     assert.equal(options.redirect, 'error');
     return new Response(bytes);
   } });
+  assert.equal(store.ready(), false);
   assert.deepEqual(await store.serve(['test-emc']).json(), []);
   await assert.rejects(store.install(JSON.stringify({ url: temporary, size: bytes.length, sha256: '0'.repeat(64) })), /checksum/);
   assert.deepEqual(await store.serve(['test-emc']).json(), []);
-  assert.deepEqual(await store.install(JSON.stringify({ url: temporary, size: bytes.length, sha256: hash(bytes) })), { files: 1 });
-  assert.deepEqual(await store.serve(['test-emc']).json(), ['Mods/Bodies/Example/model.nif']);
+  assert.deepEqual(await store.install(JSON.stringify({ url: temporary, size: bytes.length, sha256: hash(bytes) })), { files: paths.length });
+  assert.equal(store.ready(), true);
+  assert.deepEqual(await store.serve(['test-emc']).json(), paths);
   assert.equal(await store.serve(['test-emc', '0']).text(), 'model');
   assert.equal(store.serve(['test-emc', '../0']).status, 404);
 });
 
 test('a revoked invitation remains in the roster and its original hash is removed', async (t) => {
   const root = profile(t);
-  const code = 'b'.repeat(48);
-  const id = hash(code);
-  let rows = [{ hash: id, label: 'Test player' }];
+  let rows = [];
+  let copied;
   const auth = channel.publicTestChannel({
-    userData: root, safeStorage: { isEncryptionAvailable: () => false },
+    userData: root, copy: (code) => { copied = code; },
+    safeStorage: { isEncryptionAvailable: () => true, encryptString: (value) => Buffer.from(value), decryptString: (value) => value.toString() },
     net: { fetch: async (url, options) => {
       if (url.endsWith('/user')) return Response.json({ id: 1, login: 'owner' });
       if (url.includes('/contents/') && options.method === 'PUT') {
@@ -75,7 +78,12 @@ test('a revoked invitation remains in the roster and its original hash is remove
     } },
   });
   await auth.action('github-token', 'test-token');
+  const { code, id } = await auth.action('create', 'Test player');
+  assert.deepEqual(await auth.action('list'), [{ label: 'Test player', id, revoked: false, canCopy: true }]);
+  await auth.action('copy-existing', id);
+  assert.equal(copied, code);
   await auth.action('revoke', id);
-  assert.deepEqual(await auth.action('list'), [{ label: 'Test player', id: hash('revoked:' + id), revoked: true }]);
+  await assert.rejects(auth.action('copy-existing', id), /Active invitation not found/);
+  assert.deepEqual(await auth.action('list'), [{ label: 'Test player', id: hash('revoked:' + id), revoked: true, canCopy: false }]);
   await assert.rejects(auth.action('invite', code), /Invitation unavailable/);
 });

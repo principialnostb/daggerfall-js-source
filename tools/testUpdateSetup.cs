@@ -79,6 +79,105 @@ internal static class TestUpdateSetup
         return file;
     }
 
+    private static bool HasClient(string folder)
+    {
+        return File.Exists(Path.Combine(folder, "DFO Online Mod.exe"))
+            && File.Exists(Path.Combine(folder, "resources", "app.asar"))
+            && File.Exists(Path.Combine(folder, "resources", "game-seed.asar"));
+    }
+
+    private static string ClientFolder(string folder)
+    {
+        var nested = Path.Combine(folder, "client");
+        return HasClient(nested) ? nested : folder;
+    }
+
+    private static string ChooseDestination()
+    {
+        var defaultFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "DFO Online 13.11");
+        using (var window = new Form())
+        {
+            window.Text = "DFO Online 13.11 Setup";
+            window.FormBorderStyle = FormBorderStyle.FixedDialog;
+            window.AutoScaleMode = AutoScaleMode.Font;
+            window.Font = System.Drawing.SystemFonts.MessageBoxFont;
+            window.ClientSize = new System.Drawing.Size(590, 335);
+            window.StartPosition = FormStartPosition.CenterScreen;
+            window.MinimizeBox = window.MaximizeBox = false;
+
+            var heading = new Label { Text = "Install DFO Online 13.11", AutoSize = true,
+                Font = new System.Drawing.Font(window.Font.FontFamily, 17, System.Drawing.FontStyle.Bold) };
+            heading.SetBounds(24, 21, 535, 31);
+            var clean = new RadioButton { Text = "New installation", Checked = !HasClient(defaultFolder) };
+            clean.SetBounds(24, 68, 535, 23);
+            var repair = new RadioButton { Text = "Check and update an existing installation", Checked = !clean.Checked };
+            repair.SetBounds(24, 99, 535, 23);
+            var pathLabel = new Label { Text = "Installation folder", AutoSize = true };
+            pathLabel.SetBounds(24, 145, 535, 20);
+            var path = new TextBox { Text = defaultFolder, AccessibleName = pathLabel.Text };
+            path.SetBounds(24, 168, 440, 24);
+            var browse = new Button { Text = "Browse…" };
+            browse.SetBounds(473, 165, 91, 27);
+            var note = new Label { AccessibleName = "Folder status" };
+            note.SetBounds(24, 207, 540, 66);
+            var next = new Button { Text = "Install" };
+            next.SetBounds(356, 284, 116, 30);
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel };
+            cancel.SetBounds(481, 284, 83, 30);
+            string destination = null;
+            MethodInvoker validate = delegate {
+                destination = null;
+                next.Text = repair.Checked ? "Check and update" : "Install";
+                try
+                {
+                    var input = path.Text.Trim().Trim('"');
+                    if (!Path.IsPathRooted(input)) throw new IOException("Enter a full path or select a folder with Browse.");
+                    var folder = new DirectoryInfo(Path.GetFullPath(input));
+                    if (folder.Parent == null || File.Exists(folder.FullName))
+                        throw new IOException("Choose a folder for the client.");
+                    if (repair.Checked)
+                    {
+                        var client = ClientFolder(folder.FullName);
+                        if (!HasClient(client)) throw new IOException("Select the DFO 13.11 folder or its parent containing the client folder.");
+                        destination = client;
+                        note.Text = "Client found: " + client + "\nSetup checks the game archive and downloads a replacement if needed.";
+                    }
+                    else
+                    {
+                        if (folder.Exists && Directory.GetFileSystemEntries(folder.FullName).Length != 0)
+                            throw new IOException("Choose an empty or new folder. To update DFO in place, select the existing installation option.");
+                        destination = folder.FullName;
+                        note.Text = "Setup downloads the base client. Enter the test invitation and install EMC in the launcher.";
+                    }
+                }
+                catch (Exception error)
+                {
+                    if (!(error is IOException || error is ArgumentException || error is UnauthorizedAccessException || error is NotSupportedException)) throw;
+                    note.Text = error.Message;
+                }
+                next.Enabled = destination != null;
+            };
+            clean.CheckedChanged += delegate { validate(); };
+            repair.CheckedChanged += delegate { validate(); };
+            path.TextChanged += delegate { validate(); };
+            browse.Click += delegate {
+                using (var picker = new FolderBrowserDialog())
+                {
+                    picker.Description = repair.Checked ? "Select the existing DFO 13.11 client." : "Select an empty installation folder.";
+                    picker.ShowNewFolderButton = !repair.Checked;
+                    if (Directory.Exists(path.Text)) picker.SelectedPath = path.Text;
+                    if (picker.ShowDialog(window) == DialogResult.OK) path.Text = picker.SelectedPath;
+                }
+            };
+            next.Click += delegate { validate(); if (destination != null) window.DialogResult = DialogResult.OK; };
+            window.AcceptButton = next;
+            window.CancelButton = cancel;
+            window.Controls.AddRange(new Control[] { heading, clean, repair, pathLabel, path, browse, note, next, cancel });
+            validate();
+            return window.ShowDialog() == DialogResult.OK ? destination : null;
+        }
+    }
+
     private static string Install(string destination, string localAssets, string token, Action<string> status)
     {
         string[] config;
@@ -86,20 +185,26 @@ internal static class TestUpdateSetup
         using (var reader = new StreamReader(stream))
             config = reader.ReadToEnd().Split('\n');
 
-        var nested = Path.Combine(destination, "client");
-        if (File.Exists(Path.Combine(nested, "DFO Online Mod.exe"))) destination = nested;
+        var publicInstall = config[0].StartsWith("public:", StringComparison.Ordinal);
+        if (publicInstall) destination = ClientFolder(destination);
+        else
+        {
+            var nested = Path.Combine(destination, "client");
+            if (File.Exists(Path.Combine(nested, "DFO Online Mod.exe"))) destination = nested;
+        }
         var root = new DirectoryInfo(Path.GetFullPath(destination));
         if (root.Parent == null) throw new IOException("Choose a folder for DFO, not the drive root.");
         var legacy = Path.Combine(root.FullName, "resources", "app.asar");
         var current = Path.Combine(root.FullName, "resources", "game-seed.asar");
         string seed = null;
+        status("Checking installed files…");
         if (File.Exists(current))
         {
             var hash = Digest(current);
             if (hash == config[3] || hash == config[4]) seed = current;
         }
         if (seed == null && File.Exists(legacy) && Digest(legacy) == config[3]) seed = legacy;
-        if (seed == null && root.Exists && Directory.GetFileSystemEntries(root.FullName).Length != 0)
+        if (seed == null && root.Exists && Directory.GetFileSystemEntries(root.FullName).Length != 0 && !(publicInstall && HasClient(root.FullName)))
             throw new IOException("Choose an empty folder or the issued DFO 13.11 client folder.");
 
         var stage = Path.Combine(root.Parent.FullName, ".dfo-setup-" + Guid.NewGuid().ToString("N"));
@@ -218,37 +323,6 @@ internal static class TestUpdateSetup
         }
     }
 
-    private static void VerifyDeveloper()
-    {
-        var git = new ProcessStartInfo("git", "-c credential.gitHubAuthModes=browser credential-manager get");
-        git.UseShellExecute = false;
-        git.CreateNoWindow = true;
-        git.RedirectStandardInput = true;
-        git.RedirectStandardOutput = true;
-        git.EnvironmentVariables["GCM_INTERACTIVE"] = "always";
-        git.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
-        using (var process = Process.Start(git))
-        {
-            process.StandardInput.Write("protocol=https\nhost=github.com\n\n");
-            process.StandardInput.Close();
-            var text = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            var token = System.Text.RegularExpressions.Regex.Match(text, "^password=([^\\r\\n]+)", System.Text.RegularExpressions.RegexOptions.Multiline);
-            if (process.ExitCode != 0 || !token.Success) throw new IOException("GitHub sign-in failed.");
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            using (var web = GitHub(token.Groups[1].Value, "application/vnd.github+json"))
-            {
-                var response = web.DownloadString("https://api.github.com/repos/principialnostb/daggerfall-js-source");
-                var repository = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(response);
-                object permission;
-                var permissions = (Dictionary<string, object>)repository["permissions"];
-                if (!permissions.TryGetValue("push", out permission) || !Equals(permission, true))
-                    throw new IOException("The GitHub account needs write access to 13.11-build.");
-            }
-        }
-    }
-
-
     private static Dictionary<string, object> Post(string service, string path, object body)
     {
         var serializer = new JavaScriptSerializer();
@@ -281,25 +355,6 @@ internal static class TestUpdateSetup
     }
 
 
-    private static string CheckInvite(string code)
-    {
-        if (!System.Text.RegularExpressions.Regex.IsMatch(code, "^[0-9a-f]{48}$"))
-            throw new IOException("Invalid test invitation code.");
-        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-        string hash;
-        using (var sha = SHA256.Create())
-            hash = BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(code))).Replace("-", "").ToLowerInvariant();
-        const string roster = "https://raw.githubusercontent.com/principialnostb/daggerfall-js-source/13.11-build/test-channel/13.11-invites.json";
-        using (var web = new WebClient())
-        {
-            var rows = new JavaScriptSerializer().Deserialize<Dictionary<string, string>[]>(web.DownloadString(roster));
-            foreach (var row in rows)
-                if (row["hash"] == hash) return hash;
-        }
-        throw new IOException("Test invitation is unavailable.");
-    }
-
-
     private static string AskToken(bool invite)
     {
         using (var window = new Form())
@@ -327,14 +382,12 @@ internal static class TestUpdateSetup
         }
     }
 
-    private static void OpenLauncher(string folder, string token, bool service, string inviteHash, bool developer)
+    private static void OpenLauncher(string folder, string token, bool service)
     {
         var info = new ProcessStartInfo(Path.Combine(folder, "DFO Online Mod.exe"));
-        if (developer) info.Arguments = "--dfo-open-developer";
         info.WorkingDirectory = folder;
         info.UseShellExecute = false;
-        if (inviteHash != null) info.EnvironmentVariables["DFO_1311_PUBLIC_INVITE_HASH"] = inviteHash;
-        else if (token != null) info.EnvironmentVariables[service ? "DFO_1311_ACCESS_SESSION" : "DFO_1311_INSTALL_TOKEN"] = token;
+        if (token != null) info.EnvironmentVariables[service ? "DFO_1311_ACCESS_SESSION" : "DFO_1311_INSTALL_TOKEN"] = token;
         Process.Start(info);
     }
 
@@ -352,66 +405,60 @@ internal static class TestUpdateSetup
         var publicInstall = service != null && service.StartsWith("public:", StringComparison.Ordinal);
         var inherited = Environment.GetEnvironmentVariable("DFO_1311_SETUP_SESSION");
         Environment.SetEnvironmentVariable("DFO_1311_SETUP_SESSION", null);
-        var access = publicInstall ? AskAccess() : service == null ? AskToken(false) : inherited ?? AskAccess();
-        if (String.IsNullOrWhiteSpace(access)) return 0;
-
-        using (var folder = new FolderBrowserDialog())
+        var access = publicInstall ? null : service == null ? AskToken(false) : inherited ?? AskAccess();
+        if (!publicInstall && String.IsNullOrWhiteSpace(access)) return 0;
+        var destination = ChooseDestination();
+        if (destination == null) return 0;
+        var token = access;
+        var authenticated = publicInstall || service == null || inherited != null;
+        using (var window = new Form())
+        using (var message = new Label())
+        using (var progress = new ProgressBar())
+        using (var worker = new BackgroundWorker())
         {
-            folder.Description = "Choose the DFO 13.11 client folder or an empty folder for a new installation.";
-            if (folder.ShowDialog() != DialogResult.OK) return 0;
-            var token = access;
-            var authenticated = service == null || (!publicInstall && inherited != null);
-            string inviteHash = null;
-            using (var window = new Form())
-            using (var message = new Label())
-            using (var progress = new ProgressBar())
-            using (var worker = new BackgroundWorker())
+            window.Text = "DFO 13.11 Setup";
+            window.Width = 460;
+            window.Height = 169;
+            window.StartPosition = FormStartPosition.CenterScreen;
+            window.ControlBox = false;
+            message.Dock = DockStyle.Top;
+            message.Height = 63;
+            message.Text = "Preparing DFO Online…\n" + destination;
+            progress.Style = ProgressBarStyle.Marquee;
+            progress.Dock = DockStyle.Bottom;
+            window.Controls.Add(message);
+            window.Controls.Add(progress);
+            worker.DoWork += delegate(object sender, DoWorkEventArgs argsResult)
             {
-                window.Text = "DFO 13.11 Setup";
-                window.Width = 460;
-                window.Height = 169;
-                window.StartPosition = FormStartPosition.CenterScreen;
-                window.ControlBox = false;
-                message.Dock = DockStyle.Top;
-                message.Height = 63;
-                message.Text = "Preparing DFO Online…\n" + folder.SelectedPath;
-                progress.Style = ProgressBarStyle.Marquee;
-                progress.Dock = DockStyle.Bottom;
-                window.Controls.Add(message);
-                window.Controls.Add(progress);
-                worker.DoWork += delegate(object sender, DoWorkEventArgs argsResult)
+                Action<string> status = delegate(string text)
                 {
-                    Action<string> status = delegate(string text)
-                    {
-                        window.BeginInvoke((MethodInvoker)delegate { message.Text = text; });
-                    };
-                    if (!authenticated)
-                    {
-                        if (publicInstall) { if (access == "github") VerifyDeveloper(); else inviteHash = CheckInvite(access); token = null; }
-                        else token = Authorize(service, access, status);
-                        authenticated = true;
-                    }
-                    argsResult.Result = Install(folder.SelectedPath, null, token, status);
+                    window.BeginInvoke((MethodInvoker)delegate { message.Text = text; });
                 };
-                worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs result)
+                if (!authenticated)
                 {
-                    if (result.Error != null && authenticated && service != null)
-                    {
-                        var retry = MessageBox.Show(window, result.Error.Message, window.Text, MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
-                        if (retry == DialogResult.Retry) { worker.RunWorkerAsync(); return; }
-                        window.DialogResult = DialogResult.Abort;
-                        return;
-                    }
-                    MessageBox.Show(window, result.Error == null
-                        ? "Installation complete. The launcher will open now."
-                        : result.Error.Message, window.Text, MessageBoxButtons.OK,
-                        result.Error == null ? MessageBoxIcon.Information : MessageBoxIcon.Error);
-                    if (result.Error == null) OpenLauncher((string)result.Result, token, service != null, inviteHash, publicInstall && access == "github");
-                    window.DialogResult = result.Error == null ? DialogResult.OK : DialogResult.Abort;
-                };
-                window.Shown += delegate { worker.RunWorkerAsync(); };
-                return window.ShowDialog() == DialogResult.OK ? 0 : 1;
-            }
+                    token = Authorize(service, access, status);
+                    authenticated = true;
+                }
+                argsResult.Result = Install(destination, null, token, status);
+            };
+            worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs result)
+            {
+                if (result.Error != null && authenticated && service != null)
+                {
+                    var retry = MessageBox.Show(window, result.Error.Message, window.Text, MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
+                    if (retry == DialogResult.Retry) { worker.RunWorkerAsync(); return; }
+                    window.DialogResult = DialogResult.Abort;
+                    return;
+                }
+                MessageBox.Show(window, result.Error == null
+                    ? "Installation complete. The launcher will open now."
+                    : result.Error.Message, window.Text, MessageBoxButtons.OK,
+                    result.Error == null ? MessageBoxIcon.Information : MessageBoxIcon.Error);
+                if (result.Error == null) OpenLauncher((string)result.Result, token, service != null);
+                window.DialogResult = result.Error == null ? DialogResult.OK : DialogResult.Abort;
+            };
+            window.Shown += delegate { worker.RunWorkerAsync(); };
+            return window.ShowDialog() == DialogResult.OK ? 0 : 1;
         }
     }
 }

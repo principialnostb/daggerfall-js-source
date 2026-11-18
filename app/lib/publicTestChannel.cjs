@@ -13,7 +13,6 @@ const rosterPath = 'test-channel/13.11-invites.json';
 const rosterEndpoint = '/repos/' + repository + '/contents/' + rosterPath;
 const privateRepo = 'principialnostb/dfo-13-11-test-releases';
 const hashCode = (value) => createHash('sha256').update(value).digest('hex');
-const absent = (e) => e.code === 'ENOENT';
 
 function githubCredential() {
   return new Promise((resolve, reject) => {
@@ -37,20 +36,15 @@ function githubCredential() {
 
 function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, openBrowser }) {
   const api = testApi(repository);
-  const inviteFile = path.join(userData, 'test-invite-public');
+  const inviteFile = path.join(userData, 'test-invite-public.dpapi');
   const adminFile = path.join(userData, 'test-admin-public');
-  let invite = process.env.DFO_1311_PUBLIC_INVITE_HASH;
-  delete process.env.DFO_1311_PUBLIC_INVITE_HASH;
-  let pendingInvite = invite;
+  const vaultFile = path.join(userData, 'test-invites.dpapi');
+  let invite;
   let admin;
   let deviceCode;
   let online = null;
   let publishedAssets = new Map();
   const downloadPrefix = 'https://github.com/' + repository + '/releases/download/';
-
-  function read(file) {
-    try { return fs.readFileSync(file, 'utf8').trim(); } catch (error) { if (!absent(error)) throw error; return null; }
-  }
 
   function gh(route, token, init = {}) {
     return net.fetch('https://api.github.com' + route, {
@@ -75,14 +69,12 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   }
 
   async function member() {
-    if (pendingInvite && /^[0-9a-f]{64}$/.test(pendingInvite)) {
-      fs.mkdirSync(userData, { recursive: true });
-      fs.writeFileSync(inviteFile, pendingInvite);
-      pendingInvite = null;
+    if (!invite && safeStorage.isEncryptionAvailable() && fs.existsSync(inviteFile)) {
+      invite = safeStorage.decryptString(fs.readFileSync(inviteFile));
     }
-    invite ??= read(inviteFile);
-    if (!invite) return false;
-    online ??= await roster().then(({ rows }) => rows.some((row) => !row.revoked && row.hash === invite));
+    if (!/^[0-9a-f]{48}$/.test(invite ?? '')) return false;
+    const digest = hashCode(invite);
+    online = (await roster()).rows.some((row) => !row.revoked && row.hash === digest);
     return online;
   }
 
@@ -108,6 +100,18 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       admin = safeStorage.decryptString(fs.readFileSync(adminFile));
     }
     return admin;
+  }
+
+  function vault() {
+    if (!safeStorage.isEncryptionAvailable() || !fs.existsSync(vaultFile)) return {};
+    return JSON.parse(safeStorage.decryptString(fs.readFileSync(vaultFile)));
+  }
+
+  function saveVault(codes) {
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows credential encryption is unavailable');
+    fs.mkdirSync(userData, { recursive: true });
+    fs.writeFileSync(vaultFile + '.tmp', safeStorage.encryptString(JSON.stringify(codes)), { mode: 0o600 });
+    fs.renameSync(vaultFile + '.tmp', vaultFile);
   }
 
   async function saveRoster(rows, sha, token) {
@@ -149,9 +153,11 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       if (!/^[0-9a-f]{48}$/.test(code)) throw new Error('Invalid invitation');
       const digest = hashCode(code);
       if (!(await roster()).rows.some((row) => !row.revoked && row.hash === digest)) throw new Error('Invitation unavailable');
-      fs.mkdirSync(userData, { recursive: true });
-      fs.writeFileSync(inviteFile, digest);
-      invite = digest;
+      if (safeStorage.isEncryptionAvailable()) {
+        fs.mkdirSync(userData, { recursive: true });
+        fs.writeFileSync(inviteFile, safeStorage.encryptString(code), { mode: 0o600 });
+      }
+      invite = code;
       online = true;
       return { role: 'tester', login: 'Tester' };
     }
@@ -167,13 +173,14 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       return profile;
     }
     if (name === 'profile') {
+      online = null;
       const token = adminToken();
       if (token) return adminProfile(token);
       return await member() ? { role: 'tester', login: 'Tester' } : null;
     }
     if (name === 'sign-out') {
       for (const file of [inviteFile, adminFile]) fs.rmSync(file, { force: true });
-      pendingInvite = invite = admin = null;
+      invite = admin = null;
       online = false;
       return null;
     }
@@ -183,15 +190,13 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     }
     const token = adminToken();
     if (!await adminProfile(token)) throw new Error('Administrator sign-in required');
-    if (name === 'copy-invite' && /^[0-9a-f]{48}$/.test(value ?? '')) {
-      copy(value);
-      return null;
-    }
     if (name === 'emc-link') {
       const response = await gh('/repos/' + privateRepo, token);
       if (!(await json(response)).private) throw new Error('EMC repository must be private');
       const releases = await json(await gh('/repos/' + privateRepo + '/releases?per_page=100', token));
-      const asset = releases.filter((release) => !release.draft).flatMap((release) => release.assets ?? [])
+      const asset = releases.filter((release) => !release.draft && /^emc-1311-v\d+$/.test(release.tag_name))
+        .sort((a, b) => Number(b.tag_name.slice(10)) - Number(a.tag_name.slice(10)))
+        .flatMap((release) => release.assets ?? [])
         .find((item) => item.name === ASSET_NAME);
       if (!Number.isSafeInteger(asset?.id) || !/^sha256:[0-9a-f]{64}$/.test(asset.digest)) throw new Error('EMC archive unavailable');
       const download = await gh('/repos/' + privateRepo + '/releases/assets/' + asset.id, token, {
@@ -205,23 +210,37 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       return { copied: true };
     }
     const { rows, sha } = await roster(token);
-    if (name === 'list') return rows.map(({ hash, label, revoked }) => ({ id: hash, label, revoked: revoked === true }));
+    if (name === 'list') {
+      const codes = vault();
+      return rows.map(({ hash, label, revoked }) => ({ id: hash, label, revoked: revoked === true, canCopy: !revoked && !!codes[hash] }));
+    }
+    if (name === 'copy-existing') {
+      if (!rows.some((row) => row.hash === value && !row.revoked)) throw new Error('Active invitation not found');
+      const code = vault()[value];
+      if (!code) throw new Error('Original code is unavailable on this PC');
+      copy(code);
+      return null;
+    }
     if (name === 'revoke') {
       if (!rows.some((row) => row.hash === value && !row.revoked)) throw new Error('Active invitation not found');
       await saveRoster(rows.map((row) => row.hash === value
         ? { ...row, hash: hashCode('revoked:' + row.hash), revoked: true } : row), sha, token);
+      const codes = vault();
+      if (codes[value]) { delete codes[value]; saveVault(codes); }
       return null;
     }
     if (name === 'create' && value?.trim()) {
       const code = randomBytes(24).toString('hex');
-      await saveRoster([...rows, { hash: hashCode(code), label: value.trim() }], sha, token);
-      return { code };
+      const id = hashCode(code);
+      saveVault({ ...vault(), [id]: code });
+      await saveRoster([...rows, { hash: id, label: value.trim() }], sha, token);
+      return { code, id };
     }
     throw new Error('Unknown test action');
   }
 
   return {
-    action, repository, page: 'https://github.com/' + repository + '/releases',
+    action, authorizeUpdate, repository, page: 'https://github.com/' + repository + '/releases',
     async releases(options) {
       await authorizeUpdate();
       const response = await net.fetch(api + '?per_page=100', options);

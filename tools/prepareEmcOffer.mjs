@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import pack from '../app/lib/emcReleasePack.cjs';
 import { packForPath } from '../src/systems/enhancedModCatalog.js';
 
-const { ASSET_NAME, MAX_PACK, MAX_INDEX, allowedPath } = pack;
+const { ASSET_NAME, MAX_PACK, MAX_INDEX, allowedPath, hasPaperdoll, paperdollFiles } = pack;
 const [source, destination] = process.argv.slice(2);
 if (!source || !destination) throw new Error('Usage: node tools/prepareEmcOffer.mjs <approved-resource-root> <output-folder>');
 const root = resolve(source);
@@ -16,11 +16,11 @@ function scan(parent) {
   for (const entry of readdirSync(join(root, parent), { withFileTypes: true })) {
     const file = parent + '/' + entry.name;
     if (entry.isDirectory()) scan(file);
-    if (entry.isFile() && allowedPath(file) && packForPath('/' + file)) names.push(file);
+    if (entry.isFile() && allowedPath(file) && (paperdollFiles.includes(file) || packForPath('/' + file))) names.push(file);
   }
 }
 scan('Mods');
-if (!names.length) throw new Error('No matching EMC files');
+if (!hasPaperdoll(names.map((path) => ({ path })))) throw new Error('Paperdoll Enhanced bundle and index are required');
 names.sort((a, b) => a.localeCompare(b));
 if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) throw new Error('Duplicate EMC paths');
 const output = join(resolve(destination), ASSET_NAME);

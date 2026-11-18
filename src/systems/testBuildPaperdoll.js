@@ -1,6 +1,7 @@
 import { TEST_BUILD_CONTENT } from './testBuildContent.js';
 import { APP_ROOT } from './appRoot.js';
 import { openDfmodBundleSource } from './dfmodTextures.js';
+import { initEnhancedModResources, desktopEmcResource } from './enhancedModResources.js';
 
 export function createTestPaperdollPack(index, loadBlob, open = openDfmodBundleSource) {
   let blob;
@@ -10,16 +11,21 @@ export function createTestPaperdollPack(index, loadBlob, open = openDfmodBundleS
 }
 let packs;
 export async function testBuildPaperdollPacks() {
-  if (!TEST_BUILD_CONTENT) return [];
+  if (!TEST_BUILD_CONTENT?.paperdoll && !globalThis.daggerShell?.testEmc) return [];
   if (!packs) packs = (async()=>{
     const root = globalThis.location?.protocol === 'dagger:'
       ? 'dagger://game/'
       : APP_ROOT ?? globalThis.document?.baseURI;
-    const indexResponse = await fetch(new URL(TEST_BUILD_CONTENT.paperdollIndex,root));
+    await initEnhancedModResources();
+    const prefix = 'Mods/Paperdoll/Paperdoll Enhanced/paperdoll-enhanced';
+    const desktopIndex = desktopEmcResource(prefix + '.index.json');
+    const desktopBundle = desktopEmcResource(prefix + '.dfmod');
+    if ((!desktopIndex || !desktopBundle) && !TEST_BUILD_CONTENT?.paperdoll) return [];
+    const indexResponse = await fetch(desktopIndex ?? new URL(TEST_BUILD_CONTENT.paperdollIndex, root));
     if(!indexResponse.ok)throw new Error('Bundled Paperdoll Enhanced index unavailable');
     const index = await indexResponse.json();
     return [createTestPaperdollPack(index,async()=>{
-      const response=await fetch(new URL(TEST_BUILD_CONTENT.paperdoll,root));
+      const response=await fetch(desktopBundle ?? new URL(TEST_BUILD_CONTENT.paperdoll, root));
       if(!response.ok)throw new Error('Bundled Paperdoll Enhanced unavailable');
       return response.blob();
     })];

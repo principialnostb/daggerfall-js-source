@@ -349,6 +349,8 @@ function reduce(state, ev) {
     case 'play':
       if (canPlay(s)) s.launch = 'requested';
       break;
+    case 'test-access-required':
+      return { ...s, launch: null };
     case 'launching':
       s.launch = 'started';
       break;

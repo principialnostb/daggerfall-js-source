@@ -426,7 +426,7 @@ body[data-launching] *, body[data-launching] *::before, body[data-launching] *::
 .test-tabs button[aria-pressed="true"] { color: #f3d69e; border-bottom-color: var(--brass); }
 .test-toolbar, .test-inline { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .test-toolbar input, .test-inline input { flex: 1 1 140px; min-width: 110px; }
-.test-access input, .test-access select { min-height: 34px; border: 1px solid #625643; border-radius: 0; color: #ede3c7; background: #0b0e14; padding: 6px 9px; font: inherit; user-select: text; }
+.test-access input, .test-access select, .test-dock input { min-height: 34px; border: 1px solid #625643; border-radius: 0; color: #ede3c7; background: #0b0e14; padding: 6px 9px; font: inherit; user-select: text; }
 .test-access :focus-visible { outline: 2px solid #e0b16d; outline-offset: 2px; }
 .test-field { margin-top: 13px; }
 .test-field label { display: block; margin-bottom: 5px; }
@@ -446,3 +446,14 @@ body[data-launching] *, body[data-launching] *::before, body[data-launching] *::
 #test-empty { text-align: center; }
 #test-status { user-select: text; }
 .test-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+.test-dock { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+.test-dock p { margin: 0; color: #edc98a; font: 13px/1.3 "Segoe UI", sans-serif; }
+.test-dock button { flex-shrink: 0; }
+.test-developer { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; border-top: 1px solid #45413a; margin-top: 16px; padding-top: 13px; color: #c0b89d; }
+#test-redeem { margin-top: 0; }
+.test-help { margin: 0 0 8px; color: #c0b89d; }
+
+.test-dock-emc { width: min(540px, 100%); font: 13px/1.3 "Segoe UI", sans-serif; }
+.test-dock-emc label { display: block; margin-bottom: 4px; color: #edc98a; }
+.test-dock-emc .test-inline + p { margin-top: 5px; }
