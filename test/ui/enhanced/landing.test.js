@@ -82,7 +82,7 @@ test('U60: the root document is a page about the game, and the game is at /play/
   // The game page is the file that used to be index.html: the mobile
   // build's meta and the canvas's touch rule came with it.
   assert.match(game, /<canvas id="c"><\/canvas>/);
-  assert.match(game, /<script type="module" src="\/src\/main\.js"><\/script>/);
+  assert.match(game, /<script type="module" src="\/src\/testBuildEntry\.js"><\/script>/);
   assert.match(game, /viewport-fit=cover, user-scalable=no/, 'the phone viewport meta (2026-08-13) moved with the game');
   assert.match(game, /#c \{[^}]*touch-action: none/, 'the touch-action canvas rule moved with the game');
   assert.ok(existsSync(join(root, 'play/index.html')));

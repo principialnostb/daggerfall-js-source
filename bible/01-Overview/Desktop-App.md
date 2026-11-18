@@ -292,7 +292,8 @@ Public release builds exclude the optional Mods resource globs in the client and
 
 Developers with source repository write access maintain invitations through the Test channel panel. Revoking an invitation replaces its public hash and retains the tester label. Git Credential Manager handles developer sign-in and the launcher encrypts the credential with Windows storage.
 
-Developers with read access to the private EMC release repository automatically install missing EMC through their GitHub sign-in. The EMC package tab copies a temporary offer for testers. Testers paste the offer into the launcher once. The launcher verifies the size and SHA-256 and serves the installed files to EMC at game launch. GitHub controls the offer lifetime. Anyone who receives it can use the URL while it is valid.
+Developers with read access to the private EMC release repository automatically install missing EMC through their GitHub sign-in. The EMC package tab copies a temporary offer for testers. Testers paste the offer into the launcher once. The launcher verifies the size and SHA-256 and serves the installed files to EMC at game launch.
+The public desktop entry `src/testBuildEntry.js` `startTestBuild` reads the archive index before the game's loader modules build their file lists. The archive is stored in the test profile. Game-only patches keep the existing launcher and archive. GitHub controls the offer lifetime. Anyone who receives it can use the URL while it is valid.
 
 Use `tools/prepareEmcOffer.mjs` with a staged directory containing only approved EMC files under `Mods/`.
 Upload its output to the private test release repository. One archive must be smaller than the GitHub asset limit.

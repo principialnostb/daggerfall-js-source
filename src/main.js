@@ -64,8 +64,10 @@ async function boot() {
       import('./systems/bundledMorrowindMods.js'),
       import('./combat/fpArm.js'),
     ]);
-    if (TEST_BUILD_CONTENT.paperdoll) await testBuildPaperdollPacks().then(installVanillaEnhancedPack).catch((error) =>
-      console.warn('[boot] bundled Paperdoll Enhanced:', error));
+    if (TEST_BUILD_CONTENT.paperdoll || globalThis.daggerShell?.testEmc) {
+      await testBuildPaperdollPacks().then(installVanillaEnhancedPack).catch((error) =>
+        console.warn('[boot] bundled Paperdoll Enhanced:', error));
+    }
   }
   installFramePacer();   // FPS-VSYNC: first, before any loop asks for a frame - a no-op but in the app with the wait lifted
   installCursor();   // CLASSIC-CURSOR: DFU's own arrow on the classic skin, from the first frame - it needs no game data
