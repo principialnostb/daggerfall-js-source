@@ -46,6 +46,9 @@ jobs:
           if (!$previous) { throw 'Publish the first 13.11 setup before enabling push releases.' }
           $tag = $previous.tagName
           "tag=$tag" >> $env:GITHUB_OUTPUT
+          $source = git rev-parse "refs/tags/$tag^{}"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "source=$source" >> $env:GITHUB_OUTPUT
           $patch = ([version] $tag.Substring(10)).Build + 1
           "version=13.11.$patch" >> $env:GITHUB_OUTPUT
           gh release download $tag --repo $env:RELEASE_REPO --pattern DFO-Online-game.json.gz --pattern DFO-13.11-Setup.exe --dir previous-13.11
@@ -66,6 +69,7 @@ jobs:
       - name: Pack the patch
         shell: pwsh
         env:
+          DFO_TEST_PREVIOUS_SOURCE: ${{ steps.setup.outputs.source }}
           VERSION: ${{ steps.setup.outputs.version }}
         run: |
           node tools/prepareTestUpdate.mjs --game-only "$env:DFO_TEST_OUTPUT/stage" "$env:DFO_TEST_OUTPUT/assets" $env:VERSION previous-13.11/DFO-Online-game.json.gz

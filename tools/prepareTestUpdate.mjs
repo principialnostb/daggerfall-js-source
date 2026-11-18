@@ -211,6 +211,24 @@ async function packReleaseGame(dist, work, output, { version, shell }, reusable)
   cpSync(join(work, GAME_FILES.manifest), join(output, GAME_FILES.manifest));
 }
 
+function previousShell(previous, build, work) {
+  const base = process.env.DFO_TEST_PREVIOUS_SOURCE;
+  if (publicBuild && /^[a-f0-9]{40}$/.test(base ?? '')) {
+    execFileSync('git', ['merge-base', '--is-ancestor', base, 'HEAD'], { cwd: root });
+    const inputs = ['app', '.build-13.11-test-medium.mjs', 'tools/testUpdateSetup.cs',
+      'src/ui/menu/menuPad.js', 'src/ui/plus/gauntletArt.js', 'src/assets/branding/dfo-online.png'];
+    const changed = execFileSync('git', ['diff', '--name-only', base, 'HEAD', '--', ...inputs], { cwd: root, encoding: 'utf8' });
+    if (changed.trim()) throw new Error('The desktop shell has changed. Prepare a full setup for this release.');
+    return previous.shell;
+  }
+  const shellRoot = join(work, 'shell');
+  mkdirSync(shellRoot);
+  const shell = stageShell(build, shellRoot);
+  if (shell !== previous.shell) throw new Error('The desktop shell has changed. Prepare a full setup for this release.');
+  return shell;
+}
+
+
 async function packOnly(buildPath, outputPath, version, previousPath) {
   if (!/^13\.11\.[1-9]\d*$/.test(version ?? '')) throw new Error('Expected a release version 13.11.<positive patch>');
   const build = resolve(buildPath);
@@ -220,10 +238,7 @@ async function packOnly(buildPath, outputPath, version, previousPath) {
   checkReleaseFiles(gameFilesOf(join(build, 'dist')));
   mkdirSync(output);
   const work = mkdtempSync(join(resolve(output, '..'), 'pack-'));
-  const shellRoot = join(work, 'shell');
-  mkdirSync(shellRoot);
-  const shell = stageShell(build, shellRoot);
-  if (shell !== previous.shell) throw new Error('The desktop shell has changed. Prepare a full setup for this release.');
+  const shell = previousShell(previous, build, work);
   const manifest = packGame(join(build, 'dist'), work, { version, shell });
   const delta = judgeDelta(previous, manifest);
   if (delta.problems.length) throw new Error(delta.problems.join('\n'));
