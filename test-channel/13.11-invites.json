@@ -44,5 +44,9 @@
     "hash": "fbed4bb07e6e1ec68c796f988f1b18ef7448cf2a5969349bf4ee735e40a2eeb8",
     "label": "Tester1",
     "revoked": true
+  },
+  {
+    "hash": "5101c2be41f61f92c4b03512f05190ca77460b9a44970749046060a010002817",
+    "label": "Darya Tah"
   }
 ]
