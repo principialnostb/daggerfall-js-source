@@ -93,6 +93,10 @@ jobs:
         run: |
           node tools/prepareTestUpdate.mjs --game-only "$env:DFO_TEST_OUTPUT/stage" "$env:DFO_TEST_OUTPUT/assets" $env:VERSION previous-13.11/DFO-Online-game.json.gz
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Verify automatic shell replacement and restart
+        if: github.ref_name == 'codex/1311-launcher-preview'
+        shell: pwsh
+        run: node tools/verifyTestShellSwap.mjs "$env:DFO_TEST_OUTPUT/assets"
       - name: Save the preview build
         if: github.ref_name == 'codex/1311-launcher-preview'
         uses: actions/upload-artifact@v4
