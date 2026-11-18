@@ -3,6 +3,8 @@
 The docs are `bible/` - start at `bible/Home.md` (its Process rules bind every
 change) and read `bible/01-Overview/Port-Doctrine.md` before touching code.
 
+- For DFO Test Build launcher changes and publishing, start with the [maintainer walkthrough](bible/01-Overview/DFO-Test-Build.md#памятка-для-следующего-изменения). It maps source files to game patches, shell updates and private EMC, with push and installed-client checks.
+
 - **Scope** (SCOPE1, Mac, 2026-10-14): DFO Online is its own game, not a 1:1
   port. Daggerfall Unity is the reference - read it first, cite it, name a
   departure from it - not a target to match. Older pages that say "1:1" are
