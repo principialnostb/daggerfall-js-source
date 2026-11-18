@@ -22,8 +22,9 @@ import { modDiagnostics } from './modDiagnostics.js';
 
 const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 
+const IN_BROWSER = typeof window !== 'undefined';
+
 function buildCatalog() {
-  const IN_BROWSER = typeof window !== 'undefined';
   const FILES = IN_BROWSER
     ? modResourceGlob([
         '../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
@@ -321,7 +322,7 @@ function resourceCatalog() {
 }
 
 const sourceModOf = (sourcePath) => {
-  const parts = sourcePath.split('/');
+  const parts = String(sourcePath ?? '').split('/');
   const folderIndex = parts.findIndex((part) => /^(Bodies|Textures)$/i.test(part));
   return folderIndex >= 0 ? parts[folderIndex + 1] : 'bundled-morrowind-assets';
 };
@@ -384,7 +385,7 @@ export async function loadBundledMorrowindPlugin(name) {
 // fetches. This checks archive selection, not final GPU/material appearance.
 export async function inspectBundledMorrowindTextures() {
   const archive = bundledMorrowindModsArchive();
-  const { assetUrls } = resourceCatalog();
+  const { assetUrls, packEnabled, packageCounts, sourceFiles, sourcePathByUrl } = resourceCatalog();
   const candidates = [
     'textures/bb/bb_skinf_de.dds',
     'textures/bb/bb_handf_de.dds',
@@ -429,7 +430,7 @@ export async function inspectBundledMorrowindTextures() {
   }));
   const report = {
     browser: IN_BROWSER,
-    discoveredSourceFiles: Object.keys(FILES).length,
+    discoveredSourceFiles: sourceFiles,
     selectedAssetKeys: Object.keys(assetUrls).length,
     selectedPackageAssetCounts: { ...packageCounts },
     activeOptionalPacks: Object.entries(packEnabled).filter(([name, enabled]) => name !== 'betterBodies' && enabled).map(([name]) => name),
@@ -438,7 +439,7 @@ export async function inspectBundledMorrowindTextures() {
     note: 'High Resolution Better Body Female Textures supplies the selected underwear / body-hair / no-hair skin variant and matching hands. Its NIF meshes are intentionally not used so corrected UV geometry remains intact.',
   };
   for (const row of checks) {
-    if (!row.url || row.error || (row.fetch !== 'not-found' && row.fetch !== 200)) modDiagnostics.record({ level: 'error', phase: 'asset-fetch', action: 'representative-asset-check-failed', modId: sourceModOf(row.url), resource: row.key, message: row.error ?? (!row.url ? 'No source URL resolved for this asset.' : 'Asset fetch returned a non-success status.'), details: { fetch: row.fetch, bytes: row.bytes } });
+    if (!row.url || row.error || (row.fetch !== 'not-found' && row.fetch !== 200)) modDiagnostics.record({ level: 'error', phase: 'asset-fetch', action: 'representative-asset-check-failed', modId: sourceModOf(sourcePathByUrl.get(row.url) ?? row.url), resource: row.key, message: row.error ?? (!row.url ? 'No source URL resolved for this asset.' : 'Asset fetch returned a non-success status.'), details: { fetch: row.fetch, bytes: row.bytes } });
   }
   modDiagnostics.record({ level: checks.some((row) => row.error || (row.fetch !== 'not-found' && row.fetch !== 200)) ? 'warn' : 'info', phase: 'asset-audit', action: 'morrowind-texture-inspection-complete', modId: 'bundled-morrowind-assets', resource: 'representative-fetches', details: { discoveredSourceFiles: report.discoveredSourceFiles, selectedAssetKeys: report.selectedAssetKeys, selectedPackageAssetCounts: report.selectedPackageAssetCounts, checks: checks.map(({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, error }) => ({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, error })) } });
   console.table(checks);
