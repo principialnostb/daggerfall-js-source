@@ -22,12 +22,14 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import {
   EXPECTED_RELEASE_FILES, packGame, gameSeed, gameFilesOf, shellInputs, shellId, judgeDelta, MAX_UPDATE_SHARE,
 } from '../../scripts/desktopRelease.mjs';
 
 const require = createRequire(import.meta.url);
 const G = require('../../app/lib/gameChannel.cjs');
+const { RELEASES_URL } = require('../../app/lib/downloads.cjs');
 const { openGameStore, loadSeed } = require('../../app/lib/gameStore.cjs');
 const L = require('../../app/lib/launcherState.cjs');
 const rd = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
@@ -381,7 +383,7 @@ test('DA13: which path a release takes - the channel for the same shell and gene
   assert.equal(G.routeFor({ seed, manifest: m, failed: ['0.1.10'] }).route, 'game');
   assert.equal(G.routeFor({ seed: null, manifest: m }).route, 'installer');
   // the release's game, as the release lists it - its own download links, and the pack's size
-  const base = 'https://github.com/Lattymoy/daggerfall-js-source/releases/download/app-v0.1.11/';
+  const base = RELEASES_URL + '/download/app-v0.1.11/';
   const rel = { assets: [{ name: G.GAME_FILES.manifest, size: 9, browser_download_url: base + G.GAME_FILES.manifest }, { name: G.GAME_FILES.pack, size: 99, browser_download_url: base + G.GAME_FILES.pack }] };
   assert.deepEqual(G.gameAssetsOf(rel), { manifest: base + G.GAME_FILES.manifest, pack: base + G.GAME_FILES.pack, packSize: 99 });
   assert.equal(G.gameAssetsOf({ assets: rel.assets.slice(0, 1) }), null, 'a release with no pack carries no game');
@@ -551,7 +553,7 @@ test('DA13: the release pipeline - one shell id, the bundled game indexed in eve
 });
 
 test('DA13: the release script\'s own commands, run - seed and pack from the environment\'s numbers, and delta exits 1 on a regressed update', () => {
-  const script = new URL('../../scripts/desktopRelease.mjs', import.meta.url).pathname;
+  const script = fileURLToPath(new URL('../../scripts/desktopRelease.mjs', import.meta.url));
   const node = (args, env = {}) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { ...process.env, ...env } });
   const root = tmp();
   try {

@@ -270,3 +270,16 @@ All Chromium switches go on before the app is ready.
 - Not seen on real hardware: a silent NSIS install and reopen on Windows, an AppImage swap, the macOS app.
 - Vulkan: the blank-window box over a truly blank window and the backdrop flip are not checked on a Windows GPU.
 - `LEGACY_DOWNLOAD_FILES` copies go once no copy older than the rename is left to ask for them.
+
+## 13.11 test channel
+
+The Windows test setup serves releases tagged `dfo-1311-v13.11.<patch>` in the private test repository. Setup passes a read credential to the launcher, which stores it with Windows encryption. The launcher uses the
+`DFO 13.11-test-medium` profile and chooses the newest published version of this channel. It plays the installed
+version when GitHub is unreachable. Daggerfall Unity distributes whole archives through its
+[installation page](https://github.com/Interkarma/daggerfall-unity/wiki/Installing-Daggerfall-Unity-Cross-Platform).
+This channel uses a bundled seed and the game's existing per-file update store.
+
+`tools/prepareTestUpdate.mjs` packages the shell and manifests from the test build stage. A full installation
+downloads the game archive in parts. When setup finds the issued client's archive, it checks the archive's hash and
+reuses it as the seed. Setup prepares the new client beside the selected folder before swapping it in. The previous
+folder remains available as a backup. Neither setup path moves the player's profile.

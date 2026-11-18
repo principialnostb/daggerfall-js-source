@@ -148,7 +148,7 @@ export function shadowCells(positions, indices, size) {
 export const SHADOW_CELL_SIZE = 16;
 
 export class StaticBatchBuilder {
-  /** @param {{ shadowCell?: number, shadowColumns?: number, pieces?: boolean, windows?: ((archive: number, record: number) => boolean) | null }} [opts] shadowCell: LA-AUDIT A1's cell side; 0 (the default)
+  /** @param {{ shadowCell?: number, shadowColumns?: number, viewCell?: number, pieces?: boolean, windows?: ((archive: number, record: number) => boolean) | null }} [opts] shadowCell: LA-AUDIT A1's cell side; 0 (the default)
    *  builds no cells. shadowColumns: a town pixel's shadow cells instead, columns of this side (shadowColumnSteps); 0
    *  builds none. pieces: RW1 - every merged sub-mesh also carries one sphere per model that went into it
    *  (`pieces`, [cx, cy, cz, r] each), so a window's glass measured on the screen is that model's, not the whole batch's

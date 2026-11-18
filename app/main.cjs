@@ -32,7 +32,7 @@
 
 'use strict';
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, net, session, shell, utilityProcess } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, net, session, shell, utilityProcess, safeStorage } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -53,8 +53,10 @@ const { backendLaunch, holdsVSync, watchBackend, backendOption, chooseBackend, r
 // rebrand is a name, not a migration. The folder keeps the name it was
 // created with, whatever the product is called on the outside.
 const PINNED_TEST_BUILD = app.isPackaged && fs.existsSync(path.join(__dirname, 'pinned-test-build.json'));
+const TEST_UPDATE_BUILD = app.isPackaged && fs.existsSync(path.join(__dirname, 'test-update-build.json'));
+const TEST_CONTENT_BUILD = PINNED_TEST_BUILD || TEST_UPDATE_BUILD;
 if (PINNED_TEST_BUILD) process.env.DAGGER_NO_UPDATE_CHECK = '1';
-if (PINNED_TEST_BUILD && !process.env.DAGGER_USER_DATA) app.setPath('userData', path.join(app.getPath('appData'), 'DFO 13.11-test-build'));
+if (TEST_CONTENT_BUILD && !process.env.DAGGER_USER_DATA) app.setPath('userData', path.join(app.getPath('appData'), TEST_UPDATE_BUILD ? 'DFO 13.11-test-medium' : 'DFO 13.11-test-build'));
 else if (process.env.DAGGER_USER_DATA) app.setPath('userData', process.env.DAGGER_USER_DATA);
 else app.setPath('userData', path.join(app.getPath('appData'), 'Daggerfall JavaScript Mod'));
 
@@ -132,7 +134,7 @@ app.on('second-instance', () => {
 // logoff there left no app at all. The install is under a hundred files now. Electron's fs and its file:// fetch both read
 // inside the archive (Electron 42: stat, readFile, net.fetch) - handleDagger is unchanged (test/da11_install_whole).
 const DIST = app.isPackaged
-  ? path.join(__dirname, 'dist')
+  ? (TEST_UPDATE_BUILD ? path.join(process.resourcesPath, 'game-seed.asar', 'dist') : path.join(__dirname, 'dist'))
   : path.join(__dirname, '..', 'dist');
 const CONFIG_FILE = () => path.join(app.getPath('userData'), 'config.json');
 
@@ -456,7 +458,7 @@ function handleDagger(req) {
     return new Response('bad request', { status: 400 });
   }
   if (url.host === 'launcher') return serveLauncherFile(parts);
-  if (PINNED_TEST_BUILD && url.host === 'game' && parts[0] === 'local-morrowind-loose') {
+  if (TEST_CONTENT_BUILD && url.host === 'game' && parts[0] === 'local-morrowind-loose') {
     const files = localMorrowindLooseFiles(loadConfig().morrowindPath);
     if (parts.length === 1) return new Response(JSON.stringify([...files.keys()]), {
       headers: { 'Content-Type': 'application/json' },
@@ -464,7 +466,7 @@ function handleDagger(req) {
     const file = files.get(parts.slice(1).join('/').toLowerCase());
     return file ? fileResponse(file, 'application/octet-stream') : new Response('not found', { status: 404 });
   }
-  if (PINNED_TEST_BUILD && url.host === 'game' && parts.length === 2 && parts[0] === 'local-morrowind') {
+  if (TEST_CONTENT_BUILD && url.host === 'game' && parts.length === 2 && parts[0] === 'local-morrowind') {
     const name = parts[1];
     const dir = loadConfig().morrowindPath;
     if (typeof dir === 'string' && /^(Morrowind|Tribunal|Bloodmoon)\.(bsa|esm)$/.test(name)) {
@@ -550,11 +552,18 @@ function handleDagger(req) {
 // check's own request - asked beside it at launch, under its two gates -
 // and its answer is kept in news.json, so the panel is never empty while
 // the next one is asked for, or when GitHub does not answer.
+const TEST_RELEASES = TEST_UPDATE_BUILD
+  ? require('./lib/testBuildAuth.cjs').privateTestChannel({
+    repository: require('./test-update-build.json').repository,
+    userData: app.getPath('userData'), net, safeStorage,
+  })
+  : null;
 const RELEASES_LATEST_API = 'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases/latest';
 const RELEASES_LIST_API = 'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases?per_page=20';
 const RELEASES_TAG_API = 'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases/tags/';   // + the hosting pin's tag (main's release, not the fork's)
-const RELEASES_PAGE = 'https://github.com/principialnostb/daggerfall-js-source/releases/latest';
+const RELEASES_PAGE = TEST_RELEASES?.page ?? 'https://github.com/principialnostb/daggerfall-js-source/releases/latest';
 const { isNewerRelease } = require('./lib/updateCheck.cjs');
+const { testRelease, testReleases, testReleaseDownload, testGameAssets, fetchTestPackRange } = require('./lib/testBuildUpdates.cjs');
 const { updateTransport } = require('./lib/autoUpdate.cjs');
 const { UNLOAD_ASK, leaves, restartAsk, reinstallAsk, installFailedAsk, goesAhead } = require('./lib/shellDialogs.cjs');
 const { goneAsk, restarts, hangAsk, restartsHung, createStopCount, goneLine, logWith } = require('./lib/rendererGone.cjs');   // FIELD BUGS 2026-10-21b RENDERER-GONE
@@ -595,6 +604,7 @@ const { POINTER_FILES, pointerFiles } = require('./lib/launcherPointer.cjs');
  *  over the live facts: packaged or not, the platform, and the portable
  *  launcher's own mark on its process. */
 function currentUpdateTransport() {
+  if (TEST_UPDATE_BUILD) return 'notice';
   return updateTransport({
     packaged: app.isPackaged,
     platform: process.platform,
@@ -746,12 +756,11 @@ function saveNews(items) {
  *  not answer. */
 async function fetchNews() {
   try {
-    const res = await net.fetch(RELEASES_LIST_API, {
-      headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(10000),
-    });
+    const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };
+    const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LIST_API, options));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const items = newsFrom(await res.json());
+    const releases = await res.json();
+    const items = newsFrom(TEST_UPDATE_BUILD ? testReleases(releases) : releases);
     saveNews(items);
     launcherDispatch({ type: 'news', items });
   } catch { launcherDispatch({ type: 'news-failed' }); }
@@ -834,6 +843,7 @@ let listedDownload = null;
  *  (REL5) - or the release page where there is no one file to name. BR5:
  *  the release's own link to it first, where one was read. */
 function ownDownloadUrl() {
+  if (TEST_UPDATE_BUILD) return listedDownload ?? RELEASES_PAGE;
   if (listedDownload) return listedDownload;
   const file = manualDownloadFile({ platform: process.platform, portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged });
   return file ? latestDownloadUrl(file) : RELEASES_PAGE;
@@ -1045,23 +1055,23 @@ async function checkForUpdatesViaUpdater() {
  *  (REL5), or the release page where there is no one file to name. */
 async function fetchLatestRelease() {
   try {
-    const res = await net.fetch(RELEASES_LATEST_API, {
-      headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(10000),
-    });
+    const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };
+    const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LATEST_API, options));
     if (!res.ok) return null;
-    const json = await res.json();
+    const data = await res.json();
+    const json = TEST_RELEASES ? testRelease(data) : data;
     const tag = typeof json?.tag_name === 'string' ? json.tag_name : null;
     const url = typeof json?.html_url === 'string' && /^https:\/\/github\.com\//.test(json.html_url)
       ? json.html_url : RELEASES_PAGE;
     const file = manualDownloadFile({ platform: process.platform, portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged });
     // BR5: the file as the release itself lists it, by its name or by the way it runs - a rename of the product reaches this copy
     const listed = file ? releaseAssetUrl(json, file) : null;
-    if (tag && listed) listedDownload = listed;
+    if (tag && TEST_RELEASES) listedDownload = testReleaseDownload(json, TEST_RELEASES.repository);
+    else if (tag && listed) listedDownload = listed;
     // DA13: and the release's game - its manifest and pack, as the release lists them (null on a release with none)
     // UPDATE-SWAP: and this copy's own file's size and sha256, which a swap's download must match (null where it is not listed)
     const asset = listed ? assetCheck(json.assets.find((a) => a?.browser_download_url === listed)) : null;
-    return tag ? { tag, url, download: file ? listed ?? latestDownloadUrl(file) : url, game: gameAssetsOf(json), asset, file } : null;
+    return tag ? { tag, url, download: TEST_RELEASES ? testReleaseDownload(json, TEST_RELEASES.repository) : file ? listed ?? latestDownloadUrl(file) : url, game: TEST_RELEASES ? testGameAssets(json, TEST_RELEASES.repository) : gameAssetsOf(json), asset, file } : null;
   } catch { return null; }
 }
 
@@ -1134,6 +1144,7 @@ async function checkForUpdates() {
 /** DA13: the channel's two requests - a release's game manifest and ranges of its pack - made only to GitHub's own
  *  download links for this repository's releases (lib/downloads.cjs RELEASES_URL). */
 function gameFetch(url, init) {
+  if (TEST_RELEASES) return TEST_RELEASES.asset(url, init);
   if (typeof url !== 'string' || !url.startsWith(`${RELEASES_URL}/download/`)) return Promise.reject(new Error('not one of this repository\'s release downloads'));
   return net.fetch(url, init);
 }
@@ -1222,7 +1233,9 @@ function downloadGame(manifest, packUrl) {
   const { version } = manifest;
   let told = false;
   gameStore.stage(manifest, {
-    fetchRange: (start, end) => fetchPackRange(packUrl, start, end),
+    fetchRange: (start, end) => TEST_UPDATE_BUILD
+      ? fetchTestPackRange(packUrl, start, end, fetchPackRange)
+      : fetchPackRange(packUrl, start, end),
     onProgress: ({ transferred, total }) => {
       if (!told) { told = true; launcherDispatch({ type: 'game-available', version, total }); }
       launcherDispatch({ type: 'progress', percent: total ? (100 * transferred) / total : 100, transferred, total });
@@ -2179,7 +2192,7 @@ let servingStore = null;   // the store dagger:// serves while a private server 
 /** The pinned release's game, fetched once into its own folder - or null when nothing is pinned or the app plays it. */
 async function hostingGame() {
   const { HOSTING_PIN } = require('./lib/hostingPin.cjs');
-  if (!HOSTING_PIN || !gameStore) return null;
+  if (TEST_UPDATE_BUILD || !HOSTING_PIN || !gameStore) return null;
   const version = versionOfTag(HOSTING_PIN);
   if (gameStore.version() === version) return null;
   hostingStore ??= openGameStore({ root: path.join(app.getPath('userData'), 'Hosting game'), seed: gameStore.seed, dist: DIST });

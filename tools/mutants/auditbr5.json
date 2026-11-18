@@ -93,8 +93,8 @@
   {
     "name": "AUDITBR5-the-notice-ignores-the-listing",
     "file": "app/main.cjs",
-    "old": "download: file ? listed ?? latestDownloadUrl(file) : url",
-    "new": "download: file ? latestDownloadUrl(file) : url",
+    "old": "download: TEST_RELEASES ? testReleaseDownload(json, TEST_RELEASES.repository) : file ? listed ?? latestDownloadUrl(file) : url",
+    "new": "download: TEST_RELEASES ? testReleaseDownload(json, TEST_RELEASES.repository) : file ? latestDownloadUrl(file) : url",
     "tests": [
       "test/tooling/da8_launcher.test.js"
     ],

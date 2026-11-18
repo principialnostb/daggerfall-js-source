@@ -688,16 +688,16 @@
   {
     "name": "AUDIT-INSTALL-R2-E-41-the-news-waits-on-a-silent-github-for-ever",
     "file": "app/main.cjs",
-    "old": "      signal: AbortSignal.timeout(10000),\n    });\n    if (!res.ok) throw new Error(`HTTP ${res.status}`);\n    const items = newsFrom(await res.json());",
-    "new": "    });\n    if (!res.ok) throw new Error(`HTTP ${res.status}`);\n    const items = newsFrom(await res.json());",
+    "old": "    const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };\n    const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LIST_API, options));",
+    "new": "    const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' } };\n    const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LIST_API, options));",
     "tests": ["test/tooling/audit_install2.test.js", "test/tooling/da10_launcher.test.js", "test/tooling/da8_launcher.test.js", "test/tooling/audit_install.test.js", "test/tooling/da9_arena2detect.test.js"],
     "note": "a GitHub that accepts and never answers keeps \"Loading the patch notes\" up for the whole session"
   },
   {
     "name": "AUDIT-INSTALL-R2-E-42-a-rate-limited-answer-wipes-the-kept-news",
     "file": "app/main.cjs",
-    "old": "    if (!res.ok) throw new Error(`HTTP ${res.status}`);\n    const items = newsFrom(await res.json());",
-    "new": "    const items = newsFrom(await res.json());",
+    "old": "    if (!res.ok) throw new Error(`HTTP ${res.status}`);\n    const releases = await res.json();\n    const items = newsFrom(TEST_UPDATE_BUILD ? testReleases(releases) : releases);",
+    "new": "    const releases = await res.json();\n    const items = newsFrom(TEST_UPDATE_BUILD ? testReleases(releases) : releases);",
     "tests": ["test/tooling/audit_install2.test.js", "test/tooling/da10_launcher.test.js", "test/tooling/da8_launcher.test.js", "test/tooling/audit_install.test.js", "test/tooling/da9_arena2detect.test.js"],
     "note": "a 403 rate limit ({ message }) becomes [] and is saved over news.json: the panel empties on a shared IP"
   },

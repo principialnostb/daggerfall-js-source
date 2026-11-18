@@ -1025,7 +1025,7 @@ async function attachLocalDesktopMorrowind() {
   for (const name of core) {
     if (stored.has(name.toLowerCase())) continue;
     const response = await fetch(base + name);
-    if (response.ok && (!localDev || response.headers.get('Content-Type') === 'application/octet-stream')) missing.push(new File([await response.blob()], name));
+    if (response.ok && (!localDev || response.headers.get('Content-Type') === 'application/octet-stream')) missing.push(new globalThis.File([await response.blob()], name));
   }
   if (!missing.length) return;
   await storeMorrowindFiles(missing);
@@ -1034,7 +1034,7 @@ async function attachLocalDesktopMorrowind() {
       const name = expansion + '.' + ext;
       if (stored.has(name.toLowerCase())) continue;
       const response = await fetch(base + name);
-      if (response.ok && (!localDev || response.headers.get('Content-Type') === 'application/octet-stream')) await storeMorrowindFiles([new File([await response.blob()], name)]);
+      if (response.ok && (!localDev || response.headers.get('Content-Type') === 'application/octet-stream')) await storeMorrowindFiles([new globalThis.File([await response.blob()], name)]);
     }
   }
 }

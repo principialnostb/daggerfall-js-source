@@ -57,6 +57,7 @@ writeFileSync(join(stage,'pinned-test-build.json'),JSON.stringify({release:'13.1
 const main = join(stage,'main.cjs');
 const shell = readFileSync(main,'utf8');
 if (!shell.includes("'DFO 13.11-test-build'")) throw new Error('Missing isolated profile anchor');
+if (process.argv.includes('--stage-for-updates')) process.exit(0);
 const saveSeed = "C:/Users/user/Desktop/Saves";
 for (const slot of ['SAVE0', 'SAVE2']) {
   mkdirSync(join(stage,'test-saves',slot),{recursive:true});
