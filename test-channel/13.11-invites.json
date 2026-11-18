@@ -12,5 +12,9 @@
     "hash": "afc54aee09751ddeb0cd28557f9459874e3bc2043be5fe59633f6d00d4274448",
     "label": "Test1",
     "revoked": true
+  },
+  {
+    "hash": "e69f28f46af8314eff3ca756a1075eeee132660ab5778ef2e7427c83c38f1b3d",
+    "label": "23213"
   }
 ]
