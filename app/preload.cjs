@@ -43,6 +43,7 @@ ipcRenderer.on('dagger:update-ready', (_e, info) => {
 });
 
 contextBridge.exposeInMainWorld('daggerShell', {
+  testEmc: process.argv.includes('--dfo-test-emc'),
   cosmeticsHost: (action, port) => ipcRenderer.invoke('dagger:cosmetics-host', action, port),
   // Enough identity for an about-line; never load-bearing.
   platform: process.platform,

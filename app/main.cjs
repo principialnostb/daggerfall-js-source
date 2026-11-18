@@ -154,7 +154,7 @@ const { openGameStore, loadSeed } = require('./lib/gameStore.cjs');
 const { switchesReadyGame } = require('./lib/readyGameSwitch.cjs');
 const { turnGpuCache } = require('./lib/gpuCacheTurn.cjs');
 const GAME_SEED = path.join(__dirname, 'game-seed.json');
-const GAME_ROOT = () => path.join(app.getPath('userData'), 'Game');
+const GAME_ROOT = () => path.join(app.getPath('userData'), TEST_UPDATE_BUILD && require('./test-update-build.json').public ? 'Game-public-1311' : 'Game');
 /** The game store, or null: an unpackaged run, a build cut without a release (it carries no seed), or a store that
  *  cannot be opened - the install's own copy is then the game, served from dist/ as it always was, and updates are
  *  the installer's. */
@@ -458,6 +458,7 @@ function handleDagger(req) {
     return new Response('bad request', { status: 400 });
   }
   if (url.host === 'launcher') return serveLauncherFile(parts);
+  if (TEST_EMC && url.host === 'game' && parts[0] === 'test-emc') return TEST_EMC.serve(parts);
   if (TEST_CONTENT_BUILD && url.host === 'game' && parts[0] === 'local-morrowind-loose') {
     const files = localMorrowindLooseFiles(loadConfig().morrowindPath);
     if (parts.length === 1) return new Response(JSON.stringify([...files.keys()]), {
@@ -552,12 +553,19 @@ function handleDagger(req) {
 // check's own request - asked beside it at launch, under its two gates -
 // and its answer is kept in news.json, so the panel is never empty while
 // the next one is asked for, or when GitHub does not answer.
-const TEST_RELEASES = TEST_UPDATE_BUILD
-  ? require('./lib/testBuildAuth.cjs').privateTestChannel({
-    repository: require('./test-update-build.json').repository,
-    userData: app.getPath('userData'), net, safeStorage,
+const TEST_CONFIG = TEST_UPDATE_BUILD ? require('./test-update-build.json') : null;
+const TEST_EMC = TEST_CONFIG?.public ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net) : null;
+const TEST_RELEASES = TEST_CONFIG?.public
+  ? require('./lib/publicTestChannel.cjs').publicTestChannel({
+    userData: app.getPath('userData'), net, safeStorage, emc: TEST_EMC,
+    clientId: TEST_CONFIG.clientId, openBrowser: (url) => shell.openExternal(url),
+    copy: (value) => require('electron').clipboard.writeText(value),
   })
-  : null;
+  : TEST_CONFIG
+    ? require('./lib/testBuildAuth.cjs').privateTestChannel({
+      repository: TEST_CONFIG.repository, userData: app.getPath('userData'), net, safeStorage,
+    })
+    : null;
 const RELEASES_LATEST_API = 'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases/latest';
 const RELEASES_LIST_API = 'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases?per_page=20';
 const RELEASES_TAG_API = 'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases/tags/';   // + the hosting pin's tag (main's release, not the fork's)
@@ -831,7 +839,7 @@ function installFailed() {
   const parent = gameWindow && !gameWindow.isDestroyed() ? gameWindow : null;
   const opts = installFailedAsk();
   (parent ? dialog.showMessageBox(parent, opts) : dialog.showMessageBox(opts))
-    .then(({ response }) => { if (goesAhead(response)) shell.openExternal(ownDownloadUrl()); });
+    .then(({ response }) => { if (goesAhead(response)) openTestSetupOrLink(ownDownloadUrl()); });
 }
 
 /** BR5: this copy's own download as the latest release last LISTED it
@@ -842,6 +850,30 @@ let listedDownload = null;
 /** This copy's own installer, the newest, by the name that never moves
  *  (REL5) - or the release page where there is no one file to name. BR5:
  *  the release's own link to it first, where one was read. */
+async function openTestSetupOrLink(url) {
+  if (TEST_RELEASES?.setupLink) {
+    try {
+      const link = await TEST_RELEASES.setupLink();
+      if (!link?.startsWith('https://github.com/' + TEST_RELEASES.repository + '/releases/download/')) throw new Error('Setup unavailable');
+      return shell.openExternal(link);
+    } catch {
+      return dialog.showMessageBox({ type: 'warning', message: 'Activate your test invitation before downloading Setup.' });
+    }
+  }
+  if (!TEST_RELEASES?.installSetup) return shell.openExternal(url);
+  try {
+    await TEST_RELEASES.installSetup(app.getPath('temp'), async () => {
+      const result = await dialog.showMessageBox({
+        type: 'question', message: 'Open the test installer?', buttons: ['Open Setup', 'Cancel'],
+        detail: 'Save your game and close the launcher before installing.', defaultId: 1, cancelId: 1,
+      });
+      return result.response === 0;
+    });
+  } catch {
+    await dialog.showMessageBox({ type: 'warning', message: 'Could not download Setup.', detail: 'Check your test access and try again.' });
+  }
+}
+
 function ownDownloadUrl() {
   if (TEST_UPDATE_BUILD) return listedDownload ?? RELEASES_PAGE;
   if (listedDownload) return listedDownload;
@@ -1131,7 +1163,7 @@ async function checkForUpdates() {
     defaultId: 0,
     cancelId: 1,
   });
-  if (response === 0) shell.openExternal(latest.download);
+  if (response === 0) openTestSetupOrLink(latest.download);
 }
 
 // ---- DA13: the game's own update, before the installer's -----------------
@@ -1472,7 +1504,7 @@ function buildMenu() {
         // DA8: the update the game was told of, one click away - installed now (the app reopens on
         // it), or downloaded as this copy's own file where it cannot install itself
         ...(updateReady ? [{ label: `Restart to Update (v${updateReady.version})`, click: () => restartToUpdate() }] : []),
-        ...(manualUpdate ? [{ label: `Download v${manualUpdate.version}...`, click: () => shell.openExternal(manualUpdate.download) }] : []),
+        ...(manualUpdate ? [{ label: `Download v${manualUpdate.version}...`, click: () => openTestSetupOrLink(manualUpdate.download) }] : []),
         {
           label: 'Check for Updates...',
           click: () => checkForUpdatesLoudly(),   // DA7: the loud path on either transport - DA13: the game's own channel first
@@ -1555,6 +1587,7 @@ async function createWindow({ onShown = null } = {}) {
     show: !onShown,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
+      additionalArguments: TEST_EMC ? ['--dfo-test-emc'] : [],
       contextIsolation: true,
       nodeIntegration: false,
       // sandbox off is the recorded tradeoff for the preload doing
@@ -1905,7 +1938,7 @@ function restartFromLauncher() {
 async function reinstallFromLauncher() {
   if (!launcher) return;
   const { response } = await launcherDialog(() => dialog.showMessageBox(launcher.win, reinstallAsk()));
-  if (goesAhead(response)) shell.openExternal(ownDownloadUrl());
+  if (goesAhead(response)) openTestSetupOrLink(ownDownloadUrl());
 }
 
 /** The handover: the game's window is built hidden, and at its first paint
@@ -2047,6 +2080,14 @@ async function runDirect(dir) {
 
 // The launcher's two words. Only ITS window is heard, and only these
 // actions; a link is a name from LAUNCHER_LINKS, never a URL from the page.
+ipcMain.handle('launcher:test-access', async (e, action, value) => {
+  if (!fromLauncher(e)) return null;
+  if (action === 'enabled') return TEST_CONFIG?.public ? (TEST_CONFIG.clientId ? 'public-browser' : 'public') : !!TEST_RELEASES?.action;
+  if (!TEST_RELEASES?.action || typeof action !== 'string' || (value !== undefined && (typeof value !== 'string' || value.length > (action === 'emc' ? 12000 : action === 'github-token' ? 512 : 80)))) return null;
+  const answer = await TEST_RELEASES.action(action, value);
+  if (answer?.role && (action === 'invite' || action === 'poll')) startLaunchCheck();
+  return answer;
+});
 ipcMain.on('launcher:ready', (e) => { if (fromLauncher(e)) renderLauncher(); });
 ipcMain.on('launcher:act', async (e, msg) => {
   if (!fromLauncher(e)) return;
@@ -2055,7 +2096,7 @@ ipcMain.on('launcher:act', async (e, msg) => {
   switch (action) {
     case 'play': launcherDispatch({ type: 'play' }); break;
     case 'play-now': stopStallWatch(); launcherDispatch({ type: 'play-now' }); break;
-    case 'download': if (st.update.download) shell.openExternal(st.update.download); break;
+    case 'download': if (st.update.download) openTestSetupOrLink(st.update.download); break;
     case 'skip-setup':
       if (reduce(st, { type: 'skip-setup' }).setup.status !== st.setup.status) {
         // the game's own picker, chosen at the first run: kept, so the next launch does not ask again. Chosen on the

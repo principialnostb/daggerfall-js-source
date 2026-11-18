@@ -14,8 +14,8 @@ const { GAME_CHANNEL, GAME_FILES, parseManifestFile, readSeed } = require('../ap
 const { PART_SIZE, packPartName } = require('../app/lib/testBuildUpdates.cjs');
 const baseVersion = '13.11.0';
 const root = resolve(import.meta.dirname, '..');
-const repository = 'principialnostb/dfo-13-11-test-releases';
-
+const publicBuild = process.env.DFO_TEST_PUBLIC === '1';
+const repository = publicBuild ? 'principialnostb/daggerfall-js-source' : 'principialnostb/dfo-13-11-test-releases';
 function seedFiles(tree, prefix = '') {
   return Object.entries(tree).flatMap(([name, entry]) => {
     const path = prefix + name;
@@ -71,8 +71,27 @@ function stageShell(build, shellRoot) {
   }
   const pkg = JSON.parse(readFileSync(join(build, 'package.json'), 'utf8'));
   writeFileSync(join(shellRoot, 'package.json'), JSON.stringify({ ...pkg, version: baseVersion }));
-  writeFileSync(join(shellRoot, 'test-update-build.json'), JSON.stringify({ repository }));
+  writeFileSync(join(shellRoot, 'test-update-build.json'), JSON.stringify({ repository, ...(publicBuild ? { public: true, clientId: process.env.DFO_TEST_GITHUB_CLIENT_ID } : {}) }));
   return shellId(shellRoot);
+}
+
+function requirePublicStage(build) {
+  if (publicBuild && !existsSync(join(build, 'public-test-stage'))) throw new Error('Build a public stage without bundled EMC first');
+}
+
+function legacySeed(archive) {
+  const marker = JSON.parse(asar.extractFile(archive, 'pinned-test-build.json'));
+  if (marker.release !== '13.11-test-medium') throw new Error('Expected the issued 13.11-test-medium client');
+  return seedFiles(asar.getRawHeader(archive).header.files.dist.files);
+}
+
+async function packPublicSeed(dist, work) {
+  const input = join(work, 'public-seed');
+  mkdirSync(input);
+  cpSync(dist, join(input, 'dist'), { recursive: true });
+  const archive = join(work, 'game-seed.asar');
+  await asar.createPackage(input, archive);
+  return archive;
 }
 
 async function prepare(legacyPath, buildPath, outputPath, version, mode, reusablePath) {
@@ -82,11 +101,10 @@ async function prepare(legacyPath, buildPath, outputPath, version, mode, reusabl
   const output = resolve(outputPath);
   if (existsSync(output)) throw new Error('Choose an unused output directory');
   const oldArchive = join(legacy, 'client/resources/app.asar');
-  const header = asar.getRawHeader(oldArchive).header;
-  const marker = JSON.parse(asar.extractFile(oldArchive, 'pinned-test-build.json'));
-  if (marker.release !== '13.11-test-medium') throw new Error('Expected the issued 13.11-test-medium client');
-  const files = seedFiles(header.files.dist.files);
   const dist = join(build, 'dist');
+  requirePublicStage(build);
+  if (publicBuild && mode === '--reuse-assets') throw new Error('Public builds require a fresh clean seed and game pack');
+  const files = publicBuild ? gameSeed(dist, { version: baseVersion, shell: 'a'.repeat(64) }).files : legacySeed(oldArchive);
   checkReleaseFiles(files.map((f) => f.path));
   checkReleaseFiles(gameFilesOf(dist));
   mkdirSync(output, { recursive: true });
@@ -105,7 +123,8 @@ async function prepare(legacyPath, buildPath, outputPath, version, mode, reusabl
     unpackDir: 'node_modules/{workerd,@cloudflare/workerd-*}',
   });
   if (mode === '--local') {
-    cpSync(oldArchive, join(client, 'resources/game-seed.asar'));
+    if (publicBuild) cpSync(await packPublicSeed(dist, work), join(client, 'resources/game-seed.asar'));
+    else cpSync(oldArchive, join(client, 'resources/game-seed.asar'));
     console.log(join(client, 'DFO Online Mod.exe'));
     return;
   }
@@ -115,11 +134,11 @@ async function prepare(legacyPath, buildPath, outputPath, version, mode, reusabl
   execFileSync(sevenZip, ['a', '-tzip', '-ssw', join(output, zip), '*'], { cwd: client, stdio: 'inherit' });
 
   const reusable = mode === '--reuse-assets' ? resolve(reusablePath) : null;
-  const seedArchive = await packSeed(legacy, files, work, output, reusable);
+  const seedArchive = publicBuild ? await packPublicSeed(dist, work) : await packSeed(legacy, files, work, output, reusable);
   const seed = await seedParts(seedArchive, output);
   await packReleaseGame(dist, work, output, { version, shell }, reusable);
   const tag = 'dfo-1311-v' + version;
-  const lines = [repository, tag, zip + ' ' + await digest(join(output, zip)), await digest(oldArchive), await digest(seedArchive), ...seed.map((p) => p.name + ' ' + p.sha256)];
+  const lines = [publicBuild ? 'public:' + repository : repository, tag, zip + ' ' + await digest(join(output, zip)), publicBuild ? '-' : await digest(oldArchive), await digest(seedArchive), ...seed.map((p) => p.name + ' ' + p.sha256)];
   const config = join(work, 'setup.txt');
   writeFileSync(config, lines.join('\n'));
   const compiler = join(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe');
@@ -174,7 +193,7 @@ async function seedParts(archive, output) {
 
 async function packReleaseGame(dist, work, output, { version, shell }, reusable) {
   if (reusable) {
-    const old = parseManifestFile(readFileSync(join(reusable, GAME_FILES.manifest)), { version });
+    const old = parseManifestFile(readFileSync(join(reusable, GAME_FILES.manifest)));
     const next = gameSeed(dist, { version, shell });
     const expected = new Map(next.files.map((file) => [file.path, file.sha256]));
     if (old.files.length !== next.files.length || old.files.some((file) => expected.get(file.path) !== file.sha256)) {
@@ -184,7 +203,7 @@ async function packReleaseGame(dist, work, output, { version, shell }, reusable)
       const name = packPartName(offset / PART_SIZE);
       linkSync(join(reusable, name), join(output, name));
     }
-    writeFileSync(join(output, GAME_FILES.manifest), gzipSync(Buffer.from(JSON.stringify({ ...old, shell }))));
+    writeFileSync(join(output, GAME_FILES.manifest), gzipSync(Buffer.from(JSON.stringify({ ...old, version, shell }))));
     return;
   }
   packGame(dist, work, { version, shell });
@@ -197,6 +216,7 @@ async function packOnly(buildPath, outputPath, version, previousPath) {
   const build = resolve(buildPath);
   const output = resolve(outputPath);
   const previous = parseManifestFile(readFileSync(previousPath));
+  requirePublicStage(build);
   checkReleaseFiles(gameFilesOf(join(build, 'dist')));
   mkdirSync(output);
   const work = mkdtempSync(join(resolve(output, '..'), 'pack-'));

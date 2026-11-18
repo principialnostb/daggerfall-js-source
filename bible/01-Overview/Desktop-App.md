@@ -283,3 +283,22 @@ This channel uses a bundled seed and the game's existing per-file update store.
 downloads the game archive in parts. When setup finds the issued client's archive, it checks the archive's hash and
 reuses it as the seed. Setup prepares the new client beside the selected folder before swapping it in. The previous
 folder remains available as a backup. Neither setup path moves the player's profile.
+
+### Public test client and private EMC
+
+The public Setup checks the invitation against the hashes in `test-channel/13.11-invites.json`.
+The launcher verifies that list before checking releases. The public release files remain directly accessible.
+The game can use the installed client when offline. The public channel has its own version store and shares the test profile.
+
+`DFO_TEST_PUBLIC=1` stages a clean client and packages a fresh seed. Public release builds exclude the optional
+`Mods/` resource globs in the client and worker builds. The open channel cannot reuse the issued private seed.
+Release artifacts are built from the public source checkout.
+
+Developers with write access to the source repository maintain the invitation list through the launcher.
+The developer credential stays in encrypted Windows storage. The EMC action copies the temporary GitHub download
+URL, package size and SHA-256 as one offer. A tester pastes the offer once. The launcher verifies the package and
+serves its files to the existing EMC resource loader on the next game launch. GitHub controls the URL lifetime.
+Anyone who receives the offer can use the URL while it is valid.
+
+Use `tools/prepareEmcOffer.mjs` with a staged directory containing only approved EMC files under `Mods/`.
+Upload its output to the private test release repository. One archive must be smaller than the GitHub asset limit.

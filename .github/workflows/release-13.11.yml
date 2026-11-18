@@ -3,9 +3,10 @@ name: 13.11 test client
 on:
   push:
     branches: [13.11-build]
+    paths-ignore: ['test-channel/13.11-invites.json']
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: dfo-13-11-client
@@ -16,7 +17,9 @@ jobs:
     if: github.repository == 'principialnostb/daggerfall-js-source'
     runs-on: windows-latest
     env:
-      RELEASE_REPO: principialnostb/dfo-13-11-test-releases
+      RELEASE_REPO: principialnostb/daggerfall-js-source
+      DFO_TEST_PUBLIC: 1
+      DFO_TEST_GITHUB_CLIENT_ID: ${{ vars.DFO_TEST_GITHUB_CLIENT_ID }}
       DFO_TEST_OUTPUT: app/release/workflow-13.11
     steps:
       - run: git config --global core.autocrlf false
@@ -28,15 +31,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Find the private channel and published setup
+      - name: Find the public channel and published setup
         id: setup
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.DFO_TEST_RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if (!$env:GH_TOKEN) { throw 'Configure DFO_TEST_RELEASE_TOKEN for the private release repository.' }
           $isPrivate = gh repo view $env:RELEASE_REPO --json isPrivate --jq .isPrivate
-          if ($LASTEXITCODE -or $isPrivate -ne 'true') { throw 'The release repository must be private.' }
+          if ($LASTEXITCODE -or $isPrivate -ne 'false') { throw 'The build must target the public source repository.' }
           $releases = gh release list --repo $env:RELEASE_REPO --limit 100 --exclude-drafts --exclude-pre-releases --json tagName | ConvertFrom-Json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $previous = $releases | Where-Object tagName -Match '^dfo-1311-v13\.11\.[1-9]\d*$' |
@@ -47,17 +49,9 @@ jobs:
           $patch = ([version] $tag.Substring(10)).Build + 1
           "version=13.11.$patch" >> $env:GITHUB_OUTPUT
           gh release download $tag --repo $env:RELEASE_REPO --pattern DFO-Online-game.json.gz --pattern DFO-13.11-Setup.exe --dir previous-13.11
-      - name: Check out the bundled mods
-        uses: actions/checkout@v4
-        with:
-          ref: d98d856365cb61c24108d03626a65f01bf804073
-          path: test-resources
-          lfs: true
-          persist-credentials: false
       - name: Check and stage the test client
         shell: pwsh
         run: |
-          Move-Item -LiteralPath test-resources/Mods -Destination Mods
           npm ci
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm ci --prefix app --ignore-scripts
@@ -66,7 +60,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm run types
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          node --test test/tooling/da13_gamechannel.test.js test/tooling/testBuildUpdates.test.js
+          node --test test/tooling/da13_gamechannel.test.js test/tooling/testBuildUpdates.test.js test/tooling/publicTestChannel.test.js
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node --max-old-space-size=8192 .build-13.11-test-medium.mjs --stage-for-updates
       - name: Pack the patch
@@ -77,14 +71,14 @@ jobs:
           node tools/prepareTestUpdate.mjs --game-only "$env:DFO_TEST_OUTPUT/stage" "$env:DFO_TEST_OUTPUT/assets" $env:VERSION previous-13.11/DFO-Online-game.json.gz
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Copy-Item -LiteralPath previous-13.11/DFO-13.11-Setup.exe -Destination "$env:DFO_TEST_OUTPUT/assets"
-      - name: Publish to the private repository
+      - name: Publish the public client
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.DFO_TEST_RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.setup.outputs.version }}
         run: |
           $isPrivate = gh repo view $env:RELEASE_REPO --json isPrivate --jq .isPrivate
-          if ($LASTEXITCODE -or $isPrivate -ne 'true') { throw 'The release repository must be private.' }
+          if ($LASTEXITCODE -or $isPrivate -ne 'false') { throw 'The build must target the public source repository.' }
           $tag = "dfo-1311-v$env:VERSION"
           gh release create $tag --repo $env:RELEASE_REPO --latest=false --draft --title "13.11 Test $env:VERSION" --notes "Test build from $env:GITHUB_SHA"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

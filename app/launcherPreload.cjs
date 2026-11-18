@@ -14,5 +14,6 @@ contextBridge.exposeInMainWorld('daggerLauncher', {
     ipcRenderer.on('launcher:view', (_e, view) => cb(view));
     ipcRenderer.send('launcher:ready');
   },
+  testAccess: (action, value) => ipcRenderer.invoke('launcher:test-access', action, value),
   act: (action, arg) => ipcRenderer.send('launcher:act', { action: String(action), arg: arg ?? null }),
 });

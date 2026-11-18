@@ -6,6 +6,7 @@ const records = new Map();
 const bundled = new Map();
 const registeredPatterns = new Set();
 let database, pending;
+const desktopPack = new Map();
 export let resourceError = '';
 export let resourcesChanged = false;
 const stateKey = 'enhanced-mod-groups-v1';
@@ -25,6 +26,7 @@ export const modResourceSignature = () => JSON.stringify([
   presentationRevision,
   Object.entries(disabled).filter(([,value])=>value===false).sort(),
   Object.entries(removed).filter(([,value])=>value===true).sort(),
+  [...desktopPack.keys()],
   [...records.values()].map(pack=>[pack.id,pack.revision||0]).sort(),
 ]);
 
@@ -35,6 +37,15 @@ export function setModGroupEnabled(id, enabled) { const next={...disabled,[id]:e
 export function initEnhancedModResources() {
   if (pending) return pending;
   pending=(async()=>{
+    if (globalThis.daggerShell?.testEmc) {
+      try {
+        const manifest = await fetch('dagger://game/test-emc', { cache: 'no-store' });
+        if (manifest.ok) {
+          const payload = await manifest.json();
+          payload.forEach((name, index) => desktopPack.set(name, 'dagger://game/test-emc/' + index));
+        }
+      } catch { /* Desktop resources are optional. */ }
+    }
     if (!globalThis.indexedDB) return;
     database=await new Promise((resolve,reject)=>{
       const request=indexedDB.open(DB,1);
@@ -80,11 +91,16 @@ export function modResourceGlob(patterns, original) {
     }
   }
   const result={...original};
-  for(const [path,url] of urls){
+  for(const [path,url] of [...desktopPack, ...urls]){
     const full=prefix+path;
     if(matchers.some(re=>re.test(full))){
       for(const key of Object.keys(result))if(key.toLowerCase()===full.toLowerCase())delete result[key];
       result[full]=url;
+      const pack = desktopPack.has(path) ? packForPath(full) : null;
+      if (pack) {
+        if (!bundled.has(pack.id)) bundled.set(pack.id, new Set());
+        bundled.get(pack.id).add(path.toLowerCase());
+      }
     }
   }
   for(const path of Object.keys(result)){

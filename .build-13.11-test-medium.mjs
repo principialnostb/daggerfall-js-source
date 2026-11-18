@@ -1,9 +1,11 @@
 import { build } from 'vite';
+import { resourceBuildPlugin } from './tools/buildCleanDesktop.mjs';
 import { build as bundleScript } from 'esbuild';
 import { cpSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 const root = process.cwd();
+const publicBuild = process.env.DFO_TEST_PUBLIC === '1';
 const kit = process.env.DFO_TEST_KIT;
 const release = resolve(process.env.DFO_TEST_OUTPUT ?? 'app/release-13.11-test-medium');
 const stage = join(release, 'stage');
@@ -45,7 +47,10 @@ await build({ ...config, configFile: false, root, plugins: [{
     }
     return source;
   },
-}, ...config.plugins], build: { ...config.build, outDir: dist } });
+}, ...(publicBuild ? [resourceBuildPlugin('none')] : []), ...config.plugins],
+  worker: publicBuild ? { ...config.worker, plugins: () => [resourceBuildPlugin('none'), ...(config.worker?.plugins?.() || [])] } : config.worker,
+  build: { ...config.build, outDir: dist } });
+if (publicBuild) writeFileSync(join(stage, 'public-test-stage'), '13.11\n');
 
 await bundleScript({ entryPoints: ['server/src/index.js'], outfile: join(dist,'private/relay.mjs'), bundle: true, format: 'esm', platform: 'neutral' });
 await bundleScript({ entryPoints: ['app/lib/privateHost.mjs'], outfile: join(stage,'private/host.mjs'), bundle: true, format: 'esm', platform: 'node', external: ['miniflare'] });

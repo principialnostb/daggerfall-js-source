@@ -407,3 +407,11 @@ body[data-launching] *, body[data-launching] *::before, body[data-launching] *::
 .plaque.pad-focus { border-color: var(--brass); }
 .play:not(:disabled).pad-focus { outline: none; background-image: linear-gradient(#ffd98a, #e0a43a 55%, #7d5a2e); }
 .address.pad-focus { border-color: var(--brass); }
+
+.test-access { width: min(490px, 90vw); max-height: 85vh; overflow: auto; padding: 24px; color: #f4ddb3; background: #211711; border: 1px solid #a98148; }
+.test-access::backdrop { background: #0c0907bd; }
+.test-access form, .test-access section { margin: 14px 0; }
+.test-access input { max-width: 100%; }
+.test-access img { vertical-align: middle; border-radius: 50%; }
+.test-access li { margin-block: 8px; }
+#test-status, .test-access input { user-select: text; }

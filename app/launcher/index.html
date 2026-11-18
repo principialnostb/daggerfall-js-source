@@ -5,7 +5,7 @@
   <!-- The shell's first window (app/lib/launcherState.cjs). It runs its own scripts and stylesheet and the fonts beside
        them, and nothing else: no remote request, no inline code. The one thing it can say to the shell is
        window.daggerLauncher (app/launcherPreload.cjs). The logo is the game's own file, served by the shell. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' https://avatars.githubusercontent.com">
   <title>DFO Online</title>
   <link rel="stylesheet" href="launcher.css">
 </head>
@@ -20,6 +20,7 @@
       <nav class="links" aria-label="Links">
         <button class="link" type="button" data-open="site"><i class="icon" data-icon="globe"></i>daggerfalljs.dev</button>
         <button class="link" type="button" data-open="discord"><i class="icon" data-icon="chat"></i>Discord</button>
+        <button id="test-open" class="plaque small" type="button" hidden><img id="test-badge" alt="" width="20" height="20" hidden> <span id="test-button-label">Test access</span></button>
         <button id="settings-open" class="plaque small" type="button" aria-controls="settings" aria-expanded="false" aria-haspopup="dialog"><i class="icon" data-icon="gear"></i>Settings</button>
       </nav>
     </header>
@@ -135,6 +136,38 @@
 
   <!-- The red glow and embers under the pointer (pointer.js): over everything, and never in the way of a click -->
   <canvas id="trail" class="trail" aria-hidden="true"></canvas>
+
+  <dialog id="test-dialog" aria-labelledby="test-heading" class="test-access">
+    <h2 id="test-heading">Test access</h2>
+    <p><img id="test-avatar" width="32" height="32" alt="" hidden> <span id="test-identity"></span></p>
+    <p id="test-status" role="status" aria-live="polite"></p>
+    <form id="test-github-token-form" hidden>
+      <label>GitHub credential · developers <input id="test-github-token" type="password" maxlength="512" autocomplete="off" required></label>
+      <button type="submit">Developer sign-in</button>
+    </form>
+    <button type="button" id="test-github">Sign in with GitHub · developers</button>
+    <form id="test-redeem">
+      <label>Invitation code <input id="test-code" required maxlength="48" autocomplete="off"></label>
+      <button type="submit">Use invitation</button>
+    </form>
+    <form id="test-emc-form" hidden>
+      <label>EMC download offer <input id="test-emc" maxlength="12000" autocomplete="off" required></label>
+      <button type="submit">Install EMC</button>
+    </form>
+    <section id="test-admin" hidden>
+      <h3>Testers</h3>
+      <button type="button" id="test-emc-link" hidden>Copy temporary EMC link</button>
+      <form id="test-create">
+        <label>Tester name <input id="test-label" required maxlength="80"></label>
+        <button type="submit">Create invitation</button>
+      </form>
+      <input id="test-issued" readonly aria-label="New invitation code" hidden>
+      <ul id="test-invites"></ul>
+    </section>
+    <button type="button" id="test-sign-out" hidden>Sign out</button>
+    <button type="button" id="test-close">Close</button>
+  </dialog>
+  <script src="test-access.js"></script>
 
   <script src="icons.js"></script>
   <script src="scene.js"></script>
