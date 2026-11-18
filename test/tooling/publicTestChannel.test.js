@@ -29,6 +29,7 @@ test('public invitations authorize updates and removal blocks the next release c
     } },
   });
   await assert.rejects(auth.releases(), /Activate/);
+  await assert.rejects(auth.action('invite', hash(code)), /Invalid invitation/);
   assert.deepEqual(await auth.action('invite', code), { role: 'tester', login: 'Tester' });
   assert.equal((await auth.releases()).status, 200);
   rows = [];
@@ -54,4 +55,27 @@ test('EMC download checks its digest before exposing a package on disk', async (
   assert.deepEqual(await store.serve(['test-emc']).json(), ['Mods/Bodies/Example/model.nif']);
   assert.equal(await store.serve(['test-emc', '0']).text(), 'model');
   assert.equal(store.serve(['test-emc', '../0']).status, 404);
+});
+
+test('a revoked invitation remains in the roster and its original hash is removed', async (t) => {
+  const root = profile(t);
+  const code = 'b'.repeat(48);
+  const id = hash(code);
+  let rows = [{ hash: id, label: 'Test player' }];
+  const auth = channel.publicTestChannel({
+    userData: root, safeStorage: { isEncryptionAvailable: () => false },
+    net: { fetch: async (url, options) => {
+      if (url.endsWith('/user')) return Response.json({ id: 1, login: 'owner' });
+      if (url.includes('/contents/') && options.method === 'PUT') {
+        rows = JSON.parse(Buffer.from(JSON.parse(options.body).content, 'base64').toString());
+        return Response.json({});
+      }
+      if (url.includes('/contents/')) return Response.json({ content: Buffer.from(JSON.stringify(rows)).toString('base64') });
+      return Response.json({ permissions: { push: true }, owner: { id: 1 } });
+    } },
+  });
+  await auth.action('github-token', 'test-token');
+  await auth.action('revoke', id);
+  assert.deepEqual(await auth.action('list'), [{ label: 'Test player', id: hash('revoked:' + id), revoked: true }]);
+  await assert.rejects(auth.action('invite', code), /Invitation unavailable/);
 });

@@ -555,14 +555,15 @@ function handleDagger(req) {
 // the next one is asked for, or when GitHub does not answer.
 const TEST_CONFIG = TEST_UPDATE_BUILD ? require('./test-update-build.json') : null;
 const TEST_EMC = TEST_CONFIG?.public ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net) : null;
-const TEST_RELEASES = TEST_CONFIG?.public
+const TEST_ACCESS = TEST_CONFIG
   ? require('./lib/publicTestChannel.cjs').publicTestChannel({
     userData: app.getPath('userData'), net, safeStorage, emc: TEST_EMC,
     clientId: TEST_CONFIG.clientId, openBrowser: (url) => shell.openExternal(url),
     copy: (value) => require('electron').clipboard.writeText(value),
   })
-  : TEST_CONFIG
-    ? require('./lib/testBuildAuth.cjs').privateTestChannel({
+  : null;
+const TEST_RELEASES = TEST_CONFIG?.public ? TEST_ACCESS
+  : TEST_CONFIG ? require('./lib/testBuildAuth.cjs').privateTestChannel({
       repository: TEST_CONFIG.repository, userData: app.getPath('userData'), net, safeStorage,
     })
     : null;
@@ -2082,10 +2083,11 @@ async function runDirect(dir) {
 // actions; a link is a name from LAUNCHER_LINKS, never a URL from the page.
 ipcMain.handle('launcher:test-access', async (e, action, value) => {
   if (!fromLauncher(e)) return null;
-  if (action === 'enabled') return TEST_CONFIG?.public ? (TEST_CONFIG.clientId ? 'public-browser' : 'public') : !!TEST_RELEASES?.action;
-  if (!TEST_RELEASES?.action || typeof action !== 'string' || (value !== undefined && (typeof value !== 'string' || value.length > (action === 'emc' ? 12000 : action === 'github-token' ? 512 : 80)))) return null;
-  const answer = await TEST_RELEASES.action(action, value);
-  if (answer?.role && (action === 'invite' || action === 'poll')) startLaunchCheck();
+  if (action === 'enabled') return TEST_ACCESS ? (TEST_EMC ? 'public' : 'developer') : false;
+  if (action === 'open-developer') return process.argv.includes('--dfo-open-developer');
+  if (!TEST_ACCESS?.action || typeof action !== 'string' || (value !== undefined && (typeof value !== 'string' || value.length > (action === 'emc' ? 12000 : action === 'github-token' ? 512 : 80)))) return null;
+  const answer = await TEST_ACCESS.action(action, value);
+  if (answer?.role && TEST_EMC && action === 'invite') startLaunchCheck();
   return answer;
 });
 ipcMain.on('launcher:ready', (e) => { if (fromLauncher(e)) renderLauncher(); });

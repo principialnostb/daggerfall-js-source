@@ -1,73 +1,128 @@
 (() => {
-  const bridge = window.daggerLauncher;
-  if (!bridge?.testAccess) return;
+  const call = window.daggerLauncher?.testAccess;
+  if (!call) return;
   const get = (id) => document.getElementById('test-' + id);
-  const call = bridge.testAccess;
-  let loginAttempt = 0;
-  const status = (text) => { get('status').textContent = text; };
-  async function list() {
-    const invites = await call('list');
-    get('invites').replaceChildren(...invites.map((invite) => {
-      const row = document.createElement('li');
-      const state = invite.active ? 'Active' : invite.revoked ? 'Revoked' : invite.activated ? 'Activated' : invite.expires * 1000 < Date.now() ? 'Expired' : 'Pending';
-      row.textContent = invite.label + ' · ' + state + (invite.creator ? ' · ' + invite.creator : '') + ' ';
-      if (invite.revoked) return row;
+  const admin = (profile) => ['owner', 'developer'].includes(profile?.role);
+  let mode, profile, rows = [], confirming, busy = false;
+  const status = (message) => { get('status').textContent = message; };
+  function display() {
+    const search = get('search').value.trim().toLowerCase();
+    const filter = get('filter').value;
+    const visible = rows.filter((item) => item.label.toLowerCase().includes(search) &&
+      (filter === 'all' || (filter === 'revoked') === item.revoked));
+    const active = rows.filter((item) => !item.revoked).length;
+    get('count').textContent = active + ' active · ' + (rows.length - active) + ' revoked';
+    get('empty').hidden = visible.length > 0;
+    get('invites').replaceChildren(...visible.map((item) => {
+      const row = document.createElement('tr');
+      row.insertCell().textContent = item.label;
+      const state = row.insertCell();
+      state.textContent = item.revoked ? 'Revoked' : 'Active';
+      state.className = item.revoked ? 'test-state revoked' : 'test-state';
+      const actions = document.createElement('div');
+      actions.className = 'test-row-actions';
+      row.insertCell().append(actions);
+      if (item.revoked) return row;
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = 'Revoke';
-      button.addEventListener('click', () => run(async () => { await call('revoke', invite.id); await list(); }));
-      row.append(button);
+      button.className = 'plaque small test-danger';
+      button.textContent = confirming === item.id ? 'Confirm revoke' : 'Revoke';
+      button.setAttribute('aria-label', button.textContent + ' · ' + item.label);
+      button.addEventListener('click', () => {
+        if (confirming !== item.id) {
+          confirming = item.id;
+          display();
+          get('invites').querySelector('[data-confirm]')?.focus();
+          return;
+        }
+        run(async () => {
+          await call('revoke', item.id);
+          status('Access revoked for ' + item.label + '.');
+          await list();
+        });
+      });
+      actions.append(button);
+      if (confirming === item.id) {
+        button.dataset.confirm = '';
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'plaque small';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', () => { confirming = null; display(); });
+        actions.append(cancel);
+      }
       return row;
     }));
   }
+  async function list() {
+    rows = await call('list');
+    confirming = null;
+    display();
+  }
   function draw(value) {
-    get('button-label').textContent = value?.login ?? 'Test access';
-    get('badge').hidden = !value?.avatar;
-    if (value?.avatar) get('badge').src = value.avatar;
-    else get('badge').removeAttribute('src');
+    profile = value;
+    const developer = admin(value);
+    get('heading').textContent = developer ? 'Test channel' : 'Test access';
+    get('button-label').textContent = developer ? 'Test channel' : value?.login ?? 'Test access';
+    get('account').hidden = !value;
+    for (const image of [get('avatar'), get('badge')]) {
+      image.hidden = !value?.avatar;
+      if (value?.avatar) image.src = value.avatar;
+      else image.removeAttribute('src');
+    }
     get('identity').textContent = value ? value.login + ' · ' + value.role : '';
-    get('avatar').hidden = !value?.avatar;
-    if (value?.avatar) get('avatar').src = value.avatar;
-    else get('avatar').removeAttribute('src');
+    get('login').hidden = !!value;
+    get('redeem').hidden = mode !== 'public';
+    get('admin').hidden = !developer;
+    get('emc-form').hidden = mode !== 'public' || value?.role !== 'tester';
     get('sign-out').hidden = !value;
-    get('admin').hidden = !['owner', 'developer'].includes(value?.role);
   }
   async function run(work) {
-    try { await work(); } catch { status('The request failed. Check your access and try again.'); }
+    if (busy) return;
+    busy = true;
+    try { await work(); }
+    catch { status('Request failed. Check your connection and access, then try again.'); }
+    finally { busy = false; }
+  }
+  async function signIn() {
+    status('Confirm your GitHub account in the browser if prompted.');
+    draw(await call('github-login'));
+    status('');
+    await list();
   }
   function opened() {
     get('dialog').showModal();
     status('');
     run(async () => {
       draw(await call('profile'));
-      if (!get('admin').hidden) await list();
+      if (admin(profile)) await list();
     });
   }
+  function formState(show) {
+    get('create').hidden = !show;
+    get('new').setAttribute('aria-expanded', String(show));
+    if (show) get('label').focus();
+  }
+  function tab(testers) {
+    get('tab-testers').setAttribute('aria-pressed', String(testers));
+    get('tab-emc').setAttribute('aria-pressed', String(!testers));
+    get('testers').hidden = !testers;
+    get('package').hidden = testers;
+    status('');
+  }
   get('open').addEventListener('click', opened);
-  get('dialog').addEventListener('close', () => { loginAttempt++; });
   get('close').addEventListener('click', () => get('dialog').close());
-  get('github').addEventListener('click', () => run(async () => {
-    const attempt = ++loginAttempt;
-    const flow = await call('github');
-    if (attempt !== loginAttempt) return;
-    status('Enter this code on GitHub: ' + flow.code);
-    let interval = flow.interval;
-    while (attempt === loginAttempt) {
-      await new Promise((resolve) => setTimeout(resolve, interval * 1000));
-      if (attempt !== loginAttempt) return;
-      const result = await call('poll');
-      if (attempt !== loginAttempt || !result) return;
-      if (result.pending) { interval = result.interval; continue; }
-      draw(result);
-      await list();
-      status('Signed in.');
-      break;
-    }
-  }));
+  get('github').addEventListener('click', () => run(signIn));
+  get('tab-testers').addEventListener('click', () => tab(true));
+  get('tab-emc').addEventListener('click', () => tab(false));
+  get('search').addEventListener('input', display);
+  get('filter').addEventListener('change', display);
+  get('refresh').addEventListener('click', () => run(async () => { await list(); status('List refreshed.'); }));
+  get('new').addEventListener('click', () => formState(get('create').hidden));
+  get('cancel-create').addEventListener('click', () => { formState(false); get('new').focus(); });
   get('redeem').addEventListener('submit', (event) => {
     event.preventDefault();
     run(async () => {
-      loginAttempt++;
       draw(await call('invite', get('code').value.trim()));
       get('code').value = '';
       status('Invitation activated.');
@@ -76,38 +131,39 @@
   get('create').addEventListener('submit', (event) => {
     event.preventDefault();
     run(async () => {
-      const result = await call('create', get('label').value.trim());
+      const label = get('label').value.trim();
+      if (!label) { get('label').focus(); return; }
+      const result = await call('create', label);
       get('label').value = '';
+      formState(false);
       get('issued').value = result.code;
-      get('issued').hidden = false;
-      get('issued').select();
+      get('issued-row').hidden = false;
+      get('copy').focus();
+      status('Invitation created for ' + label + '.');
       await list();
     });
   });
+  get('copy').addEventListener('click', () => run(async () => {
+    await call('copy-invite', get('issued').value);
+    status('Invitation copied.');
+  }));
   get('sign-out').addEventListener('click', () => run(async () => {
-    loginAttempt++;
     await call('sign-out');
     draw(null);
+    rows = [];
+    confirming = null;
     get('issued').value = '';
-    get('issued').hidden = true;
+    get('issued-row').hidden = true;
+    formState(false);
+    tab(true);
     status('Signed out.');
   }));
-  get('github-token-form').addEventListener('submit', (event) => {
-    event.preventDefault();
-    run(async () => {
-      const token = get('github-token').value;
-      get('github-token').value = '';
-      draw(await call('github-token', token));
-      await list();
-    });
-  });
   get('emc-form').addEventListener('submit', (event) => {
     event.preventDefault();
     run(async () => {
-      const offer = get('emc').value;
-      get('emc').value = '';
       status('Downloading EMC…');
-      const installed = await call('emc', offer);
+      const installed = await call('emc', get('emc').value.trim());
+      get('emc').value = '';
       status('Installed ' + installed.files + ' EMC files. Restart the game to use them.');
     });
   });
@@ -116,12 +172,12 @@
     status('Temporary EMC offer copied.');
   }));
   call('enabled').then(async (enabled) => {
-    const publicChannel = typeof enabled === 'string' && enabled.startsWith('public');
-    get('github').hidden = enabled !== 'public-browser';
-    get('github-token-form').hidden = !publicChannel;
-    get('emc-form').hidden = !publicChannel;
-    get('emc-link').hidden = !publicChannel;
+    mode = enabled;
     get('open').hidden = !enabled;
-    if (enabled) draw(await call('profile'));
+    if (!enabled) return;
+    if (await call('open-developer')) {
+      get('dialog').showModal();
+      await run(signIn);
+    } else draw(await call('profile'));
   }).catch(() => {});
 })();

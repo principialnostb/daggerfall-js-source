@@ -138,34 +138,56 @@
   <canvas id="trail" class="trail" aria-hidden="true"></canvas>
 
   <dialog id="test-dialog" aria-labelledby="test-heading" class="test-access">
-    <h2 id="test-heading">Test access</h2>
-    <p><img id="test-avatar" width="32" height="32" alt="" hidden> <span id="test-identity"></span></p>
-    <p id="test-status" role="status" aria-live="polite"></p>
-    <form id="test-github-token-form" hidden>
-      <label>GitHub credential · developers <input id="test-github-token" type="password" maxlength="512" autocomplete="off" required></label>
-      <button type="submit">Developer sign-in</button>
-    </form>
-    <button type="button" id="test-github">Sign in with GitHub · developers</button>
-    <form id="test-redeem">
-      <label>Invitation code <input id="test-code" required maxlength="48" autocomplete="off"></label>
-      <button type="submit">Use invitation</button>
-    </form>
-    <form id="test-emc-form" hidden>
-      <label>EMC download offer <input id="test-emc" maxlength="12000" autocomplete="off" required></label>
-      <button type="submit">Install EMC</button>
-    </form>
-    <section id="test-admin" hidden>
-      <h3>Testers</h3>
-      <button type="button" id="test-emc-link" hidden>Copy temporary EMC link</button>
-      <form id="test-create">
-        <label>Tester name <input id="test-label" required maxlength="80"></label>
-        <button type="submit">Create invitation</button>
+    <header class="test-head">
+      <div><h2 id="test-heading">Test access</h2><div id="test-account" class="test-account" hidden><img id="test-avatar" width="24" height="24" alt="" hidden> <span id="test-identity"></span></div></div>
+      <button type="button" id="test-close" class="plaque small">Close</button>
+    </header>
+    <div class="test-body">
+      <div id="test-login">
+        <button type="button" id="test-github" class="plaque primary">Sign in with GitHub</button>
+        <form id="test-redeem" class="test-field">
+          <label for="test-code">Test invitation</label>
+          <div class="test-inline"><input id="test-code" required maxlength="48" autocomplete="off"><button class="plaque" type="submit">Activate</button></div>
+        </form>
+      </div>
+      <section id="test-admin" hidden>
+        <nav class="test-tabs" aria-label="Test management">
+          <button id="test-tab-testers" type="button" aria-pressed="true">Testers</button>
+          <button id="test-tab-emc" type="button" aria-pressed="false">EMC package</button>
+        </nav>
+        <div id="test-testers">
+          <div class="test-toolbar">
+            <input id="test-search" type="search" placeholder="Search testers" aria-label="Search testers">
+            <select id="test-filter" aria-label="Access status"><option value="active">Active</option><option value="all">All</option><option value="revoked">Revoked</option></select>
+            <button id="test-refresh" class="plaque small" type="button">Refresh</button>
+            <button id="test-new" class="plaque small primary" type="button" aria-expanded="false">New invitation</button>
+          </div>
+          <form id="test-create" class="test-field" hidden>
+            <label for="test-label">Tester label <small>Visible in the public list. Use a nickname.</small></label>
+            <div class="test-inline"><input id="test-label" required maxlength="80" autocomplete="off"><button class="plaque small primary" type="submit">Create</button><button id="test-cancel-create" class="plaque small" type="button">Cancel</button></div>
+          </form>
+          <div id="test-issued-row" class="test-field" hidden>
+            <label for="test-issued">Invitation for the tester</label>
+            <div class="test-inline"><input id="test-issued" readonly><button id="test-copy" type="button" class="plaque small">Copy code</button></div>
+          </div>
+          <div class="test-roster">
+            <table><thead><tr><th scope="col">Tester</th><th scope="col">Invitation</th><th scope="col"><span class="test-sr">Actions</span></th></tr></thead><tbody id="test-invites"></tbody></table>
+            <p id="test-empty" hidden>No invitations match this view.</p>
+          </div>
+          <p id="test-count" class="test-count"></p>
+        </div>
+        <section id="test-package" hidden>
+          <h3>Private EMC package</h3>
+          <p>Copy a temporary download offer and send it to a tester. The offer includes the link and the package checksum.</p>
+          <button type="button" id="test-emc-link" class="plaque primary">Copy temporary offer</button>
+        </section>
+      </section>
+      <form id="test-emc-form" class="test-field" hidden>
+        <label for="test-emc">EMC download offer</label>
+        <div class="test-inline"><input id="test-emc" maxlength="12000" autocomplete="off" required><button class="plaque" type="submit">Install EMC</button></div>
       </form>
-      <input id="test-issued" readonly aria-label="New invitation code" hidden>
-      <ul id="test-invites"></ul>
-    </section>
-    <button type="button" id="test-sign-out" hidden>Sign out</button>
-    <button type="button" id="test-close">Close</button>
+    </div>
+    <footer class="test-footer"><p id="test-status" role="status" aria-live="polite"></p><button type="button" id="test-sign-out" class="plaque small" hidden>Sign out</button></footer>
   </dialog>
   <script src="test-access.js"></script>
 

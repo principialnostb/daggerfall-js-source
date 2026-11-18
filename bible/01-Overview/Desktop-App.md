@@ -286,7 +286,7 @@ folder remains available as a backup. Neither setup path moves the player's prof
 
 ### Public test client and private EMC
 
-The public Setup checks the invitation against the hashes in `test-channel/13.11-invites.json`.
+The public Setup offers GitHub sign-in for developers and checks tester invitations against the hashes in `test-channel/13.11-invites.json`.
 The launcher verifies that list before checking releases. The public release files remain directly accessible.
 The game can use the installed client when offline. The public channel has its own version store and shares the test profile.
 
@@ -295,7 +295,9 @@ The game can use the installed client when offline. The public channel has its o
 Release artifacts are built from the public source checkout.
 
 Developers with write access to the source repository maintain the invitation list through the launcher.
-The developer credential stays in encrypted Windows storage. The EMC action copies the temporary GitHub download
+The Test channel panel lists active and revoked invitations. Revoking an invitation replaces its public hash and
+retains the tester label for the revoked view. The EMC package is managed in a separate tab.
+Git Credential Manager handles developer sign-in. The launcher stores the credential in encrypted Windows storage. The EMC action copies the temporary GitHub download
 URL, package size and SHA-256 as one offer. A tester pastes the offer once. The launcher verifies the package and
 serves its files to the existing EMC resource loader on the next game launch. GitHub controls the URL lifetime.
 Anyone who receives the offer can use the URL while it is valid.

@@ -142,7 +142,7 @@ async function prepare(legacyPath, buildPath, outputPath, version, mode, reusabl
   const config = join(work, 'setup.txt');
   writeFileSync(config, lines.join('\n'));
   const compiler = join(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe');
-  execFileSync(compiler, ['/nologo', '/codepage:65001', '/target:winexe', '/reference:System.IO.Compression.dll', '/reference:System.IO.Compression.FileSystem.dll', '/reference:System.Web.Extensions.dll', '/out:' + join(output, 'DFO-13.11-Setup.exe'), '/resource:' + config + ',setup.txt', join(root, 'tools/testUpdateSetup.cs')], { stdio: 'inherit' });
+  execFileSync(compiler, ['/nologo', '/codepage:65001', '/target:winexe', '/reference:System.IO.Compression.dll', '/reference:System.IO.Compression.FileSystem.dll', '/reference:System.Web.Extensions.dll', '/reference:System.Drawing.dll', '/out:' + join(output, 'DFO-13.11-Setup.exe'), '/resource:' + config + ',setup.txt', join(root, 'tools/testUpdateSetup.cs')], { stdio: 'inherit' });
   console.log(tag, output);
 }
 

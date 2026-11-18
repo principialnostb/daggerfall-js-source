@@ -175,34 +175,79 @@ internal static class TestUpdateSetup
     private static string AskAccess()
     {
         using (var window = new Form())
-        using (var prompt = new Label())
+        using (var heading = new Label())
+        using (var description = new Label())
+        using (var label = new Label())
         using (var input = new TextBox())
         using (var github = new Button())
-        using (var invite = new Button())
+        using (var next = new Button())
+        using (var cancel = new Button())
         {
-            window.Text = "DFO 13.11 Test Access";
-            window.Width = 440;
-            window.Height = 165;
+            window.Text = "DFO Online 13.11 Setup";
+            window.ClientSize = new System.Drawing.Size(510, 258);
+            window.Font = System.Drawing.SystemFonts.MessageBoxFont;
+            window.FormBorderStyle = FormBorderStyle.FixedDialog;
             window.StartPosition = FormStartPosition.CenterScreen;
-            prompt.Text = "Tester invitation code";
-            prompt.Dock = DockStyle.Top;
+            window.MaximizeBox = false;
+            window.MinimizeBox = false;
+            heading.Text = "Choose your test access";
+            heading.Font = new System.Drawing.Font(window.Font.FontFamily, 16, System.Drawing.FontStyle.Bold);
+            heading.SetBounds(22, 18, 470, 32);
+            description.Text = "Testers enter the invitation from a developer. Developers sign in with GitHub. Setup then downloads and installs the client.";
+            description.SetBounds(23, 55, 460, 46);
+            label.Text = "Test invitation code";
+            label.SetBounds(23, 109, 460, 19);
+            input.SetBounds(23, 131, 460, 28);
             input.MaxLength = 48;
-            input.Dock = DockStyle.Top;
-            github.Text = "Sign in with GitHub · developers";
+            github.Text = "Sign in with GitHub";
+            github.SetBounds(23, 177, 160, 30);
             github.DialogResult = DialogResult.Yes;
-            github.Dock = DockStyle.Bottom;
-            invite.Text = "Use invitation";
-            invite.DialogResult = DialogResult.OK;
-            invite.Dock = DockStyle.Bottom;
-            window.AcceptButton = invite;
-            window.Controls.Add(input);
-            window.Controls.Add(prompt);
-            window.Controls.Add(github);
-            window.Controls.Add(invite);
+            next.Text = "Next >";
+            next.SetBounds(318, 213, 78, 29);
+            next.Enabled = false;
+            next.DialogResult = DialogResult.OK;
+            input.TextChanged += delegate { next.Enabled = input.Text.Trim().Length == 48; };
+            cancel.Text = "Cancel";
+            cancel.SetBounds(405, 213, 78, 29);
+            cancel.DialogResult = DialogResult.Cancel;
+            window.AcceptButton = next;
+            window.CancelButton = cancel;
+            window.Controls.AddRange(new Control[] { heading, description, label, input, github, next, cancel });
             var result = window.ShowDialog();
             return result == DialogResult.Yes ? "github" : result == DialogResult.OK ? input.Text.Trim() : null;
         }
     }
+
+    private static void VerifyDeveloper()
+    {
+        var git = new ProcessStartInfo("git", "-c credential.gitHubAuthModes=browser credential-manager get");
+        git.UseShellExecute = false;
+        git.CreateNoWindow = true;
+        git.RedirectStandardInput = true;
+        git.RedirectStandardOutput = true;
+        git.EnvironmentVariables["GCM_INTERACTIVE"] = "always";
+        git.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
+        using (var process = Process.Start(git))
+        {
+            process.StandardInput.Write("protocol=https\nhost=github.com\n\n");
+            process.StandardInput.Close();
+            var text = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            var token = System.Text.RegularExpressions.Regex.Match(text, "^password=([^\\r\\n]+)", System.Text.RegularExpressions.RegexOptions.Multiline);
+            if (process.ExitCode != 0 || !token.Success) throw new IOException("GitHub sign-in failed.");
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            using (var web = GitHub(token.Groups[1].Value, "application/vnd.github+json"))
+            {
+                var response = web.DownloadString("https://api.github.com/repos/principialnostb/daggerfall-js-source");
+                var repository = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(response);
+                object permission;
+                var permissions = (Dictionary<string, object>)repository["permissions"];
+                if (!permissions.TryGetValue("push", out permission) || !Equals(permission, true))
+                    throw new IOException("The GitHub account needs write access to 13.11-build.");
+            }
+        }
+    }
+
 
     private static Dictionary<string, object> Post(string service, string path, object body)
     {
@@ -282,9 +327,10 @@ internal static class TestUpdateSetup
         }
     }
 
-    private static void OpenLauncher(string folder, string token, bool service, string inviteHash)
+    private static void OpenLauncher(string folder, string token, bool service, string inviteHash, bool developer)
     {
         var info = new ProcessStartInfo(Path.Combine(folder, "DFO Online Mod.exe"));
+        if (developer) info.Arguments = "--dfo-open-developer";
         info.WorkingDirectory = folder;
         info.UseShellExecute = false;
         if (inviteHash != null) info.EnvironmentVariables["DFO_1311_PUBLIC_INVITE_HASH"] = inviteHash;
@@ -302,16 +348,17 @@ internal static class TestUpdateSetup
         }
 
         Application.EnableVisualStyles();
+        var service = InstallSource();
+        var publicInstall = service != null && service.StartsWith("public:", StringComparison.Ordinal);
+        var inherited = Environment.GetEnvironmentVariable("DFO_1311_SETUP_SESSION");
+        Environment.SetEnvironmentVariable("DFO_1311_SETUP_SESSION", null);
+        var access = publicInstall ? AskAccess() : service == null ? AskToken(false) : inherited ?? AskAccess();
+        if (String.IsNullOrWhiteSpace(access)) return 0;
+
         using (var folder = new FolderBrowserDialog())
         {
             folder.Description = "Choose the DFO 13.11 client folder or an empty folder for a new installation.";
             if (folder.ShowDialog() != DialogResult.OK) return 0;
-            var service = InstallSource();
-            var publicInstall = service != null && service.StartsWith("public:", StringComparison.Ordinal);
-            var inherited = Environment.GetEnvironmentVariable("DFO_1311_SETUP_SESSION");
-            Environment.SetEnvironmentVariable("DFO_1311_SETUP_SESSION", null);
-            var access = publicInstall ? AskToken(true) : service == null ? AskToken(false) : inherited ?? AskAccess();
-            if (String.IsNullOrWhiteSpace(access)) return 0;
             var token = access;
             var authenticated = service == null || (!publicInstall && inherited != null);
             string inviteHash = null;
@@ -322,12 +369,12 @@ internal static class TestUpdateSetup
             {
                 window.Text = "DFO 13.11 Setup";
                 window.Width = 460;
-                window.Height = 135;
+                window.Height = 169;
                 window.StartPosition = FormStartPosition.CenterScreen;
                 window.ControlBox = false;
                 message.Dock = DockStyle.Top;
-                message.Height = 38;
-                message.Text = "Checking the selected folder…";
+                message.Height = 63;
+                message.Text = "Preparing DFO Online…\n" + folder.SelectedPath;
                 progress.Style = ProgressBarStyle.Marquee;
                 progress.Dock = DockStyle.Bottom;
                 window.Controls.Add(message);
@@ -340,7 +387,7 @@ internal static class TestUpdateSetup
                     };
                     if (!authenticated)
                     {
-                        if (publicInstall) { inviteHash = CheckInvite(access); token = null; }
+                        if (publicInstall) { if (access == "github") VerifyDeveloper(); else inviteHash = CheckInvite(access); token = null; }
                         else token = Authorize(service, access, status);
                         authenticated = true;
                     }
@@ -359,7 +406,7 @@ internal static class TestUpdateSetup
                         ? "Installation complete. The launcher will open now."
                         : result.Error.Message, window.Text, MessageBoxButtons.OK,
                         result.Error == null ? MessageBoxIcon.Information : MessageBoxIcon.Error);
-                    if (result.Error == null) OpenLauncher((string)result.Result, token, service != null, inviteHash);
+                    if (result.Error == null) OpenLauncher((string)result.Result, token, service != null, inviteHash, publicInstall && access == "github");
                     window.DialogResult = result.Error == null ? DialogResult.OK : DialogResult.Abort;
                 };
                 window.Shown += delegate { worker.RunWorkerAsync(); };

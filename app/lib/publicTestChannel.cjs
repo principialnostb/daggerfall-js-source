@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const { spawn } = require('node:child_process');
 const path = require('node:path');
 const { createHash, randomBytes } = require('node:crypto');
 const { testApi, testRelease } = require('./testBuildUpdates.cjs');
@@ -13,6 +14,26 @@ const rosterEndpoint = '/repos/' + repository + '/contents/' + rosterPath;
 const privateRepo = 'principialnostb/dfo-13-11-test-releases';
 const hashCode = (value) => createHash('sha256').update(value).digest('hex');
 const absent = (e) => e.code === 'ENOENT';
+
+function githubCredential() {
+  return new Promise((resolve, reject) => {
+    const child = spawn('git', ['-c', 'credential.gitHubAuthModes=browser', 'credential-manager', 'get'], {
+      windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'always' },
+      signal: AbortSignal.timeout(5 * 60 * 1000),
+    });
+    let stdout = '';
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.once('error', () => reject(new Error('Git for Windows with Git Credential Manager is required for developer sign-in')));
+    child.stdin.on('error', () => {});
+    child.once('close', (code) => {
+      const token = /^password=([^\r\n]+)/m.exec(stdout)?.[1];
+      if (code || !token) reject(new Error('GitHub sign-in was cancelled or failed'));
+      else resolve(token);
+    });
+    child.stdin.end('protocol=https\nhost=github.com\n\n');
+  });
+}
 
 function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, openBrowser }) {
   const api = testApi(repository);
@@ -61,13 +82,15 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     }
     invite ??= read(inviteFile);
     if (!invite) return false;
-    online ??= await roster().then(({ rows }) => rows.some((row) => row.hash === invite));
+    online ??= await roster().then(({ rows }) => rows.some((row) => !row.revoked && row.hash === invite));
     return online;
   }
 
   async function authorizeUpdate() {
     // Recheck for every release lookup so an already open launcher also sees a revocation.
     online = null;
+    const token = adminToken();
+    if (token && await adminProfile(token)) { online = true; return; }
     if (!await member()) throw new Error('Activate a test invitation first');
   }
 
@@ -104,6 +127,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   }
 
   async function action(name, value) {
+    if (name === 'github-login') return action('github-token', await githubCredential());
     if (name === 'github' && clientId) {
       const flow = await device('device/code');
       if (!flow.device_code || !flow.user_code) throw new Error('GitHub sign-in unavailable');
@@ -124,7 +148,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       const code = value?.trim();
       if (!/^[0-9a-f]{48}$/.test(code)) throw new Error('Invalid invitation');
       const digest = hashCode(code);
-      if (!(await roster()).rows.some((row) => row.hash === digest)) throw new Error('Invitation unavailable');
+      if (!(await roster()).rows.some((row) => !row.revoked && row.hash === digest)) throw new Error('Invitation unavailable');
       fs.mkdirSync(userData, { recursive: true });
       fs.writeFileSync(inviteFile, digest);
       invite = digest;
@@ -159,6 +183,10 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     }
     const token = adminToken();
     if (!await adminProfile(token)) throw new Error('Administrator sign-in required');
+    if (name === 'copy-invite' && /^[0-9a-f]{48}$/.test(value ?? '')) {
+      copy(value);
+      return null;
+    }
     if (name === 'emc-link') {
       const response = await gh('/repos/' + privateRepo, token);
       if (!(await json(response)).private) throw new Error('EMC repository must be private');
@@ -177,9 +205,11 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       return { copied: true };
     }
     const { rows, sha } = await roster(token);
-    if (name === 'list') return rows.map(({ hash, label }) => ({ id: hash, label, creator: '', expires: 0, active: true }));
+    if (name === 'list') return rows.map(({ hash, label, revoked }) => ({ id: hash, label, revoked: revoked === true }));
     if (name === 'revoke') {
-      await saveRoster(rows.filter((row) => row.hash !== value), sha, token);
+      if (!rows.some((row) => row.hash === value && !row.revoked)) throw new Error('Active invitation not found');
+      await saveRoster(rows.map((row) => row.hash === value
+        ? { ...row, hash: hashCode('revoked:' + row.hash), revoked: true } : row), sha, token);
       return null;
     }
     if (name === 'create' && value?.trim()) {
