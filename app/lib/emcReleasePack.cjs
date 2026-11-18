@@ -105,7 +105,11 @@ function emcStore(root, net, { requireFaces = false } = {}) {
       .map(([part, offer]) => [part, downloadOffer(offer)]);
     let files = 0;
     for (const [part, offer] of parts) {
-      if (readyPart(part)) continue;
+      if (readyPart(part) && fs.statSync(locations[part].path).size === offer.size) {
+        const installed = createHash('sha256');
+        for await (const chunk of fs.createReadStream(locations[part].path)) installed.update(chunk);
+        if (installed.digest('hex') === offer.sha256) continue;
+      }
       const result = await installFrom(offer, () => openUrl(offer.url), part);
       files += result.files;
     }

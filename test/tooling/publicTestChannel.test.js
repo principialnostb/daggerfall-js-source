@@ -15,7 +15,7 @@ const profile = (t) => {
   return root;
 };
 
-test('public invitations authorize updates and removal blocks the next release check', async (t) => {
+test('public updates stay available while revocation blocks private access', async (t) => {
   const code = 'a'.repeat(48);
   const root = profile(t);
   let rows = [{ hash: hash(code), label: 'Wave 1' }];
@@ -28,12 +28,14 @@ test('public invitations authorize updates and removal blocks the next release c
       throw new Error('Unexpected URL');
     } },
   });
-  await assert.rejects(auth.releases(), /Activate/);
+  assert.equal((await auth.releases()).status, 200);
+  await assert.rejects(auth.authorizeUpdate(), /Activate/);
   await assert.rejects(auth.action('invite', hash(code)), /Invalid invitation/);
   assert.deepEqual(await auth.action('invite', code), { role: 'tester', login: 'Tester' });
   assert.equal((await auth.releases()).status, 200);
   rows = [];
-  await assert.rejects(auth.releases(), /Activate/);
+  assert.equal((await auth.releases()).status, 200);
+  await assert.rejects(auth.authorizeUpdate(), /Activate/);
 });
 
 test('EMC download checks its digest before exposing a package on disk', async (t) => {
@@ -144,7 +146,7 @@ test('complete EMC offers retain an installed base and mount the independent fac
     return Buffer.concat([prefix, index, Buffer.alloc(files.length, 107)]);
   };
   const base = bytes(baseContents);
-  const faces = bytes(facesContents);
+  let faces = bytes(facesContents);
   let fetched = 0;
   const store = emcPack.emcStore(root, { fetch: async () => { fetched++; return new Response(faces); } }, { requireFaces: true });
   await store.installFrom({ size: base.length, sha256: hash(base) }, async () => new Response(base));
@@ -155,6 +157,10 @@ test('complete EMC offers retain an installed base and mount the independent fac
   assert.deepEqual(await store.install(JSON.stringify({ base: offer(base), faces: offer(faces) })), { files: 2 });
   assert.equal(fetched, 1);
   assert.equal(store.ready(), true);
+  faces = Buffer.from(faces);
+  faces[faces.length - 1] = 109;
+  assert.deepEqual(await store.install(JSON.stringify({ base: offer(base), faces: offer(faces) })), { files: 2 });
+  assert.equal(fetched, 2, 'an updated component of the same size is fetched again');
   const names = [...baseContents, ...facesContents].map((asset) => asset.path);
   assert.deepEqual(await store.serve(['test-emc']).json(), names);
   assert.equal(await store.serve(['test-emc', '2']).text(), 'k');

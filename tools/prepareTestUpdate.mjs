@@ -224,15 +224,16 @@ function previousShell(previous, build, work) {
   const base = process.env.DFO_TEST_PREVIOUS_SOURCE;
   if (publicBuild && /^[a-f0-9]{40}$/.test(base ?? '')) {
     execFileSync('git', ['merge-base', '--is-ancestor', base, 'HEAD'], { cwd: root });
-    const inputs = ['app', '.build-13.11-test-medium.mjs', 'tools/testUpdateSetup.cs',
-      'src/ui/menu/menuPad.js', 'src/ui/plus/gauntletArt.js', 'src/assets/branding/dfo-online.png'];
+    const inputs = ['app', '.build-13.11-test-medium.mjs', 'tools/testUpdateSetup.cs', 'tools/buildTestShell.mjs', 'public/icons/icon-512.png',
+      ':(exclude)app/launcher/**'];
     const changed = execFileSync('git', ['diff', '--name-only', base, 'HEAD', '--', ...inputs], { cwd: root, encoding: 'utf8' });
-    if (changed.trim()) throw new Error('The desktop shell has changed. Prepare a full setup for this release.');
+    if (changed.trim()) return null;
     return previous.shell;
   }
   const shellRoot = join(work, 'shell');
   mkdirSync(shellRoot);
   const shell = stageShell(build, shellRoot);
+  if (publicBuild && shell !== previous.shell) return null;
   if (shell !== previous.shell) throw new Error('The desktop shell has changed. Prepare a full setup for this release.');
   return shell;
 }
@@ -247,8 +248,12 @@ async function packOnly(buildPath, outputPath, version, previousPath) {
   checkReleaseFiles(gameFilesOf(join(build, 'dist')));
   mkdirSync(output);
   const work = mkdtempSync(join(resolve(output, '..'), 'pack-'));
-  const shell = previousShell(previous, build, work);
-  const manifest = packGame(join(build, 'dist'), work, { version, shell });
+  let shell = previousShell(previous, build, work);
+  if (shell === null) {
+    const { buildTestShell } = await import('./buildTestShell.mjs');
+    shell = await buildTestShell({ build, work, output, version, stageShell, gameSeed, require });
+  }
+  const manifest = packGame(join(build, 'dist'), work, { version, shell, cacheDir: process.env.DFO_PACK_CACHE });
   const delta = judgeDelta(previous, manifest);
   if (delta.problems.length) throw new Error(delta.problems.join('\n'));
   console.log(delta.said);

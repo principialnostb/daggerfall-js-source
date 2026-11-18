@@ -76,7 +76,7 @@ import {
 } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gzipSync } from 'node:zlib';
+import { brotliDecompressSync, gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { isMain } from '../tools/lib/isMain.mjs';
@@ -482,7 +482,8 @@ export function gameSeed(dir, { version, shell }) {
  * (gameChannel.cjs encodeFile) and laid end to end in path order, its place recorded. Answers the manifest, held to
  * gameChannel.cjs readManifest - the law every copy reads it by.
  */
-export function packGame(dir, outDir, { version, update = null, shell }) {
+export function packGame(dir, outDir, { version, update = null, shell, cacheDir = null }) {
+  if (cacheDir) mkdirSync(cacheDir, { recursive: true });
   mkdirSync(outDir, { recursive: true });
   const fd = openSync(join(outDir, GAME_FILES.pack), 'w');
   const files = [];
@@ -490,9 +491,25 @@ export function packGame(dir, outDir, { version, update = null, shell }) {
   try {
     for (const p of gameFilesOf(dir)) {
       const bytes = readFileSync(join(dir, p));
-      const { encoding, data } = encodeFile(p, bytes);
+      const digest = sha256(bytes);
+      const cacheFile = cacheDir && join(cacheDir, digest);
+      let encoded;
+      if (cacheFile) {
+        try {
+          const cached = readFileSync(cacheFile);
+          if (!cached.length) encoded = { encoding: 'raw', data: bytes };
+          else if (brotliDecompressSync(cached, { maxOutputLength: Math.max(bytes.length, 1) }).equals(bytes)) {
+            encoded = { encoding: 'br', data: cached };
+          }
+        } catch { /* A cold or incomplete cache entry is rebuilt below. */ }
+      }
+      if (!encoded) {
+        encoded = encodeFile(p, bytes);
+        if (cacheFile) writeFileSync(cacheFile, encoded.encoding === 'br' ? encoded.data : Buffer.alloc(0));
+      }
+      const { encoding, data } = encoded;
       writeSync(fd, data);
-      files.push({ path: p, size: bytes.length, sha256: sha256(bytes), offset, length: data.length, encoding });
+      files.push({ path: p, size: bytes.length, sha256: digest, offset, length: data.length, encoding });
       offset += data.length;
     }
   } finally {

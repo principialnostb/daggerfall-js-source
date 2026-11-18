@@ -54,6 +54,7 @@ const { backendLaunch, holdsVSync, watchBackend, backendOption, chooseBackend, r
 // created with, whatever the product is called on the outside.
 const PINNED_TEST_BUILD = app.isPackaged && fs.existsSync(path.join(__dirname, 'pinned-test-build.json'));
 const TEST_UPDATE_BUILD = app.isPackaged && fs.existsSync(path.join(__dirname, 'test-update-build.json'));
+const TEST_CONFIG = TEST_UPDATE_BUILD ? require('./test-update-build.json') : null;
 const TEST_CONTENT_BUILD = PINNED_TEST_BUILD || TEST_UPDATE_BUILD;
 if (PINNED_TEST_BUILD) process.env.DAGGER_NO_UPDATE_CHECK = '1';
 if (TEST_CONTENT_BUILD && !process.env.DAGGER_USER_DATA) app.setPath('userData', path.join(app.getPath('appData'), TEST_UPDATE_BUILD ? 'DFO 13.11-test-medium' : 'DFO 13.11-test-build'));
@@ -154,14 +155,14 @@ const { openGameStore, loadSeed } = require('./lib/gameStore.cjs');
 const { switchesReadyGame } = require('./lib/readyGameSwitch.cjs');
 const { turnGpuCache } = require('./lib/gpuCacheTurn.cjs');
 const GAME_SEED = path.join(__dirname, 'game-seed.json');
-const GAME_ROOT = () => path.join(app.getPath('userData'), TEST_UPDATE_BUILD && require('./test-update-build.json').public ? 'Game-public-1311' : 'Game');
+const GAME_ROOT = () => path.join(app.getPath('userData'), TEST_UPDATE_BUILD && require('./test-update-build.json').public ? (TEST_CONFIG?.nsis ? 'Game-1311-managed' : 'Game-public-1311') : 'Game');
 /** The game store, or null: an unpackaged run, a build cut without a release (it carries no seed), or a store that
  *  cannot be opened - the install's own copy is then the game, served from dist/ as it always was, and updates are
  *  the installer's. */
 let gameStore = null;
 function openGame() {
   if (PINNED_TEST_BUILD) return;
-  const seed = app.isPackaged ? loadSeed(GAME_SEED, app.getVersion()) : null;
+  const seed = app.isPackaged ? loadSeed(GAME_SEED, TEST_CONFIG?.nsis ? '13.11.0' : app.getVersion()) : null;
   if (!seed) return;
   try {
     gameStore = openGameStore({ root: GAME_ROOT(), seed, dist: DIST });
@@ -434,6 +435,15 @@ async function serveLauncherFile(parts) {
     const png = (await launcherPointerFiles()).get(parts[0]);
     return png ? new Response(png, { headers: { 'Content-Type': 'image/png' } }) : new Response('not found', { status: 404 });
   }
+  if (TEST_CONFIG?.public && gameStore?.active() && gameStore.resolve('desktop-launcher/index.html')) {
+    const names = parts.length ? parts : ['index.html'];
+    if (names.some((name) => !/^[a-zA-Z0-9_.-]+$/.test(name) || name === '.' || name === '..')) {
+      return new Response('forbidden', { status: 403 });
+    }
+    const file = gameStore.resolve('desktop-launcher/' + names.join('/'));
+    return file ? fileResponse(file, MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream')
+      : new Response('not found', { status: 404 });
+  }
   const p = parts.length === 1 && parts[0] === 'menuPad.js'
     ? MENU_PAD
     : parts.length === 1 && parts[0] === 'dfo-online.png'
@@ -553,7 +563,6 @@ function handleDagger(req) {
 // check's own request - asked beside it at launch, under its two gates -
 // and its answer is kept in news.json, so the panel is never empty while
 // the next one is asked for, or when GitHub does not answer.
-const TEST_CONFIG = TEST_UPDATE_BUILD ? require('./test-update-build.json') : null;
 const TEST_EMC = TEST_CONFIG ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net, { requireFaces: true }) : null;
 const TEST_ACCESS = TEST_CONFIG
   ? require('./lib/publicTestChannel.cjs').publicTestChannel({
@@ -613,7 +622,7 @@ const { POINTER_FILES, pointerFiles } = require('./lib/launcherPointer.cjs');
  *  over the live facts: packaged or not, the platform, and the portable
  *  launcher's own mark on its process. */
 function currentUpdateTransport() {
-  if (TEST_UPDATE_BUILD) return 'notice';
+  if (TEST_UPDATE_BUILD && !TEST_CONFIG?.nsis) return 'notice';
   return updateTransport({
     packaged: app.isPackaged,
     platform: process.platform,
@@ -734,7 +743,14 @@ let downloading = null;
  *  download's own end: a download that breaks off (the connection, a
  *  checksum, a full disk) frees Play (L2-1), and never as an unhandled
  *  rejection. */
-function askUpdater() {
+async function askUpdater() {
+  if (TEST_CONFIG?.nsis) {
+    const setup = await TEST_RELEASES.setupLink();
+    const prefix = 'https://github.com/' + TEST_RELEASES.repository + '/releases/download/';
+    const tail = setup?.startsWith(prefix) ? setup.slice(prefix.length) : '';
+    if (!/^dfo-1311-v13\.11\.[1-9]\d*\/DFO-13\.11-Setup\.exe$/.test(tail)) throw new Error('Invalid shell release');
+    autoUpdater().setFeedURL({ provider: 'generic', url: setup.slice(0, setup.lastIndexOf('/') + 1), useMultipleRangeRequest: false });
+  }
   return autoUpdater().checkForUpdates().then((r) => {
     if (r?.downloadPromise && !downloading) {
       const d = { token: r.cancellationToken };
@@ -1255,7 +1271,7 @@ async function askGame() {
     return 'game';
   } catch (err) {
     if (gameJob?.version === version) gameJob = null;
-    if (version) gameStore.fail(version);
+    if (version && !TEST_CONFIG?.nsis) gameStore.fail(version);
     console.warn(`[game] the channel cannot bring v${version ?? '?'} - the installer's path takes it:`, err?.message ?? err);
     return 'installer';
   }
@@ -1300,6 +1316,11 @@ function gameArrived(version) {
 /** The channel could not bring `version` - the network, a range, a hash, the disk: remembered, and the installer's
  *  path asked for it now - by the launcher's own check while the launcher waits on it, else quietly, the game's to hear. */
 function gameFailed(version, err) {
+  if (TEST_CONFIG?.nsis) {
+    console.warn('Game download interrupted:', err?.message ?? err);
+    launcherDispatch({ type: 'game-failed' });
+    return;
+  }
   try { gameStore.fail(version); } catch { /* the failure is told below either way */ }
   console.warn(`[game] the channel could not bring v${version} - the installer's path takes it:`, err?.message ?? err);
   if (launcher && !launcher.state.launch) { launcherDispatch({ type: 'game-failed' }); startLaunchCheck(); return; }
@@ -1796,7 +1817,7 @@ function refreshTestPlay() {
         startDeveloperEmc();
         testPlayGate = developerEmcError
           ? { message: developerEmcError, retryEmc: true }
-          : { message: 'Downloading and verifying EMC from GitHub…' };
+          : { message: 'Downloading and verifying EMC from GitHubвЂ¦' };
       } else testPlayGate = { message: 'Install the EMC resources to play.', emc: true };
     } catch { testPlayGate = testAccessGate; }
     renderLauncher();
@@ -1805,11 +1826,15 @@ function refreshTestPlay() {
   return testPlayCheck;
 }
 
+function initialGamePending() {
+  return TEST_CONFIG?.nsis && !gameStore?.active() && !gameStore?.ready();
+}
+
 function renderLauncher() {
   const w = launcher?.win;
   if (w && !w.isDestroyed()) {
     const view = viewOf(launcher.state);
-    if (testPlayGate) view.play = { ...view.play, enabled: false };
+    if (testPlayGate || initialGamePending()) view.play = { ...view.play, enabled: false };
     w.webContents.send('launcher:view', { ...view, testPlayGate });
   }
 }
@@ -2152,8 +2177,8 @@ ipcMain.on('launcher:act', async (e, msg) => {
   const { action, arg } = msg ?? {};
   const st = launcher.state;
   switch (action) {
-    case 'play': if (testPlayGate) break; launcherDispatch({ type: 'play' }); break;
-    case 'play-now': if (testPlayGate) break; stopStallWatch(); launcherDispatch({ type: 'play-now' }); break;
+    case 'play': if (testPlayGate || initialGamePending()) break; launcherDispatch({ type: 'play' }); break;
+    case 'play-now': if (testPlayGate || initialGamePending()) break; stopStallWatch(); launcherDispatch({ type: 'play-now' }); break;
     case 'download': if (st.update.download) openTestSetupOrLink(st.update.download); break;
     case 'skip-setup':
       if (reduce(st, { type: 'skip-setup' }).setup.status !== st.setup.status) {

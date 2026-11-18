@@ -2,14 +2,14 @@ name: 13.11 test client
 
 on:
   push:
-    branches: [13.11-build]
+    branches: [13.11-build, codex/1311-launcher-preview]
     paths-ignore: ['test-channel/13.11-invites.json']
 
 permissions:
   contents: write
 
 concurrency:
-  group: dfo-13-11-client
+  group: dfo-13-11-client-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -31,6 +31,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            app/package-lock.json
       - name: Find the public channel and published setup
         id: setup
         shell: pwsh
@@ -45,13 +49,21 @@ jobs:
             Sort-Object { [version] $_.tagName.Substring(10) } -Descending | Select-Object -First 1
           if (!$previous) { throw 'Publish the first 13.11 setup before enabling push releases.' }
           $tag = $previous.tagName
+          $metadata = gh release view $tag --repo $env:RELEASE_REPO --json assets,body | ConvertFrom-Json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ($metadata.assets.name -contains 'DFO-13.11-Setup.exe') {
+            $setupTag = $tag
+          } elseif ($metadata.body -match '<!-- setup-tag: (dfo-1311-v13\.11\.[1-9]\d*) -->') {
+            $setupTag = $Matches[1]
+          } else { throw 'Previous release has no installation reference.' }
+          "setup_tag=$setupTag" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
           $source = git rev-parse "refs/tags/$tag^{}"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "source=$source" >> $env:GITHUB_OUTPUT
           $patch = ([version] $tag.Substring(10)).Build + 1
           "version=13.11.$patch" >> $env:GITHUB_OUTPUT
-          gh release download $tag --repo $env:RELEASE_REPO --pattern DFO-Online-game.json.gz --pattern DFO-13.11-Setup.exe --dir previous-13.11
+          gh release download $tag --repo $env:RELEASE_REPO --pattern DFO-Online-game.json.gz --dir previous-13.11
       - name: Check and stage the test client
         shell: pwsh
         run: |
@@ -66,16 +78,30 @@ jobs:
           node --test test/tooling/da13_gamechannel.test.js test/tooling/testBuildUpdates.test.js test/tooling/publicTestChannel.test.js
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node --max-old-space-size=8192 .build-13.11-test-medium.mjs --stage-for-updates
+      - uses: actions/cache@v4
+        with:
+          path: .test-pack-cache
+          key: public-game-pack-v1-${{ github.sha }}
+          restore-keys: public-game-pack-v1-
       - name: Pack the patch
         shell: pwsh
         env:
+          DFO_PACK_CACHE: .test-pack-cache
           DFO_TEST_PREVIOUS_SOURCE: ${{ steps.setup.outputs.source }}
           VERSION: ${{ steps.setup.outputs.version }}
         run: |
           node tools/prepareTestUpdate.mjs --game-only "$env:DFO_TEST_OUTPUT/stage" "$env:DFO_TEST_OUTPUT/assets" $env:VERSION previous-13.11/DFO-Online-game.json.gz
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          Copy-Item -LiteralPath previous-13.11/DFO-13.11-Setup.exe -Destination "$env:DFO_TEST_OUTPUT/assets"
+      - name: Save the preview build
+        if: github.ref_name == 'codex/1311-launcher-preview'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfo-1311-preview
+          path: app/release/workflow-13.11/assets/*
+          if-no-files-found: error
+          compression-level: 0
       - name: Publish the public client
+        if: github.ref_name == '13.11-build'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -84,7 +110,11 @@ jobs:
           $isPrivate = gh repo view $env:RELEASE_REPO --json isPrivate --jq .isPrivate
           if ($LASTEXITCODE -or $isPrivate -ne 'false') { throw 'The build must target the public source repository.' }
           $tag = "dfo-1311-v$env:VERSION"
-          gh release create $tag --repo $env:RELEASE_REPO --target $env:GITHUB_SHA --latest=false --draft --title "13.11 Test $env:VERSION" --notes "Test build from $env:GITHUB_SHA"
+          $setupTag = '${{ steps.setup.outputs.setup_tag }}'
+          if (Test-Path "$env:DFO_TEST_OUTPUT/assets/DFO-13.11-Setup.exe") { $setupTag = $tag }
+          $setupUrl = "https://github.com/$env:RELEASE_REPO/releases/download/$setupTag/DFO-13.11-Setup.exe"
+          $notes = "Test build from $env:GITHUB_SHA`n`n[Download setup]($setupUrl)`n`n<!-- setup-tag: $setupTag -->"
+          gh release create $tag --repo $env:RELEASE_REPO --target $env:GITHUB_SHA --latest=false --draft --title "13.11 Test $env:VERSION" --notes $notes
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $files = (Get-ChildItem -LiteralPath "$env:DFO_TEST_OUTPUT/assets" -File).FullName
           gh release upload $tag --repo $env:RELEASE_REPO @files

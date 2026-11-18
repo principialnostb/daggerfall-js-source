@@ -55,6 +55,7 @@ await bundleScript({ entryPoints: ['server/src/index.js'], outfile: join(dist,'p
 await bundleScript({ entryPoints: ['app/lib/privateHost.mjs'], outfile: join(stage,'private/host.mjs'), bundle: true, format: 'esm', platform: 'node', external: ['miniflare'] });
 for (const file of ['main.cjs','preload.cjs','launcherPreload.cjs','launcher','lib']) cpSync(join('app',file), join(stage,file), { recursive: true });
 for (const [source, target] of [['src/ui/menu/menuPad.js','menuPad.js'],['src/ui/plus/gauntletArt.js','gauntletArt.js'],['src/assets/branding/dfo-online.png','dfo-online.png']]) cpSync(source, join(stage,'launcher',target));
+if (publicBuild) cpSync(join(stage, 'launcher'), join(dist, 'desktop-launcher'), { recursive: true });
 const pkg = JSON.parse(readFileSync('app/package.json','utf8'));
 writeFileSync(join(stage,'package.json'),JSON.stringify({name:pkg.name,version:pkg.version,main:pkg.main}));
 writeFileSync(join(stage,'pinned-test-build.json'),JSON.stringify({release:'13.11-test-medium'}));

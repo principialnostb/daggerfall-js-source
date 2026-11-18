@@ -446,7 +446,7 @@ test('DA13: the shell - the game\'s channel asked first everywhere, served by th
   assert.match(ask, /if \(!isNewerRelease\(gameVersion\(\), latest\.tag\)\) return 'current';/, 'compared against the GAME this copy plays');
   assert.match(ask, /const manifest = parseManifestFile\(Buffer\.from\(await res\.arrayBuffer\(\)\), \{ version \}\);/);
   assert.match(ask, /if \(manifest\.pack\.size !== latest\.game\.packSize\) throw/);
-  assert.match(ask, /\} catch \(err\) \{\s*if \(gameJob\?\.version === version\) gameJob = null;\s*if \(version\) gameStore\.fail\(version\);/, 'any failure is remembered - that release is the installer\'s');
+  assert.match(ask, /\} catch \(err\) \{\s*if \(gameJob\?\.version === version\) gameJob = null;\s*if \(version && !TEST_CONFIG\?\.nsis\) gameStore\.fail\(version\);/, 'legacy transports remember the failure - that release is the installer\'s');
   assert.match(sliceOf('function gameFailed(', '/** The installer\'s path, quietly'), /gameStore\.fail\(version\);[\s\S]*if \(launcher && !launcher\.state\.launch\) \{ launcherDispatch\(\{ type: 'game-failed' \}\); startLaunchCheck\(\); return; \}\s*if \(updateChecksEnabled\(\)\) askInstaller\(\);/,
     'a download that failed hands the release to the installer\'s path at once');
   assert.match(sliceOf('function downloadGame(', '/** A version of the game is here'), /\(err\) => \{ gameJob = null; gameFailed\(version, err\); \}/);
@@ -484,7 +484,7 @@ test('DA13: the shell - the game\'s channel asked first everywhere, served by th
   assert.match(main, /\nif \(isSingleInstance\) \{ openGame\(\); turnGpuCache\(/);
   assert.equal([...main.matchAll(/\bopenGame\(\);/g)].length, 1, 'opened once');
   assert.ok(main.indexOf('\nif (isSingleInstance) { openGame();') < main.indexOf('\napp.whenReady()'), 'before ready');
-  assert.match(sliceOf('function openGame() {', '/** The version of the game this copy plays'), /const seed = app\.isPackaged \? loadSeed\(GAME_SEED, app\.getVersion\(\)\) : null;\s*if \(!seed\) return;/);
+  assert.match(sliceOf('function openGame() {', '/** The version of the game this copy plays'), /const seed = app\.isPackaged \? loadSeed\(GAME_SEED, TEST_CONFIG\?\.nsis \? '13\.11\.0' : app\.getVersion\(\)\) : null;\s*if \(!seed\) return;/);
   // the game's version is what the player is told and what Play keeps
   assert.match(main, /const gameVersion = \(\) => gameStore\?\.version\(\) \?\? app\.getVersion\(\);/);
   assert.match(main, /current: gameVersion\(\),/);

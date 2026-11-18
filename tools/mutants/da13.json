@@ -62,8 +62,8 @@
   {
     "name": "DA13-7-a-file-depends-on-its-place",
     "file": "scripts/desktopRelease.mjs",
-    "old": "      const { encoding, data } = encodeFile(p, bytes);",
-    "new": "      const { encoding, data } = encodeFile(p, Buffer.concat([Buffer.from(String(offset)), bytes]));",
+    "old": "        encoded = encodeFile(p, bytes);",
+    "new": "        encoded = encodeFile(p, Buffer.concat([Buffer.from(String(offset)), bytes]));",
     "tests": [
       "test/tooling/da13_gamechannel.test.js"
     ],
@@ -312,7 +312,7 @@
   {
     "name": "DA13-32-a-failure-not-remembered",
     "file": "app/main.cjs",
-    "old": "    if (version) gameStore.fail(version);\n",
+    "old": "    if (version && !TEST_CONFIG?.nsis) gameStore.fail(version);\n",
     "new": "",
     "tests": [
       "test/tooling/da13_gamechannel.test.js"

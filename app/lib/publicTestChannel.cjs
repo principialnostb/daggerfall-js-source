@@ -291,7 +291,6 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   return {
     action, authorizeUpdate, installDeveloperEmc, repository, page: 'https://github.com/' + repository + '/releases',
     async releases(options) {
-      await authorizeUpdate();
       const response = await net.fetch(api + '?per_page=100', options);
       if (response.ok) {
         const rows = await response.clone().json();
@@ -303,15 +302,17 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     },
     asset(url, options) {
       const prefix = api + '/assets/';
-      if (!online || !url.startsWith(prefix) || !/^\d+$/.test(url.slice(prefix.length))) throw new Error('Test access required');
+      if (!url.startsWith(prefix) || !/^\d+$/.test(url.slice(prefix.length))) throw new Error('Test access required');
       const download = publishedAssets.get(url.slice(prefix.length));
       if (!download) throw new Error('Asset unavailable');
       return net.fetch(download, options);
     },
     async setupLink() {
-      await authorizeUpdate();
       const release = testRelease(await json(await net.fetch(api + '?per_page=100', { signal: AbortSignal.timeout(12000) })));
-      return release?.assets?.find((file) => file.name === 'DFO-13.11-Setup.exe')?.browser_download_url;
+      const direct = release?.assets?.find((file) => file.name === 'DFO-13.11-Setup.exe')?.browser_download_url;
+      if (direct) return direct;
+      const tag = /<!-- setup-tag: (dfo-1311-v13\.11\.[1-9]\d*) -->/.exec(release?.body ?? '')?.[1];
+      return tag ? downloadPrefix + tag + '/DFO-13.11-Setup.exe' : undefined;
     },
   };
 }
