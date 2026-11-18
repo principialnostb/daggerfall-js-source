@@ -87,7 +87,7 @@
     get('identity').textContent = value ? value.login + ' · ' + value.role : '';
     get('login').hidden = !!value;
     get('admin').hidden = !developer;
-    get('emc-form').hidden = !value;
+    get('emc-form').hidden = !value || developer;
     get('sign-out').hidden = !value;
   }
   async function run(work) {
@@ -205,9 +205,10 @@
     feedback.textContent = message;
     feedback.hidden = false;
   });
+  get('dock-retry').addEventListener('click', () => run(() => call('emc-retry')));
   get('emc-link').addEventListener('click', () => run(async () => {
-    await call('emc-link');
-    status('Temporary EMC offer copied.');
+    const result = await call('emc-link');
+    status(result.error ?? 'Temporary EMC offer copied.');
   }));
   call('enabled').then(async (enabled) => {
     get('open').hidden = !enabled;

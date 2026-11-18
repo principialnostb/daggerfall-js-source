@@ -87,3 +87,45 @@ test('a revoked invitation remains in the roster and its original hash is remove
   assert.deepEqual(await auth.action('list'), [{ label: 'Test player', id: hash('revoked:' + id), revoked: true, canCopy: false }]);
   await assert.rejects(auth.action('invite', code), /Invitation unavailable/);
 });
+test('developer EMC supports direct and redirected downloads while keeping the credential on GitHub', async (t) => {
+  const root = profile(t);
+  const token = 'test-token';
+  const asset = { id: 12, name: emcPack.ASSET_NAME, size: 128, digest: 'sha256:' + 'a'.repeat(64) };
+  let redirect = false;
+  let copied;
+  const auth = channel.publicTestChannel({
+    userData: root, copy: (value) => { copied = JSON.parse(value); },
+    safeStorage: { isEncryptionAvailable: () => false },
+    emc: { installFrom: async (info, open) => {
+      assert.deepEqual(info, { size: asset.size, sha256: asset.digest.slice(7) });
+      assert.equal(await (await open()).text(), 'archive');
+      return { files: 1 };
+    } },
+    net: { fetch: async (url, options) => {
+      if (url === temporary) {
+        assert.equal(options.headers?.Authorization, undefined);
+        return new Response('archive');
+      }
+      if (url.endsWith('/user')) return Response.json({ id: 1, login: 'owner' });
+      if (url.includes('/releases?')) return Response.json([
+        { tag_name: 'emc-1311-v1', assets: [{ ...asset, id: 11 }] },
+        { tag_name: 'emc-1311-v2', assets: [asset] },
+      ]);
+      if (url.endsWith('/dfo-13-11-test-releases')) return Response.json({ private: true });
+      return Response.json({ permissions: { push: true }, owner: { id: 1 } });
+    } },
+    fetchAsset: async (url, options) => {
+      assert.match(url, /\/releases\/assets\/12$/);
+      assert.equal(options.headers.Authorization, 'Bearer ' + token);
+      assert.equal(options.redirect, 'manual');
+      return redirect ? Response.redirect(temporary) : new Response('archive');
+    },
+  });
+  assert.match((await auth.installDeveloperEmc()).error, /Sign in/);
+  await auth.action('github-token', token);
+  assert.deepEqual(await auth.installDeveloperEmc(), { files: 1 });
+  redirect = true;
+  assert.deepEqual(await auth.installDeveloperEmc(), { files: 1 });
+  await auth.action('emc-link');
+  assert.deepEqual(copied, { url: temporary, size: asset.size, sha256: asset.digest.slice(7) });
+});

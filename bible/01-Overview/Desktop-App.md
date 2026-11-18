@@ -286,21 +286,13 @@ folder remains available as a backup. Neither setup path moves the player's prof
 
 ### Public test client and private EMC
 
-The public Setup offers GitHub sign-in for developers and checks tester invitations against the hashes in `test-channel/13.11-invites.json`.
-The launcher verifies that list before checking releases. The public release files remain directly accessible.
-The game can use the installed client when offline. The public channel has its own version store and shares the test profile.
+DFO Test Build Setup installs or checks the existing public client. In the launcher, developers sign in through GitHub and testers enter an invitation. The launcher verifies access before checking releases. Play requires valid access and a verified EMC package. Public release files are directly accessible.
 
-`DFO_TEST_PUBLIC=1` stages a clean client and packages a fresh seed. Public release builds exclude the optional
-`Mods/` resource globs in the client and worker builds. The open channel cannot reuse the issued private seed.
-Release artifacts are built from the public source checkout.
+Public release builds exclude the optional Mods resource globs in the client and worker builds. Setup verifies the clean game seed before reusing it.
 
-Developers with write access to the source repository maintain the invitation list through the launcher.
-The Test channel panel lists active and revoked invitations. Revoking an invitation replaces its public hash and
-retains the tester label for the revoked view. The EMC package is managed in a separate tab.
-Git Credential Manager handles developer sign-in. The launcher stores the credential in encrypted Windows storage. The EMC action copies the temporary GitHub download
-URL, package size and SHA-256 as one offer. A tester pastes the offer once. The launcher verifies the package and
-serves its files to the existing EMC resource loader on the next game launch. GitHub controls the URL lifetime.
-Anyone who receives the offer can use the URL while it is valid.
+Developers with source repository write access maintain invitations through the Test channel panel. Revoking an invitation replaces its public hash and retains the tester label. Git Credential Manager handles developer sign-in and the launcher encrypts the credential with Windows storage.
+
+Developers with read access to the private EMC release repository automatically install missing EMC through their GitHub sign-in. The EMC package tab copies a temporary offer for testers. Testers paste the offer into the launcher once. The launcher verifies the size and SHA-256 and serves the installed files to EMC at game launch. GitHub controls the offer lifetime. Anyone who receives it can use the URL while it is valid.
 
 Use `tools/prepareEmcOffer.mjs` with a staged directory containing only approved EMC files under `Mods/`.
 Upload its output to the private test release repository. One archive must be smaller than the GitHub asset limit.

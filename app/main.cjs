@@ -557,7 +557,7 @@ const TEST_CONFIG = TEST_UPDATE_BUILD ? require('./test-update-build.json') : nu
 const TEST_EMC = TEST_CONFIG ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net) : null;
 const TEST_ACCESS = TEST_CONFIG
   ? require('./lib/publicTestChannel.cjs').publicTestChannel({
-    userData: app.getPath('userData'), net, safeStorage, emc: TEST_EMC,
+    userData: app.getPath('userData'), net, safeStorage, emc: TEST_EMC, fetchAsset: globalThis.fetch,
     clientId: TEST_CONFIG.clientId, openBrowser: (url) => shell.openExternal(url),
     copy: (value) => require('electron').clipboard.writeText(value),
   })
@@ -1773,15 +1773,31 @@ function openLauncherWindow() {
   return win;
 }
 
-const testAccessGate = { message: 'Activate an invitation or sign in as a developer.' };
+const testAccessGate = { message: 'Activate an invitation or sign in as a developer.', invite: true };
 let testPlayGate = TEST_ACCESS ? testAccessGate : null;
 let testPlayCheck;
+let developerEmcDownload;
+let developerEmcError;
+
+function startDeveloperEmc() {
+  if (developerEmcDownload || developerEmcError || TEST_EMC.ready()) return;
+  developerEmcDownload = TEST_ACCESS.installDeveloperEmc().then(({ error }) => { developerEmcError = error; }).finally(() => {
+    developerEmcDownload = null;
+    refreshTestPlay();
+  });
+}
 function refreshTestPlay() {
   if (!TEST_ACCESS) return Promise.resolve(true);
   testPlayCheck ??= (async () => {
     try {
-      await TEST_ACCESS.authorizeUpdate();
-      testPlayGate = TEST_EMC.ready() ? null : { message: 'Install the EMC resources to play.', emc: true };
+      const developer = await TEST_ACCESS.authorizeUpdate();
+      if (TEST_EMC.ready()) testPlayGate = null;
+      else if (developer) {
+        startDeveloperEmc();
+        testPlayGate = developerEmcError
+          ? { message: developerEmcError, retryEmc: true }
+          : { message: 'Downloading and verifying EMC from GitHub…' };
+      } else testPlayGate = { message: 'Install the EMC resources to play.', emc: true };
     } catch { testPlayGate = testAccessGate; }
     renderLauncher();
     return !testPlayGate;
@@ -2112,7 +2128,9 @@ ipcMain.handle('launcher:test-access', async (e, action, value) => {
   if (action === 'enabled') return TEST_ACCESS ? 'public' : false;
   if (action === 'open-developer') return process.argv.includes('--dfo-open-developer');
   if (!TEST_ACCESS?.action || typeof action !== 'string' || (value !== undefined && (typeof value !== 'string' || value.length > (action === 'emc' ? 12000 : action === 'github-token' ? 512 : 80)))) return null;
+  if (action === 'emc-retry') { developerEmcError = null; return refreshTestPlay(); }
   const refresh = ['invite', 'github-login', 'sign-out', 'emc'].includes(action);
+  if (action === 'github-login' || action === 'sign-out') developerEmcError = null;
   if (refresh) await testPlayCheck;
   const answer = await TEST_ACCESS.action(action, value);
   if (refresh) {

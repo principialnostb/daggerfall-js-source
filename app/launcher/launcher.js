@@ -208,7 +208,9 @@
     requirement.textContent = gate?.message ?? '';
     requirement.hidden = !gate || !!gate.emc;
     $('test-dock').hidden = !gate;
-    dockAction.hidden = !!gate?.emc;
+    dockAction.hidden = !gate?.invite;
+    $('test-dock-retry').hidden = !gate?.retryEmc;
+    $('test-dock').closest('.bar').toggleAttribute('data-test-gate', !!gate);
     $('test-dock-emc').hidden = !gate?.emc;
 
     $('news').hidden = v.panel !== 'news';

@@ -63,14 +63,17 @@ function emcStore(root, net) {
   const file = path.join(root, 'emc.pack');
   let files;
   let installing = false;
-  async function install(text) {
-    if (installing) throw new Error('An EMC download is in progress');
+  function install(text) {
     const offer = offerOf(text);
+    return installFrom(offer, () => net.fetch(offer.url, { redirect: 'error', cache: 'no-store' }));
+  }
+  async function installFrom(offer, openDownload) {
+    if (installing) throw new Error('An EMC download is in progress');
     installing = true;
     const temp = file + '.download';
     try {
       fs.mkdirSync(root, { recursive: true });
-      const response = await net.fetch(offer.url, { redirect: 'error', cache: 'no-store' });
+      const response = await openDownload();
       if (!response.ok || !response.body) throw new Error('EMC link expired or unavailable');
       let size = 0;
       const hash = createHash('sha256');
@@ -105,7 +108,7 @@ function emcStore(root, net) {
   }
 
   return {
-    install, serve,
+    install, installFrom, serve,
     ready() {
       try { return fs.existsSync(file) && hasPaperdoll(files ??= readPack(file)); }
       catch { return false; }

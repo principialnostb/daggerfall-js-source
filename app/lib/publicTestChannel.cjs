@@ -5,7 +5,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const { createHash, randomBytes } = require('node:crypto');
 const { testApi, testRelease } = require('./testBuildUpdates.cjs');
-const { ASSET_NAME, temporaryUrl } = require('./emcReleasePack.cjs');
+const { ASSET_NAME, MAX_PACK, temporaryUrl } = require('./emcReleasePack.cjs');
 
 const repository = 'principialnostb/daggerfall-js-source';
 const branch = '13.11-build';
@@ -34,7 +34,7 @@ function githubCredential() {
   });
 }
 
-function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, openBrowser }) {
+function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, openBrowser, fetchAsset = net.fetch.bind(net) }) {
   const api = testApi(repository);
   const inviteFile = path.join(userData, 'test-invite-public.dpapi');
   const adminFile = path.join(userData, 'test-admin-public');
@@ -82,7 +82,8 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     // Recheck for every release lookup so an already open launcher also sees a revocation.
     online = null;
     const token = adminToken();
-    if (token && await adminProfile(token)) { online = true; return; }
+    const profile = await adminProfile(token);
+    if (profile) { online = true; return profile; }
     if (!await member()) throw new Error('Activate a test invitation first');
   }
 
@@ -128,6 +129,45 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(12000), headers: { Accept: 'application/json' },
       body: new URLSearchParams({ client_id: clientId, ...params }),
     }));
+  }
+
+  function emcErrorMessage(error) {
+    return error.message === 'GitHub request failed (404)'
+      ? 'This GitHub sign-in cannot read the private EMC repository. Check repository access and sign in again.'
+      : 'Could not download EMC from GitHub. Check your connection and try again.';
+  }
+
+  async function emcDownload(token) {
+    const response = await gh('/repos/' + privateRepo, token);
+    if (!(await json(response)).private) throw new Error('EMC repository must be private');
+    const releases = await json(await gh('/repos/' + privateRepo + '/releases?per_page=100', token));
+    const asset = releases.filter((release) => !release.draft && /^emc-1311-v\d+$/.test(release.tag_name))
+      .sort((a, b) => Number(b.tag_name.slice(10)) - Number(a.tag_name.slice(10)))
+      .flatMap((release) => release.assets ?? [])
+      .find((item) => item.name === ASSET_NAME);
+    if (!Number.isSafeInteger(asset?.id) || !Number.isSafeInteger(asset.size) || asset.size <= 0 || asset.size > MAX_PACK
+      || !/^sha256:[0-9a-f]{64}$/.test(asset.digest)) throw new Error('EMC archive unavailable');
+    return {
+      asset: { size: asset.size, sha256: asset.digest.slice(7) },
+      request: () => fetchAsset('https://api.github.com/repos/' + privateRepo + '/releases/assets/' + asset.id, {
+        headers: { 'User-Agent': 'DFO-13.11', Authorization: 'Bearer ' + token, Accept: 'application/octet-stream' },
+        redirect: 'manual', signal: AbortSignal.timeout(30 * 60 * 1000),
+      }),
+    };
+  }
+
+  async function installDeveloperEmc() {
+    try {
+      const token = adminToken();
+      if (!await adminProfile(token)) return { error: 'Sign in with GitHub as a developer to install EMC.' };
+      const { asset, request } = await emcDownload(token);
+      return await emc.installFrom(asset, async () => {
+        const download = await request();
+        if (download.status === 404) throw new Error('GitHub request failed (404)');
+        if (download.status !== 302) return download;
+        return net.fetch(temporaryUrl(download.headers.get('location')), { redirect: 'error', cache: 'no-store' });
+      });
+    } catch (error) { return { error: emcErrorMessage(error) }; }
   }
 
   async function action(name, value) {
@@ -191,23 +231,16 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     const token = adminToken();
     if (!await adminProfile(token)) throw new Error('Administrator sign-in required');
     if (name === 'emc-link') {
-      const response = await gh('/repos/' + privateRepo, token);
-      if (!(await json(response)).private) throw new Error('EMC repository must be private');
-      const releases = await json(await gh('/repos/' + privateRepo + '/releases?per_page=100', token));
-      const asset = releases.filter((release) => !release.draft && /^emc-1311-v\d+$/.test(release.tag_name))
-        .sort((a, b) => Number(b.tag_name.slice(10)) - Number(a.tag_name.slice(10)))
-        .flatMap((release) => release.assets ?? [])
-        .find((item) => item.name === ASSET_NAME);
-      if (!Number.isSafeInteger(asset?.id) || !/^sha256:[0-9a-f]{64}$/.test(asset.digest)) throw new Error('EMC archive unavailable');
-      const download = await gh('/repos/' + privateRepo + '/releases/assets/' + asset.id, token, {
-        headers: { Accept: 'application/octet-stream' },
-      });
-      if (download.status !== 302) {
-        await download.body?.cancel();
-        throw new Error('GitHub did not issue a temporary link');
-      }
-      copy(JSON.stringify({ url: temporaryUrl(download.headers.get('location')), size: asset.size, sha256: asset.digest.slice(7) }));
-      return { copied: true };
+      try {
+        const { asset, request } = await emcDownload(token);
+        const download = await request();
+        if (download.status !== 302) {
+          await download.body?.cancel();
+          return { error: 'GitHub did not provide a shareable link. Try again.' };
+        }
+        copy(JSON.stringify({ url: temporaryUrl(download.headers.get('location')), ...asset }));
+        return { copied: true };
+      } catch (error) { return { error: emcErrorMessage(error) }; }
     }
     const { rows, sha } = await roster(token);
     if (name === 'list') {
@@ -240,7 +273,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   }
 
   return {
-    action, authorizeUpdate, repository, page: 'https://github.com/' + repository + '/releases',
+    action, authorizeUpdate, installDeveloperEmc, repository, page: 'https://github.com/' + repository + '/releases',
     async releases(options) {
       await authorizeUpdate();
       const response = await net.fetch(api + '?per_page=100', options);

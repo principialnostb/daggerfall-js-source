@@ -94,10 +94,12 @@ internal static class TestUpdateSetup
 
     private static string ChooseDestination()
     {
-        var defaultFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "DFO Online 13.11");
+        var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
+        var previousFolder = Path.Combine(programs, "DFO Online 13.11");
+        var defaultFolder = HasClient(previousFolder) ? previousFolder : Path.Combine(programs, "DFO Test Build");
         using (var window = new Form())
         {
-            window.Text = "DFO Online 13.11 Setup";
+            window.Text = "DFO Test Build Setup";
             window.FormBorderStyle = FormBorderStyle.FixedDialog;
             window.AutoScaleMode = AutoScaleMode.Font;
             window.Font = System.Drawing.SystemFonts.MessageBoxFont;
@@ -105,7 +107,7 @@ internal static class TestUpdateSetup
             window.StartPosition = FormStartPosition.CenterScreen;
             window.MinimizeBox = window.MaximizeBox = false;
 
-            var heading = new Label { Text = "Install DFO Online 13.11", AutoSize = true,
+            var heading = new Label { Text = "Install DFO Test Build", AutoSize = true,
                 Font = new System.Drawing.Font(window.Font.FontFamily, 17, System.Drawing.FontStyle.Bold) };
             heading.SetBounds(24, 21, 535, 31);
             var clean = new RadioButton { Text = "New installation", Checked = !HasClient(defaultFolder) };
@@ -138,7 +140,7 @@ internal static class TestUpdateSetup
                     if (repair.Checked)
                     {
                         var client = ClientFolder(folder.FullName);
-                        if (!HasClient(client)) throw new IOException("Select the DFO 13.11 folder or its parent containing the client folder.");
+                        if (!HasClient(client)) throw new IOException("Select the DFO Test Build folder or its parent containing the client folder.");
                         destination = client;
                         note.Text = "Client found: " + client + "\nSetup checks the game archive and downloads a replacement if needed.";
                     }
@@ -163,7 +165,7 @@ internal static class TestUpdateSetup
             browse.Click += delegate {
                 using (var picker = new FolderBrowserDialog())
                 {
-                    picker.Description = repair.Checked ? "Select the existing DFO 13.11 client." : "Select an empty installation folder.";
+                    picker.Description = repair.Checked ? "Select the existing DFO Test Build client." : "Select an empty installation folder.";
                     picker.ShowNewFolderButton = !repair.Checked;
                     if (Directory.Exists(path.Text)) picker.SelectedPath = path.Text;
                     if (picker.ShowDialog(window) == DialogResult.OK) path.Text = picker.SelectedPath;
@@ -205,7 +207,7 @@ internal static class TestUpdateSetup
         }
         if (seed == null && File.Exists(legacy) && Digest(legacy) == config[3]) seed = legacy;
         if (seed == null && root.Exists && Directory.GetFileSystemEntries(root.FullName).Length != 0 && !(publicInstall && HasClient(root.FullName)))
-            throw new IOException("Choose an empty folder or the issued DFO 13.11 client folder.");
+            throw new IOException("Choose an empty folder or the issued DFO Test Build client folder.");
 
         var stage = Path.Combine(root.Parent.FullName, ".dfo-setup-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stage);
@@ -233,7 +235,7 @@ internal static class TestUpdateSetup
                     }
                 if (Digest(installedSeed) != config[4]) throw new IOException("Game archive checksum failed.");
             }
-            status("Installing DFO 13.11…");
+            status("Installing DFO Test Build…");
             if (seed != null && !CreateHardLink(installedSeed, seed, IntPtr.Zero))
                 File.Copy(seed, installedSeed);
             Swap(root, payload);
@@ -288,7 +290,7 @@ internal static class TestUpdateSetup
         using (var next = new Button())
         using (var cancel = new Button())
         {
-            window.Text = "DFO Online 13.11 Setup";
+            window.Text = "DFO Test Build Setup";
             window.ClientSize = new System.Drawing.Size(510, 258);
             window.Font = System.Drawing.SystemFonts.MessageBoxFont;
             window.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -362,11 +364,11 @@ internal static class TestUpdateSetup
         using (var input = new TextBox())
         using (var accept = new Button())
         {
-            window.Text = "DFO 13.11 Update Access";
+            window.Text = "DFO Test Build Update Access";
             window.Width = 440;
             window.Height = 150;
             window.StartPosition = FormStartPosition.CenterScreen;
-            prompt.Text = invite ? "Enter the 13.11 test invitation code." : "Enter a GitHub token with read access to the private test releases.";
+            prompt.Text = invite ? "Enter the test invitation code." : "Enter a GitHub token with read access to the private test releases.";
             prompt.Dock = DockStyle.Top;
             prompt.Height = 32;
             input.UseSystemPasswordChar = true;
@@ -416,14 +418,14 @@ internal static class TestUpdateSetup
         using (var progress = new ProgressBar())
         using (var worker = new BackgroundWorker())
         {
-            window.Text = "DFO 13.11 Setup";
+            window.Text = "DFO Test Build Setup";
             window.Width = 460;
             window.Height = 169;
             window.StartPosition = FormStartPosition.CenterScreen;
             window.ControlBox = false;
             message.Dock = DockStyle.Top;
             message.Height = 63;
-            message.Text = "Preparing DFO Online…\n" + destination;
+            message.Text = "Preparing DFO Test Build…\n" + destination;
             progress.Style = ProgressBarStyle.Marquee;
             progress.Dock = DockStyle.Bottom;
             window.Controls.Add(message);
