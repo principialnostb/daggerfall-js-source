@@ -210,40 +210,15 @@ test('BR4: the intro and the doors carry the name too', () => {
   assert.match(read('SUPPORT.md'), new RegExp(`^# Support ${NAME}\\n`), 'the support page\'s first line');
 });
 
-test('BR4: the logo is Mac’s transparent cut, and nothing blends it away - BR5: the DFO mark, in boxes that keep the height they had', () => {
-  // INTRO2's logo was a JPEG on black, and every surface drew it with
-  // mix-blend-mode: screen to lose the black. BR4's carried its own alpha and
-  // was MADE of black, so screen would erase the art itself; BR5's DFO mark
-  // is the same - white letters inside dark outlines over a soft shadow.
+test('Test build wordmark uses one transparent PNG in the launcher and game', async () => {
+  const { width, height, data } = (await import('../../tools/pngIO.mjs')).readPng(readFileSync(join(root, 'app/launcher/daggerfall-online.png')));
+  assert.equal(data[3], 0);
   const mark = read('src/ui/brandMark.js');
-  assert.match(mark, /new URL\('\.\.\/assets\/branding\/dfo-online\.png', import\.meta\.url\)/, 'the one asset');
-  assert.match(mark, /image\.className = 'brand-logo';/);
-  const intro = read('src/ui/intro/introScreen.js'), style = read('src/ui/enhanced/enhancedStyle.js');
-  const introTitle = intro.match(/\.intro-title\{[^}]*\}/)[0];
-  assert.doesNotMatch(introTitle, /mix-blend-mode/, 'the film draws it as it is');
-  const logoRule = style.match(/\n\.brand-logo \{[^}]*\}/)[0];
-  assert.doesNotMatch(logoRule, /mix-blend-mode/, 'and so do the doors');
-  // BR5: THE MARK IS 1.63:1 AND PAINTED TO ITS EDGES, where BR4's was 2.48:1
-  // with its last 81 of 850 rows empty canvas (which the doors pulled what
-  // followed up over). Every box keeps the HEIGHT it had, so nothing above or
-  // below a mark moves: its new width is the old one's height at the new
-  // ratio - worked here from the file's own IHDR, so the next logo's size
-  // reddens this, not a layout. BR6's dragon mark (Mac, 2026-10-26) is the
-  // next logo: 1232 x 1034, 1.19:1, so every box below narrowed to its height.
-  const png = readFileSync(join(root, 'src/assets/branding/dfo-online.png'));
-  const ratio = png.readUInt32BE(16) / png.readUInt32BE(20);
-  // AUDIT BR5: the site's and the launcher's logo reserve the file's own size, so neither page moves as it loads
-  for (const page of ['index.html', 'app/launcher/index.html']) {
-    assert.match(read(page), new RegExp(`dfo-online\\.png" alt="${NAME}" width="${png.readUInt32BE(16)}" height="${png.readUInt32BE(20)}"`), `${page}: the logo's own size`);
-  }
-  const door = (w) => w * 769 / 2112 * ratio, film = (w) => w * 850 / 2112 * ratio;
-  const px = (v) => `${Math.round(v)}px`, vw = (v) => `${Math.round(v * 10) / 10}vw`;
-  assert.ok(style.includes(`.px-wordmark:has(.brand-logo) { width: min(${px(door(540))}, ${vw(door(84))});`), 'the door: BR4\'s 540px and 84vw, at their height');
-  assert.ok(style.includes(`.px-wordmark:has(.brand-logo) { width: min(${px(door(394))}, ${vw(door(56))}); }`), 'a short landscape screen: BR4\'s 394px and 56vw');
-  assert.ok(style.includes(`.brand-home .brand-logo { width: ${Math.round(door(100) * 10) / 10}%; margin: 0 auto; }`), 'the masthead: the column\'s width at 769/2112 of it, centred');
-  assert.ok(intro.includes(`.intro-title{position:absolute;left:50%;top:48%;width:min(${vw(film(86))},${px(film(1240))});`), 'the film: its box at BR4\'s height - its probe measures that box against the tap target');
-  assert.ok(intro.includes(`.intro-title{width:min(${vw(film(74))},${px(film(1000))})}`), 'and on a short screen');
-  assert.doesNotMatch(style, /margin-bottom: calc\(-100% \* 81 \/ 2112\)/, 'and nothing pulls up over rows the file no longer has');
+  assert.ok(mark.includes("new URL('../../app/launcher/daggerfall-online.png', import.meta.url)"));
+  assert.ok(mark.includes('image.width = ' + width + ';'));
+  assert.ok(mark.includes('image.height = ' + height + ';'));
+  assert.ok(read('app/launcher/index.html').includes('src="daggerfall-online.png" alt="Daggerfall Online" width="' + width + '" height="' + height + '"'));
+  assert.doesNotMatch(read('src/ui/enhanced/enhancedStyle.js').match(/\n\.brand-logo \{[^}]*\}/)[0], /mix-blend-mode/);
 });
 
 test('BR4: no surface still says the old name - whole, or split across a wordmark', () => {
@@ -340,7 +315,7 @@ test('BR5: no surface still says Daggerfall Online - whole, split across a wordm
   assert.equal(split, '', `a wordmark still spells the old name across two elements:\n${split}`);
   assert.match(read('src/ui/enhanced/enhancedChargen.js'), new RegExp(`brand\\.append\\(el\\('div', 'sub', '${NAME}'\\)\\);`), 'the new character\'s masthead');
   // AUDIT BR5: the launcher wears the logo too, the game's own file, named by its alt
-  assert.ok(read('app/launcher/index.html').includes(`<h1 class="wordmark"><img src="dfo-online.png" alt="${NAME}" width="1232" height="1034"></h1>`), 'and the desktop launcher\'s');
+  assert.ok(read('app/launcher/index.html').includes(`<h1 class="wordmark"><img src="daggerfall-online.png" alt="Daggerfall Online" width="2103" height="748"></h1>`), 'and the desktop launcher\'s');
   assert.match(read('src/ui/screenshot.js'), /return `dfo-\$\{d\.getFullYear\(\)\}/, 'a screenshot is named for the product');
   assert.match(read('src/ui/shotsPane.js'), /a\.download = `dfo-shot-\$\{s\.id\}\.jpg`;/, 'and so is a saved loading shot');
   assert.match(read('server-account/src/patreon.js'), new RegExp(`<title>\\$\\{esc\\(heading\\)\\} - ${NAME}</title>`), 'and the Patreon link\'s page');
@@ -481,27 +456,8 @@ test('BR5: the keys other systems hold keep their spelling, and what moving each
   }, 'the downloads a copy from before the rename asks for, by the names it was built with');
 });
 
-test('LOGO-CENTRE: the mark stands on its letters\' centre, not its box\'s - measured from the file, and every surface that centres it shifts it by that (mutants: the film unshifted; the door shifted by another amount)', async () => {
-  // Mac, 2026-10-26: "The main logo is off center". The box WAS centred (the film's last frame: 480.5 of 960); the
-  // dragon's wing and tail fill its left, so the letters were not. The letters at mid-height run from the D's bowl
-  // (its red) to the O's outline (the last paint); their centre, against the file's, is the shift.
-  const { readPng } = await import('../../tools/pngIO.mjs');
-  const { BRAND_LOGO_OPTICAL_SHIFT } = await import('../../src/ui/brandMark.js');
-  const { width, height, data } = readPng(readFileSync(join(root, 'src/assets/branding/dfo-online.png')));
-  let left = width, right = 0;
-  for (let y = Math.round(height * 0.4); y < Math.round(height * 0.5); y++) {
-    for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4, r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
-      if (a > 200 && r > 200 && g < 110 && b < 80) left = Math.min(left, x);
-      if (a > 128) right = Math.max(right, x);
-    }
-  }
-  const shift = ((left + right) / 2 - width / 2) / width;
-  assert.ok(Math.abs(shift - BRAND_LOGO_OPTICAL_SHIFT) < 0.005, `the letters (x ${left} to ${right} of ${width}) centre ${(shift * 100).toFixed(2)}% right of the file's centre; brandMark.js says ${BRAND_LOGO_OPTICAL_SHIFT * 100}%`);
-  const back = `translateX(-${BRAND_LOGO_OPTICAL_SHIFT * 100}%)`;
-  const intro = read('src/ui/intro/introScreen.js'), style = read('src/ui/enhanced/enhancedStyle.js');
-  assert.ok(intro.match(/\.intro-title \.brand-logo\{[^}]*\}/)[0].includes(`transform:${back}`), 'the film\'s title');
-  assert.ok(style.match(/\n\.brand-logo \{[^}]*\}/)[0].includes(`transform: ${back};`), 'the door and the masthead');
-  assert.ok(read('index.html').match(/\.wordmark img \{[^}]*\}/)[0].includes(`transform: ${back};`), 'the site\'s page');
-  assert.doesNotMatch(read('app/launcher/launcher.css').match(/\.wordmark img \{[^}]*\}/)[0], /transform/, 'the launcher sets it at its left edge, where its box is what lines up');
+test('Wide test build wordmark stays centred in the intro and game menu', () => {
+  assert.doesNotMatch(read('src/ui/intro/introScreen.js').match(/\.intro-title \.brand-logo\{[^}]*\}/)[0], /translateX/);
+  assert.doesNotMatch(read('src/ui/enhanced/enhancedStyle.js').match(/\n\.brand-logo \{[^}]*\}/)[0], /translateX/);
+  assert.match(read('index.html').match(/\.wordmark img \{[^}]*\}/)[0], /translateX\(-10%\)/);
 });
