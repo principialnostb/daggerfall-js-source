@@ -3,7 +3,29 @@
   if (!call) return;
   const get = (id) => document.getElementById('test-' + id);
   const admin = (profile) => ['owner', 'developer'].includes(profile?.role);
+  let waitingForUpdate = true;
+  document.addEventListener('launcher-update-gate', (event) => {
+    waitingForUpdate = event.detail;
+    get('emc-form').hidden = waitingForUpdate || !profile || admin(profile);
+  });
   let profile, rows = [], confirming, issuedId, busy = false;
+  let emcReport;
+  document.addEventListener('launcher-emc-progress', ({ detail: transfer }) => {
+    for (const bar of document.querySelectorAll('.emc-progress')) {
+      bar.hidden = transfer?.stage !== 'downloading';
+      if (bar.hidden) continue;
+      bar.max = transfer.total;
+      bar.value = transfer.received;
+    }
+    if (!transfer) return;
+    const { stage, part, received, total } = transfer;
+    const mb = (bytes) => (bytes / 1048576).toFixed(1);
+    const label = stage === 'connecting' ? 'Connecting to GitHub for EMC ' + part + '…'
+      : stage === 'verifying' ? 'Verifying EMC ' + part + '…'
+        : 'Downloading EMC ' + part + ' · ' + mb(received) + ' / ' + mb(total) + ' MiB';
+    if (emcReport) emcReport(label);
+    else get('play-requirement').textContent = label;
+  });
   const status = (message) => { get('status').textContent = message; };
   function display() {
     const search = get('search').value.trim().toLowerCase();
@@ -87,14 +109,14 @@
     get('identity').textContent = value ? value.login + ' · ' + value.role : '';
     get('login').hidden = !!value;
     get('admin').hidden = !developer;
-    get('emc-form').hidden = !value || developer;
+    get('emc-form').hidden = waitingForUpdate || !value || developer;
     get('sign-out').hidden = !value;
   }
   async function run(work) {
     if (busy) return;
     busy = true;
     try { await work(); }
-    catch { status('Request failed. Check your connection and access, then try again.'); }
+    catch (error) { status(requestFailure(error)); }
     finally { busy = false; }
   }
   async function signIn() {
@@ -145,8 +167,8 @@
     run(async () => {
       draw(await call('invite', get('code').value.trim()));
       get('code').value = '';
-      status('Invitation activated. Paste your temporary EMC link if needed.');
-      get('emc').focus();
+      status(waitingForUpdate ? 'Invitation activated. Finish updating before installing EMC.' : 'Invitation activated. Paste your temporary EMC link if needed.');
+      if (!waitingForUpdate) get('emc').focus();
     });
   });
   get('create').addEventListener('submit', (event) => {
@@ -179,22 +201,29 @@
     tab(true);
     status('Signed out.');
   }));
-  function emcFailure(error) {
+  function requestFailure(error, emc = false) {
     const message = String(error?.message ?? '');
     const status = /GitHub request failed \((\d{3})\)/.exec(message);
     if (status) return 'GitHub access check failed (HTTP ' + status[1] + ').';
+    if (/Update required before installing EMC/.test(message)) return 'Finish updating the launcher before installing EMC.';
     if (/Activate a test invitation first/.test(message)) return 'Test access is inactive. Activate your invitation.';
+    if (/Invalid invitation/.test(message)) return 'The invitation code is invalid.';
+    if (/Invitation unavailable/.test(message)) return 'This invitation is inactive. Contact the administrator.';
     if (/GitHub write access required/.test(message)) return 'Developer access check failed. Sign in again.';
     if (/JSON|Invalid EMC download offer|Invalid URL|Expected a temporary GitHub asset link|complete EMC offer/.test(message)) return 'Invalid EMC offer. Paste the full text copied by the administrator.';
+    const refused = /EMC download refused \(HTTP (\d{3})\)/.exec(message);
+    if (refused) return 'GitHub refused the EMC download (HTTP ' + refused[1] + '). Check the link and try again.';
     if (/EMC link expired or unavailable/.test(message)) return 'GitHub refused the EMC download. Request a fresh offer.';
     if (/checksum|too large|Invalid EMC|Incomplete EMC|incomplete|Unexpected data/.test(message)) return 'EMC package verification failed. Contact the administrator.';
     if (/ENOSPC/.test(message)) return 'Insufficient disk space for EMC.';
     if (/EACCES|EPERM|EBUSY/.test(message)) return 'Cannot write the EMC files. Check folder permissions and open files.';
     if (/in progress/.test(message)) return 'An EMC installation is already running.';
     const network = /\b(?:net::)?(ERR_[A-Z_]+)\b/.exec(message);
-    if (network) return 'EMC network request failed (' + network[1] + ').';
+    if (network) return 'GitHub network request failed (' + network[1] + ').';
     if (/timeout|timed out/i.test(message)) return 'The EMC request timed out. Try again.';
-    return 'The launcher could not complete the EMC request. Report this message and your launcher version.';
+    return emc
+      ? 'The launcher could not complete the EMC request. Report this message and your launcher version.'
+      : 'Test access request failed. Check your connection to GitHub and try again.';
   }
   function bindEmc(form, input, report) {
     form.addEventListener('submit', (event) => {
@@ -203,14 +232,16 @@
       run(async () => {
         const button = form.querySelector('button');
         button.disabled = true;
-        report('Downloading and verifying EMC…');
+        emcReport = report;
+        report('Checking your test access…');
         try {
           const installed = await call('emc', input.value.trim());
           input.value = '';
           report('Installed ' + installed.files + ' EMC files.');
         } catch (error) {
-          report(emcFailure(error));
+          report(requestFailure(error, true));
         } finally {
+          emcReport = null;
           button.disabled = false;
         }
       });
@@ -233,6 +264,6 @@
     if (await call('open-developer')) {
       get('dialog').showModal();
       await run(signIn);
-    } else draw(await call('profile'));
+    } else await run(async () => draw(await call('profile')));
   }).catch(() => {});
 })();

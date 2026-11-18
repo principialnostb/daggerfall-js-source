@@ -205,6 +205,10 @@
     const requirement = $('test-play-requirement');
     const dockAction = $('test-dock-action');
     const gate = v.testPlayGate;
+    if (changed('emc-progress', v.emcProgress)) {
+      document.dispatchEvent(new CustomEvent('launcher-emc-progress', { detail: v.emcProgress }));
+    }
+    document.dispatchEvent(new CustomEvent('launcher-update-gate', { detail: v.waitingForUpdate }));
     requirement.textContent = gate?.message ?? '';
     requirement.hidden = !gate || !!gate.emc;
     $('test-dock').hidden = !gate;
@@ -247,6 +251,7 @@
       document.querySelector('[data-act="choose-folder"]').textContent = v.options.files.label;
     }
     const check = $('update-check');
+    check.disabled = !!v.options.requireCurrent;
     if (check.checked !== v.options.checkOnLaunch) check.checked = v.options.checkOnLaunch;
     // GPU-BACKEND-LAUNCHER: the Graphics option - the box is the backend the next start uses
     const g = v.options.graphics;

@@ -135,7 +135,9 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   function emcErrorMessage(error) {
     return error.message === 'GitHub request failed (404)'
       ? 'This GitHub sign-in cannot read the private EMC repository. Check repository access and sign in again.'
-      : 'Could not download EMC from GitHub. Check your connection and try again.';
+      : error.message === 'EMC transfer timed out'
+        ? 'The EMC transfer stopped responding. Retry the download.'
+        : 'Could not download EMC from GitHub. Check your connection and try again.';
   }
 
   async function privateEmcAssets(token) {
@@ -153,9 +155,9 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       || !/^sha256:[0-9a-f]{64}$/.test(asset.digest)) throw new Error('EMC archive unavailable');
     return {
       asset: { size: asset.size, sha256: asset.digest.slice(7) },
-      request: () => fetchAsset('https://api.github.com/repos/' + privateRepo + '/releases/assets/' + asset.id, {
+      request: (signal = AbortSignal.timeout(30000)) => fetchAsset('https://api.github.com/repos/' + privateRepo + '/releases/assets/' + asset.id, {
         headers: { 'User-Agent': 'DFO-13.11', Authorization: 'Bearer ' + token, Accept: 'application/octet-stream' },
-        redirect: 'manual', signal: AbortSignal.timeout(30 * 60 * 1000),
+        redirect: 'manual', signal,
       }),
     };
   }
@@ -169,11 +171,11 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       for (const [part, name] of Object.entries(emcNames)) {
         if (emc.readyPart?.(part)) continue;
         const { asset, request } = emcDownload(available, token, name);
-        const installed = await emc.installFrom(asset, async () => {
-          const download = await request();
+        const installed = await emc.installFrom(asset, async (signal) => {
+          const download = await request(signal);
           if (download.status === 404) throw new Error('GitHub request failed (404)');
           if (download.status !== 302) return download;
-          return net.fetch(temporaryUrl(download.headers.get('location')), { redirect: 'error', cache: 'no-store' });
+          return net.fetch(temporaryUrl(download.headers.get('location')), { redirect: 'error', cache: 'no-store', signal });
         }, part);
         files += installed.files;
       }

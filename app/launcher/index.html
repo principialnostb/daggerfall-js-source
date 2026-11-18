@@ -65,6 +65,7 @@
             <div class="test-inline"><input id="test-dock-link" placeholder="Paste the offer from your administrator" maxlength="12000" autocomplete="off" spellcheck="false" required><button class="plaque small primary" type="submit">Install EMC</button></div>
             <p id="test-dock-feedback" role="status" hidden></p>
           </form>
+          <progress class="emc-progress" aria-label="EMC download progress" hidden></progress>
         </div>
         <div id="progress" class="progress" hidden>
           <div class="track" role="progressbar" aria-labelledby="status" aria-valuemin="0" aria-valuemax="100"><i></i></div>
@@ -201,6 +202,7 @@
         <div class="test-inline"><input id="test-emc" maxlength="12000" autocomplete="off" spellcheck="false" aria-describedby="test-emc-help" required><button class="plaque primary" type="submit">Install EMC</button></div>
       </form>
     </div>
+    <progress class="emc-progress" aria-label="EMC download progress" hidden></progress>
     <footer class="test-footer"><p id="test-status" role="status" aria-live="polite"></p><button type="button" id="test-sign-out" class="plaque small" hidden>Sign out</button></footer>
   </dialog>
   <script src="test-access.js"></script>

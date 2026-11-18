@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import updates from '../../app/lib/testBuildUpdates.cjs';
+import launcher from '../../app/lib/launcherState.cjs';
 
 const { PART_SIZE, packPartName, testRelease, testGameAssets, fetchTestPackRange } = updates;
 const tag = 'dfo-1311-v13.11.12';
@@ -39,4 +40,23 @@ test('13.11 pack serves a DA13 range across GitHub asset boundaries', async () =
   });
   await assert.rejects(fetchTestPackRange(pack, 0, 1, async () => ({ status: 200, bytes: Buffer.alloc(1) })),
     /Incorrect game pack range/);
+});
+
+test('test builds hold Play until an update is applied and offer a retry on failure', () => {
+  const { initialState, reduce, viewOf } = launcher;
+  let state = initialState({
+    current: '13.11.13', transport: 'updater', requireCurrent: true, checkEnabled: true, inGamePicker: true,
+  });
+  state = reduce(state, { type: 'game-available', version: '13.11.14' });
+  assert.deepEqual(viewOf(state).statusActions, []);
+  state = reduce(state, { type: 'play-now' });
+  assert.equal(state.launch, null);
+  assert.equal(state.update.status, 'downloading');
+  state = reduce(state, { type: 'game-failed' });
+  assert.equal(viewOf(state).play.enabled, false);
+  assert.deepEqual(viewOf(state).statusActions.map(({ id }) => id), ['retry-update']);
+  state = reduce(state, { type: 'check-start' });
+  state = reduce(state, { type: 'game-available', version: '13.11.14' });
+  state = reduce(state, { type: 'game-applied', version: '13.11.14' });
+  assert.equal(viewOf(state).play.enabled, true);
 });

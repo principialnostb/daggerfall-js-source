@@ -171,10 +171,23 @@ function encodeFile(filePath, bytes) {
 }
 
 /** A file's bytes out of the pack, decoded and CHECKED - its size and its sha256 are the manifest's, or it is refused. */
+function checkEncodedLength(entry, data) {
+  if (data.length !== entry.length) fail('hash', `${entry.path}: ${data.length} bytes where the pack holds ${entry.length}`);
+}
 function decodeFile(entry, data) {
   let bytes;
-  if (data.length !== entry.length) fail('hash', `${entry.path}: ${data.length} bytes where the pack holds ${entry.length}`);
+  checkEncodedLength(entry, data);
   try { bytes = entry.encoding === 'br' ? zlib.brotliDecompressSync(data) : Buffer.from(data); } catch { fail('hash', `${entry.path} does not decode`); }
+  return checkDecodedFile(entry, bytes);
+}
+const decompress = require('node:util').promisify(zlib.brotliDecompress);
+async function decodeFileAsync(entry, data) {
+  checkEncodedLength(entry, data);
+  let bytes;
+  try { bytes = entry.encoding === 'br' ? await decompress(data) : Buffer.from(data); } catch { fail('hash', `${entry.path} does not decode`); }
+  return checkDecodedFile(entry, bytes);
+}
+function checkDecodedFile(entry, bytes) {
   if (bytes.length !== entry.size || sha256(bytes) !== entry.sha256) fail('hash', `${entry.path} is not the file the manifest names`);
   return bytes;
 }
@@ -270,6 +283,6 @@ const versionOfTag = (tag) => (parseReleaseTag(tag) ? String(tag).trim().replace
 
 module.exports = {
   GAME_CHANNEL, GAME_FILES, GAME_ENTRY, ENCODINGS, TEXT_FILE_RE, TEXT_QUALITY, MEDIA_QUALITY, RANGE_GAP, RANGE_MAX,
-  GameChannelError, sha256, isSafeGamePath, readManifest, readSeed, parseManifestFile, encodeFile, decodeFile,
+  GameChannelError, sha256, isSafeGamePath, readManifest, readSeed, parseManifestFile, encodeFile, decodeFile, decodeFileAsync,
   planUpdate, planRanges, checkRangeAnswer, routeFor, deltaOf, gameAssetsOf, versionOfTag,
 };

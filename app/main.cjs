@@ -564,7 +564,7 @@ function handleDagger(req) {
 // check's own request - asked beside it at launch, under its two gates -
 // and its answer is kept in news.json, so the panel is never empty while
 // the next one is asked for, or when GitHub does not answer.
-const TEST_EMC = TEST_CONFIG ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net, { requireFaces: true }) : null;
+const TEST_EMC = TEST_CONFIG ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net, { requireFaces: true, onProgress: emcProgressChanged }) : null;
 const TEST_ACCESS = TEST_CONFIG
   ? require('./lib/publicTestChannel.cjs').publicTestChannel({
     userData: app.getPath('userData'), net, safeStorage, emc: TEST_EMC, fetchAsset: globalThis.fetch, requireFaces: true,
@@ -637,7 +637,7 @@ function currentUpdateTransport() {
 
 /** DA6's two gates, for both transports and every check but the one the
  *  player asks for from the menu. */
-const updateChecksEnabled = () => loadConfig().updateCheck !== false && !process.env.DAGGER_NO_UPDATE_CHECK;
+const updateChecksEnabled = () => !!TEST_ACCESS || (loadConfig().updateCheck !== false && !process.env.DAGGER_NO_UPDATE_CHECK);
 
 /** An update this copy has DOWNLOADED and will install at quit (the
  *  updater transport), and a newer release this copy can only be told of
@@ -1251,6 +1251,7 @@ async function askGame() {
   try {
     const latest = await fetchLatestRelease();
     if (gameJob) return 'game';
+    if (!latest && TEST_ACCESS) return 'offline';
     if (!latest) return gameStore.active() ? 'offline' : 'installer';
     if (!isNewerRelease(gameVersion(), latest.tag)) return 'current';
     version = versionOfTag(latest.tag);
@@ -1273,6 +1274,11 @@ async function askGame() {
   } catch (err) {
     if (gameJob?.version === version) gameJob = null;
     if (version && !TEST_CONFIG?.nsis) gameStore.fail(version);
+    if (version && TEST_CONFIG?.nsis) {
+      launcherDispatch({ type: 'game-available', version });
+      gameFailed(version, err);
+      return 'game';
+    }
     console.warn(`[game] the channel cannot bring v${version ?? '?'} - the installer's path takes it:`, err?.message ?? err);
     return 'installer';
   }
@@ -1282,13 +1288,16 @@ async function askGame() {
  *  end gameArrived - or, on any failure, the installer's path for that release (gameFailed). */
 function downloadGame(manifest, packUrl) {
   const { version } = manifest;
-  let told = false;
+  let lastProgress = 0;
+  launcherDispatch({ type: 'game-available', version });
   gameStore.stage(manifest, {
     fetchRange: (start, end) => TEST_UPDATE_BUILD
       ? fetchTestPackRange(packUrl, start, end, fetchPackRange)
       : fetchPackRange(packUrl, start, end),
     onProgress: ({ transferred, total }) => {
-      if (!told) { told = true; launcherDispatch({ type: 'game-available', version, total }); }
+      const now = Date.now();
+      if (transferred !== total && now - lastProgress < 100) return;
+      lastProgress = now;
       launcherDispatch({ type: 'progress', percent: total ? (100 * transferred) / total : 100, transferred, total });
     },
   }).then(
@@ -1476,6 +1485,7 @@ function openDiagnosticsFolder() {
  *  menu's checkbox are one setting (config.json updateCheck); turned on
  *  while the launcher is open, it checks now rather than next launch. */
 function setCheckOnLaunch(on) {
+  if (TEST_ACCESS) return;
   saveConfig({ ...loadConfig(), updateCheck: !!on });
   buildMenu();
   // AUDIT INSTALL R2-A6: turned on from the game's File menu too - the hourly check starts (it returned first)
@@ -1537,7 +1547,8 @@ function buildMenu() {
           // DA10: it gates the launch check, the news and the hourly re-check alike - 'on Launch' said a third of it
           label: 'Check for Updates Automatically',
           type: 'checkbox',
-          checked: loadConfig().updateCheck !== false,
+          checked: !!TEST_ACCESS || loadConfig().updateCheck !== false,
+          enabled: !TEST_ACCESS,
           click: (item) => setCheckOnLaunch(item.checked),
         },
         { type: 'separator' },
@@ -1795,11 +1806,17 @@ function openLauncherWindow() {
   return win;
 }
 
+const testUpdateReady = () => launcher?.state.update.status === 'current' && !initialGamePending();
 const testAccessGate = { message: 'Activate an invitation or sign in as a developer.', invite: true };
 let testPlayGate = TEST_ACCESS ? testAccessGate : null;
 let testPlayCheck;
 let developerEmcDownload;
 let developerEmcError;
+let emcProgress = null;
+function emcProgressChanged(progress) {
+  emcProgress = progress;
+  renderLauncher();
+}
 
 function startDeveloperEmc() {
   if (developerEmcDownload || developerEmcError || TEST_EMC.ready()) return;
@@ -1810,9 +1827,11 @@ function startDeveloperEmc() {
 }
 function refreshTestPlay() {
   if (!TEST_ACCESS) return Promise.resolve(true);
+  if (!testUpdateReady()) return Promise.resolve(false);
   testPlayCheck ??= (async () => {
     try {
       const developer = await TEST_ACCESS.authorizeUpdate();
+      if (!testUpdateReady()) return false;
       if (TEST_EMC.ready()) testPlayGate = null;
       else if (developer) {
         startDeveloperEmc();
@@ -1836,7 +1855,8 @@ function renderLauncher() {
   if (w && !w.isDestroyed()) {
     const view = viewOf(launcher.state);
     if (testPlayGate || initialGamePending()) view.play = { ...view.play, enabled: false };
-    w.webContents.send('launcher:view', { ...view, testPlayGate });
+    const waitingForUpdate = !!TEST_ACCESS && !testUpdateReady();
+    w.webContents.send('launcher:view', { ...view, emcProgress, waitingForUpdate, testPlayGate: waitingForUpdate ? null : testPlayGate });
   }
 }
 
@@ -1845,7 +1865,9 @@ function renderLauncher() {
  *  from then on the game is who hears (onUpdaterEvent). */
 function launcherDispatch(ev) {
   if (!launcher) return;
+  const wasReady = testUpdateReady();
   launcher.state = reduce(launcher.state, ev);
+  if (TEST_ACCESS && !wasReady && testUpdateReady()) refreshTestPlay();
   // R2-D4: the search goes on past its deadline only while the card waits - once the player has chosen, it is let go
   if (launcher.search && (launcher.state.setup.status === 'ready' || launcher.state.setup.status === 'skipped')) {
     launcher.search.abort();
@@ -2045,8 +2067,10 @@ function judgeSaved(l, dir) {
  *  downloads what it finds (onUpdaterEvent carries it here); the notice
  *  transport asks the API. Silence past CHECK_TIMEOUT_MS frees Play - and
  *  an answer that comes later still lands (launcherState MAY_FIND). */
+let launchCheckTimer;
 function startLaunchCheck() {
-  setTimeout(() => launcherDispatch({ type: 'check-timeout' }), CHECK_TIMEOUT_MS).unref?.();
+  clearTimeout(launchCheckTimer);
+  launchCheckTimer = setTimeout(() => launcherDispatch({ type: 'check-timeout' }), CHECK_TIMEOUT_MS).unref?.();
   // DA13: the game's own channel first - only the files that changed; the installer's path answers what it cannot carry
   askGame().then((g) => {
     if (g === 'current') launcherDispatch({ type: 'check-none' });
@@ -2100,7 +2124,8 @@ function runLauncher() {
       transport: currentUpdateTransport(),
       platform: process.platform,
       checkEnabled,
-      checkOnLaunch: !PINNED_TEST_BUILD && cfg.updateCheck !== false,
+      checkOnLaunch: !!TEST_ACCESS || (!PINNED_TEST_BUILD && cfg.updateCheck !== false),
+      requireCurrent: !!TEST_ACCESS,
       savedDir,
       // the player chose the game's own picker once (kept), or the headless probe skips the question
       inGamePicker: cfg.arena2InGame === true || !!process.env.DAGGER_SKIP_ARENA2_PROMPT,
@@ -2154,14 +2179,16 @@ ipcMain.handle('launcher:test-access', async (e, action, value) => {
   if (action === 'enabled') return TEST_ACCESS ? 'public' : false;
   if (action === 'open-developer') return process.argv.includes('--dfo-open-developer');
   if (!TEST_ACCESS?.action || typeof action !== 'string' || (value !== undefined && (typeof value !== 'string' || value.length > (action === 'emc' ? 12000 : action === 'github-token' ? 512 : 80)))) return null;
+  if (['emc', 'emc-retry'].includes(action) && !testUpdateReady()) throw new Error('Update required before installing EMC');
   if (action === 'emc-retry') { developerEmcError = null; return refreshTestPlay(); }
   const refresh = ['invite', 'github-login', 'sign-out', 'emc'].includes(action);
   if (action === 'github-login' || action === 'sign-out') developerEmcError = null;
   if (refresh) await testPlayCheck;
+  if (action === 'emc' && !testUpdateReady()) throw new Error('Update required before installing EMC');
   const answer = await TEST_ACCESS.action(action, value);
   if (refresh) {
     await refreshTestPlay();
-    if (answer?.role) startLaunchCheck();
+    if (answer?.role && !TEST_ACCESS) startLaunchCheck();
   }
   return answer;
 });
@@ -2179,7 +2206,7 @@ ipcMain.on('launcher:act', async (e, msg) => {
   const st = launcher.state;
   switch (action) {
     case 'play': if (testPlayGate || initialGamePending()) break; launcherDispatch({ type: 'play' }); break;
-    case 'play-now': if (testPlayGate || initialGamePending()) break; stopStallWatch(); launcherDispatch({ type: 'play-now' }); break;
+    case 'play-now': if (TEST_ACCESS || testPlayGate || initialGamePending()) break; stopStallWatch(); launcherDispatch({ type: 'play-now' }); break;
     case 'download': if (st.update.download) openTestSetupOrLink(st.update.download); break;
     case 'skip-setup':
       if (reduce(st, { type: 'skip-setup' }).setup.status !== st.setup.status) {
@@ -2212,7 +2239,13 @@ ipcMain.on('launcher:act', async (e, msg) => {
       break;
     }
     case 'open-saves': openSavesFolder(); break;
-    case 'set-update-check': setCheckOnLaunch(arg === true); break;
+    case 'retry-update':
+      if (TEST_ACCESS && ['offline', 'failed'].includes(st.update.status)) {
+        launcherDispatch({ type: 'check-start' });
+        startLaunchCheck();
+      }
+      break;
+    case 'set-update-check': if (!TEST_ACCESS) setCheckOnLaunch(arg === true); break;
     case 'reinstall': if (!PINNED_TEST_BUILD) await reinstallFromLauncher(); break;
     case 'set-backend': setBackendFromLauncher(arg); break;
     case 'restart': restartFromLauncher(); break;

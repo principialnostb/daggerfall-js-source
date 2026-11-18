@@ -67,7 +67,7 @@ function downloadOffer(offer) {
   return { ...offer, url: temporaryUrl(offer.url) };
 }
 
-function emcStore(root, net, { requireFaces = false } = {}) {
+function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idleMs = 30000 } = {}) {
   const locations = {
     base: { path: path.join(root, 'emc.pack'), check: hasPaperdoll },
     faces: { path: path.join(root, 'faces.pack'), check: hasFaces },
@@ -97,7 +97,7 @@ function emcStore(root, net, { requireFaces = false } = {}) {
     if (!data?.base && !data?.faces) {
       if (requireFaces) throw new Error('A complete EMC offer is required');
       const offer = downloadOffer(data);
-      return installFrom(offer, () => openUrl(offer.url));
+      return installFrom(offer, (signal) => openUrl(offer.url, signal));
     }
     // Validate the complete offer before installing either component.
     const parts = Object.entries({ base: data.base, faces: data.faces })
@@ -110,14 +110,14 @@ function emcStore(root, net, { requireFaces = false } = {}) {
         for await (const chunk of fs.createReadStream(locations[part].path)) installed.update(chunk);
         if (installed.digest('hex') === offer.sha256) continue;
       }
-      const result = await installFrom(offer, () => openUrl(offer.url), part);
+      const result = await installFrom(offer, (signal) => openUrl(offer.url, signal), part);
       files += result.files;
     }
     if (!readyPart('base') || (requireFaces && !readyPart('faces'))) throw new Error('A complete EMC offer is required');
     return { files };
   }
 
-  const openUrl = (url) => net.fetch(url, { redirect: 'error', cache: 'no-store' });
+  const openUrl = (url, signal) => net.fetch(url, { redirect: 'error', cache: 'no-store', signal });
 
   async function installFrom(offer, openDownload, part = 'base') {
     const location = locations[part];
@@ -125,28 +125,53 @@ function emcStore(root, net, { requireFaces = false } = {}) {
     if (installing) throw new Error('An EMC download is in progress');
     installing = true;
     const temp = location.path + '.download';
+    const stop = new AbortController();
+    let timer, lastReport = 0;
+    function armTimeout() {
+      if (timer) timer.refresh();
+      else timer = setTimeout(() => stop.abort(), idleMs);
+    }
+    const report = (stage, received) => onProgress({ part, stage, received, total: offer.size });
     try {
-      fs.mkdirSync(root, { recursive: true });
-      const response = await openDownload();
-      if (!response.ok || !response.body) throw new Error('EMC link expired or unavailable');
+      await fs.promises.mkdir(root, { recursive: true });
+      report('connecting', 0);
+      armTimeout();
+      const response = await openDownload(stop.signal);
+      if (!response.ok || !response.body) {
+        await response.body?.cancel().catch(() => {});
+        throw new Error('EMC download refused (HTTP ' + response.status + ')');
+      }
+      armTimeout();
+      report('downloading', 0);
       let size = 0;
       const hash = createHash('sha256');
       const check = new Transform({ transform(chunk, _encoding, callback) {
+        armTimeout();
         size += chunk.length;
         if (size > offer.size) return callback(new Error('EMC download is too large'));
         hash.update(chunk);
+        if (Date.now() - lastReport >= 200) {
+          lastReport = Date.now();
+          report('downloading', size);
+        }
         callback(null, chunk);
       } });
-      await pipeline(Readable.fromWeb(response.body), check, fs.createWriteStream(temp, { flags: 'w' }));
+      await pipeline(Readable.fromWeb(response.body), check, fs.createWriteStream(temp, { flags: 'w' }), { signal: stop.signal });
+      clearTimeout(timer);
+      report('verifying', size);
       if (size !== offer.size || hash.digest('hex') !== offer.sha256) throw new Error('EMC checksum failed');
       const next = readPack(temp);
       if (!location.check(next)) throw new Error('This EMC package is incomplete. Ask for a new temporary link.');
-      fs.renameSync(temp, location.path);
+      await fs.promises.rename(temp, location.path);
       partFiles.set(part, next);
       return { files: next.length };
+    } catch (error) {
+      if (stop.signal.aborted) throw new Error('EMC transfer timed out');
+      throw error;
     } finally {
-      installing = false;
-      fs.rmSync(temp, { force: true });
+      clearTimeout(timer);
+      try { await fs.promises.rm(temp, { force: true }); }
+      finally { installing = false; onProgress(null); }
     }
   }
 

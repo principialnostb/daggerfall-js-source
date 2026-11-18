@@ -33,7 +33,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { GAME_CHANNEL, GAME_ENTRY, GameChannelError, sha256, readSeed, planUpdate, planRanges, checkRangeAnswer, decodeFile, isSafeGamePath } = require('./gameChannel.cjs');
+const io = fs.promises;
+const { GAME_CHANNEL, GAME_ENTRY, GameChannelError, sha256, readSeed, planUpdate, planRanges, checkRangeAnswer, decodeFileAsync, isSafeGamePath } = require('./gameChannel.cjs');
 const { isNewerRelease } = require('./updateCheck.cjs');
 
 /** How many failed versions are remembered. */
@@ -51,6 +52,14 @@ function writeDurable(file, bytes) {
   const fd = fs.openSync(tmp, 'w');
   try { fs.writeSync(fd, bytes); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
   fs.renameSync(tmp, file);
+}
+async function writeStagedFile(file, bytes) {
+  await io.mkdir(path.dirname(file), { recursive: true });
+  const fd = await io.open(file, 'w');
+  try {
+    await fd.writeFile(bytes);
+    await fd.sync();
+  } finally { await fd.close(); }
 }
 const writeJson = (file, obj) => writeDurable(file, Buffer.from(JSON.stringify(obj)));
 
@@ -157,8 +166,8 @@ function openGameStore({ root, seed, dist, importRoots = [] }) {
       let stop = false;
       staging.add(v);
       try {
-        fs.rmSync(dir, { recursive: true, force: true });
-        fs.mkdirSync(path.join(dir, 'files'), { recursive: true });
+        await io.rm(dir, { recursive: true, force: true });
+        await io.mkdir(path.join(dir, 'files'), { recursive: true });
         // what this copy holds already is copied, hashed again on the way - a file changed on disk is fetched instead
         const fetch = [];
         for (const entry of plan.fetch) {
@@ -166,10 +175,10 @@ function openGameStore({ root, seed, dist, importRoots = [] }) {
           for (const source of importRoots) {
             const file = path.join(source, entry.path);
             try {
-              if (fs.statSync(file).size !== entry.size) continue;
-              const bytes = fs.readFileSync(file);
+              if ((await io.stat(file)).size !== entry.size) continue;
+              const bytes = await io.readFile(file);
               if (sha256(bytes) !== entry.sha256) continue;
-              writeDurable(into(entry.path), bytes);
+              await writeStagedFile(into(entry.path), bytes);
               own.add(entry.path);
               recovered = true;
               break;
@@ -182,9 +191,9 @@ function openGameStore({ root, seed, dist, importRoots = [] }) {
         for (const c of plan.carry) {
           const src = c.from.own ? path.join(versionDir(index.version), 'files', c.from.path) : path.join(dist, c.from.path);
           let bytes = null;
-          try { bytes = fs.readFileSync(src); } catch { /* gone: fetched instead */ }
+          try { bytes = await io.readFile(src); } catch { /* gone: fetched instead */ }
           if (!bytes || bytes.length !== c.size || sha256(bytes) !== c.sha256) { fetch.push(c); continue; }
-          writeDurable(into(c.path), bytes);
+          await writeStagedFile(into(c.path), bytes);
           own.add(c.path);
         }
         const ranges = planRanges(fetch);
@@ -198,7 +207,8 @@ function openGameStore({ root, seed, dist, importRoots = [] }) {
             if (stop) return;
             const bytes = checkRangeAnswer(answer, { start: r.start, end: r.end, size: manifest.pack.size });
             for (const e of r.entries) {
-              writeDurable(into(e.path), decodeFile(e, bytes.subarray(e.offset - r.start, e.offset - r.start + e.length)));
+              const data = bytes.subarray(e.offset - r.start, e.offset - r.start + e.length);
+              await writeStagedFile(into(e.path), await decodeFileAsync(e, data));
               own.add(e.path);
             }
             transferred += r.end - r.start;
@@ -210,7 +220,11 @@ function openGameStore({ root, seed, dist, importRoots = [] }) {
         const broke = runs.find((r) => r.status === 'rejected');
         if (broke) throw broke.reason;
         // an empty file has no bytes in the pack to fetch
-        for (const e of fetch) if (e.length === 0 && !own.has(e.path)) { writeDurable(into(e.path), decodeFile(e, Buffer.alloc(0))); own.add(e.path); }
+        for (const e of fetch) {
+          if (e.length !== 0 || own.has(e.path)) continue;
+          await writeStagedFile(into(e.path), await decodeFileAsync(e, Buffer.alloc(0)));
+          own.add(e.path);
+        }
         // step 2: whole - the index, renamed into place, is the version's one atomic step
         writeJson(path.join(dir, 'index.json'), {
           channel: GAME_CHANNEL,
@@ -221,7 +235,7 @@ function openGameStore({ root, seed, dist, importRoots = [] }) {
         return { version: v, bytes: total, files: own.size };
       } catch (e) {
         stop = true;
-        fs.rmSync(dir, { recursive: true, force: true });
+        await io.rm(dir, { recursive: true, force: true });
         throw e;
       } finally {
         staging.delete(v);

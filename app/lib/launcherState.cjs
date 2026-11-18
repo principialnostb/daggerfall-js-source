@@ -158,7 +158,7 @@ const cmpV = (a, b) => { for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a
  *   default, refused: the last choice could not be written } (app/lib/graphicsBackend.cjs backendOption)
  */
 function initialState({
-  current, transport, platform = 'win32', checkEnabled, checkOnLaunch = checkEnabled, arena2Dir = null, savedDir = null,
+  current, transport, platform = 'win32', checkEnabled, checkOnLaunch = checkEnabled, requireCurrent = false, arena2Dir = null, savedDir = null,
   inGamePicker = false, savedArena2 = null, news = [], lastPlayed = null, returning = false, installFailedFor = null, backend = null,
 }) {
   const checking = !arena2Dir && typeof savedDir === 'string' && savedDir !== '';
@@ -167,6 +167,7 @@ function initialState({
     transport,
     platform: String(platform),
     checkOnLaunch: !!checkOnLaunch,
+    requireCurrent,
     installFailedFor: parseVersion(installFailedFor) ? String(installFailedFor).trim() : null,
     lastPlayed: parseVersion(lastPlayed) ? String(lastPlayed).trim() : null,
     returning: !!returning,
@@ -207,7 +208,7 @@ const clampPercent = (p) => Math.max(0, Math.min(100, Number(p) || 0));
 
 /** Play can be pressed: nothing is being decided for the player, and the
  *  game has files - a configured folder, or the in-page picker. */
-const canPlay = (s) => !s.launch && SETUP_DONE.has(s.setup.status) && !UPDATE_HOLDS.has(s.update.status);
+const canPlay = (s) => !s.launch && SETUP_DONE.has(s.setup.status) && (s.requireCurrent ? s.update.status === 'current' : !UPDATE_HOLDS.has(s.update.status));
 /** GPU-BACKEND-LAUNCHER: the launcher may restart the app - not after Play, nor over a download or an install. */
 const canRestart = (s) => !s.launch && s.update.status !== 'downloading' && s.update.status !== 'installing';
 
@@ -224,7 +225,7 @@ function reduce(state, ev) {
       break;
     case 'check-start':
       // the player turned the check on from the launcher
-      if (u.status === 'skipped') u.status = 'checking';
+      if (u.status === 'skipped' || (s.requireCurrent && ['offline', 'failed'].includes(u.status))) u.status = 'checking';
       if (s.news.status === 'off') s.news.status = 'loading';
       break;
     case 'check-none':
@@ -265,7 +266,7 @@ function reduce(state, ev) {
       break;
     case 'play-now':
       // "Play without updating": the download goes on and installs when the game quits (DA7)
-      if (u.status === 'downloading') {
+      if (!s.requireCurrent && u.status === 'downloading') {
         u.status = 'background';
         if (canPlay(s)) s.launch = 'requested';
       }
@@ -286,7 +287,11 @@ function reduce(state, ev) {
       break;
     case 'game-failed':
       // DA13: the channel could not bring it - the shell asks the installer's path next, from a check
-      if (u.kind === 'game' && (u.status === 'downloading' || u.status === 'background')) { u.status = 'checking'; u.kind = null; u.version = null; }
+      if (u.kind === 'game' && (u.status === 'downloading' || u.status === 'background')) {
+        u.status = s.requireCurrent ? 'failed' : 'checking';
+        u.kind = null;
+        if (!s.requireCurrent) u.version = null;
+      }
       break;
     case 'install-failed':
       // the installer never took over (it would have closed the app): Play is free, and the installer is offered
@@ -649,6 +654,7 @@ function viewOf(s) {
         : st.status === 'skipped' ? { path: '', note: 'Chosen in the game', label: 'Choose folder' }
           : { path: '', note: 'Not set yet', label: 'Choose folder' },
       checkOnLaunch: s.checkOnLaunch,
+      requireCurrent: s.requireCurrent,
       graphics: graphicsView(s),
       privateServer: privateView(s),
     },
@@ -676,7 +682,7 @@ function viewOf(s) {
     // the page works out the speed and the time left from the bytes as they arrive
     if (u.total > 0) Object.assign(v.progress, { transferred: Math.max(0, Number(u.transferred) || 0), total: u.total });
     v.busy = true;
-    if (SETUP_DONE.has(st.status)) v.statusActions = [{ id: 'play-now', label: 'Play without updating' }];
+    if (!s.requireCurrent && SETUP_DONE.has(st.status)) v.statusActions = [{ id: 'play-now', label: 'Play without updating' }];
   } else if (u.status === 'checking') {
     v.status = 'Checking for updates';
     v.busy = true;
@@ -705,6 +711,12 @@ function viewOf(s) {
     v.detail = 'What changed is in the patch notes.';
   } else {
     v.status = 'Up to date';
+  }
+  if (s.requireCurrent && ['failed', 'offline'].includes(u.status)) {
+    v.detail = 'Check your connection to GitHub and retry to continue.';
+    v.statusActions = [{ id: 'retry-update', label: 'Retry update', primary: true }];
+  } else if (s.requireCurrent && u.status === 'stuck') {
+    v.detail = 'Run the installer to finish the launcher update.';
   }
   // the gem breathes while anything is being looked for or at
   if (st.status === 'looking' || st.status === 'checking' || st.searching || st.judging) v.busy = true;

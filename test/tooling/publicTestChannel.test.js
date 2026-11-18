@@ -165,3 +165,23 @@ test('complete EMC offers retain an installed base and mount the independent fac
   assert.deepEqual(await store.serve(['test-emc']).json(), names);
   assert.equal(await store.serve(['test-emc', '2']).text(), 'k');
 });
+
+test('EMC times out before headers and after a stalled body, then allows another attempt', async (t) => {
+  const events = [];
+  let response = (signal) => new Promise((_, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  });
+  const root = profile(t);
+  const store = emcPack.emcStore(root, { fetch: (_url, { signal }) => response(signal) }, {
+    idleMs: 40, onProgress: (event) => events.push(event?.stage ?? 'done'),
+  });
+  const offer = JSON.stringify({ url: temporary, size: 2, sha256: hash('ab') });
+  await assert.rejects(store.install(offer), /transfer timed out/);
+  assert.deepEqual(events.splice(0), ['connecting', 'done']);
+  response = () => new Response(new ReadableStream({ start(c) { c.enqueue(new Uint8Array([97])); } }));
+  await assert.rejects(store.install(offer), /transfer timed out/);
+  assert.deepEqual(events.splice(0), ['connecting', 'downloading', 'downloading', 'done']);
+  response = () => new Response(null, { status: 403 });
+  await assert.rejects(store.install(offer), /HTTP 403/);
+  assert.deepEqual(events, ['connecting', 'done']);
+});
