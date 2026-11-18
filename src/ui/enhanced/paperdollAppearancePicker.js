@@ -4,8 +4,8 @@ import { itemAppearanceKey } from '../../systems/item/itemAppearanceKey.js';
 // remain readable. This presentation scale does not change placement on the body.
 import { isPaperdollHelmet } from '../../systems/helmetPaperdollLooks.js';
 import { getPref } from '../../systems/uiPrefs.js';
-import { paperdollLookChoices, paperdollLookOf, setPaperdollLook, paperdollDyeOf, setPaperdollDye } from '../../systems/paperdollLooks.js';
-import { CLOTHING_DYES } from '../../characters/dyes.js';
+import { paperdollLookChoices, paperdollLookOf, setPaperdollLook, paperdollDyeOf, paperdollDyeChoices, setPaperdollDye } from '../../systems/paperdollLooks.js';
+import { DYE_NAMES } from '../../characters/dyes.js';
 import { DF_CLOTHING_DYE_RGB } from '../../formats/morrowind/mwItemMap.js';
 import { dfmodGeneration } from '../../systems/dfmodTextures.js';
 import { itemDyeColor } from '../../systems/item/itemDye.js';
@@ -120,10 +120,11 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
   if (lastMode) state.mode = lastMode;
   // THE TABS (the owner, 2026-11-08, with a screenshot of the helm's card): 3D and 2D share one card for every piece -
   // two tabs when both are on, ONE full-width tab named for what it holds when only one is. 3D: the model-look switch
-  // and a look row to show (a helm shows its tab even with none); 2D: the inventory's 2D card, paperdoll customization
-  // and a look besides its own.
+  // and a look row to show (a helm shows its tab even with none); 2D: paperdoll customization
+  // and either a shape or a dye choice.
   const can3d = getPref('modelCustomization') === true && (helm || !!modelRow);
-  const can2d = !!getPref('morrowindThirdPersonOnly') && getPref('paperdollCustomization') !== false && allLooks.length > 1;
+  let dye = paperdollDyeOf(item);
+  const can2d = getPref('paperdollCustomization') !== false && (allLooks.length > 1 || dye !== null);
   const modes = [...(can3d ? ['3d'] : []), ...(can2d ? ['2d'] : [])];
   if (!modes.length) return null;
   if (!modes.includes(state.mode)) state.mode = modes[0];
@@ -137,7 +138,6 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
   const buttons = [];
   // What the pictures are drawn from. The DYE too (the owner, 2026-11-08: a yellow short shirt's cards showed blue): two
   // pieces of one template and material in different dyes, or one piece re-dyed, are different pictures.
-  let dye = paperdollDyeOf(item);   // GARMENT-DYES: the cards are drawn in the colour the card will wear
   const drawKey = () => `${key}|${item.variant ?? 0}|${item.dye ?? ''}|${itemDyeColor(item) ?? ''}|${dye ?? ''}|${identity?.gender}|${identity?.race}|${dfmodGeneration()}`;
   let framed = drawn.get(drawKey()) ?? null;
   const draw = () => {
@@ -160,10 +160,10 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
     if (dye !== null) {   // GARMENT-DYES: the ten cloth dyes, the worn one lit; a press recolours the cards and the card
       const dyes = make('div', 'look-dyes');
       dyes.setAttribute('role', 'radiogroup'); dyes.setAttribute('aria-label', 'Цвет');
-      for (const d of CLOTHING_DYES) {
+      for (const d of paperdollDyeChoices(item)) {
         const rgb = DF_CLOTHING_DYE_RGB[d] ?? [128, 128, 128];
         const chip = make('button', `look-dye${d === dye ? ' on' : ''}`);
-        chip.type = 'button'; chip.title = `Цвет ${d + 1}`;
+        chip.type = 'button'; chip.title = DYE_NAMES[d] ?? String(d);
         chip.setAttribute('role', 'radio'); chip.setAttribute('aria-checked', String(d === dye));
         chip.style?.setProperty?.('background', `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`);
         chip.onclick = () => {
@@ -205,12 +205,12 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
   for (const mode of modes) {
     const label = modes.length > 1 ? (mode === '2d' ? '2D' : '3D') : (mode === '2d' ? '2D-облик' : '3D-модель');
     const button = make('button', 'act look-tab', label); button.type = 'button'; button.setAttribute('role', 'tab');
-    button.onclick = () => { lastMode = state.mode = mode; draw(); };
+    button.onclick = () => { lastMode = state.mode = mode; draw(); if (mode === '2d') loadPictures(); };
     button.onkeydown = (event) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       const target = event.key === 'Home' ? buttons[0] : event.key === 'End' ? buttons.at(-1) : buttons.find(([other]) => other !== mode) || buttons[0];
-      lastMode = state.mode = target[0]; draw(); target[1].focus();
+      lastMode = state.mode = target[0]; draw(); if (state.mode === '2d') loadPictures(); target[1].focus();
     };
     buttons.push([mode, button]); tabs.append(button);
   }
@@ -233,6 +233,6 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
         draw();
       });
   }
-  loadPictures();
+  if (state.mode === '2d') loadPictures();
   return root;
 }

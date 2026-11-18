@@ -350,8 +350,7 @@ export const modDials = (vendor) =>
  *  force it, 'player' to leave it). `lane` (RF4) names the registered
  *  lane a condensed row takes its tiers/default/read/write from. */
 export const FEATURES = Object.freeze([
-  ...[['environment','world-pixel-environment','Pixelated world geometry','Ground, snow and combined building geometry. Characters, separate objects and sky have their own presentation.'],
-    ['objects','world-pixel-objects','Pixelated objects and decor','Separate 3D props, including the entire campfire (stones, wood and flame) and classic furniture. Overrides world pixelation for those objects; the two passes never stack.'],
+  ...[['objects','world-pixel-objects','Pixelated objects and decor','Separate 3D props, including the entire campfire (stones, wood and flame) and classic furniture.'],
   ].map(([kind,id,title,note])=>Object.freeze({
     id,group:'world',
     get title(){return t(`features.${WORLD_PIXEL_KEYS[kind]}.title`,title);},
@@ -1507,7 +1506,7 @@ export const FEATURES = Object.freeze([
   // first-person hands, the player's body and everyone else's, each in rows per screen height (render/charPixelLayer.js).
   ...[['fp', 'char-pixel-fp', 'charPixelFp', 'Pixelated hands (1st person)', 'The first-person hands and weapon drawn in coarse pixels, like the world around them.'],
     ['player', 'char-pixel-player', 'charPixelPlayer', 'Pixelated player body (3rd person)', 'Your own Morrowind body drawn in coarse pixels in third person. The body keeps its true depth and contact with the ground.'],
-    ['npc', 'char-pixel-npc', 'charPixelNpc', 'Pixelated NPC bodies', 'Every other Morrowind body - NPCs, foes, guards and other players - drawn in coarse pixels like the classic sprites.'],
+    ['npc', 'char-pixel-npc', 'charPixelNpc', 'Pixelated NPC bodies', 'NPCs, foes, guards, other players and animals use this pixel size.'],
   ].map(([who, id, key, title, note]) => Object.freeze({
     id,
     group: 'world',

@@ -1,3 +1,4 @@
+import { emcText } from './emcLanguage.js';
 import { modResourceSignature } from '../../systems/enhancedModResources.js';
 import { inventoryModelSource } from './inventoryPresentation.js';
 import { inventoryFacePicker, inventoryDollPixels, refreshInventoryDoll } from './inventoryFaces.js';
@@ -93,7 +94,6 @@ import { lookLine } from '../../systems/appearances.js';   // APPEARANCES: the I
 import { requestIcon, loadIcon, paperDollDataUrl, requestFittedPicture, requestFittedIcon, iconName, fittedImg } from '../textureCanvas.js';
 import { CLOAK_TEMPLATES } from '../../characters/ownModels/wolfCloak.js';
 import { isShieldTemplate } from '../../characters/ownModels/shieldLooks.js';
-import { weaponSkinsFor } from '../../characters/ownModels/localWeaponModels.js';
 import { isPaperdollHelmet, helmetPaperdollVariant } from '../../systems/helmetPaperdollLooks.js';
 import { helmetAppearancePicker, fitHelmetThumbnail } from './helmetAppearancePicker.js';
 import { paperdollAppearancePicker } from './paperdollAppearancePicker.js';   // PAPERDOLL-LOOKS: the 2D look of any piece
@@ -3862,8 +3862,7 @@ function itemActs(picked, side, { qty = true } = {}) {
   // equipSlot here hid the entire selector on ordinary inventory shield cards.
   const shieldAppearance = side === 'local' && isShieldTemplate(picked.templateIndex);
   const helmetAppearance = side === 'local' && isPaperdollHelmet(picked);
-  const weaponAppearance = side === 'local' && weaponSkinsFor(picked).length > 0;
-  const looks = getPref('modelCustomization') === true && (line.equipped || shieldAppearance || helmetAppearance || weaponAppearance) ? lookChoices(picked) : null;
+  const looks = getPref('modelCustomization') === true && (side === 'local' || line.equipped) ? lookChoices(picked) : null;
   let modelRow = null;
   // MODEL-LOOKS (systems/modelLooks.js, ui/enhanced/modelLookRow.js): the 3D tab's ONE row on the player's own pieces -
   // the port's own looks and every Morrowind record together; a choice rebuilds the body as a look's switch does
@@ -4589,7 +4588,7 @@ function render() {
     if (!salvageSel) head.append(sortButton(sortPack));
     // MWV2-APPEARANCE: keep the editor beside the character name, immediately before Codex.
     if (!deps.loot && deps.fpArm && appearanceEditorAvailable()) {
-      const appearanceButton = el('button', 'act mw-appearance-open', 'Внешность');
+      const appearanceButton = el('button', 'act mw-appearance-open', emcText('Внешность'));
       appearanceButton.type = 'button';
       appearanceButton.title = 'Настроить доступные пропорции тела персонажа';
       appearanceButton.onclick = (event) => {

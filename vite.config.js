@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { createCosmeticsHost } from './app/lib/cosmeticsServer.mjs';
 import { createReadStream, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { landingHtml, readBuildSha } from './scripts/landingHtml.mjs';
@@ -103,6 +104,62 @@ function arena2DevServer() {
   };
 }
 
+function cosmeticsDevHost() {
+  const host = createCosmeticsHost();
+  return {
+    name: 'cosmetics-dev-host',
+    apply: 'serve',
+    configureServer(server) {
+      server.httpServer?.once('close', () => { void host('stop'); });
+      server.middlewares.use('/__cosmetics_host', async (req, res) => {
+        const address = req.headers.host ?? '';
+        const action = req.headers['x-dfo-cosmetics'];
+        const local = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(address)
+          && ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
+        if (!local || req.method !== 'POST' || req.headers.origin !== 'http://' + address
+          || !['start', 'stop', 'status'].includes(action)) {
+          res.statusCode = 403;
+          return res.end('Запуск разрешён с локальной страницы игры.');
+        }
+        try {
+          const port = req.headers['x-dfo-cosmetics-port'];
+          const result = await host(action, port === undefined ? undefined : Number(port));
+          res.setHeader('Content-Type', 'application/json');
+          return res.end(JSON.stringify(result));
+        } catch (error) {
+          res.statusCode = 409;
+          return res.end(error.code === 'EADDRINUSE' ? 'Выбранный порт уже занят.' : error.message);
+        }
+      });
+    },
+  };
+}
+
+/** An explicit dev-only mount of the owner's local Morrowind install. */
+function localMorrowindDevServer() {
+  return {
+    name: 'local-morrowind-dev-server',
+    apply: 'serve',
+    configureServer(server) {
+      const root = process.env.MORROWIND_DATA;
+      if (!root) return;
+      server.middlewares.use('/local-morrowind', (req, res, next) => {
+        if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress)) return next();
+        if (!/^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(req.headers.host ?? '')) return next();
+        const name = req.url?.slice(1);
+        if (req.method !== 'GET' || !/^(?:Morrowind|Tribunal|Bloodmoon)\.(?:esm|bsa)$/.test(name ?? '')) return next();
+        const path = join(root, name);
+        if (!statSync(path, { throwIfNoEntry: false })?.isFile()) return next();
+        res.setHeader('Content-Type', 'application/octet-stream');
+        const stream = createReadStream(path);
+        stream.on('error', () => res.destroy());
+        res.on('close', () => stream.destroy());
+        stream.pipe(res);
+      });
+    },
+  };
+}
+
 // THE DEPLOY'S OWN NAME, stamped where a verifier can read it without
 // parsing minified JavaScript. `scripts/buildTag.mjs` already writes
 // HEAD's sha into src/buildTag.js at prebuild; that constant reaches
@@ -135,7 +192,7 @@ function buildTagMeta() {
 // base is './' - RELATIVE, so the same build serves from a project path
 // (lattymoy.github.io/daggerfall-js-source/) and from the apex of the
 // custom domain (daggerfalljs.dev, U64) without a rebuild.
-export default defineConfig({
+export default defineConfig({ worker: { format: "es" },
   base: './',
   server: {
     host: '0.0.0.0',
@@ -315,5 +372,5 @@ export default defineConfig({
       },
     },
   },
-  plugins: [devLazyUrlGlobs(), arena2DevServer(), buildTagMeta(), landingHtml(), studioArtIndex(), firstVisitPinsPlugin(), floraPlaygroundAlias(), noImportedTopLevelAwait()],
+  plugins: [devLazyUrlGlobs(), arena2DevServer(), localMorrowindDevServer(), cosmeticsDevHost(), buildTagMeta(), landingHtml(), studioArtIndex(), firstVisitPinsPlugin(), floraPlaygroundAlias(), noImportedTopLevelAwait()],
 });

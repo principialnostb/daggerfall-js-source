@@ -154,7 +154,8 @@ export class StaticBatchBuilder {
    *  (`pieces`, [cx, cy, cz, r] each), so a window's glass measured on the screen is that model's, not the whole batch's
    *  (render/realWindows.js: the view out is cropped to the glass a frame met). Off by default: a city pixel's batch
    *  never measures them. */
-  constructor({ shadowCell = 0, shadowColumns = 0, pieces = false, windows = null } = {}) {
+  constructor({ shadowCell = 0, shadowColumns = 0, pieces = false, windows = null, viewCell = 0 } = {}) {
+    this.viewCell = viewCell;
     this.pieces = !!pieces;
     this.windows = windows; // WL1: (archive, record) => may this picture hold glass - its group's apertures are measured in the merge
     this.chunks = []; // [{positions, normals, uvs, base}] one per model, already transformed
@@ -199,6 +200,7 @@ export class StaticBatchBuilder {
       rotateNormal(nm, cpu.normals[i * 3], cpu.normals[i * 3 + 1], cpu.normals[i * 3 + 2], normals, i * 3);
     }
     this.chunks.push({ positions, normals, uvs: cpu.uvs });
+    const cell = this.viewCell ? [local[12], local[13], local[14]].map((p) => Math.floor(p / this.viewCell)).join(',') : '';
     for (const sm of cpu.subMeshes) {
       const count = sm.primitiveCount * 3;
       if (!count) continue;
@@ -210,7 +212,8 @@ export class StaticBatchBuilder {
           run[i + 1] = run[i + 2];
           run[i + 2] = t;
         }
-      const key = resolveKey(sm.textureArchive, sm.textureRecord);
+      const material = resolveKey(sm.textureArchive, sm.textureRecord);
+      const key = cell ? `${material}|${cell}` : material;
       let g = this.groups.get(key);
       if (!g) {
         g = [];
@@ -275,7 +278,7 @@ export class StaticBatchBuilder {
         indices.set(run, at);
         at += run.length;
       }
-      const [archive, record] = key.split('_').map(Number); // the resolved key is `${archive}_${record}`, drawMesh's own spelling
+      const [archive, record] = key.split('|', 1)[0].split('_').map(Number); // the resolved key is `${archive}_${record}`, drawMesh's own spelling
       const sub = {
         textureArchive: archive,
         textureRecord: record,
@@ -307,6 +310,7 @@ export class StaticBatchBuilder {
       models: this.models,
     });
     if (withBounds) merged.bounds = { whole, subs };
+    if (this.viewCell) merged.cullWorldSubMeshes = true;
     if (this.shadowCell > 0) {
       // LA-AUDIT A1
       yield;

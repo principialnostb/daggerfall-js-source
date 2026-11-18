@@ -23,7 +23,7 @@ import {
 import { createFpArm, fpSkeletonPath, FP_CLIP_PATH, UPPER_BODY, blowRate, BLOW_RATE_MAX, BLOW_RATE_MIN } from '../../src/combat/fpArm.js';
 import { MW_WEAPON_TYPE } from '../../src/formats/morrowind/mwFirstPerson.js';
 import { BLOW_FLOW, PACE, paceFactor } from '../../src/combat/blowFlow.js';
-import { PeerBodies, peerBlowPace, peerBlow, PEER_BLOW_MIN_S, PEER_BLOW_MAX_S } from '../../src/net/peer/peerBodies.js';
+import { PeerBodies, peerBlowPace, peerBlow, peerStrikeTiming, PEER_BLOW_MIN_S, PEER_BLOW_MAX_S } from '../../src/net/peer/peerBodies.js';
 import { createWeaponRig } from '../../src/combat/weapon/weaponRig.js';
 import { PlayerWeapon } from '../../src/combat/playerWeapon.js';
 import { EQUIP_SLOTS } from '../../src/systems/equip.js';
@@ -422,11 +422,14 @@ test('MW-PACE1: the peer\'s body hands its rig the burst\'s schedule', async () 
   swing(2, 600);
   swing(3, 700);
   swing(4, 5000);
+  p.shown = { ...p.shown, bms: 475, bhm: 180, bst: 0.09 };
+  swing(5, 1600);
   assert.deepEqual(r.calls.map((c) => c.blow), [
     null,                                  // the burst's first: the record's pace
     { seconds: 0.6, hitAt: 0.24 },         // the gap
     { seconds: 0.6, hitAt: 0.24 },         // a longer gap does not slow it
     null,                                  // a pause: a new burst
+    { seconds: 0.475, hitAt: 0.18, step: 0.09, lead: true },
   ]);
 });
 
@@ -460,6 +463,42 @@ test('MW-PACE3 / BLOW-FLOW: the player\'s LED blow winds up quick, snaps its rel
     }
     assert.ok(follow.at(-1).rate < follow[0].rate * 0.8, `step ${step}: braked by the end of the recovery`);
     assert.ok(back - hitAt <= BLOW_FLOW.hold + 2 * dt, `step ${step}: the stance takes it back by the window's end`);
+  }
+});
+
+test('a received strike plays each section at the local clip rate regardless of arrival interval', async () => {
+  const local = await drawnArm(3.0);
+  const remote = await drawnArm(3.0);
+  const dt = 1 / 120;
+  for (const tick of [0.055, 0.1, 0.19]) {
+    const schedule = blowSchedule({ state: 'StrikeDown', tick, frame: 0 }, 50);
+    assert.ok(schedule);
+    const sent = { bms: Math.round(schedule.seconds * 1000), bhm: Math.round(schedule.hitAt * 1000), bst: schedule.step };
+    for (const arrivalGap of [0.3, 1.8]) {
+      assert.equal(local.attack('StrikeDown', { blow: { ...schedule, lead: true } }), 'chop');
+      assert.equal(remote.attack('StrikeDown', { blow: peerStrikeTiming(sent, arrivalGap) }), 'chop');
+      for (let i = 0; i < 240; i++) {
+        local.update(dt);
+        remote.update(dt);
+        const a = local.status(), b = remote.status();
+        assert.deepEqual([b.upper, b.time, b.blow?.rate], [a.upper, a.time, a.blow?.rate]);
+        if (a.upper === UPPER_BODY.WeaponEquipped) break;
+      }
+      assert.equal(remote.status().upper, UPPER_BODY.WeaponEquipped);
+    }
+  }
+});
+
+test('remote player melee never stretches to a packet gap when timing is missing', async () => {
+  const local = await drawnArm(3.0);
+  const remote = await drawnArm(3.0);
+  const dt = 1 / 120;
+  for (const gap of [null, 0.8, 2.1]) {
+    const schedule = blowSchedule({ state: 'StrikeDown', tick: 0.15, frame: 0 }, 50);
+    assert.equal(local.attack('StrikeDown', { blow: { ...schedule, lead: true } }), 'chop');
+    assert.equal(remote.attack('StrikeDown', { blow: peerBlow(gap), peerPlayer: true }), 'chop');
+    assert.equal(remote.status().blow.rate, local.status().blow.rate);
+    assert.deepEqual(strikeLog(remote, dt), strikeLog(local, dt));
   }
 });
 

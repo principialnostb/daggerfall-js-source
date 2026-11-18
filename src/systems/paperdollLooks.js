@@ -146,7 +146,9 @@ const storedLook = (look) => (look.t !== undefined && look.v !== undefined ? { t
 /** GARMENT-DYES (BLOODBATH, 2026-11-08, the owner: "лишь 1 цвет представлен"): a garment's 2D colour is chosen apart from
  *  its shape - one of Daggerfall's ten cloth dyes, kept beside the shape in the same entry (`d`). Paperdoll Enhanced paints
  *  every record in every one of them, so its pictures follow too. */
-const validDye = (d) => Number.isInteger(d) && CLOTHING_DYES.includes(d);
+const dyesFor = (piece) => piece && !piece.artifact && piece.rarity !== 'gilded' && CLOTHING_GROUPS.has(piece.group) ? CLOTHING_DYES : [];
+export const paperdollDyeChoices = (item) => dyesFor(drawnPiece(item));
+const defaultDye = (piece) => Number.isInteger(piece.dye) ? piece.dye : Number.isInteger(piece.dyeColor) ? piece.dyeColor : 0;
 const shapeOf = (look) => (look && (look.t !== undefined || look.v !== undefined) ? look : null);
 
 /** Whether paperdoll customization is switched on (the EMC catalog's switch). */
@@ -155,38 +157,38 @@ export const paperdollCustomizationOn = () => getPref('paperdollCustomization') 
 /** The look the player chose for this piece, still one of its choices, or null (its own). */
 export function paperdollLookOf(item) {
   if (!paperdollCustomizationOn()) return null;
-  const mode = paperdollLookMode(item);
-  if (!mode) return null;
   const piece = drawnPiece(item);
+  if (!piece || piece.artifact || piece.rarity === 'gilded') return null;
   const key = storeKey(item);
   if (!key) return null;
   let raw = getPref(PAPERDOLL_LOOKS_PREF)?.[key];
   if (!raw || typeof raw !== 'object') return null;
   const shape = validLook(raw) ? allBodyChoices(item).find((c) => sameLook(c, raw)) ?? null : null;
-  const dye = CLOTHING_GROUPS.has(piece.group) && validDye(raw.d) ? raw.d : null;
+  const dye = dyesFor(piece).includes(raw.d) ? raw.d : null;
   if (dye === null) return shape;
   return { ...(shape ?? {}), d: dye };
 }
 
-/** The dye a garment is drawn in on the card: the chosen one, else its own (null for no garment). */
+/** The local dye drawn on the card, or the piece's original colour. */
 export function paperdollDyeOf(item) {
   const piece = item ? drawnPiece(item) : null;
-  if (!piece || !CLOTHING_GROUPS.has(piece.group)) return null;
+  if (!dyesFor(piece).length) return null;
   const d = paperdollLookOf(item)?.d;
-  return validDye(d) ? d : Number.isInteger(piece.dye) ? piece.dye : Number.isInteger(piece.dyeColor) ? piece.dyeColor : 0;
+  return d ?? defaultDye(piece);
 }
 
-/** Choose a garment's 2D dye (one of the ten) or null for its own; its chosen shape is kept. False when nothing changed. */
+/** Choose an item's 2D dye or null for its original colour; keep its chosen shape. False when nothing changed. */
 export function setPaperdollDye(item, d) {
   const piece = item ? drawnPiece(item) : null;
-  if (!piece || !CLOTHING_GROUPS.has(piece.group) || !paperdollCustomizationOn()) return false;
-  const own = Number.isInteger(piece.dye) ? piece.dye : Number.isInteger(piece.dyeColor) ? piece.dyeColor : 0;
+  const dyes = dyesFor(piece);
+  if (!dyes.length || !paperdollCustomizationOn()) return false;
+  const own = defaultDye(piece);
   const want = d === null || d === own ? null : d;
-  if (want !== null && !validDye(want)) return false;
+  if (want !== null && !dyes.includes(want)) return false;
   const key = storeKey(item, true);
   const looks = { ...(getPref(PAPERDOLL_LOOKS_PREF) ?? {}) };
   const raw = looks[key] && typeof looks[key] === 'object' ? looks[key] : {};
-  if ((validDye(raw.d) ? raw.d : null) === want) return false;
+  if ((dyes.includes(raw.d) ? raw.d : null) === want) return false;
   const next = { ...raw };
   if (want === null) delete next.d; else next.d = want;
   if (Object.keys(next).length) looks[key] = next; else delete looks[key];
@@ -203,7 +205,7 @@ export function setPaperdollLook(item, look) {
   if (sameLook(now, look) || (look === null && now === null)) return false;
   const key = storeKey(item, true);
   const looks = { ...(getPref(PAPERDOLL_LOOKS_PREF) ?? {}) };
-  const dye = looks[key] && validDye(looks[key].d) ? { d: looks[key].d } : {};   // GARMENT-DYES: the colour stays when the shape changes
+  const dye = looks[key] && dyesFor(drawnPiece(item)).includes(looks[key].d) ? { d: looks[key].d } : {};   // GARMENT-DYES: the colour stays when the shape changes
   if (look === null && !Object.keys(dye).length) delete looks[key];
   else looks[key] = { ...(look ? storedLook(look) : {}), ...dye };
   setPref(PAPERDOLL_LOOKS_PREF, looks);
@@ -232,3 +234,11 @@ export const paperdollLooksKey = () => `${JSON.stringify(getPref(PAPERDOLL_LOOKS
 
 // The list icons read the look through a leaf door (systems/paperdollLookSource.js): a direct import would cycle.
 setPaperdollLookSource(paperdollLookOf);
+
+/** Resolve a received selection through the same local catalog as the editor. */
+export function peerPaperdollLook(item, raw, identity) {
+  if (!raw || typeof raw !== 'object') return null;
+  const look = paperdollLookChoices(item, identity).find((choice) => sameLook(choice, raw));
+  const dye = CLOTHING_GROUPS.has(drawnPiece(item)?.group) && CLOTHING_DYES.includes(raw.d) ? raw.d : null;
+  return dye === null ? look ?? null : { ...look, d: dye };
+}

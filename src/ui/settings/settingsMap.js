@@ -45,7 +45,6 @@ export const STANDARDIZED_FEATURES = Object.freeze([
   'mw-seamless-dmra',
   'simply-animated-cloaks',
   'mw-model-detail',
-  'world-pixel-environment',
 ]);
 export const CATEGORIES = Object.freeze([
   tab('graphics', 'Graphics', [

@@ -1,5 +1,7 @@
 # Multiplayer
 
+Dungeon snapshots reuse the current array index when classifying layout foes. Shared encounter and summon identifiers belong to the wire and can differ from array positions. The ownership checks in `src/scenes/dungeonContext.js` use the array position when available.
+
 DFO Online's co-op model: every player brings their own character from their own save, and meets others in a shared
 world kept by a relay. A player meets it the moment they go online - other players walk past, fight the same dungeon
 foes, open the same doors and see the same time of day. The online systems built on this (chat, parties, duels, the

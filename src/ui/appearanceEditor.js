@@ -1,3 +1,4 @@
+import { emcText } from './enhanced/emcLanguage.js';
 import { HAIR_SWATCHES } from '../characters/hairColor.js';
 import { appearanceEditorAvailable } from '../characters/activeAppearance.js';
 import { editorPreviewRaster } from './enhanced/previewPixelation.js';
@@ -297,10 +298,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   shell.className = 'mw-editor-shell';
   const topbar = document.createElement('header');
   topbar.className = 'mw-topbar';
-  topbar.innerHTML = '<div class="mw-brand"><div class="mw-mark" aria-hidden="true">✦</div><div><div class="mw-title">Редактор внешности</div><div class="mw-subtitle">Morrowind · персональная настройка персонажа</div></div></div><div class="mw-top-actions"><span class="mw-state">Отдельный предпросмотр · без экипировки</span></div>';
+  topbar.innerHTML = emcText('<div class="mw-brand"><div class="mw-mark" aria-hidden="true">✦</div><div><div class="mw-title">Редактор внешности</div><div class="mw-subtitle">Morrowind · персональная настройка персонажа</div></div></div><div class="mw-top-actions"><span class="mw-state">Отдельный предпросмотр · без экипировки</span></div>');
   const closeBtn = makeButton('×', false, 'mw-close');
-  closeBtn.setAttribute('aria-label', 'Закрыть редактор');
-  closeBtn.title = 'Закрыть';
+  closeBtn.setAttribute('aria-label', emcText('Закрыть редактор'));
+  closeBtn.title = emcText('Закрыть');
   closeBtn.addEventListener('click', close);
   topbar.querySelector('.mw-top-actions').append(closeBtn);
 
@@ -310,7 +311,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   previewSide.className = 'mw-preview-side';
   const previewHead = document.createElement('div');
   previewHead.className = 'mw-preview-head';
-  previewHead.innerHTML = '<div><div class="mw-section-title">Предпросмотр модели</div><div class="mw-section-note">Раса, пол, лицо и причёска сохраняются после нажатия «Готово»</div></div>';
+  previewHead.innerHTML = emcText('<div><div class="mw-section-title">Предпросмотр модели</div><div class="mw-section-note">Раса, пол, лицо и причёска сохраняются после нажатия «Готово»</div></div>');
   const canvasWrap = document.createElement('div');
   canvasWrap.className = 'mw-canvas-wrap';
   const preview = document.createElement('canvas');
@@ -320,39 +321,39 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   pixelMode.className = 'mw-preview-pixels';
   const pixelLabel = document.createElement('label');
   pixelLabel.className = 'mw-preview-pixel-label';
-  pixelLabel.textContent = 'Пикселизация превью';
+  pixelLabel.textContent = emcText('Пикселизация превью');
   const pixelRows = charPixelRows('player');
   for (const [rows, name] of CHAR_PIXEL_TIERS) {
     const option = document.createElement('option');
     option.value = String(rows);
-    option.textContent = name;
+    option.textContent = emcText(name);
     pixelMode.append(option);
   }
   pixelMode.value = String(pixelRows);
   if (!pixelMode.value) {
     const option = document.createElement('option');
     option.value = String(pixelRows);
-    option.textContent = 'Как в игре';
+    option.textContent = emcText('Как в игре');
     pixelMode.prepend(option);
     pixelMode.value = option.value;
   }
   pixelMode.addEventListener('change', queuePreview);
   pixelLabel.append(pixelMode);
   previewHead.append(pixelLabel);
-  preview.setAttribute('aria-label', '3D-предпросмотр персонажа');
+  preview.setAttribute('aria-label', emcText('3D-предпросмотр персонажа'));
   const statusMessage = document.createElement('div');
   statusMessage.className = 'mw-status-message';
-  statusMessage.textContent = 'Загрузка отдельной модели…';
+  statusMessage.textContent = emcText('Загрузка отдельной модели…');
   canvasWrap.append(preview, statusMessage);
 
   const previewTools = document.createElement('div');
   previewTools.className = 'mw-preview-tools';
   const toolGroup = document.createElement('div');
   toolGroup.className = 'mw-tool-group';
-  const zoomOut = makeButton('−', false, 'mw-btn-icon'); zoomOut.setAttribute('aria-label', 'Отдалить модель');
+  const zoomOut = makeButton('−', false, 'mw-btn-icon'); zoomOut.setAttribute('aria-label', emcText('Отдалить модель'));
   const zoomLabel = document.createElement('span'); zoomLabel.className = 'mw-zoom-value';
-  const zoomIn = makeButton('+', false, 'mw-btn-icon'); zoomIn.setAttribute('aria-label', 'Приблизить модель');
-  const zoomReset = makeButton('Сбросить вид');
+  const zoomIn = makeButton('+', false, 'mw-btn-icon'); zoomIn.setAttribute('aria-label', emcText('Приблизить модель'));
+  const zoomReset = makeButton(emcText('Сбросить вид'));
   const previewHint = document.createElement('div'); previewHint.className = 'mw-hint';
   const setZoom = (next, anchorY = 0) => {
     const previous = zoom;
@@ -379,27 +380,27 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   controls.className = 'mw-controls';
   const controlsHead = document.createElement('div');
   controlsHead.className = 'mw-controls-head';
-  controlsHead.innerHTML = '<h2>Облик</h2><p>Пол, раса, лицо и причёска.</p>';
+  controlsHead.innerHTML = emcText('<h2>Облик</h2><p>Пол, раса, лицо и причёска.</p>');
   const identityGrid = document.createElement('div'); identityGrid.className = 'mw-identity-grid';
   const sexRow = document.createElement('label'); sexRow.className = 'mw-underwear';
-  const sexLabel = document.createElement('span'); sexLabel.textContent = 'Пол';
-  const sexSelect = document.createElement('select'); sexSelect.setAttribute('aria-label', 'Пол персонажа');
+  const sexLabel = document.createElement('span'); sexLabel.textContent = emcText('Пол');
+  const sexSelect = document.createElement('select'); sexSelect.setAttribute('aria-label', emcText('Пол персонажа'));
   sexSelect.style.cssText = 'background:#171b21;color:#e9e4d9;border:1px solid #62513a;padding:7px;font:inherit';
-  for (const [value, label] of [['male', 'Мужской'], ['female', 'Женский']]) {
-    const option = document.createElement('option'); option.value = value; option.textContent = label; sexSelect.append(option);
+  for (const [value, label] of [['male', emcText('Мужской')], ['female', emcText('Женский')]]) {
+    const option = document.createElement('option'); option.value = value; option.textContent = emcText(label); sexSelect.append(option);
   }
   sexSelect.value = selectedFemale ? 'female' : 'male';
   sexRow.append(sexLabel, sexSelect);
   const raceRow = document.createElement('label'); raceRow.className = 'mw-underwear';
-  const raceLabel = document.createElement('span'); raceLabel.textContent = 'Раса';
-  const raceSelect = document.createElement('select'); raceSelect.setAttribute('aria-label', 'Раса персонажа');
+  const raceLabel = document.createElement('span'); raceLabel.textContent = emcText('Раса');
+  const raceSelect = document.createElement('select'); raceSelect.setAttribute('aria-label', emcText('Раса персонажа'));
   raceSelect.style.cssText = sexSelect.style.cssText;
   const raceOptions = [
-    ['breton','Бретон'],['dark elf','Тёмный эльф'],['high elf','Высокий эльф'],['imperial','Имперец'],
-    ['nord','Норд'],['orc','Орк'],['redguard','Редгард'],['wood elf','Лесной эльф'],
-    ['argonian','Аргонианин'],['khajiit','Каджит'],
+    ['breton',emcText('Бретон')],['dark elf',emcText('Тёмный эльф')],['high elf',emcText('Высокий эльф')],['imperial',emcText('Имперец')],
+    ['nord',emcText('Норд')],['orc',emcText('Орк')],['redguard',emcText('Редгард')],['wood elf',emcText('Лесной эльф')],
+    ['argonian',emcText('Аргонианин')],['khajiit',emcText('Каджит')],
   ];
-  for (const [value,label] of raceOptions) { const option=document.createElement('option'); option.value=value; option.textContent=label; raceSelect.append(option); }
+  for (const [value,label] of raceOptions) { const option=document.createElement('option'); option.value=value; option.textContent=emcText(label); raceSelect.append(option); }
   if (![...raceSelect.options].some(o=>o.value===selectedRace)) {
     const compact = selectedRace.replace(/[^a-z]/g,'');
     const matched = raceOptions.find(([value])=>value.replace(/[^a-z]/g,'')===compact);
@@ -407,8 +408,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   }
   raceSelect.value = selectedRace;
   raceRow.append(raceLabel, raceSelect);
-  const face = modelPicker('Лицо', 'head');
-  const hair = modelPicker('Причёска', 'hair');
+  const face = modelPicker(emcText('Лицо'), 'head');
+  const hair = modelPicker(emcText('Причёска'), 'hair');
   const headSelect = face.select;
   const hairSelect = hair.select;
   const colorRow = hairPalette(hairColor, (color) => {
@@ -420,17 +421,17 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const underwearRow = document.createElement('label');
   underwearRow.className = 'mw-underwear mw-garment';
   underwearRow.htmlFor = 'mw-body-garment';
-  underwearRow.textContent = 'Нижнее бельё';
+  underwearRow.textContent = emcText('Нижнее бельё');
   const underwearSelect = document.createElement('select');
   underwearSelect.id = 'mw-body-garment';
-  underwearSelect.innerHTML = '<option value="on">В белье</option><option value="off">Без белья</option>';
+  underwearSelect.innerHTML = emcText('<option value="on">В белье</option><option value="off">Без белья</option>');
   underwearSelect.value = getUnderwearEnabled() ? 'on' : 'off';
   underwearRow.append(underwearSelect);
   optionsGrid.append(underwearRow);
   controlsHead.append(identityGrid, optionsGrid);
   const rebuildRacePreview = () => {
     previewRig?.unload?.(); previewRig = null; previewError = '';
-    statusMessage.style.display = 'block'; statusMessage.textContent = 'Загрузка выбранных моделей лица и причёски…';
+    statusMessage.style.display = 'block'; statusMessage.textContent = emcText('Загрузка выбранных моделей лица и причёски…');
     if (previewBuildPending) previewRebuildRequested = true;
     else void buildPreviewRig();
     window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: {
@@ -445,8 +446,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     }
     for (const [index, item] of items.entries()) {
       const option = document.createElement('option'); option.value = item.id;
-      option.textContent = select === headSelect ? 'Лицо ' + (index + 1)
-        : item.bald ? 'Без волос' : 'Причёска ' + (index + 1);
+      option.textContent = select === headSelect ? emcText('Лицо ') + (index + 1)
+        : item.bald ? emcText('Без волос') : emcText('Причёска ') + (index + 1);
       select.append(option);
     }
     const id = String(selectedId ?? '').toLowerCase();
@@ -462,22 +463,22 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     hair.setEnabled(false);
     if (typeof fpArm?.getAppearanceChoices !== 'function') {
       done.disabled = false;
-      previewError = 'Список моделей лица и причёсок недоступен.';
+      previewError = emcText('Список моделей лица и причёсок недоступен.');
       drawPreview();
       return;
     }
-    statusMessage.style.display = 'block'; statusMessage.textContent = 'Поиск доступных моделей…';
+    statusMessage.style.display = 'block'; statusMessage.textContent = emcText('Поиск доступных моделей…');
     try {
       const result = await fpArm.getAppearanceChoices({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace });
       if (closed || request !== choicesRequest) return;
-      if (!result?.ok) throw new Error(result?.error || 'Не удалось получить список моделей.');
-      selectedHead = fillModelSelect(face, result.heads || [], selectedHead || result.selected?.headId, 'Нет доступных моделей лица');
-      selectedHair = fillModelSelect(hair, result.hairs || [], selectedHair || result.selected?.hairId, 'Нет доступных моделей причёсок');
+      if (!result?.ok) throw new Error(result?.error || emcText('Не удалось получить список моделей.'));
+      selectedHead = fillModelSelect(face, result.heads || [], selectedHead || result.selected?.headId, emcText('Нет доступных моделей лица'));
+      selectedHair = fillModelSelect(hair, result.hairs || [], selectedHair || result.selected?.hairId, emcText('Нет доступных моделей причёсок'));
       if (rebuild) rebuildRacePreview();
     } catch (error) {
       if (closed || request !== choicesRequest) return;
       previewError = String(error?.message || error);
-      statusMessage.textContent = 'Ошибка списка моделей: ' + previewError;
+      statusMessage.textContent = emcText('Ошибка списка моделей: ') + previewError;
       drawPreview();
     } finally {
       if (!closed && request === choicesRequest) done.disabled = false;
@@ -497,7 +498,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   hairSelect.addEventListener('change', () => { selectedHair = hairSelect.value || null; rebuildRacePreview(); });
   underwearSelect.addEventListener('change', async () => {
     setUnderwearEnabled(underwearSelect.value === 'on');
-    statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка модели…';
+    statusMessage.style.display = 'block'; statusMessage.textContent = emcText('Пересборка модели…');
     // If the first preview build is still loading, queue a second build after
     // it settles. Otherwise the checkbox could persist the new value while
     // leaving the already-started underwear model on screen.
@@ -510,7 +511,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       if (typeof fpArm?.refreshBodyVariant === 'function') {
         const refreshed = await fpArm.refreshBodyVariant();
         if (refreshed?.ok === false && !refreshed?.queued) {
-          previewError = refreshed.error || 'Не удалось обновить модель персонажа в игре.';
+          previewError = refreshed.error || emcText('Не удалось обновить модель персонажа в игре.');
         }
       }
       await buildPreviewRig();
@@ -519,8 +520,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   });
   const advancedNote = document.createElement('p');
   advancedNote.className = 'mw-advanced-note';
-  advancedNote.textContent = 'Меняется открытое тело; одежда и доспехи сохраняют свою форму.';
-  const zoneNav = document.createElement('nav'); zoneNav.className = 'mw-zone-nav'; zoneNav.setAttribute('aria-label', 'Выбор группы частей тела');
+  advancedNote.textContent = emcText('Пропорции тела учитываются при подгонке одежды и брони.');
+  const zoneNav = document.createElement('nav'); zoneNav.className = 'mw-zone-nav'; zoneNav.setAttribute('aria-label', emcText('Выбор группы частей тела'));
   const controlList = document.createElement('div'); controlList.className = 'mw-control-list';
   const inputs = new Map();
   const outputs = new Map();
@@ -549,13 +550,13 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   for (const groupInfo of GROUPS) {
     const group = document.createElement('section'); group.className = 'mw-group'; group.dataset.zone = groupInfo.id; group.hidden = groupInfo.id !== activeZone;
     const groupHead = document.createElement('div'); groupHead.className = 'mw-group-head';
-    const groupTitle = document.createElement('div'); groupTitle.className = 'mw-group-title'; groupTitle.textContent = groupInfo.title;
-    const groupNote = document.createElement('div'); groupNote.className = 'mw-group-note'; groupNote.textContent = groupInfo.description;
+    const groupTitle = document.createElement('div'); groupTitle.className = 'mw-group-title'; groupTitle.textContent = emcText(groupInfo.title);
+    const groupNote = document.createElement('div'); groupNote.className = 'mw-group-note'; groupNote.textContent = emcText(groupInfo.description);
     groupHead.append(groupTitle, groupNote);
     const fields = document.createElement('div'); fields.className = 'mw-group-fields';
     for (const key of groupInfo.keys) {
       const row = document.createElement('label'); row.className = 'mw-slider-row';
-      const name = document.createElement('span'); name.className = 'mw-slider-label'; name.textContent = labelByKey.get(key) || key;
+      const name = document.createElement('span'); name.className = 'mw-slider-label'; name.textContent = emcText(labelByKey.get(key) || key);
       const input = document.createElement('input');
       input.type = 'range'; input.min = '-1'; input.max = '1'; input.step = '0.01'; input.value = String(initial[key] ?? 0);
       input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
@@ -586,7 +587,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     drawPreview();
   }
   const presets = document.createElement('section'); presets.className = 'mw-presets';
-  presets.innerHTML = '<div class="mw-presets-title">Пресеты фигуры</div>';
+  presets.innerHTML = emcText('<div class="mw-presets-title">Пресеты фигуры</div>');
   const presetList = document.createElement('div'); presetList.className = 'mw-preset-list';
   const presetButtons = new Map();
   function markPreset(id) {
@@ -615,19 +616,19 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     return Object.fromEntries(BODY_MORPH_FIELDS.map(([key, , zone]) => [key, zone === 'chest' ? 0 : draftMorphs[key]]));
   }
   const presetNote = document.createElement('div'); presetNote.className = 'mw-preset-note';
-  presetNote.textContent = 'Пресет — отправная точка: доведите фигуру ползунками справа.';
+  presetNote.textContent = emcText('Пресет — отправная точка: доведите фигуру ползунками справа.');
   presets.append(presetList, presetNote);
 
   const footer = document.createElement('footer'); footer.className = 'mw-footer';
-  const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = 'Изменения внешности применяются после нажатия «Готово»';
+  const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = emcText('Изменения внешности применяются после нажатия «Готово»');
   const footerActions = document.createElement('div'); footerActions.className = 'mw-tool-group';
-  const reset = makeButton('Сбросить');
+  const reset = makeButton(emcText('Сбросить'));
   reset.addEventListener('click', () => { setDraft({}); markPreset(null); });
-  const done = makeButton('Готово', true, 'mw-btn-primary');
+  const done = makeButton(emcText('Готово'), true, 'mw-btn-primary');
   done.addEventListener('click', async () => {
     done.disabled = true;
     const previousLabel = done.textContent;
-    done.textContent = 'Применение…';
+    done.textContent = emcText('Применение…');
     try {
       const identity = { race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair, hairColor };
       // The race/sex choice is a DISPLAY override: the gameplay entity's race
@@ -651,7 +652,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     } catch (error) {
       previewError = String(error?.message || error);
       statusMessage.style.display = 'block';
-      statusMessage.textContent = 'Не удалось применить внешность: ' + previewError;
+      statusMessage.textContent = emcText('Не удалось применить внешность: ') + previewError;
       done.disabled = false;
       done.textContent = previousLabel;
       drawPreview();
@@ -663,7 +664,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const identityCol = document.createElement('section'); identityCol.className = 'mw-identity-col';
   identityCol.append(controlsHead, presets);
   const bodyHead = document.createElement('div'); bodyHead.className = 'mw-body-head';
-  const bodyTitle = document.createElement('h2'); bodyTitle.textContent = 'Пропорции тела';
+  const bodyTitle = document.createElement('h2'); bodyTitle.textContent = emcText('Пропорции тела');
   bodyHead.append(bodyTitle, advancedNote);
   controls.classList.add('mw-body-col');
   controls.append(bodyHead, zoneNav, controlList, footer);
@@ -716,14 +717,14 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       previewRig = null;
       previewError = '';
       statusMessage.style.display = 'block';
-      statusMessage.textContent = 'Обновление пропорций модели…';
+      statusMessage.textContent = emcText('Обновление пропорций модели…');
       void buildPreviewRig();
     }, 180);
   }
 
   async function buildPreviewRig() {
     if (closed || previewRig || !fpArm?.createAppearancePreviewRig) {
-      if (!fpArm?.createAppearancePreviewRig) { previewError = 'Отдельная 3D-сборка недоступна для этого игрового рига.'; drawPreview(); }
+      if (!fpArm?.createAppearancePreviewRig) { previewError = emcText('Отдельная 3D-сборка недоступна для этого игрового рига.'); drawPreview(); }
       return;
     }
     if (previewBuildPending) {
@@ -760,7 +761,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
             if (!closed && !previewRig) void buildPreviewRig();
           }, 250);
         } else {
-          previewError = result?.error || 'Не удалось собрать отдельную модель.';
+          previewError = result?.error || emcText('Не удалось собрать отдельную модель.');
         }
       }
     } catch (error) {
@@ -799,8 +800,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     if (closed) return;
     if (!previewRig) {
       statusMessage.style.display = 'block';
-      statusMessage.textContent = previewError || 'Собирается отдельная 3D-модель из игровых ресурсов…';
-      previewHint.textContent = previewError ? 'Предпросмотр недоступен' : 'Загрузка ресурсов';
+      statusMessage.textContent = previewError || emcText('Собирается отдельная 3D-модель из игровых ресурсов…');
+      previewHint.textContent = previewError ? emcText('Предпросмотр недоступен') : emcText('Загрузка ресурсов');
       return;
     }
     try {
@@ -827,8 +828,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       ctx.clearRect(0, 0, preview.width, preview.height);
       if (!figureFrame) {
         statusMessage.style.display = 'block';
-        statusMessage.textContent = 'Модель собрана, но изображение недоступно.';
-        previewHint.textContent = 'Ошибка отображения';
+        statusMessage.textContent = emcText('Модель собрана, но изображение недоступно.');
+        previewHint.textContent = emcText('Ошибка отображения');
         return;
       }
       statusMessage.style.display = 'none';
@@ -839,11 +840,11 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       const maxPan = Math.max(0, (dh / preview.height - 1) / 2);
       panY = Math.max(-maxPan, Math.min(maxPan, panY));
       ctx.drawImage(source, (preview.width - dw) / 2, (preview.height - dh) / 2 + panY * preview.height, dw, dh);
-      previewHint.textContent = 'Мышь: поворот и сдвиг · Колесо: масштаб';
+      previewHint.textContent = emcText('Мышь: поворот и сдвиг · Колесо: масштаб');
     } catch (error) {
       statusMessage.style.display = 'block';
-      statusMessage.textContent = 'Ошибка предпросмотра: ' + String(error?.message || error);
-      previewHint.textContent = 'Ошибка отображения';
+      statusMessage.textContent = emcText('Ошибка предпросмотра: ') + String(error?.message || error);
+      previewHint.textContent = emcText('Ошибка отображения');
     }
   }
 
@@ -869,7 +870,7 @@ function hairPalette(current, onChange) {
   row.className = 'mw-underwear mw-hair-color';
   const title = document.createElement('strong');
   title.className = 'mw-hair-title';
-  title.textContent = 'Цвет волос';
+  title.textContent = emcText('Цвет волос');
   const swatches = document.createElement('div');
   swatches.className = 'mw-hair-swatches';
   swatches.setAttribute('role', 'group');
@@ -880,8 +881,8 @@ function hairPalette(current, onChange) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'mw-hair-swatch';
-    button.title = label;
-    button.setAttribute('aria-label', label);
+    button.title = emcText(label);
+    button.setAttribute('aria-label', button.title);
     button.setAttribute('aria-pressed', String(current === color));
     button.style.setProperty('--hair-color', color);
     button.addEventListener('click', () => {
@@ -910,7 +911,7 @@ function modelPicker(label, slot) {
   nav.className = 'mw-model-nav';
   const step = (direction) => {
     const button = makeButton(direction < 0 ? '‹' : '›');
-    button.setAttribute('aria-label', `${label} — ${direction < 0 ? 'назад' : 'вперёд'}`);
+    button.setAttribute('aria-label', `${label} — ${direction < 0 ? emcText('назад') : emcText('вперёд')}`);
     button.addEventListener('click', () => {
       const count = select.options.length;
       if (select.disabled || count < 2) return;
@@ -938,7 +939,7 @@ function formatValue(value) {
 function makeButton(text, primary = false, extraClass = '') {
   const button = document.createElement('button');
   button.type = 'button';
-  button.textContent = text;
+  button.textContent = emcText(text);
   button.className = 'mw-btn' + (primary ? ' mw-btn-primary' : '') + (extraClass ? ' ' + extraClass : '');
   return button;
 }

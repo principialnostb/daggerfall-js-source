@@ -183,7 +183,8 @@ static reach), `test/render/shadermount.test.js`, `test/render/perfface.test.js`
 - `campfireBillboards.js` - shared solid campfire and torch replacement, batch movement and resource ownership (HEARTH-LAYOUT, TORCH-3D).
 - `treasurePiles.js` - solid dungeon loot and chains, shared mesh ownership, and per-prop pixel profiles (TREASURE-3D, DUNGEON-PROPS-3D).
 - `charPixelLayer.js` - CHAR-PIX1 (2026-10-27, the owner: "сделай эту пикселизацию грамотно"; `04-Characters/Look-Bench.md`): the Morrowind bodies pixelated in place - drawn under the world's camera into a low colour + depth target, written back block by block with each texel's depth, on a grid locked to the screen. CHAR-PIX-AVG (2026-11-07, the owner: grey and white pixels on a black bra): a block was one point of the texture, so a fine-grained one (the underwear's fur hem, its grey stitching) gave a light grain the whole never shows; the low target is now drawn up to four times finer each way (src/render/charPixelLayer.js:"export const PIX_SUB_MAX = 4;") and a block is the mean of the body texels it holds, taken where the body covers half of it, at its nearest depth. Tests: test/render/charpixavg.test.js.
-- `worldPixelLayer.js` - WORLD-PIX (2026-11-07, owner: separate world and object controls which do not conflict). The Pixelation tab has two more HD/Fine/Soft/Retro/Classic preferences, using CHAR_PIXEL_TIERS: ground and buildings default HD; objects and decor default Fine. The same charPixelLayer pass retains CHAR-PIX-AVG colour averaging, coverage and nearest depth. Opaque drawMesh defaults to environment; classic 41xxx furniture and campfire bodies explicitly choose objects, while campfire flame meshes bypass the generic mesh hook and use campfirePixelFlame at the object tier, so core, translucent shells and detached tongues share the object grid exactly once. Terrain and snow use environment; generic translucent meshes, sprite/UI targets, sky, billboards and character draws bypass these controls. HEARTH-FLAME-PIX (owner, 2026-11-07): the campfire shell is the explicit transparent exception. The shared pass accepts optional write-back opacity (default one, unchanged for characters): each shell records its colour/nearest depth into the isolated target, then blends once per block with world-depth writes disabled and prior blend/depth-mask state restored. HD keeps the original direct translucent draw; CHAR-PIX-AVG averaging/coverage remains unchanged. Merged geometry follows its batch category; this is not an all-screen filter. Each draw takes exactly one category, and an active-pass guard prevents recursion; HD and a one-pixel block bypass the offscreen target. Target allocation selects texture unit zero so world data masks cannot be overwritten; binding caches are invalidated before drawing into the target and caches/projection stamps again afterwards. Snow temporarily leaves its batching bracket for each isolated target: the standalone draw cleans polygon offset and generic vertex channels before pixel depth write-back, then the outer bracket is restored. No character preference changes. At 1080 render height Fine is 2 pixels and Classic 5; at 540 Fine is 1, which explains a subtle close-up result. DFU reference remains DaggerfallBillboard.SetMaterial/Update/AnimateBillboard (Rest-Arc HEARTH-3D); independently adjustable resolution for original 3D props is our deliberate presentation departure, not DFU parity. All four hosts (exterior.js, world.js, worldModes.js, dungeonContext.js) inherit the renderer seam without added host behaviour. Tests: test/world/worldPixel.test.js, test/world/campfirePixelBody.test.js and test/render/charpixavg.test.js. tools/worldPixelProbe.mjs captures real town geometry at 1440x1080 with HD, Fine, Classic and both controls enabled; captures stay ignored under scratch/world-pixel/. The --snow variant also verifies HEARTH-SNOW's footstep-based support bed after late snow loading.
+- Authored interior and dungeon wall torches probe their static collision geometry. A hit seats the bracket on the wall and tilts the torch about its collar. A torch without a nearby wall stands upright.
+- Object pixelation applies to marked props and decor, including furniture and campfires. Terrain, snow and building geometry render directly. The NPC setting controls character meshes, standing horses, and billboard animals and enemies. The billboard shader samples on the same screen grid without a separate render target for each creature. These independent presentation controls depart from DFU DaggerfallBillboard.SetMaterial. The renderer and shared horse rig serve exterior.js, world.js, worldModes.js and dungeonContext.js.
 ## TORCH-3D (2026-11-11)
 The owner requested the campfire approach for wall and floor torches in Dev.
 Archive 210 records 6, 16, 17, 18 and 20 now draw original solid shafts,
@@ -202,11 +203,19 @@ Dungeon and interior batches fit wall fixtures to the nearest vertical face
 of the static collider at collar height. The bracket spans from that face to
 the collar, and the flame clears the stone even if the sprite pivot was
 embedded. The shaft leans 18 degrees out about its collar, and the flame
-rises vertically from the shifted cup. Floor poles keep their 3D bodies. A wall fixture without a verified wall
-keeps its original sprite, including exterior batches without a wall probe. A probe against the static colliders of twelve original
+rises vertically from the shifted cup. The wall probe samples above and below
+the collar when it misses at collar height. If those short probes miss, a
+wider search accepts inclined faces and seats the support at the actual hit
+height. It ranks contacts by distance, height shift and slope, adapts the
+bracket depth to the slope, and rejects a blocked bracket. A fixture without a verified wall
+draws its 3D shaft and flame at the authored position without a bracket. A probe against the static colliders of twelve original
 dungeons fitted 831 of 866 wall torches. The menu uses the existing saved preference key.
-`test/world/torch3d.test.js` checks selection and shared resource lifecycle;
+The dungeon static batch groups world-space models by material and cell. The main draw skips groups whose full geometry lies outside the camera frustum. Shadow replay still receives the full mesh and uses its own bounds.
+
+`src/render/campfireBillboards.js` skips torch geometry outside the camera frustum using the mounted position and a bound that includes the bracket and flame. The billboard still owns the light and interaction. `test/world/torch3d.test.js` checks selection, frustum culling and shared resource lifecycle;
 `tools/torchProbe.mjs` renders local front/back views using the game renderer.
+
+In dense fixture batches, `src/render/fixtureDepth.js` reads the farthest existing scene depth in each 16-pixel-square tile once per batch. A flame layer skips its pixel pass only if its nearest possible depth is behind every tile its projected bounds and pixel blocks can cover. Near-plane intersections, uncovered tiles and unavailable scene depth keep the regular draw. The test uses the current camera and depth buffer.
 ## FIXTURE-3D (2026-11-11)
 The owner requested the remaining dungeon lights. Archive 210 now has original
 3D art for all thirty records, including braziers, candles, chandeliers,
@@ -229,14 +238,35 @@ The reference art pass adds bent claws, ribs and rivets to both braziers. The
 pedestal also carries inlaid marks and torn cloth. Chandeliers have wax runs.
 The owner approved Blender model 03 as the shared pendant lamp. Records 8,
 11, 12, 13, 22 and 24–27 use the same mesh and its five authored textures.
-The packed GLB geometry keeps its UVs and is scaled to the authored flat
-height. Linked chain geometry replaces the rigid shank. A measured ceiling
-gap adds links below the original socket, so the socket stays at the ceiling.
+The packed GLB geometry keeps its UVs and uses a fixed model scale of 1.05 m for the pendant.
+Linked chain geometry spans the authored suspension height and the measured
+ceiling gap, so a long lantern sprite does not enlarge the housing or flame.
 Record 12 uses a dark pane and omits the flame. Lit lamps use the shared animated candle flame and draw a separate
 translucent pane over it. The renderer shares one GPU mesh
 across these records and releases it with the last fixture user. Chandeliers
 retain their wheel and candle geometry. The record selector is the seam
 for adding distinct lamp variants later.
+The classic street lantern replaces archive 210 records 14, 15, 28 and 29 through
+`src/world/classicStreetLantern.js` `createClassicStreetLantern`. It retains the
+authored flat height and ground position. Record 21 remains a candle stand.
+The owner's reference defines the square post, stepped pedestal, projecting
+arm and six-sided amber lantern. There is no candle or flame inside. Its
+three textures and mesh are shared and released by the last fixture owner.
+This departs from DFU `DaggerfallBillboard.SetMaterial` and `Update`: a fixed
+solid mesh replaces the camera-facing quad. `src/world/streetLanternPlacement.js`
+faces the arm toward the nearest road tile in its block, with a fixed fallback
+where the block has no road. The housing centre, transformed by the same yaw
+and authored height, supplies the point light and volumetric glow position.
+The streamed world's street-surface lift applies to the light as to the post.
+Classic sprite mode retains DFU's original light position. Night timing stays
+with the city-light system, across all provinces.
+The shared fixture path serves `src/scenes/exterior.js`, `src/scenes/world.js`,
+`src/scenes/worldModes.js` and `src/scenes/dungeonContext.js` without host changes.
+`tools/blender/classicStreetLantern.py` reproduces the mesh, packed runtime data,
+editable Blender scene and GLB exports. The winter GLB includes separate snow;
+the runtime asset is bare. `test/world/classicStreetLantern.test.js` checks the
+selector, authored bounds, geometry and pooled lifetime.
+
 ## TREASURE-3D
 The separate 3D Loot card controls the dungeon pile presentation through
 `enhancedTreasurePiles`, enabled by default. It takes effect on the next draw
@@ -267,6 +297,7 @@ Small piles use the selected tier directly and HD still bypasses the pass.
 - **Burials.** Wooden coffins have joined inner and outer walls, solid rims and thick lids. Stone sarcophagi preserve the original lid poses and ankh. Open cavities place the skeleton on its back and fit nearby treasure where space permits.
 - **Furniture and storage.** Tables, seats, chests and crates use distinct plank, grain and end-grain treatments. Closed storage chests keep their searchable identity. Open loot chests show their contents.
 - **Cells and devices.** Standing cages have solid bars, doors and plank decks. Torture devices use distinct frames, stone or iron surfaces, and solid fittings. Blood marks are part of the material.
+- **Placed tableware and tools.** Daggerfall Unity's [GameObjectHelper.CreateDaggerfallBillboardGameObject](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Utility/GameObjectHelper.cs) supplies the archive and record billboard reference. DFO draws selected authored flats with models from the player's attached Morrowind data through the same NIF loader as dropped loot. The model uses the flat's base and size. Placed tableware includes the silver goblets from archive 200 and the bottles, flasks and wide jars from archive 205. The 3D Ground Loot preference controls placed replacements too, and unavailable models fall back to the flat. The streamed world uses pixelBuild, the standalone exterior uses exterior, and worldModes uses interiorContext. dungeonContext has its own furnishing pass.
 - **Sprite replacements.** Chains, remains, suspended cages, furnishings and cave props retain the authored placement role. Morrowind remains use the player's attached assets. Floor stains stay flat.
 - **Pixelation.** Classic prop families have fixed object profiles. Stone burial shells and their skeletons share a fixed 1.5 multiplier. Loot uses its own bounded footprint profile.
 - **Review in game.** In a local Dev offline dungeon, press backquote (ё) to open the spawner. Choose a family and place a model or a part of the family. Camera mode uses Alt+Shift+Enter for the selected prop. Previews are scene-owned and clear together with their collision.

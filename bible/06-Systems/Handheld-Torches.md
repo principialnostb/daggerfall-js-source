@@ -32,6 +32,11 @@ window shows the change at once.
 sheathe, moving between them; a candle has no sprite. Ambidexterity puts it in the free hand and moves the player
 torch's light with it. Bob follows Weapon Widget's law; Inertia and Step are off as the mod ships them.
 
+With 3D Ground Loot enabled, a dropped or thrown torch uses the same Morrowind
+light record selector as the carried torch. The mod's sprite is the fallback.
+All four hosts (world.js, exterior.js, worldModes.js and dungeonContext.js)
+use the shared dropped-torch pool and renderer for this visual departure.
+
 **Dropped lights, the thrown torch, burning foes** (`src/scenes/droppedTorches.js` `createDroppedTorches`). Each host
 owns one pool: billboards of TEXTURE.112358 with a point light whose range falls with the time left, a burning loop for
 a torch, doused under a dungeon's water. Grab or Steal picks one up; Info or Talk names it. The burn reads the world

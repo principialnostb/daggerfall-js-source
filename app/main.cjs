@@ -52,7 +52,10 @@ const { backendLaunch, holdsVSync, watchBackend, backendOption, chooseBackend, r
 // in it, all silently unreachable, the first-run folder prompt back. A
 // rebrand is a name, not a migration. The folder keeps the name it was
 // created with, whatever the product is called on the outside.
-if (process.env.DAGGER_USER_DATA) app.setPath('userData', process.env.DAGGER_USER_DATA);
+const PINNED_TEST_BUILD = app.isPackaged && fs.existsSync(path.join(__dirname, 'pinned-test-build.json'));
+if (PINNED_TEST_BUILD) process.env.DAGGER_NO_UPDATE_CHECK = '1';
+if (PINNED_TEST_BUILD && !process.env.DAGGER_USER_DATA) app.setPath('userData', path.join(app.getPath('appData'), 'DFO 13.11-test-build'));
+else if (process.env.DAGGER_USER_DATA) app.setPath('userData', process.env.DAGGER_USER_DATA);
 else app.setPath('userData', path.join(app.getPath('appData'), 'Daggerfall JavaScript Mod'));
 
 // GPU-BACKEND (2026-10-26): Vulkan on Windows, the player's opt-in (`graphicsBackend`), held on the default while a
@@ -155,6 +158,7 @@ const GAME_ROOT = () => path.join(app.getPath('userData'), 'Game');
  *  the installer's. */
 let gameStore = null;
 function openGame() {
+  if (PINNED_TEST_BUILD) return;
   const seed = app.isPackaged ? loadSeed(GAME_SEED, app.getVersion()) : null;
   if (!seed) return;
   try {
@@ -368,6 +372,27 @@ const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon',
   '.woff2': 'font/woff2', '.wasm': 'application/wasm',
 };
+let looseMorrowindRoot, looseMorrowindFiles;
+function localMorrowindLooseFiles(root) {
+  if (root === looseMorrowindRoot && looseMorrowindFiles) return looseMorrowindFiles;
+  const files = new Map();
+  function walk(dir, rel) {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); }
+    catch { return; }
+    for (const entry of entries) {
+      const file = path.join(dir, entry.name);
+      const key = rel ? rel + '/' + entry.name.toLowerCase() : entry.name.toLowerCase();
+      if (entry.isDirectory() && (rel || key === 'meshes' || key === 'textures')) walk(file, key);
+      else if (rel && entry.isFile() && /\.(nif|kf|dds|tga)$/i.test(entry.name)) files.set(key, file);
+    }
+  }
+  if (typeof root === 'string' && path.isAbsolute(root)) walk(root, '');
+  looseMorrowindRoot = root;
+  looseMorrowindFiles = files;
+  return files;
+}
+
 const fileResponse = (p, mime) => net.fetch(pathToFileURL(p).toString(), { bypassCustomProtocolHandlers: true })
   .then((res) => new Response(res.body, { headers: { 'Content-Type': mime ?? MIME[path.extname(p).toLowerCase()] ?? 'application/octet-stream' } }));
 
@@ -431,6 +456,23 @@ function handleDagger(req) {
     return new Response('bad request', { status: 400 });
   }
   if (url.host === 'launcher') return serveLauncherFile(parts);
+  if (PINNED_TEST_BUILD && url.host === 'game' && parts[0] === 'local-morrowind-loose') {
+    const files = localMorrowindLooseFiles(loadConfig().morrowindPath);
+    if (parts.length === 1) return new Response(JSON.stringify([...files.keys()]), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const file = files.get(parts.slice(1).join('/').toLowerCase());
+    return file ? fileResponse(file, 'application/octet-stream') : new Response('not found', { status: 404 });
+  }
+  if (PINNED_TEST_BUILD && url.host === 'game' && parts.length === 2 && parts[0] === 'local-morrowind') {
+    const name = parts[1];
+    const dir = loadConfig().morrowindPath;
+    if (typeof dir === 'string' && /^(Morrowind|Tribunal|Bloodmoon)\.(bsa|esm)$/.test(name)) {
+      const file = path.join(dir, name);
+      if (fs.existsSync(file)) return fileResponse(file, 'application/octet-stream');
+    }
+    return new Response('not found', { status: 404 });
+  }
   // /arena2/NAME and /play/arena2/NAME - the game fetches relative to
   // its document, the probes fetch absolute. EXACTLY the two doors
   // the dev middleware mounts, and no more: a looser "any path ending
@@ -1245,6 +1287,7 @@ function reloadOntoUpdate() {
 
 /** The menu's check, out loud - the game's own channel first, then the installer's path on its transport (DA7). */
 async function checkForUpdatesLoudly() {
+  if (PINNED_TEST_BUILD) return;
   const g = await askGame();
   if (g === 'installer') return currentUpdateTransport() === 'updater' ? checkForUpdatesViaUpdater() : checkForUpdates();
   const stays = 'your saves, settings and ARENA2 path all stay where they are.';
@@ -1942,7 +1985,7 @@ function runLauncher() {
       transport: currentUpdateTransport(),
       platform: process.platform,
       checkEnabled,
-      checkOnLaunch: cfg.updateCheck !== false,
+      checkOnLaunch: !PINNED_TEST_BUILD && cfg.updateCheck !== false,
       savedDir,
       // the player chose the game's own picker once (kept), or the headless probe skips the question
       inGamePicker: cfg.arena2InGame === true || !!process.env.DAGGER_SKIP_ARENA2_PROMPT,
@@ -2032,7 +2075,7 @@ ipcMain.on('launcher:act', async (e, msg) => {
     }
     case 'open-saves': openSavesFolder(); break;
     case 'set-update-check': setCheckOnLaunch(arg === true); break;
-    case 'reinstall': await reinstallFromLauncher(); break;
+    case 'reinstall': if (!PINNED_TEST_BUILD) await reinstallFromLauncher(); break;
     case 'set-backend': setBackendFromLauncher(arg); break;
     case 'restart': restartFromLauncher(); break;
     case 'open': if (Object.hasOwn(LAUNCHER_LINKS, arg)) shell.openExternal(LAUNCHER_LINKS[arg]); break;
@@ -2182,7 +2225,7 @@ async function privateAct(action, arg) {
       // the runtime's binary cannot run from inside app.asar: electron-builder unpacks it (asarUnpack), and miniflare is told where
       if (app.isPackaged) process.env.MINIFLARE_WORKERD_PATH ??= require('workerd').default.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
       const { Miniflare, supportedCompatibilityDate } = await import('miniflare');
-      const h = await host.startHost({ dir: path.join(app.getPath('userData'), 'Private server'), relayScript, Miniflare, compatibilityDate: supportedCompatibilityDate });
+      const h = await host.startHost({ dir: path.join(app.getPath('userData'), 'Private server'), relayScript, Miniflare, compatibilityDate: supportedCompatibilityDate ?? '2026-09-01' });
       const tell = () => privateTell({ status: 'hosting', port: h.port, max: h.max, players: h.players(), addresses: lanAddresses() });
       priv = { url: h.url, stop: h.stop, timer: setInterval(tell, 5000) };
       tell();
@@ -2206,6 +2249,14 @@ async function privateAct(action, arg) {
 }
 app.on('will-quit', () => { void privateStop(); });
 // the game page asks once, as it boots (app/preload.cjs): the address its online play goes to, or null for the main servers
+let cosmeticsHost;
+ipcMain.handle('dagger:cosmetics-host', async (event, action, port) => {
+  if (!event.senderFrame?.url.startsWith('dagger://game/') || !['start', 'stop', 'status'].includes(action)) return null;
+  const { createCosmeticsHost } = await import('./lib/cosmeticsServer.mjs');
+  cosmeticsHost ??= createCosmeticsHost();
+  return cosmeticsHost(action, port);
+});
+app.on('will-quit', () => { void cosmeticsHost?.('stop'); });
 ipcMain.on('dagger:private-server', (e) => { e.returnValue = priv ? { url: priv.url } : null; });
 
 // The preload asks for its storage root synchronously at page boot -

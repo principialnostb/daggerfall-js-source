@@ -58,6 +58,7 @@ import { LAYERED_OWN } from '../player/eyeOfTheBeholder/layeredArmor.js';   // L
 import { modSetting, storedModSetting } from '../systems/modSettings.js';   // DISC23-B: the Eye Of The Beholder set the look carries
 import { getPref } from '../systems/uiPrefs.js';   // 2026-09-17: the 'peerClassSprites' on/off, read once a sync (Other players, enhancedMenu.js peerSpritesCard)
 import { CLASS_CAREERS } from '../systems/chargen.js';   // 2026-09-17 (bugfix): a stock class's CFG-loaded career carries no `.name` of its own - chargenSession.js's own class list already falls back to this array by careerIndex (`cf.career.name || CLASS_CAREERS[i]`), and composeLook needs the same fallback or every stock-class peer sends class:null
+import { applyCosmeticItems, cosmeticIdentityOptions } from './cosmetics/identityOptions.js';
 import { EQUIP_SLOTS } from '../characters/paperdoll/paperdoll.js';   // AUDIT DROPS E6: the hand a swing sound is read off
 import { FootstepMachine, FOOTSTEP_CLIP_SETS } from '../systems/footsteps.js';   // PEER-FS1: peer footsteps off the pose's own `fk`
 import { RidingAnimator, RIDING_VOLUME_SCALE, nextNeighDelay } from '../systems/riding.js';   // RIDE-SOUND: a peer's hooves are TransportManager's own loop, clip swap and neigh
@@ -446,7 +447,7 @@ const NULL_LOOK_KEY = _computeLookKey(null);   // SLAM14 (AUDIT SLAM FINAL B6): 
 export const lookKey = (look) => {
   if (!look || typeof look !== 'object') return NULL_LOOK_KEY;
   let k = _keyOf.get(look);
-  if (k === undefined) { k = _computeLookKey(look); _keyOf.set(look, k); }
+  if (k === undefined) { k = _computeLookKey(look) + (look.cosmeticKey ?? ''); _keyOf.set(look, k); }
   return k;
 };
 
@@ -724,7 +725,13 @@ export class RemotePlayers {
   async _composeDoll(look) {
     const { deps, renderer } = this;
     if (!deps || !renderer) return null;
-    const px = await this._compose(deps, peerStubEntity(look), { context: 'town', background: false });
+    const stub = peerStubEntity(look);
+    const identity = cosmeticIdentityOptions(look?.cosmetic);
+    if (identity.race) stub.race = identity.race.split(' ').map((word) => word[0].toUpperCase() + word.slice(1)).join('');
+    if (typeof identity.female === 'boolean') stub.gender = identity.female ? 'female' : 'male';
+    if (Number.isInteger(identity.faceIndex)) stub.faceIndex = identity.faceIndex;
+    applyCosmeticItems(stub.equip.slots, look?.cosmetic);
+    const px = await this._compose(deps, stub, { context: 'town', background: false });
     if (!px?.rgba) return null;
     const r = alphaBounds(px.rgba, px.width, px.height);
     if (!r) return null;

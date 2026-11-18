@@ -4,22 +4,22 @@ import {worldPixelRows,classicPixelKind,WORLD_PIXEL_KEYS} from '../../src/system
 import {setPref,resetPrefs} from '../../src/systems/uiPrefs.js';
 import {FEATURES,checkFeature} from '../../src/systems/features.js';
 import {CHAR_PIXEL_TIERS} from '../../src/systems/charPixel.js';
-import {pixelWorldDraw,pixelWorldMesh,pixelWorldSnow,worldPixelActive} from '../../src/render/worldPixelLayer.js';
+import {pixelWorldDraw,pixelWorldMesh,worldPixelActive} from '../../src/render/worldPixelLayer.js';
 import {identity} from '../../src/world/mat4.js';
 import {drawCampPixelFlame} from '../../src/scenes/campfirePixelFlame.js';
 
-test('world and object controls use shared tiers and independent preferences',()=>{
+test('objects use shared tiers and saved environment preferences are ignored',()=>{
  resetPrefs();
  try {
-  for(const [kind,key] of Object.entries(WORLD_PIXEL_KEYS)){
+  for(const [kind,key] of [['objects', WORLD_PIXEL_KEYS.objects]]){
    const row=FEATURES.find(r=>r.id==='world-pixel-'+kind);
    assert.ok(row);assert.deepEqual(checkFeature(row),[]);assert.equal(row.control.key,key);assert.equal(row.control.tiers,CHAR_PIXEL_TIERS);
   }
   assert.equal(worldPixelRows('environment'),0);assert.equal(worldPixelRows('objects'),540);
-  setPref(WORLD_PIXEL_KEYS.environment,200);setPref(WORLD_PIXEL_KEYS.objects,0);
-  assert.equal(worldPixelRows('environment'),200);assert.equal(worldPixelRows('objects'),0);
+  setPref('worldPixelEnvironment',200);setPref(WORLD_PIXEL_KEYS.objects,0);
+  assert.equal(worldPixelRows('environment'),0);assert.equal(worldPixelRows('objects'),0);
   setPref(WORLD_PIXEL_KEYS.objects,270);
-  assert.equal(worldPixelRows('environment'),200);assert.equal(worldPixelRows('objects'),270);
+  assert.equal(worldPixelRows('environment'),0);assert.equal(worldPixelRows('objects'),270);
   setPref(WORLD_PIXEL_KEYS.objects,123);assert.equal(worldPixelRows('objects'),540);
   assert.equal(worldPixelRows('effect'),0);
  }finally{resetPrefs();}
@@ -66,18 +66,6 @@ test('an object enters the shared pass once and restores projection and recursio
  assert.equal(bindings.get(23),'snow-mask','target allocation must preserve world data units');
  assert.equal(draws,1);assert.equal(written.length,1);assert.equal(r._proj,P);assert.equal(worldPixelActive(r),false);
 });
-test('snow offset applies to geometry, never to pixel depth write-back, and returns to its pass',()=>{
- resetPrefs();setPref(WORLD_PIXEL_KEYS.environment,200);
- try {
-  const {r,written}=passRenderer(),S={frame:0};
-  const pass={offset:false};r._snowPass=pass;r._ensureTerrainSnow=()=>S;
-  r.drawSnow=()=>{assert.equal(r._snowPass,null);r.gl.enable(r.gl.POLYGON_OFFSET_FILL);r.gl.disable(r.gl.POLYGON_OFFSET_FILL);};
-  assert.equal(pixelWorldSnow(r,{}, {}, {}),true);
-  assert.deepEqual(written,[false]);assert.equal(r.gl.isEnabled(r.gl.POLYGON_OFFSET_FILL),false);assert.equal(r._snowPass,pass);
-  assert.equal(S.frame,-1);assert.equal(worldPixelActive(r),false);
- }finally{resetPrefs();}
-});
-
 test('pixelated flame shells blend once, keep world depth untouched and restore GL state',()=>{
  resetPrefs();
  const {r,state,samples}=passRenderer(),seen=[],mesh={pixelKind:'effect'},m=identity();

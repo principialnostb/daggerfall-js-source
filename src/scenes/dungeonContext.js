@@ -540,7 +540,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
   // Built lazily on the first read, after every block has been placed;
   // freed by destroy().
   let staticBatch = null, staticBuilt = false;
-  const staticBuilder = new StaticBatchBuilder({ shadowCell: SHADOW_CELL_SIZE });   // LA-AUDIT A1: every light's lo map culls the level by cell
+  const staticBuilder = new StaticBatchBuilder({ shadowCell: SHADOW_CELL_SIZE, viewCell: SHADOW_CELL_SIZE * 2 });   // LA-AUDIT A1: every light's lo map culls the level by cell
   const automapEntries = [];   // A1: { key, aabb } per draw entry - the reveal index's rows
   // OH-D: the highest point of any model the dungeon stands (every DaggerfallMesh's Renderer.bounds.max.y,
   // inactive ones included) - There's a Hole in the Bottom of the Ocean floods the abyss a metre over it
@@ -5209,7 +5209,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
     // level-30 joiner's screen, and paid it 300 Renown XP for the kill that paid me 30. A monster's level is its
     // species', the same everywhere, and rides nothing.
     if (isClassEnemyId(f.mobileType) && Number.isInteger(f.entity?.level) && f.entity.level >= 0 && f.entity.level <= FOE_LEVEL_MAX) r.l = f.entity.level;
-    if (!f.dead && _sharedFoe(f)) { const n = fightN(f); if (n > 1) r.n = n; }   // AUDIT PSCALE1: how many fight it - every joiner weighs its hits by the host's count
+    if (!f.dead && _sharedFoe(f, seeded ? undefined : i)) { const n = fightN(f); if (n > 1) r.n = n; }   // AUDIT PSCALE1: how many fight it - every joiner weighs its hits by the host's count
     if (f.dead && typeof f._trapBy === 'string' && performance.now() - (f._killedAt ?? -Infinity) <= KILLED_BY_MS) { r.j = f._trapBy; r.q = f._trapQ | 0; }   // STRIKE-SHARED: whose soul trap was on it as it fell, and its chance - for KILLED_BY_MS, as `v`
     if (f.dead && f.corpseDestroyed) r.bg = f.corpseDestroyed;   // DEX5b: the body a mod's prefab destroyed (1 risen, 2 burnt) - every copy loses it too
     // FLAGGED (bible/12-Enhanced-AI/Feud-Arc.md 10.1, section 32): this stream carries none of the street record's z, nm, yd, ex or sp - FEUD adds its own fields alone (RVN13: so no band follower's rt either)
@@ -5456,9 +5456,9 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
   const ownPupKey = (from, i) => `${from}:${i}`;
   const ownShare = () => partyOnlyQuestShare(opts.questShare?.() ?? null);   // QUEST-OWNER (questFoeHost.js): seen, struck and hunted by its owner's party alone underground
   /** QUEST-PARTY phase 3c: the party's word on MY quest foe past the layout - { q, s } while its quest is shared. */
-  const ownQuestTag = (f) => (!f || f._ownFrom != null || isRoomFoe(f) ? null : f.questBehaviour ? (ownShare()?.tagOf?.(f) ?? null) : (f._keptTag ?? null));   // AUDIT (pre-merge) Q3: a taken foe my copy has no quest for keeps its partner's word
+  const ownQuestTag = (f, index = undefined) => (!f || f._ownFrom != null || isRoomFoe(f, index) ? null : f.questBehaviour ? (ownShare()?.tagOf?.(f) ?? null) : (f._keptTag ?? null));   // AUDIT (pre-merge) Q3: a taken foe my copy has no quest for keeps its partner's word
   /** SUMMON-SYNC: MY loose stand past the run (spawnLooseFoe's mark) - no quest's, no room's, nobody else's. */
-  const ownLoose = (f) => !!f?._loose && f._ownFrom == null && !f.questBehaviour && !isRoomFoe(f);
+  const ownLoose = (f, index = undefined) => !!f?._loose && f._ownFrom == null && !f.questBehaviour && !isRoomFoe(f, index);
   /** SUMMON-SYNC: my foe on the room's own lane - a shared quest's (to the party) or a loose stand (to the room). */
   const ownRides = (f) => !!ownQuestTag(f) || ownLoose(f);
   /** QUEST-PARTY phase 3c: whether a blow has landed on my quest foe - the stream's flag 2. */
@@ -5473,11 +5473,11 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
   function ownFrame(full = false, heirOf = null) {
     _maxLeft = full || heirOf ? 0 : FOE_MAX_PER_FRAME;   // AUDIT SETS M1: the layout's law - a whole frame pays once built, a delta a few
     const out = [], src = [];
-    for (const f of foes) {
+    for (const [index, f] of foes.entries()) {
       if (f.dead && f._grant) grants?.()?.ended(f);   // GRANT4: its member gone - the grant's last frees it
       if (f._ownFrom != null || (f.dead && !f.corpse && !f.corpseDestroyed)) continue;   // DEX5b: a body a prefab destroyed rides on, its `bg` every copy's word
-      const qt = ownQuestTag(f);
-      if (!qt && !ownLoose(f)) continue;   // SUMMON-SYNC: a shared quest's foe, or a loose stand - nothing else past the run
+      const qt = ownQuestTag(f, index);
+      if (!qt && !ownLoose(f, index)) continue;   // SUMMON-SYNC: a shared quest's foe, or a loose stand - nothing else past the run
       if (f._ownSeq == null) f._ownSeq = ++_ownSeq;
       const r = roomRecord(f, f._ownSeq, full || !!heirOf, true);
       if (!r) continue;
@@ -6736,9 +6736,9 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
    *  phase 3c) - mine, which the party strikes through me, or a party member's, stood here as its puppet. It was the
    *  one foe the party fights together that no party's size weighed underground. SUMMON-SYNC: and a loose stand, which
    *  the whole room fights now (mine, or another's puppet). */
-  function _sharedFoe(f) {
+  function _sharedFoe(f, index = undefined) {
     if (!f || f.entity?.team === 'PlayerAlly') return false;
-    return isRoomFoe(f) || f._ownFrom != null || ownRides(f);   // REST-SYNC: and a rest's encounter, which the room now shares; PSCALE-OWN: and a shared quest's, on the own lane; SUMMON-SYNC: and a loose stand
+    return isRoomFoe(f, index) || f._ownFrom != null || ownRides(f);   // REST-SYNC: and a rest's encounter, which the room now shares; PSCALE-OWN: and a shared quest's, on the own lane; SUMMON-SYNC: and a loose stand
   }
   /** PSCALE-OWN: whether THIS copy runs `f`, and so counts who fights it - the room's foes while I hold the seat, my own
    *  on the own lane always (their spawner steps them, whoever holds the seat); a puppet is its runner's. */
@@ -7731,7 +7731,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
     // does not own (its owner's stream poses it, as the loop's puppet arm below reads it)
     spaceFoes(foes, collider, foeFrameDt(dt), (f, i) => spacingSkips(f) || f._ownFrom != null || (!_authority && isRoomFoe(f, i)));   // AUDIT (pre-merge) D4: a party member's own foe (QUEST-PARTY 3c, SUMMON-SYNC) is a puppet too - its runner's frame places it
     // AUDIT TACT C7: and no foe holds a dungeon's (or a castle's) doorway - TACT3's rule, always on, on the level's action doors
-    clearDoorways(foes, actionDoorSpots(actions.objects, playerFeet, 30), collider, foeFrameDt(dt), (f) => spacingSkips(f) || f._ownFrom != null || (!_authority && isRoomFoe(f, foes.indexOf(f))));
+    clearDoorways(foes, actionDoorSpots(actions.objects, playerFeet, 30), collider, foeFrameDt(dt), (f, i) => spacingSkips(f) || f._ownFrom != null || (!_authority && isRoomFoe(f, i)));
     for (const f of foes) {
       _fi++;
       if (f.dead) continue;
@@ -7759,7 +7759,13 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
       if (_puppet) {
         _strikeEdge = puppetStep(f, dt);
         _pb = f.ai._tac?.puppet ? puppetBlowTurn(f.ai, _pf) : null;   // TELL8 (10.3): the host's wind-up - held, and AT ME judged on my feet at its landing
-        f.ai._senses?.(_pf, null);   // AUDIT WORLD2 B4: observation, not decision - the rest gate and the exhaustion collapse read detected/inSight/_dist off the streamed pose
+        // Observation only. Keep immediate sight for the local target and
+        // strike edges; other puppets refresh on staggered intervals.
+        const senseAt = performance.now();
+        if (f._pupMine || _strikeEdge || senseAt >= (f._nextPuppetSenseAt ?? 0)) {
+          f.ai._senses?.(_pf, null);
+          f._nextPuppetSenseAt = senseAt + 100 + (_fi % 11) * 3;
+        }
         if (f._pupMine && f.ai.inSight && f.ai.detected && !f.dead) setEnemyAlert(playerEntity, true, classicMinutesRef.value);   // AUDIT WORLD6b-ii B6: the host's foe beating on me is an enemy alert of mine
         f.sounds ??= new EnemySoundSource(f.mobileType);
         tickEnemySound(f.sounds, f.ai.feet, playerFeet || eye, dt, { audio, collider, hearing: acuteHearingMultiplier(playerEntity), companion: f.companion != null });   // the barks are the foe's, not the frame's
@@ -7773,7 +7779,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
       const _armed = (rec, sn, streamed = false) => (sn?.candidates && foeDeps ? {
         ...sn,
         targeting: (ai, pf, cdt) => foeDeps.runTargetMachine(rec, sn.candidates(streamed, rec), pf, cdt, {
-          playerEntity: sn.playerEntity ?? playerEntity, playerHeight: sn.playerHeight,   // AUDIT 62 F23: GetTargets measures the player at its LIVE capsule too
+          noTargetMode: opts.observeFoes === true, playerEntity: sn.playerEntity ?? playerEntity, playerHeight: sn.playerHeight,   // AUDIT 62 F23: GetTargets measures the player at its LIVE capsule too
         }),
       } : sn);
       const _targetFeet = (rec) => {

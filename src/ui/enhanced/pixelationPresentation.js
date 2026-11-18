@@ -11,8 +11,8 @@ const COPY = {
     ['Настраивает пикселизацию улучшенной модели вашего персонажа при виде от третьего лица.', 'Adjusts pixelation of your enhanced character model in third-person view.'],
   ],
   'char-pixel-npc': [
-    ['Персонажи NPC', 'NPC characters'],
-    ['Настраивает пикселизацию совместимых улучшенных моделей NPC.', 'Adjusts pixelation of compatible enhanced NPC models.'],
+    ['NPC и животные', 'NPCs and animals'],
+    ['Настраивает пикселизацию NPC, врагов и животных, включая лошадей.', 'Adjusts pixelation of NPCs, enemies and animals, including horses.'],
   ],
   'world-pixel-objects': [
     ['Предметы и декор', 'Objects and decor'],
@@ -48,7 +48,7 @@ export function pixelationIntro(render) {
   const intro = node('section', 'card emc-catalog pixelation-intro');
   intro.append(catalogLanguageControl(render), node('h3', '', local('Пикселизация', 'Pixelation')),
     node('p', 'meta', local('Выберите степень пикселизации для каждой категории: HD — без дополнительной пикселизации; Light, Medium, Classic и Retro последовательно увеличивают размер пикселя.', 'Choose pixelation for each category: HD adds no extra pixelation; Light, Medium, Classic and Retro progressively increase pixel size.')),
-    node('p', 'meta', local('Настройки рук, персонажа и NPC доступны при подключённой и включённой связке «Тела и руки» в EMC. Когда связка отключена, используется встроенная отрисовка игры. Ваш выбор сохраняется для повторного включения.', 'Hands, character and NPC controls require the connected and enabled Bodies and hands group in EMC. Disabling it restores the game’s built-in rendering. Your choices are retained for re-enabling.')));
+    node('p', 'meta', local('Настройки рук и персонажа доступны при подключённой и включённой связке «Тела и руки» в EMC. Когда связка отключена, используется встроенная отрисовка игры. Ваш выбор сохраняется для повторного включения.', 'Hands and player character controls require the connected and enabled Bodies and hands group in EMC. Disabling it restores the game’s built-in rendering. Your choices are retained for re-enabling.')));
   return intro;
 }
 export function pixelationTile(id, state, control) {
@@ -57,7 +57,7 @@ export function pixelationTile(id, state, control) {
   tile.id = 'opt-' + id;
   tile.dataset.fid = id;
   tile.append(node('h3', '', copy.title), node('p', 'meta', copy.description));
-  const linked = id !== 'world-pixel-objects';
+  const linked = id === 'char-pixel-fp' || id === 'char-pixel-player';
   const ready = !linked || modGroupReady('bodies');
   const status = node('ul', 'emc-readiness');
   status.append(node('li', ready ? 'emc-ready' : 'emc-missing', (ready ? '✓ ' : '✕ ') + (linked

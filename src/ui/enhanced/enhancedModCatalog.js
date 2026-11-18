@@ -1,6 +1,5 @@
 import { emcText } from './emcLanguage.js';
 import { morrowindDataCount } from '../../scenes/dataSource.js';
-import { enhancedBattleaxeAvailable } from '../../characters/ownModels/enhancedBattleaxe.js';
 import { textureIntro } from './texturePresentation.js';
 import { animatedCloaksRequirement, extraAppearanceRequirements } from '../../systems/extraAppearance.js';
 import { setPaperdollCustomization } from '../../systems/helmetPaperdollLooks.js';
@@ -9,6 +8,7 @@ import { setInventory2D } from './inventoryPresentation.js';
 import { MOD_PACKS, MOD_GROUPS } from '../../systems/enhancedModCatalog.js';
 import { noteModPresentationChanged, modPackState, modGroupReady, modGroupEnabled, setModGroupEnabled, attachModFolder, removeModResources, resourceError, resourcesChanged } from '../../systems/enhancedModResources.js';
 import { appearanceEditorEnabled, appearanceEditorRequirements } from '../../characters/activeAppearance.js';
+import { cosmeticsMenu } from './cosmeticsMenu.js';
 import { getPref, setPref } from '../../systems/uiPrefs.js';
 import { attachedDfmods, setDfmodEnabled } from '../../systems/dfmodTextures.js';
 const node=(tag,cls,text)=>{
@@ -50,6 +50,7 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
   if(resourceError)intro.append(node('p','meta emc-error','Хранилище ресурсов: '+resourceError));
   page.append(intro);
   if(section==='bodies'){
+    page.append(cosmeticsMenu(node));
     const inventory=node('div','card');
     inventory.append(node('h3',null,'Отображение инвентаря'),node('p','meta','Выберите 2D-карточку персонажа или 3D-инвентарь. В режиме 2D модели Morrowind продолжают работать в игровом мире, а персонаж и значки предметов в инвентаре остаются двумерными. Paperdoll Enhanced улучшает 2D-карточку.'),button(getPref('morrowindThirdPersonOnly')?'Инвентарь: 2D':'Инвентарь: 3D',()=>{setInventory2D(!getPref('morrowindThirdPersonOnly'));render();}));
     page.append(inventory);
@@ -58,10 +59,11 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
       const packs=MOD_PACKS.filter(p=>p.group===group.id);
       const available=packs.every(p=>modPackState(p.id).count>0);
       const toggle=button(modGroupEnabled(group.id)?'Отключить связку':'Включить связку',async()=>{setModGroupEnabled(group.id,!modGroupEnabled(group.id));await rebuild();render();});
-      toggle.disabled=!available;
+      const unavailable = group.id === 'beasts';
+      toggle.disabled = unavailable || !available;
       toggle.setAttribute('aria-pressed',String(modGroupEnabled(group.id)));
       if (!available) box.append(node('p','meta','Набор ресурсов неполный. Для отсутствующих компонентов сохраняется прежний резервный источник.'));
-      box.append(node('div','emc-badge','СВЯЗАННЫЕ РЕСУРСЫ'),node('h3',null,group.title),node('p','meta',group.description),toggle);
+      box.append(node('div','emc-badge','СВЯЗАННЫЕ РЕСУРСЫ'),node('h3',null,unavailable ? group.title + ' (WIP, не доступно на текущий момент)' : group.title),node('p','meta',group.description),toggle);
       const readiness=node('ul','emc-readiness');
       for(const pack of packs){
         const connected=modPackState(pack.id).connected;
@@ -95,11 +97,13 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
         card.append(node('p','meta emc-status',state.count?`${state.imported?'Подключены пользователем':'Ресурсы текущей сборки'} · файлов: ${state.count}`:'Ресурсы не подключены'));
         const actions=node('div','acts');
         if(!state.connected && pack.nexus)actions.append(link('Скачать с Nexus Mods',pack.nexus));
-        actions.append(button(state.connected?'Выбрать источник заново':'Подключить ресурсы',()=>new Promise(resolve=>{
+        const connect = button(state.connected?'Выбрать источник заново':'Подключить ресурсы',()=>new Promise(resolve=>{
           const input=node('input');input.type='file';input.multiple=true;input.webkitdirectory=true;
           input.oncancel=()=>resolve();
           input.onchange=async()=>{try{if(input.files?.length)await attachModFolder(pack.id,[...input.files]);render();resolve();}catch(error){card.append(node('p','meta emc-error',String(error?.message||error)));resolve();}};input.click();
-        })));
+        }));
+        connect.disabled = unavailable;
+        actions.append(connect);
         if(state.connected)actions.append(button('Удалить ресурсы',async()=>{await removeModResources(pack.id);render();}));
         card.append(actions);box.append(card);
       }
@@ -142,8 +146,8 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
     page.append(cloaks);
     const axes=node('section','card');
     const axeToggle=button(getPref('enhancedBattleaxes')===true?'Отключить':'Включить',async()=>{setPref('enhancedBattleaxes',getPref('enhancedBattleaxes')!==true);noteModPresentationChanged();await rebuild();render();});
-    axeToggle.disabled=!enhancedBattleaxeAvailable() || extraAppearanceRequirements('weapon').length>0;
-    axes.append(node('h3',null,'Улучшенные секиры'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Двуручные War Axe: длинные рукояти, исходные материалы и широкий хват.'),axeToggle,equipmentRequirements(),requirements([[enhancedBattleaxeAvailable(),'Ресурсы улучшенных двуручных секир подключены']]));
+    axeToggle.disabled=morrowindDataCount() === 0;
+    axes.append(node('h3',null,'Улучшенные секиры'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Двуручные War Axe: длинные рукояти, исходные материалы и широкий хват.'),axeToggle,morrowindRequirement());
     page.append(axes);
     const camp=node('div','card');
     camp.append(node('h3',null,'Объёмные источники света'),node('p','meta','Автор: BLOODBATH'),node('p','meta','Заменяет поддерживаемые источники света объёмными моделями. У горящих источников видно анимированное пламя.'),button(getPref('enhancedCampfire')!==false?'Отключить':'Включить',()=>{setPref('enhancedCampfire',getPref('enhancedCampfire')===false);render();}));
@@ -167,6 +171,7 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
       node('p', 'meta', 'Автор: BLOODBATH'),
       node('p', 'meta', 'Выпавшие и брошенные вещи видны в мире как 3D-предметы. Для вещей без подходящей модели используется завязанный мешочек.'),
       node('p', 'meta', 'Выпадение отдельных вещей настраивается в Physical Items (demifiend000).'),
+      node('p', 'meta', 'Этот переключатель также включает 3D-модели для некоторых расставленных кубков, бутылок и инструментов.'),
       morrowindRequirement(),
       decorToggle('enhancedGroundLoot'),
     );

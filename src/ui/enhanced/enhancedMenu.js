@@ -3973,7 +3973,7 @@ function modRow(vendor, key, def, { name = null, note = null, home = false } = {
  *  back to its own builder, which is how the panel stays honest about
  *  the controls it has not learned yet. */
 export function pixelationRequirement(id) {
-  if (!['char-pixel-fp','char-pixel-player','char-pixel-npc'].includes(id)) return null;
+  if (!['char-pixel-fp','char-pixel-player'].includes(id)) return null;
   return modGroupReady('bodies') ? null : 'Требуется подключённая и включённая группа «Тела и руки» в EMC.';
 }
 

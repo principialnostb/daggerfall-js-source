@@ -1,3 +1,4 @@
+import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
 // Shared interior build for scene transitions (P3): given a host
 // scene's data caches, lay out one building interior and return
 // everything the host needs to render and walk it. The pipeline is the
@@ -801,7 +802,7 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
       if (!t || flat.record >= t.recordCount) continue;
       uploadRecord(flat.archive, flat.record);
       const at = parentPt(flat.x, flat.y, flat.z);
-      const batch = renderer.createBillboardBatch(flat.archive, flat.record, billboardSize(t, flat.record), [at]);
+      const batch = markPlacedFurnishing(mountTorchBatch(renderer.createBillboardBatch(flat.archive, flat.record, billboardSize(t, flat.record), [at]), [at], collider, { only: ['interior'] }), [at]);
       armFlatAnim(batch, t, flat.archive, flat.record, flatAnims, uploadRecordFrame);
       billboardBatches.push(batch);
       baseFlats.push({ fi, flat, batch, at });
@@ -817,7 +818,7 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
     if (!t || record >= t.recordCount) continue;
     uploadRecord(archive, record);
     const size = billboardSize(t, record);
-    const batch = mountTorchBatch(renderer.createBillboardBatch(archive, record, size, centers), centers, collider, { only: ['interior'] });
+    const batch = markPlacedFurnishing(mountTorchBatch(renderer.createBillboardBatch(archive, record, size, centers), centers, collider, { only: ['interior'] }), centers);
     armFlatAnim(batch, t, archive, record, flatAnims, uploadRecordFrame);
     billboardBatches.push(batch);
     if (isCoverFlat(archive, record, size)) collider.cover.add('tact1:flats', centers.map((c) => coverProxy(c, size)));   // TACT1 (a furnishable room's own pieces, which can be taken out, are not)

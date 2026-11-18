@@ -1,6 +1,50 @@
 import { getPref, setPref } from '../../systems/uiPrefs.js';
 
 const EN = new Map([
+  ["Локальный адрес", "Local address"],
+  ["Активные профили", "Active profiles"],
+  ["Проверяем локальный сервер…", "Checking local server…"],
+  ["Режим хоста", "Hosting"],
+  ["Внешность опубликована", "Appearance published"],
+  ["Публикация внешности не удалась", "Could not publish appearance"],
+  ["Активных профилей: ", "Active profiles: "],
+  ["Локальный сервер запущен", "Local server running"],
+  ["Публичный адрес не проверен", "Public address unchecked"],
+  ["Проверяем публичный адрес…", "Checking public address…"],
+  ["Публичный адрес доступен", "Public address reachable"],
+  ["Публичный адрес ведёт на другой сервер", "Public address points to another server"],
+  ["Публичный адрес недоступен", "Public address unavailable"],
+  ["Сервер недоступен.","The server is unavailable."],
+  ["Адрес не принадлежит серверу косметики.","This address does not point to a cosmetics server."],
+  ["Запуск сервера доступен в настольной сборке.","Server hosting is available in the desktop build."],
+  ["Укажите ваш публичный адрес для локального сервера","Enter the public address for your local server"],
+  ["Укажите публичный адрес сервера для синхронизации внешнего вида","Enter the public address of the appearance sync server"],
+  ["Порт локального сервера","Local server port"],
+  ["Запустить публичный сервер","Start public server"],
+  ["Остановить сервер","Stop server"],
+  ["Направьте HTTPS-туннель или прокси на локальный адрес выше.","Point your HTTPS tunnel or proxy at the local address above."],
+  ["Проверить публичный адрес","Check public address"],
+  ["Укажите публичный HTTPS-адрес.","Enter a public HTTPS address."],
+  ["Подключиться","Connect"],
+  ["Укажите HTTPS-адрес или локальный HTTP-адрес.","Enter an HTTPS address or a local HTTP address."],
+  ["Проверяем подключение…","Checking connection…"],
+  ["Отключиться","Disconnect"],
+  ["Запуск сервера","Host a server"],
+  ["Подключение","Connect to a server"],
+  ["Сервер синхронизации внешнего вида","Appearance Sync Server"],
+  ["Укажите порт от 1 до 65535.","Enter a port from 1 to 65535."],
+  ["Сервер запущен на ","Server running at "],
+  ["Сервер остановлен.","Server stopped."],
+  ["Синхронизация отключена.","Synchronization is off."],
+  [" · Активных профилей: "," · Active profiles: "],
+  ["Сервер доступен по публичному адресу ","Server available at public address "],
+  ["Публичный адрес не ведёт к этому серверу.","The public address does not point to this server."],
+  ["Локальный сервер не отвечает.","The local server is not responding."],
+  ["Синхронизация работает","Synchronization is active"],
+  ["Сервер доступен · ожидаем публикацию в онлайне","Server reachable · waiting for your online profile"],
+  ["Связь с сервером потеряна.","Connection to the server was lost."],
+  ["Запуск разрешён с локальной страницы игры.","Start the server from the local game page."],
+  ["Выбранный порт уже занят.","The selected port is already in use."],
   [
     "Для модификаций на основе Morrowind обязательно подключите 3D-ресурсы в Mods & files.",
     "Connect your Morrowind 3D resources in Mods & files before using these modifications."
@@ -411,7 +455,7 @@ EN.set("Работает и без этих дополнений.","Works with o
 EN.set("Дополнительные улучшения","Optional enhancements");
 EN.set("Используется","In use");
 EN.set("Не используется","Not in use");
-export const emcLanguage = () => getPref('emcLanguage') === 'en' ? 'en' : 'ru';
+export const emcLanguage = () => getPref('emcLanguage') === 'ru' ? 'ru' : 'en';
 export const setEmcLanguage = language => setPref('emcLanguage',language === 'en' ? 'en' : 'ru');
 export function emcText(value) {
   if (emcLanguage() !== 'en' || typeof value !== 'string') return value;
@@ -434,7 +478,134 @@ EN.set("Двуручная стальная секира","Two-handed steel batt
 EN.set("Волчьи шкуры: коричневая, белая и чёрная.","Wolf pelts: brown, white and black.");
 
 EN.set("Стальная двуручная секира: длинная рукоять, кожаная обмотка и широкий хват.","Two-handed steel battleaxe: a long haft, leather wrapping and a wide grip.");
-EN.set("Ресурсы улучшенной стальной секиры подключены","Enhanced steel battleaxe resources connected");
 
 EN.set("Двуручные War Axe: длинные рукояти, исходные материалы и широкий хват.","Two-handed War Axes: long hafts, original materials and a wide grip.");
-EN.set("Ресурсы улучшенных двуручных секир подключены","Enhanced two-handed axe resources connected");
+
+EN.set("Внешность", "Appearance");
+EN.set("Общее", "General");
+EN.set("Силуэт целиком и голова", "Overall silhouette and head");
+EN.set("Грудь", "Chest");
+EN.set("Объём, выступ, подъём и расстановка", "Size, projection, lift and spacing");
+EN.set("Талия и живот", "Waist and abdomen");
+EN.set("Ширина и глубина талии, живот", "Waist width and depth, abdomen");
+EN.set("Бёдра и ягодицы", "Hips and glutes");
+EN.set("Ширина таза, объём, выступ и подъём ягодиц", "Hip width, glute size, projection and lift");
+EN.set("Бёдра, икры и постановка ног", "Thighs, calves and stance");
+EN.set("Полнота бёдер и икр, расстановка ног", "Thigh and calf thickness, leg spacing");
+EN.set("Плечи, грудная клетка и руки", "Shoulders, rib cage and arms");
+EN.set("Плечевой пояс, грудная клетка, руки", "Shoulder girdle, rib cage and arms");
+EN.set("Обычная", "Regular");
+EN.set("Стройная", "Slender");
+EN.set("Атлетичная", "Athletic");
+EN.set("Худощавый", "Lean");
+EN.set("Обычный", "Regular");
+EN.set("Атлетичный", "Athletic");
+EN.set("Редактор внешности", "Appearance Editor");
+EN.set("Morrowind · персональная настройка персонажа", "Morrowind · Character customization");
+EN.set("Отдельный предпросмотр · без экипировки", "Standalone preview · Unequipped");
+EN.set("Закрыть редактор", "Close editor");
+EN.set("Закрыть", "Close");
+EN.set("Предпросмотр модели", "Model preview");
+EN.set("Раса, пол, лицо и причёска сохраняются после нажатия «Готово»", "Race, sex, face and hairstyle are saved when you select Done.");
+EN.set("Пикселизация превью", "Preview pixelation");
+EN.set("Как в игре", "Match game");
+EN.set("3D-предпросмотр персонажа", "3D character preview");
+EN.set("Загрузка отдельной модели…", "Loading preview model…");
+EN.set("Отдалить модель", "Zoom out");
+EN.set("Приблизить модель", "Zoom in");
+EN.set("Сбросить вид", "Reset view");
+EN.set("Облик", "Appearance");
+EN.set("Пол, раса, лицо и причёска.", "Sex, race, face and hairstyle.");
+EN.set("Пол", "Sex");
+EN.set("Пол персонажа", "Character sex");
+EN.set("Мужской", "Male");
+EN.set("Женский", "Female");
+EN.set("Раса", "Race");
+EN.set("Раса персонажа", "Character race");
+EN.set("Бретон", "Breton");
+EN.set("Тёмный эльф", "Dark Elf");
+EN.set("Высокий эльф", "High Elf");
+EN.set("Имперец", "Imperial");
+EN.set("Норд", "Nord");
+EN.set("Орк", "Orc");
+EN.set("Редгард", "Redguard");
+EN.set("Лесной эльф", "Wood Elf");
+EN.set("Аргонианин", "Argonian");
+EN.set("Каджит", "Khajiit");
+EN.set("Лицо", "Face");
+EN.set("Причёска", "Hairstyle");
+EN.set("Нижнее бельё", "Underwear");
+EN.set("В белье", "With underwear");
+EN.set("Без белья", "Without underwear");
+EN.set("Загрузка выбранных моделей лица и причёски…", "Loading selected face and hairstyle…");
+EN.set("Без волос", "Bald");
+EN.set("Список моделей лица и причёсок недоступен.", "The face and hairstyle list is unavailable.");
+EN.set("Поиск доступных моделей…", "Finding available models…");
+EN.set("Не удалось получить список моделей.", "Could not load the model list.");
+EN.set("Нет доступных моделей лица", "No faces available");
+EN.set("Нет доступных моделей причёсок", "No hairstyles available");
+EN.set("Ошибка списка моделей", "Model list error");
+EN.set("Пересборка модели…", "Rebuilding model…");
+EN.set("Не удалось обновить модель персонажа в игре.", "Could not update the character model in game.");
+EN.set("Пропорции тела учитываются при подгонке одежды и брони.", "Clothing and armor are fitted to the body proportions.");
+EN.set("Выбор группы частей тела", "Choose a body part group");
+EN.set("Пресеты фигуры", "Body presets");
+EN.set("Пресет — отправная точка: доведите фигуру ползунками справа.", "Choose a preset, then fine-tune it with the sliders.");
+EN.set("Изменения внешности применяются после нажатия «Готово»", "Select Done to apply appearance changes.");
+EN.set("Сбросить", "Reset");
+EN.set("Готово", "Done");
+EN.set("Применение…", "Applying…");
+EN.set("Не удалось применить внешность", "Could not apply appearance changes");
+EN.set("Пропорции тела", "Body proportions");
+EN.set("Обновление пропорций модели…", "Updating body proportions…");
+EN.set("Отдельная 3D-сборка недоступна для этого игрового рига.", "A standalone 3D preview is unavailable for this rig.");
+EN.set("Не удалось собрать отдельную модель.", "Could not build the preview model.");
+EN.set("Собирается отдельная 3D-модель из игровых ресурсов…", "Building a 3D preview from game assets…");
+EN.set("Предпросмотр недоступен", "Preview unavailable");
+EN.set("Загрузка ресурсов", "Loading assets");
+EN.set("Модель собрана, но изображение недоступно.", "The model is ready, but its preview image is unavailable.");
+EN.set("Ошибка отображения", "Display error");
+EN.set("Мышь: поворот и сдвиг · Колесо: масштаб", "Mouse: rotate and pan · Wheel: zoom");
+EN.set("Ошибка предпросмотра", "Preview error");
+EN.set("Цвет волос", "Hair color");
+EN.set("назад", "previous");
+EN.set("вперёд", "next");
+EN.set("Объём груди", "Breast size");
+EN.set("Выступ груди вперёд", "Breast projection");
+EN.set("Высота груди", "Breast lift");
+EN.set("Расстояние между грудями", "Breast spacing");
+EN.set("Ширина талии спереди", "Waist width");
+EN.set("Толщина талии сбоку", "Waist depth");
+EN.set("Выступ живота вперёд", "Abdomen projection");
+EN.set("Ширина таза", "Hip width");
+EN.set("Объём ягодиц", "Glute size");
+EN.set("Выступ ягодиц назад", "Glute projection");
+EN.set("Подъём ягодиц", "Glute lift");
+EN.set("Толщина бёдер", "Thigh thickness");
+EN.set("Толщина икр", "Calf thickness");
+EN.set("Расстояние между ногами", "Leg spacing");
+EN.set("Ширина плеч", "Shoulder width");
+EN.set("Ширина грудной клетки", "Rib cage width");
+EN.set("Толщина рук", "Arm thickness");
+EN.set("Ширина фигуры", "Body width");
+EN.set("Толщина фигуры сбоку", "Body depth");
+EN.set("Размер головы", "Head size");
+EN.set("Исходный", "Original");
+EN.set("Чёрный", "Black");
+EN.set("Эспрессо", "Espresso");
+EN.set("Тёмный каштан", "Dark chestnut");
+EN.set("Каштан", "Chestnut");
+EN.set("Светлый каштан", "Light chestnut");
+EN.set("Тёмно-рыжий", "Dark auburn");
+EN.set("Медный", "Copper");
+EN.set("Рыжий", "Ginger");
+EN.set("Медовый", "Honey");
+EN.set("Золотистый", "Golden");
+EN.set("Светло-русый", "Light blond");
+EN.set("Тёмно-русый", "Dark blond");
+EN.set("Пепельный", "Ash blond");
+EN.set("Серебристый", "Silver");
+EN.set("Седой белый", "White");
+EN.set("Тела зверорас (WIP, не доступно на текущий момент)", "Beast Bodies (WIP, currently unavailable)");
+EN.set("(WIP, не доступно на текущий момент)", "(WIP, currently unavailable)");
+EN.set("Этот переключатель также включает 3D-модели для некоторых расставленных кубков, бутылок и инструментов.", "This setting also enables 3D models for selected placed goblets, bottles and tools.");

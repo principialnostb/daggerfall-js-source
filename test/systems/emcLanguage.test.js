@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { emcLanguage, setEmcLanguage, emcText } from '../../src/ui/enhanced/emcLanguage.js';
 import { MOD_PACKS, MOD_GROUPS } from '../../src/systems/enhancedModCatalog.js';
 test('EMC language translates all provider descriptions and dependency labels without changing their IDs',()=>{
- setEmcLanguage('en');assert.equal(emcLanguage(),'en');
+ assert.equal(emcLanguage(),'en');
+ setEmcLanguage('en');assert.equal(emcText('Внешность'),'Appearance');
  for(const item of [...MOD_PACKS,...MOD_GROUPS]){
   assert.doesNotMatch(emcText(item.description),/[А-Яа-я]/,item.id);
  }
@@ -16,11 +17,11 @@ test('EMC language translates all provider descriptions and dependency labels wi
 // Read the displayed strings so later catalog copy changes cannot silently lose their translation.
 test('all current catalog text literals have an English translation', async () => {
  const { readFileSync } = await import('node:fs');
- const source = readFileSync(new URL('../../src/ui/enhanced/enhancedModCatalog.js', import.meta.url), 'utf8');
+ const paths = ['ui/enhanced/enhancedModCatalog.js', 'ui/enhanced/cosmeticsMenu.js', 'ui/appearanceEditor.js', 'characters/bodyMorphs.js', 'characters/hairColor.js'];
  setEmcLanguage('en');
  try {
   const { parse } = await import('acorn');
-  const tree = parse(source, { ecmaVersion: 'latest', sourceType: 'module' });
+
   function visit(node) {
    if (!node || typeof node !== 'object') return;
    if (node.type === 'Literal' && typeof node.value === 'string' && node.value !== 'Интеграция' && /[А-Яа-яЁё]/u.test(node.value)) {
@@ -31,6 +32,9 @@ test('all current catalog text literals have an English translation', async () =
     else if (value && typeof value === 'object') visit(value);
    }
   }
-  visit(tree);
+  for (const path of paths) {
+   const source = readFileSync(new URL('../../src/' + path, import.meta.url), 'utf8');
+   visit(parse(source, { ecmaVersion: 'latest', sourceType: 'module' }));
+  }
  } finally { setEmcLanguage('ru'); }
 });

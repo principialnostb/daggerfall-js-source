@@ -1,5 +1,7 @@
 # Testing
 
+For dungeon performance measurements in the standalone development scene, add `observeFoes` to a `?dungeon=...&shot&play` URL. Enemies keep updating and selecting non-player opponents while the observer walks. Omit the flag to measure pursuit and combat on the same route.
+
 The suite is Node's own test runner over every `*.test.js` under `test/`, each file in its own process. It runs on
 every pull request and before every deploy and release, split into shards that run at once. A test file says what it
 covers in its own titles and header comment; the suite counts itself. Players never meet it directly: it is what keeps

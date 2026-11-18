@@ -1,3 +1,5 @@
+import { orientStreetLights, streetLightPosition } from '../streetLanternPlacement.js';
+import { morrowindWorldVisualEnabled } from '../../systems/dungeonDecor.js';
 // City light collection: one point light per archive-210 flat. 1:1 with
 // Daggerfall Unity's RMBLayout AddLights/AddLight and the exterior-subrecord
 // light path (MIT, Daggerfall Workshop). Verbatim:
@@ -99,6 +101,7 @@ export const lanternSlot = (px, py) => (Math.imul(px | 0, 73856093) ^ Math.imul(
  *  @returns {{ n: number, ranges: Float32Array }} */
 export function fillLanternPool(pixels, translate, pool, ranges, animRanges, extra = null) {
   let n = 0;
+  const street3d = morrowindWorldVisualEnabled('enhancedCampfire');
   for (const p of pixels) {
     const more = extra ? extra(p) : null;
     const m = more ? more.length : 0;
@@ -107,7 +110,7 @@ export function fillLanternPool(pixels, translate, pool, ranges, animRanges, ext
     ranges = rangesFor(ranges, n + p.lights.length + m);
     const slot0 = lanternSlot(p.px, p.py);
     for (let j = 0; j < p.lights.length + m; j++) {
-      const l = j < p.lights.length ? p.lights[j] : more[j - p.lights.length];
+      const l = streetLightPosition(j < p.lights.length ? p.lights[j] : more[j - p.lights.length], street3d);
       const e = pool[n] ?? (pool[n] = { x: 0, y: 0, z: 0 });
       e.x = l[0] + t[0]; e.y = l[1] + t[1]; e.z = l[2] + t[2];
       adoptLight(e, l);   // LIGHT-ID: the entry is this lantern's this frame - the pool reshuffles when a pixel streams out
@@ -177,7 +180,7 @@ export function collectCityLights(dfBlock, getScaledSize) {
     }
   }
 
-  return lights;
+  return orientStreetLights(dfBlock, lights);
 }
 
 /**
@@ -210,6 +213,7 @@ const _selIdx = [];
  *  and interior caller, unchanged. See dungeonLights.js for why the
  *  two rules compose in this order. */
 export function nearestLights(lights, pos, max = 16, range = CITY_LIGHT_RANGE, colorOf = null, xzRange = 0, n = -1) {
+  const street3d = morrowindWorldVisualEnabled('enhancedCampfire');
   const perLight = typeof range !== 'number' ? range : null;
   const xz2 = xzRange > 0 ? xzRange * xzRange : 0;
   // PERF-LIGHTS (2026-09-19): how many of `lights` are live. The world
@@ -221,7 +225,7 @@ export function nearestLights(lights, pos, max = 16, range = CITY_LIGHT_RANGE, c
   const len = n < 0 ? lights.length : Math.min(n, lights.length);
   let count = 0;
   for (let i = 0; i < len; i++) {
-    const l = lights[i];
+    const l = streetLightPosition(lights[i], street3d);
     const dx = l.x - pos[0];
     const dy = l.y - pos[1];
     const dz = l.z - pos[2];
@@ -238,7 +242,7 @@ export function nearestLights(lights, pos, max = 16, range = CITY_LIGHT_RANGE, c
   }
   const out = lightList(count);   // LIGHT-ID: each light's identity rides the list
   for (let i = 0; i < count; i++) {
-    const l = lights[_selIdx[i]];
+    const l = streetLightPosition(lights[_selIdx[i]], street3d);
     // AUDIT PERF-LIGHTS F2 (pre-existing, found by this audit): a
     // per-light range array SHORTER than the light list gives `undefined`
     // here, which lands in a Float32Array as NaN - and a NaN far plane

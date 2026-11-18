@@ -1,8 +1,8 @@
 import { enhancedAxeRecord } from '../../characters/ownModels/enhancedBattleaxe.js';
 import { bindElbowSkin } from '../../characters/bodyMotion/elbowSkin.js';
+import { configureEquipmentFit, poseEquipmentMorph } from './mwEquipmentFit.js';
 import { preserveOwnedPose } from './mwPoseContinuity.js';
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
-import { deformPlayerBodyGeometry, measureBodyFrame, isMorphedBodySlot, weldMorphedNormals } from '../../characters/bodyShape.js';   // BODY-SHAPE
 // MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
 //
 // The Morrowind import arc was reverted whole on 2026-08-28 after three
@@ -174,7 +174,7 @@ import FACE_TABLE from '../mwFaceTable.json' with { type: 'json' };
 import { GRAPH_ROOT, ACCUM_ROOT_NAMES, blendPoseMaps } from './mwSkin.js';
 import { editPose, fitPieces } from './mwPoseLab.js';   // POSE-LAB: the Animation Lab's seam, off in the game
 import { CUFF_FIT, fitCuffsToHand, handStart, trimToCuff, wristFrame } from './mwCuffFit.js';   // CUFF-FIT: the worn cuff sat on the donor hand
-import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
+import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance, equipmentBoneSide } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
 import { rebuildNormals } from './mwCloakPhysics.js';
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
@@ -2377,13 +2377,28 @@ export function bindPartsInto(assembly, parts) {
       });
     }
   }
+  const bodyReplacement = parts.find((candidate) => candidate.slot === 'betterBodies')?.bytes ?? null;
+  const bodySources = new Map();
+  function equipmentFitSources(part) {
+    return (part.fitSources ?? []).flatMap((source) => {
+      const key = source.path && (source.slot + ':' + source.path);
+      if (!key) return bindGarmentFitSources(assembly, [source], bodyReplacement);
+      if (!bodySources.has(key)) bodySources.set(key, bindGarmentFitSources(assembly, [source], bodyReplacement));
+      return bodySources.get(key);
+    });
+  }
   for (const part of boundParts) {
     // `part.bones` overrides the table so a test can drive real assembly
     // against a fixture skeleton whose bone names are not Morrowind's.
     const bones = part.bones ?? mod.PART_BONES[part.slot] ?? [];
     // MW-BRIG2: a worn model of the port's own is SKINNED FROM THE BODY under it (formats/morrowind/mwSkinTransfer.js) - it
     // moves by the body's own bones and binds, never by an attach node the body does not use.
-    if (part.skinFrom) { bindSkinnedFromBody(assembly, part, bones); continue; }
+    if (part.skinFrom) {
+      const start = pieces.length;
+      bindSkinnedFromBody(assembly, part, bones);
+      configureEquipmentFit(pieces.slice(start), part, equipmentFitSources(part));
+      continue;
+    }
     let nif;
     try {
       nif = mod.parseNif(part.bytes);
@@ -2401,11 +2416,11 @@ export function bindPartsInto(assembly, parts) {
     }
     // Prefer the actual rendered Better Bodies surface when present; otherwise use the matching BODY records.
     // This is geometry-only fitting, not weight transfer, so the full-body replacement is safe as a filtered surface.
-    const bodyReplacement = parts.find((candidate) => candidate.slot === 'betterBodies')?.bytes ?? null;
     const fitSourceNifs = part.fitSources ?? [];
-    // Clothing fit is a private vertex-position pass; the garment keeps its authored skinning/material path.
-    const fitSources = fitSourceNifs.length ? bindGarmentFitSources(assembly, fitSourceNifs, bodyReplacement) : [];
-    const fitCtx = fitSources.length ? clothingFitContext(assembly) : null;
+    const fitSources = equipmentFitSources(part);
+    const restFit = part.fitMode === 'trousers' || part.fitMode === 'clearance'
+      || (part.fitMode === 'shirt' && part.partName !== 'cuirass');
+    const fitCtx = fitSources.length && restFit ? clothingFitContext(assembly) : null;
     // MW-D6: the nameless-shape extension binds ONCE for the part; a
     // NAMED shape binds once PER SIDE, filtered. See the block below.
     let tookNameless = false;
@@ -2712,6 +2727,7 @@ export function bindPartsInto(assembly, parts) {
         }
       }
     }
+    if (part.morphSlot || fitSources.length) configureEquipmentFit(pieces.slice(piecesBefore), part, fitSources);
     // And a part that contributed nothing AT ALL with geometry in hand
     // (both sides missed, or an empty mesh) is one sentence, not a hole.
     if (pieces.length === piecesBefore && shapeCensus && !shapeCensus.length) {
@@ -2968,7 +2984,7 @@ export function posePartClocks(assembly, value, { frameTime = value, slots = WEA
 
 // Player-only local vertex morphs (characters/bodyShape.js): the posed player vertices are altered, never the shared
 // source arrays or NPC/item geometry.
-export { deformPlayerBodyGeometry };
+export { deformPlayerBodyGeometry } from '../../characters/bodyShape.js';
 
 let cloakProbeQuery = null;
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
@@ -3066,14 +3082,8 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
     }
   }
   fitPieces(pieces);   // POSE-LAB: a tool's fit of a piece, the CPU skin's half
-  if (geometryMorph) {
-    // BODY-SHAPE: measured once after skinning every body piece - the skeleton's landmarks and the box in one frame
-    const bodyPieces = pieces.filter((p) => p.kind === 'skinned' && isMorphedBodySlot(p.slot) && p.positions?.length);
-    const frame = measureBodyFrame(bodyPieces, skeleton, mats);
-    if (frame) {
-      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, frame, skeleton);
-      weldMorphedNormals(bodyPieces, frame);
-    }
+  if (geometryMorph && Object.values(geometryMorph).some((value) => Math.abs(Number(value) || 0) > 1e-6)) {
+    poseEquipmentMorph(pieces, geometryMorph, { skeleton, pose, mats, skinBatch: fns.skinBatch });
   }
   assembly.pose = pose;
   // The rig-space transform of every node, kept so rule 54 can read the
@@ -3320,7 +3330,7 @@ function bindGarmentFitSources(assembly, fitSources, replacement = null) {
   const { skeleton, notes } = assembly;
   const sources = [];
   for (const src of fitSources) {
-    if (replacement && replacement !== src.bytes) {
+    if (replacement && replacement !== src.bytes && src.slot !== 'head' && src.slot !== 'neck') {
       const replacementSources = bindGarmentFitSources(assembly, [{ ...src, bytes: replacement }]);
       if (replacementSources.length) {
         sources.push(...replacementSources);
@@ -3367,7 +3377,7 @@ function fitRigidTrousers(batch, { attachRef, boneOffset }, mirror, bone, source
   const placed = { ...batch, positions: placeAtBone(batch.positions, at, mirror, undefined, offset) };
   const options = {
     conform: true, clearance: 0.24, ease, maxDistance: 6,
-    side: bone?.toLowerCase().match(/\b(left|right)\b/)?.[1],
+    side: equipmentBoneSide(bone),
   };
   let fitted = fitGarmentClearance(placed, sources, ctx, options);
   if (fitted === placed && fallback) fitted = fitGarmentClearance(placed, fallback(), ctx, options);
@@ -3438,7 +3448,7 @@ function fitCuffPieces(assembly, from, wholes = []) {
 
 /** A worn cuff's piece for a shape trimmed whole (fitCuffPieces) - the bind loop's skinned piece, as it builds it. */
 function cuffPiece(part, bone, batch) {
-  return { slot: part.slot, bone, kind: 'skinned', mirrored: false, bodySection: null, batch, source: null, attachRef: null,
+  return { slot: part.slot, morphSlot: part.morphSlot, bone, kind: 'skinned', mirrored: false, bodySection: null, batch, source: null, attachRef: null,
     cuffFit: 'cuff', uvs: batch.uvs || null, colors: batch.colors || null, material: batch.material || null,
     positions: new Float32Array(batch.positions.length), indices: batch.indices, normals: posedNormals(batch) };
 }
@@ -3526,7 +3536,7 @@ function bindSkinnedFromBody(assembly, part, bones) {
   // before enabling geometric vertex pushes in the live assembly.
   for (const g of worn) {
     for (const batch of transferSkin(g, sources, ctx)) {
-      pieces.push({ slot: part.slot, bone: bones[0] ?? null, kind: 'skinned', mirrored: false,
+      pieces.push({ slot: part.slot, morphSlot: part.morphSlot, bone: bones[0] ?? null, kind: 'skinned', mirrored: false,
         batch, source: null, attachRef: null,
         uvs: batch.uvs || null, colors: null, material: batch.material || null,
         positions: new Float32Array(batch.positions.length), indices: batch.indices,

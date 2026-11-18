@@ -22,7 +22,7 @@ const smoothstep = (a, b, v) => {
   return t * t * (3 - 2 * t);
 };
 
-const ARM_BONE = /upperarm|upper arm|forearm|hand|finger|wrist/;
+const ARM_BONE = /clavicle|upperarm|upper arm|forearm|hand|finger|wrist/;
 const HAND_BONE = /hand|finger|wrist/;
 const LEG_BONE = /thigh|calf|foot|toe|upper leg|knee|ankle/;
 const TAIL_BONE = /tail/;   // BEASTS: the Argonian's and the Khajiit's - neither trunk nor limb, and no slider's
@@ -53,6 +53,18 @@ function regionsOf(piece, skeleton) {
       if (arm) (s > 0 ? r.armL : r.armR)[v] += w;
       if (hand) (s > 0 ? r.handL : r.handR)[v] += w;
       if (leg) (s > 0 ? r.legL : r.legR)[v] += w;
+    }
+  }
+  if (!r.weighted && piece.kind === 'rigid') {
+    const name = String(piece.bone ?? skeleton?.nodes?.get?.(piece.attachRef)?.name ?? '').toLowerCase();
+    const side = sideOfBone(name);
+    if (side && ARM_BONE.test(name)) {
+      (side > 0 ? r.armL : r.armR).fill(1);
+      if (HAND_BONE.test(name)) (side > 0 ? r.handL : r.handR).fill(1);
+      r.weighted = true;
+    } else if (side && LEG_BONE.test(name)) {
+      (side > 0 ? r.legL : r.legR).fill(1);
+      r.weighted = true;
     }
   }
   piece._shapeRegions = r;
@@ -160,6 +172,11 @@ export function measureBodyFrame(pieces, skeleton = null, mats = null) {
     Object.assign(frame.z, { neck: neck[2], spine2: spine2[2], spine1: spine1[2], spine: (spine ?? spine1)[2], pelvis: pelvis[2] });
     frame.cx = spine1[0]; frame.cy = spine1[1];
   }
+  const leftArm = frame.arms[1], rightArm = frame.arms[-1];
+  if (leftArm && rightArm) {
+    const length = (a) => Math.hypot(a.shoulder[0] - a.elbow[0], a.shoulder[1] - a.elbow[1], a.shoulder[2] - a.elbow[2]);
+    frame.limbSpreadUnit = (length(leftArm) + length(rightArm)) / 2;
+  }
   let toeY = 0, toes = 0;
   for (const side of [1, -1]) {
     const s = side > 0 ? 'l' : 'r';
@@ -224,12 +241,13 @@ function recalculateMorphedNormals(piece) {
   if (!p || !idx || !idx.length) return;
   const n = piece.normals && piece.normals.length === p.length ? piece.normals : new Float32Array(p.length);
   n.fill(0);
+  const winding = piece.mirrored ? -1 : 1;
   for (let k = 0; k + 2 < idx.length; k += 3) {
     const ia = idx[k] * 3, ib = idx[k + 1] * 3, ic = idx[k + 2] * 3;
     const abx = p[ib] - p[ia], aby = p[ib + 1] - p[ia + 1], abz = p[ib + 2] - p[ia + 2];
     const acx = p[ic] - p[ia], acy = p[ic + 1] - p[ia + 1], acz = p[ic + 2] - p[ia + 2];
     const nx = aby * acz - abz * acy, ny = abz * acx - abx * acz, nz = abx * acy - aby * acx;
-    for (const j of [ia, ib, ic]) { n[j] += nx; n[j + 1] += ny; n[j + 2] += nz; }
+    for (const j of [ia, ib, ic]) { n[j] += winding * nx; n[j + 1] += winding * ny; n[j + 2] += winding * nz; }
   }
   for (let i = 0; i + 2 < n.length; i += 3) {
     const len = Math.hypot(n[i], n[i + 1], n[i + 2]);
@@ -238,8 +256,14 @@ function recalculateMorphedNormals(piece) {
   piece.normals = n;
 }
 
-const BODY_SLOTS = new Set(['betterbodies', 'chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand']);
+const BODY_SLOTS = new Set(['betterbodies', 'chest', 'groin', 'upperleg', 'lowerleg', 'knee', 'ankle', 'foot', 'clavicle', 'upperarm', 'forearm', 'wrist', 'hand']);
 export const isMorphedBodySlot = (slot) => BODY_SLOTS.has(String(slot || '').toLowerCase());
+
+export function wornBodyMorphSlot(partName) {
+  const part = String(partName ?? '').toLowerCase().replace(/^(left|right) /, '');
+  const slot = ({ cuirass: 'chest', outfit: 'chest', skirt: 'groin', pauldron: 'clavicle', 'upper arm': 'upperarm', 'upper leg': 'upperleg' })[part] ?? part;
+  return isMorphedBodySlot(slot) ? slot : null;
+}
 
 /**
  * Deform one posed body piece. `frame` is measureBodyFrame's answer (a bare bounding box is read through
@@ -247,7 +271,7 @@ export const isMorphedBodySlot = (slot) => BODY_SLOTS.has(String(slot || '').toL
  * mask is taken from the vertex where the pose put it.
  */
 export function deformPlayerBodyGeometry(piece, morph, frame, skeleton = null) {
-  if (!isMorphedBodySlot(piece.slot)) return;
+  if (!isMorphedBodySlot(piece.morphSlot ?? piece.slot)) return;
   const p = piece.positions;
   if (!p || p.length < 3 || !frame) return;
   const F = frame.z ? frame : bodyFrameFromBounds(frame);
@@ -299,11 +323,20 @@ export function deformPlayerBodyGeometry(piece, morph, frame, skeleton = null) {
     let x = cx + (ox - cx) * (1 + width * 0.15);
     let y = cy + (oy - cy) * (1 + fullness * 0.14);
     let z = oz;
+    // A hand follows the wrist's displacement without scaling the fingers.
+    if ((width || fullness) && (r.handL[v] || r.handR[v])) for (const handSide of [1, -1]) {
+      const wrist = F.arms[handSide]?.wrist;
+      const hand = handSide === 1 ? r.handL[v] : r.handR[v];
+      if (!wrist || !hand) continue;
+      x += (wrist[0] - ox) * width * 0.15 * hand;
+      y += (wrist[1] - oy) * fullness * 0.14 * hand;
+    }
 
     // shoulders: the trunk widens and the arms go with it, so the joint never tears
-    const shoulderDelta = shoulder * 0.22 * hx;
+    const spread = F.limbSpreadUnit || hx;
+    const shoulderDelta = shoulder * 0.22 * spread;
     x += Math.max(-1.3, Math.min(1.3, lx)) * shoulderDelta * gauss(oz, zShoulder, 0.10 * u) * trunk;
-    x += side * shoulderDelta * armW;
+    x += shoulderDelta * (r.weighted ? r.armL[v] - r.armR[v] : side * armW);
     x += (ox - cx) * ribcage * 0.12 * gauss(oz, zRib, 0.10 * u) * trunk;
 
     // breasts: two spheres in front of the chest - size swells each from its own centre, the rest move it whole
@@ -347,7 +380,7 @@ export function deformPlayerBodyGeometry(piece, morph, frame, skeleton = null) {
         const mC = legW * Math.sin(Math.PI * Math.min(1, a.t * 1.15));
         x += (ox - a.x) * 0.25 * calf * mC; y += (oy - a.y) * 0.25 * calf * mC;
       }
-      x += legSide * legGap * 0.40 * hx * legW * clamp01((L.hip[2] - oz) / ((L.hip[2] - L.ankle[2]) || 1e-6));
+      x += legSide * legGap * 0.40 * spread * legW * clamp01((L.hip[2] - oz) / ((L.hip[2] - L.ankle[2]) || 1e-6));
     }
 
     // arms: thickened around the upper arm and forearm, never the hand

@@ -151,6 +151,7 @@ export async function bootDungeon(canvas, renderer, params, status) {
       // "THIS LINE WAS INSIDE A COMMENT"), so the bench's ?class, ?nofoes, ?spell and ?weapon did nothing and every
       // ?dungeon= boot opened the wizard. One option a line, as FOE1 left the world host's.
       foes: !params.has('nofoes'),
+      observeFoes: import.meta.env.DEV && params.has('shot') && params.has('observeFoes'),
       playerClass: params.has('class') ? Number(params.get('class')) : undefined,
       playerSpell: params.has('spell') ? Number(params.get('spell')) : undefined,
       playerWeapon: params.get('weapon') ?? undefined,

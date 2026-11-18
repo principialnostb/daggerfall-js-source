@@ -12,7 +12,9 @@ let packs;
 export async function testBuildPaperdollPacks() {
   if (!TEST_BUILD_CONTENT) return [];
   if (!packs) packs = (async()=>{
-    const root = APP_ROOT ?? globalThis.document?.baseURI;
+    const root = globalThis.location?.protocol === 'dagger:'
+      ? 'dagger://game/'
+      : APP_ROOT ?? globalThis.document?.baseURI;
     const indexResponse = await fetch(new URL(TEST_BUILD_CONTENT.paperdollIndex,root));
     if(!indexResponse.ok)throw new Error('Bundled Paperdoll Enhanced index unavailable');
     const index = await indexResponse.json();

@@ -1,3 +1,5 @@
+import { streetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
+import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
 // Exterior location scene: a full location assembled on the block grid.
 // World-Arc milestone 2: assemble and render a full exterior location from
 // original data. Default scene is Daggerfall city (8x8 blocks, 316 buildings),
@@ -874,7 +876,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       else if (!_people.has(flat)) {
         const key = drawnFlat(flat.archive, flat.record).join('_');   // NUDE-FLATS: base-anchored, so the stand-in stands where the figure did
         if (!flatGroups.has(key)) flatGroups.set(key, []);
-        flatGroups.get(key).push([flat.x + b.originX, hillSeat && isNatureArchive(flat.archive) ? seatNatureFlat(hillSeat, flat.x, flat.z, NATURE_FLATS_Y) : flat.y, flat.z + b.originZ]);   // TREES-SEATED: on the plane or a drawn mound (this host's ground is the plane)
+        flatGroups.get(key).push(streetLanternCenter(flat, [flat.x + b.originX, hillSeat && isNatureArchive(flat.archive) ? seatNatureFlat(hillSeat, flat.x, flat.z, NATURE_FLATS_Y) : flat.y, flat.z + b.originZ]));   // TREES-SEATED: on the plane or a drawn mound (this host's ground is the plane)
       }
       // A4: every archive-201 town animal is an audio source
       // (AddAnimalAudioSource on RMB flats, verbatim).
@@ -902,7 +904,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       (tx, ty) => srcTiles[tx][ty].textureRecord, { enhancedWater: waterSwitchOn() });
     for (const light of collectCityLights(b.dfBlock, lightSize)) {
       const l = { x: light.x + b.originX, y: light.y, z: light.z + b.originZ };
-      cityLights.push(l);
+      cityLights.push(placeStreetLight(light, l));
       // HEARTH1: the town's braziers and fire bowls, split off the same
       // walk - the record is what tells a brazier from a lantern and
       // this is the one place that has it. The location frame, like
@@ -1208,7 +1210,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       continue;
     }
     const size = plain;   // the record, uploaded (world/naturePicture.js)
-    const batch = renderer.createBillboardBatch(archive, record, size, centers);
+    const batch = markPlacedFurnishing(renderer.createBillboardBatch(archive, record, size, centers), centers);
     batch._box = flatBatchAabb(centers, size);   // EV3: world-space here - this host has no floating origin
     batch.sway = floraSwayOf(archive, natureArchive, size.h);   // WIND3: the flora lean with the wind, nothing else does
     batch.windfall = windfallResponse(archive, record);   // WINDFALL1: its record's wind mask (every nature batch, as the mod patches them)

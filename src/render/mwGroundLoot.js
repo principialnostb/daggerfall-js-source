@@ -1,9 +1,10 @@
 import { multiply, transformPoint, trs } from '../world/mat4.js';
-import { MW_UNITS_PER_METER } from '../formats/morrowind/mwFirstPerson.js';
+import { MW_UNITS_PER_METER, pickTorchRecord } from '../formats/morrowind/mwFirstPerson.js';
 import { pixelWorldDraw } from './worldPixelLayer.js';
 import { groundLootRecord, usesLootPouch } from './mwGroundLootRecords.js';
 import { clothingKind } from '../systems/item/clothingKinds.js';
 import { templateByIndex } from '../systems/item/itemTemplates.js';
+import { TEMPLATES } from '../systems/item/itemKinds.js';
 
 export const THIRD_PERSON_HORIZONTAL_SCALE = 1.22;
 export const THIRD_PERSON_HEIGHT_SCALE = 0.96;
@@ -13,7 +14,10 @@ export async function loadGroundLootModel(item, cat, renderer, {
   stamp, NIF_TO_PASS, packFpArm, hangRangeTextures, collectArmTextures, releaseGpu,
 }, decorModel = null) {
   if (!cat || !renderer || usesLootPouch(item)) return null;
-  const rec = decorModel ? { model: decorModel } : iconRecordOf(cat, item) ?? groundLootRecord(item);
+  const torch = item.templateIndex === TEMPLATES.Torch
+    ? pickTorchRecord(cat.allLights, { has: (path) => cat.archives.some((archive) => archive.has(path)) })
+    : null;
+  const rec = decorModel ? { model: decorModel } : torch ?? iconRecordOf(cat, item) ?? groundLootRecord(item);
   if (!rec?.model) return null;
   const path = `meshes/${rec.model}`;
   await loadFromArchives(cat.archives, [path]);

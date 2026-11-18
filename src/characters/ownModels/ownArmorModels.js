@@ -93,12 +93,13 @@ export const CLASSIC_ARMOR_TEMPLATE = Object.freeze({
 export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open', 'horned']); // MW-HORN1: the horned helm, built (tools/bakeHornedHelm.mjs)
 export const STEEL_HELM_DEFAULT = STEEL_HELM_STYLES[0];
 
-const part = (p, model, hides = null, { showsSkin = false } = {}) =>
+const part = (p, model, hides = null, { showsSkin = false, fitMode = null } = {}) =>
   Object.freeze({
     part: p,
     model,
     ...(hides ? { hides: Object.freeze(hides) } : {}),
     ...(showsSkin ? { showsSkin } : {}),
+    ...(fitMode ? { fitMode } : {}),
   });
 
 /** MW-IRON1: the looks made from the player's own Skyrim install (tools/skyrim/), never committed - their meshes are
@@ -135,8 +136,8 @@ const IRON = Object.freeze({
   // the skirt. With the skirt and the boots they cover the thighs but for the knee's inner front, where a hidden knee
   // would leave a hole; so they show the skin under them, as the cuirass does.
   greaves: Object.freeze([
-    part('right upper leg', 'iron_greave_right.nif', null, { showsSkin: true }),
-    part('left upper leg', 'iron_greave_left.nif', null, { showsSkin: true }),
+    part('right upper leg', 'iron_greave_right.nif', null, { showsSkin: true, fitMode: 'posedClearance' }),
+    part('left upper leg', 'iron_greave_left.nif', null, { showsSkin: true, fitMode: 'posedClearance' }),
   ]),
 });
 const plate =
@@ -170,8 +171,8 @@ function steelPlate() {
   const left = Object.freeze([part('left pauldron', 'steel_plate_pauldron_left.nif', ['left upper arm'])]);
   const right = Object.freeze([part('right pauldron', 'steel_plate_pauldron_right.nif', ['right upper arm'])]);
   const greaves = Object.freeze([
-    part('right upper leg', 'steel_plate_greave_right.nif'),
-    part('left upper leg', 'steel_plate_greave_left.nif'),
+    part('right upper leg', 'steel_plate_greave_right.nif', null, { fitMode: 'rigid' }),
+    part('left upper leg', 'steel_plate_greave_left.nif', null, { fitMode: 'rigid' }),
   ]);
   const gauntlets = Object.freeze([
     part('right hand', 'steel_plate_gauntlet_right.nif', ['right wrist', 'right forearm']),

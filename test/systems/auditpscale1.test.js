@@ -246,7 +246,7 @@ test('AUDIT PSCALE1 outdoors, driven - WHOEVER FIGHTS IT: my foe is as tough as 
 test('AUDIT PSCALE1 the dungeon, mounted: a layout foe is as tough as the players striking it at the host (a joiner\'s through applyHit); a joiner reads the host\'s count off the record; a foe past the layout and my ally never; the blow and the arrow at me are weighed ONCE, in the declaration the flash and the cry read (mutants: fighters unread at the door, a kill divided, the joiner\'s count unread, the hit weighed after the flash, the heal unweighed)', () => {
   _resetPartyScaleForTests();
   const D = read('src/scenes/dungeonContext.js');
-  const a = D.indexOf('function _sharedFoe(f) {'), b = D.indexOf('function damageFoe(foe, damage,', a);
+  const a = D.indexOf('function _sharedFoe(f, index = undefined) {'), b = D.indexOf('function damageFoe(foe, damage,', a);
   assert.ok(a > 0 && b > a, 'the helpers are found');
   // REST-SYNC re-aim: `_sharedFoe` asks the room's one predicate (the layout's run, or a rest's shared encounter)
   const rf = D.indexOf('const isRoomFoe = ');
@@ -286,7 +286,7 @@ test('AUDIT PSCALE1 the dungeon, mounted: a layout foe is as tough as the player
   assert.deepEqual(melee.match(/hurtPlayer\([^)]*\)/g), ['hurtPlayer(dmg)'], 'the blow lands the weighed number');
   assert.match(melee, /flashPlayerDamage\(dmg\);\s*playPlayerVoice\(audio, playerPainVoice\(playerEntity, dmg\)\);/, 'and the flash and the cry read it');
   // the stream: the host's record carries the count; the joiner's record reader takes it
-  assert.match(S, /if \(!f\.dead && _sharedFoe\(f\)\) \{ const n = fightN\(f\); if \(n > 1\) r\.n = n; \}/, 'the host streams n');
+  assert.match(S, /if \(!f\.dead && _sharedFoe\(f, seeded \? undefined : i\)\) \{ const n = fightN\(f\); if \(n > 1\) r\.n = n; \}/, 'the host streams n');
   assert.match(S, /f\._fightN = r\.n \?\? 1;/, 'a joiner reads n');
   assert.match(S, /if \(fromPlayer\) noteFighter\(foe, peer \? peerId : PARTY_ME, performance\.now\(\)\);/, 'the door names every player\'s blow a fighter');
   assert.match(S, /damageFoe\(f, dmg, at, dir, \{ fromPlayer: true, peer: true, kind, peerId: id, whole: data\.z === 1(?:, \.\.\.\(data\.wc != null \? \{ wc: hitClassOf\(data\) \} : \{\}\))? \}\);/, 'a joiner\'s kill is a kill at the host');

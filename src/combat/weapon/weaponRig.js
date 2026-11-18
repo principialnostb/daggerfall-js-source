@@ -1169,7 +1169,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
 
   /** MAC7 #1: the wire's swing - counted at every strike the machine starts, before the Morrowind arm's own gate
    *  (a classic-skin player swings too, and the peers in Morrowind bodies must see it); the host reads it into the pose. */
-  const swing = { n: 0, strike: 'StrikeDown', hand: null };   // AUDIT MIXED-PAIR L4-3: and a pair's striking hand, for the peers
+  const swing = { n: 0, strike: 'StrikeDown', hand: null, timing: null };   // AUDIT MIXED-PAIR L4-3: and a pair's striking hand, for the peers
   /** MAC7 #2: the wire's cast - { n, rangeType }, counted at castSpellAnim, the one door both lanes' hands come through. */
   const cast = { n: 0, rangeType: 2, element: 4 };   // SPELLFX1: and the element, so a peer can draw the missile
   const shot = { n: 0 };   // SPELLFX1: arrows loosed from a BOW, for the wire (a gun's orb is not counted - peers draw a shaft)
@@ -1179,8 +1179,10 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     // EOTB-IL: the sprite's one-shots are no longer started here - the
     // mod POLLS FPSWeapon.IsAttacking in its own LateUpdate (IL_3eee),
     // and the body reads the machine through the record above
-    if (!fpArm.ready()) return;
     const m = playerWeapon.machine;
+    const schedule = playerWeapon.strikeSchedule(dt);
+    swing.timing = schedule && !m.ranged ? { bms: Math.round(schedule.seconds * 1000), bhm: Math.round(schedule.hitAt * 1000), bst: schedule.step, bsr: 0 } : null;
+    if (!fpArm.ready()) return;
     // MW-D16: no `bow` flag. The arm derives "shoot" from its own
     // weapon CLASS, which is what the reference tests - and which also
     // catches MarksmanThrown, a type that shoots without being a bow.
@@ -1188,7 +1190,6 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     // when it is done, at this frame's dt) is the one the arm fits its wind-up, release and follow into.
     // MW-PACE2: a melee blow of the player's own arm is LED by it (combat/blowFlow.js calmBlowPlan) - one calm speed, its
     // hit held for the arm (armLedBlow); a shot keeps MW-D42's hold
-    const schedule = playerWeapon.strikeSchedule(dt);
     const blow = schedule && !m.ranged ? { ...schedule, lead: true } : schedule;
     fpArm.attack(strike, { hold: m.isBow && m.state === 'StrikeUp', blow, hand: pairUp() ? playerWeapon.strike?.hand ?? null : null });   // TWO-HANDS: the hand the law gave the blow
   }
@@ -2047,7 +2048,9 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
         && getInt('Controls', 'WeaponSwingMode', 0, 2) !== 0 ? playerWeapon.clickAttack() : null);
       const flow = flowStyle(modSetting('morrowind-animation', 'BlowStyle'));   // BLOW-STYLE
       if (taken) { attackSeries.consume(flow); fpAttack(taken, dt); }
-      fpArm.setSeriesWanted?.(attackSeries.wanted(flow));
+      const seriesWanted = attackSeries.wanted(flow);
+      if (swing.timing) swing.timing.bsr = seriesWanted ? 1 : 0;
+      fpArm.setSeriesWanted?.(seriesWanted);
       _dx = 0; _dy = 0;
       // AUDIT 23 (C9): the strike-ENTRY whoosh is gone - DFU plays the
       // swing sound at the HIT FRAME of a swing that hit no enemy

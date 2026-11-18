@@ -156,6 +156,31 @@ test('the picker drops pixel-equal cards (the original first) and frames every c
   assert.equal(lookLabel({ t: 119 }), getTemplate(119).name);
 });
 
+test('a dye-only Eodoric can change colour in the 3D inventory', keep(async () => {
+  const { setItemFields } = await import('../../src/systems/item/itemTemplates.js');
+  const { paperdollAppearancePicker } = await import('../../src/ui/enhanced/paperdollAppearancePicker.js');
+  const previousDocument = globalThis.document, previousView = getPref('morrowindThirdPersonOnly');
+  class Element {
+    children = []; classList = { toggle() {} };
+    setAttribute() {}
+    append(...nodes) { this.children.push(...nodes); }
+    replaceChildren(...nodes) { this.children = nodes; }
+  }
+  globalThis.document = { createElement: () => new Element() };
+  setPref('morrowindThirdPersonOnly', false);
+  try {
+    const item = setItemFields({ group: 'WomensClothing', templateIndex: 185, variant: 0, dye: 3 });
+    const identity = { gender: 'female', race: 'Breton' };
+    assert.deepEqual(paperdollLookChoices(item, identity), []);
+    const picker = paperdollAppearancePicker({ item, identity, onChange() {}, layerPixels: async () => null });
+    const dyes = picker.children[1].children[0];
+    assert.equal(dyes.className, 'look-dyes');
+    dyes.children[2].onclick();
+    assert.equal(paperdollLookOf(item).d, 2);
+    assert.equal(paperdollItemImage(item, identity).dye, 2);
+  } finally { globalThis.document = previousDocument; setPref('morrowindThirdPersonOnly', previousView); }
+}));
+
 test('a garment dyed by dyeColor alone draws that dye on the doll and its cards, as its icon does', keep(() => {
   const shirt = { group: 'MensClothing', templateIndex: 141, variant: 0, dyeColor: 5 };
   const layer = paperdollItemImage(shirt, { gender: 'male', race: 'Breton' }), icon = inventoryItemImage(shirt);
@@ -192,7 +217,7 @@ test('GARMENT-DYES: a garment chooses its colour apart from its shape - the doll
   assert.deepEqual(paperdollLookOf(shirt), { d: 8 }, 'back to its own shape, still in the chosen colour');
   assert.equal(setPaperdollDye(shirt, null), true);
   assert.equal(paperdollLookOf(shirt), null);
-  assert.equal(setPaperdollDye({ group: 'Armor', templateIndex: 102, material: 513 }, 2), false, 'armour wears its metal');
+  assert.equal(setPaperdollDye({ group: 'Armor', templateIndex: 102, material: 513 }, 23), false, 'armour retains its own colour');
 }));
 
 test('the 2D picker: every card a look of its own - template AND style - three a page, the colours above for a garment', keep(async () => {

@@ -4,9 +4,31 @@ import {buildTorchBody,torchKind,TORCH_ARCHIVE} from '../../src/world/torchModel
 import { identity, transformPoint } from '../../src/world/mat4.js';
 import { buildLightFixture, fixtureRecord, fixtureEmits } from '../../src/world/lightFixtureModel.js';
 import { Collider } from '../../src/player/collider.js';
-import { findTorchMount, fixtureCeilingGap, mountTorchBatch, TORCH_COLLAR_Y } from '../../src/world/torchMount.js';
+import { findTorchMount, fixtureCeilingGap, mountTorchBatch, torchMountAt, TORCH_COLLAR_Y } from '../../src/world/torchMount.js';
 import { drawCampfireBillboards, rememberCampfireBatch, releaseCampfireBatch } from '../../src/render/campfireBillboards.js';
 import {createTorchVisual} from '../../src/scenes/torchVisual.js';
+import { countMorrowindArchives } from '../../src/scenes/dataSource.js';
+
+test.before(async () => {
+  const previous = globalThis.indexedDB;
+  const request = result => {
+    const req = { result };
+    queueMicrotask(() => req.onsuccess?.());
+    return req;
+  };
+  globalThis.indexedDB = {
+    open: () => request({
+      transaction: () => ({
+        objectStore: () => ({ getAllKeys: () => request(['Morrowind.bsa']) }),
+      }),
+    }),
+  };
+  try { assert.equal(await countMorrowindArchives(), 1); }
+  finally {
+    if (previous) globalThis.indexedDB = previous;
+    else delete globalThis.indexedDB;
+  }
+});
 test('only the five flame torches become solid fixtures',()=>{
  assert.deepEqual(Array.from({length:30},(_,r)=>r).filter(r=>torchKind(210,r)),[6,16,17,18,20]);
  assert.equal(torchKind(211,6),null);
@@ -42,7 +64,37 @@ test('a wall bracket reaches the authored face and pulls an embedded torch into 
   assert.equal(findTorchMount(collider, [1, 1, 2], 1), null);
 });
 
-test('a mixed wall torch batch preserves only the unmatched sprite draw range', () => {
+test('wall torches find room geometry in a separate static bucket', () => {
+  const collider = new Collider(() => -Infinity);
+  collider.addMesh('room-wall', [0, 0, 0, 2, 0, 0, 2, 3, 0, 0, 3, 0], [0, 1, 2, 0, 2, 3], identity());
+  const batch = { archive: 210, record: 16, size: { h: 1 } };
+  mountTorchBatch(batch, [[1, 1, .7]], collider, { only: ['interior'] });
+  const mount = torchMountAt(batch, 0);
+  assert.ok(mount);
+  assert.ok(Math.abs(mount.wall[2]) < 1e-8);
+  assert.equal(mount.yaw, 0);
+});
+
+test('an anchor on a wall cap finds the wall below the collar ray', () => {
+  const collider = new Collider(() => -Infinity);
+  collider.addMesh('stone', [0, 0, 0, 2, 0, 0, 2, 1.4, 0, 0, 1.4, 0], [0, 1, 2, 0, 2, 3], identity());
+  const mount = findTorchMount(collider, [1, 1, 0], 1);
+  assert.ok(mount);
+  assert.equal(mount.wall[1], 1 + TORCH_COLLAR_Y);
+  assert.ok(Math.abs(mount.base[2] - .16) < 1e-6);
+});
+
+test('a recessed, sloped wall receives the bracket on its actual face', () => {
+  const collider = new Collider(() => -Infinity);
+  collider.addMesh('stone', [0, 0, 0, 2, 0, 0, 2, 3, .9, 0, 3, .9], [0, 1, 2, 0, 2, 3], identity());
+  const mount = findTorchMount(collider, [1, 1, 1.64], 1);
+  assert.ok(mount);
+  assert.ok(Math.abs(mount.wall[2] - .3 * mount.wall[1]) < 1e-6);
+  assert.equal(mount.base[1] + TORCH_COLLAR_Y, mount.wall[1]);
+  assert.ok(mount.base[2] > mount.wall[2] + .24);
+});
+
+test('a mixed wall torch batch draws both bodies and adds a bracket only at the wall', () => {
   const collider = new Collider(() => -Infinity);
   collider.addMesh('stone', [0, 0, 0, 2, 0, 0, 2, 3, 0, 0, 3, 0], [0, 1, 2, 0, 2, 3], identity());
   const centers = [[1, 1, .08], [1, 1, 2]];
@@ -56,12 +108,11 @@ test('a mixed wall torch batch preserves only the unmatched sprite draw range', 
   rememberCampfireBatch(mountTorchBatch(batch, centers, collider), centers);
   try {
     const remaining = drawCampfireBillboards(renderer, [batch], 0);
-    assert.equal(remaining.length, 1);
-    assert.equal(remaining[0].vao, batch.vao);
-    assert.equal(remaining[0].indexCount, 6);
-    assert.equal(remaining[0]._ibOff, 72);
+    assert.deepEqual(remaining, []);
     assert.equal(batch.indexCount, 12);
-    assert.equal(draws.length, 5);
+    assert.equal(draws.length, 9);
+    assert.equal(draws[5].mesh, draws[1].mesh);
+    assert.equal(draws[5].matrix[14], 2);
     assert.ok(Math.abs(draws[0].matrix[14]) < 1e-8);
     const body = draws[1].matrix;
     const collar = transformPoint(body, 0, TORCH_COLLAR_Y, 0);
@@ -72,6 +123,27 @@ test('a mixed wall torch batch preserves only the unmatched sprite draw range', 
     const flame = draws[2].matrix;
     assert.ok(Math.abs(flame[14] - cup[2]) < 1e-6);
     assert.equal(flame[6], 0);
+  } finally {
+    releaseCampfireBatch(batch);
+  }
+});
+
+
+test('wall torches outside the camera submit no geometry and return when visible', () => {
+  const draws = [];
+  const renderer = {
+    _proj: identity(), _view: identity(),
+    createMesh: mesh => mesh, uploadTexture() {},
+    drawMesh: (...args) => draws.push(args),
+  };
+  const batch = { archive: 210, record: 16, size: { h: 1 }, vao: {}, indexCount: 6, origin: [10, 0, 0] };
+  rememberCampfireBatch(batch, [[0, 0, 0]]);
+  try {
+    assert.deepEqual(drawCampfireBillboards(renderer, [batch], 0), []);
+    assert.equal(draws.length, 0);
+    batch.origin[0] = 0;
+    assert.deepEqual(drawCampfireBillboards(renderer, [batch], 0), []);
+    assert.equal(draws.length, 4);
   } finally {
     releaseCampfireBatch(batch);
   }
@@ -122,9 +194,10 @@ test('a hanging lamp extends its support to the static ceiling and frees its fix
     assert.deepEqual(drawCampfireBillboards(renderer, [batch], 0), []);
     assert.equal(draws.length, 5);
     assert.ok(Math.abs(transformPoint(draws[2], 0, 1, 0)[1] - 1.2) < 1e-6);
+    assert.ok(Math.abs(draws[0][5] - 1.05) < 1e-6);
     // The chain bridges the full gap to the moved socket, starting at the lamp eye.
-    assert.ok(Math.abs(transformPoint(draws[1], 0, 0, 0)[1] - .867) < 1e-6);
-    assert.ok(Math.abs(transformPoint(draws[1], 0, 1, 0)[1] - 1.157) < 1e-6);
+    assert.ok(Math.abs(transformPoint(draws[1], 0, 0, 0)[1] - .867 * 1.05) < 1e-6);
+    assert.ok(Math.abs(transformPoint(draws[1], 0, 1, 0)[1] - (1.2 - (1 - .957) * 1.05)) < 1e-6);
   } finally {
     releaseCampfireBatch(batch);
   }
@@ -136,15 +209,18 @@ test('pendant lamps share the Blender geometry and the unlit vessel omits emissi
   const renderer = {
     createMesh: mesh => mesh,
     uploadTexture() {},
-    drawMesh: (mesh, matrix, remap, options) => draws.push({ mesh, options }),
+    drawMesh: (mesh, matrix, remap, options) => draws.push({ mesh, matrix, options }),
   };
   const lamps = [8, 27, 12].map(record => createTorchVisual(renderer, record));
   try {
-    lamps[0].draw([0, 0, 0], 1, 0);
-    lamps[1].draw([0, 0, 0], 1, 1 / 12);
+    lamps[0].draw([0, 0, 0], 1.2, 0);
+    lamps[1].draw([0, 0, 0], 1.8, 1 / 12);
     lamps[2].draw([0, 0, 0], 1, 0);
     assert.equal(draws.length, 13);
     assert.equal(draws[0].mesh, draws[5].mesh);
+    assert.deepEqual(draws[0].matrix, draws[5].matrix);
+    assert.ok(draws[6].matrix[5] > draws[1].matrix[5]);
+    assert.ok(Math.abs(transformPoint(draws[7].matrix, 0, 1, 0)[1] - 1.8) < 1e-6);
     assert.equal(draws[0].mesh.positions, draws[10].mesh.positions);
     assert.notEqual(draws[3].mesh, draws[8].mesh);
     assert.ok(draws[4].options.translucent > 0);

@@ -5,6 +5,7 @@ import { transformPoint, trs } from '../world/mat4.js';
 import { drawCampPixelFlame } from './campfirePixelFlame.js';
 import { createGothicLantern, usesGothicLantern } from '../world/gothicLantern.js';
 import { TORCH_COLLAR_Y } from '../world/torchMount.js';
+import { createClassicStreetLantern, usesClassicStreetLantern } from '../world/classicStreetLantern.js';
 
 const WALL_TORCH_TILT = 18;
 const caches = new WeakMap();
@@ -20,6 +21,10 @@ function getFixture(renderer, cache, record) {
     cache.ceiling.pixelKind = 'objects';
     cache.meshes.push(cache.ceiling);
   }
+  if (usesClassicStreetLantern(record)) {
+    cache.street ??= createClassicStreetLantern(renderer);
+    return cache.street;
+  }
   if (usesGothicLantern(record)) {
     cache.gothic ??= createGothicLantern(renderer);
     return record === 12 ? cache.gothic.dark : cache.gothic.lit;
@@ -34,8 +39,18 @@ function getFixture(renderer, cache, record) {
   return cache.fixtures.get(record);
 }
 
-function drawFixture(renderer, cache, fixture, pos, height, frame, ceilingGap) {
-  const model = trs(...pos, 0, 0, 0, height, height, height);
+// The pendant sprite includes its chain. Keep the body at a physical size
+// and spend the remaining authored height on suspension.
+const PENDANT_MODEL_HEIGHT = 1.05;
+
+function drawFixture(renderer, cache, fixture, pos, height, frame, ceilingGap, yaw) {
+  if (fixture.drawSuspension) {
+    const extra = ceilingGap + height - PENDANT_MODEL_HEIGHT;
+    if (extra < 0) pos = [pos[0], pos[1] + extra, pos[2]];
+    ceilingGap = Math.max(0, extra);
+    height = PENDANT_MODEL_HEIGHT;
+  }
+  const model = trs(...pos, 0, yaw, 0, height, height, height);
   renderer.drawMesh(fixture.mesh, model, null, { noShadow: true });
   if (fixture.drawSuspension) {
     fixture.drawSuspension(pos, height, ceilingGap);
@@ -87,12 +102,12 @@ export function createTorchVisual(r, kind) {
   cache.users++;
   let dead=false;
   return {
-    draw(pos, height, time, mount = null, origin = [0, 0, 0], ceilingGap = 0) {
+    draw(pos, height, time, mount = null, origin = [0, 0, 0], ceilingGap = 0, yaw = 0) {
       const h = height || 1;
       const phase = Math.abs(Math.floor((pos[0] + pos[2]) * 11));
       const frame = ((Math.floor(time * 12) + phase) % CAMPFIRE_FRAMES + CAMPFIRE_FRAMES) % CAMPFIRE_FRAMES;
       if (fixture) {
-        drawFixture(r, cache, fixture, pos, h, frame, ceilingGap);
+        drawFixture(r, cache, fixture, pos, h, frame, ceilingGap, yaw);
         return;
       }
       if (mount) {
@@ -119,6 +134,7 @@ export function createTorchVisual(r, kind) {
       if(--cache.users)return;
       caches.delete(r);
       cache.gothic?.destroy();
+      cache.street?.destroy();
       for(const mesh of cache.meshes)r.destroyMesh?.(mesh);
       if (cache.ceiling) for (const record of FIXTURE_PAINT.keys()) {
         r.releaseTexture?.(TORCH_ARCHIVE, record);

@@ -6,10 +6,10 @@ import { MOD_PACKS } from '../../src/systems/enhancedModCatalog.js';
 import { modResourceGlob, setModGroupEnabled } from '../../src/systems/enhancedModResources.js';
 import { getPref, setPref } from '../../src/systems/uiPrefs.js';
 
-test('the three character pixelation controls stay disabled until body resources are connected and enabled',()=>{
+test('the two player pixelation controls stay disabled until body resources are connected and enabled',()=>{
  const old=globalThis.localStorage;globalThis.localStorage={getItem:()=>null,setItem:()=>{}};
- const ids=['char-pixel-fp','char-pixel-player','char-pixel-npc'];
- const keys=['charPixelFp','charPixelPlayer','charPixelNpc'];
+ const ids=['char-pixel-fp','char-pixel-player'];
+ const keys=['charPixelFp','charPixelPlayer'];
  try{
   for(let i=0;i<ids.length;i++){
    setPref(keys[i],360);
@@ -30,5 +30,6 @@ test('the three character pixelation controls stay disabled until body resources
   active.set(2);assert.equal(getPref(keys[0]),0,'a stale handler must not write after disconnect');
   for(const id of ids)assert.equal(tileStates(FEATURES.find(f=>f.id===id)).locked,true);
   assert.equal(pixelationRequirement('world-pixel-objects'),null,'decor is independent');
+  assert.equal(pixelationRequirement('char-pixel-npc'),null,'NPCs and animals are independent');
  }finally{setModGroupEnabled('bodies',true);globalThis.localStorage=old;}
 });

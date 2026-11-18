@@ -2,6 +2,7 @@
 import { rememberCampfireBatch, releaseCampfireBatch, drawCampfireBillboards } from './campfireBillboards.js';
 import { drawTreasurePiles, releaseTreasurePile } from './treasurePiles.js';
 import { drawGroundLoot, releaseLootModel } from './groundLootModels.js';
+import { drawPlacedFurnishings, releasePlacedFurnishing } from './furnishingMorrowind.js';
 // WebGL2 renderer for world geometry. Presentation layer - ours, not DFU's
 // (Port-Doctrine). Semantics it must honor from the data side:
 //   - UVs can be negative or > 1 (DFU relies on REPEAT wrapping).
@@ -10,7 +11,9 @@ import { drawGroundLoot, releaseLootModel } from './groundLootModels.js';
 //   - Indexed color means hard pixels: NEAREST filtering.
 //   - Alpha 0 texels are palette-index cutouts; the shader discards them.
 
-import {pixelWorldMesh,pixelWorldTerrain,pixelWorldSnow} from './worldPixelLayer.js';
+import {pixelWorldMesh} from './worldPixelLayer.js';
+import { billboardPixelShader, npcBillboardArchives } from './npcPixel.js';
+import { blockPixels, charPixelRows } from './charPixelLayer.js';
 import { CLOUD_SHADOW_GLSL, cloudFarOf } from './cloudShadow.js';   // EE5 / VC4: the cloud shadow's reader - VC6c's one home, shared with the air pass's shafts; OW-HORIZON: and the ground past its square
 import { BAYER_GLSL, DISSOLVE_GLSL } from './orderedDither.js';   // SHIP-FADE: the mesh shader's dissolve over the port's one bayer4
 import { pixelFadeShare } from './pixelFade.js';   // MID-RING: a just-built pixel's tint, eased out (a leaf)
@@ -1725,7 +1728,7 @@ const CLASSIC_SET = Object.freeze({ key: 'classic', meshFs: FS, bbFs: BB_FS, ter
  *  startPrograms). test/render/bootcompile.test.js holds the list to the builds.
  *  @param {{ meshFs: string, charFs: string, bbVs?: { head: string, main: string }|null, bbFs: string, terrainFs: string, decalFs?: string }} src
  *  @returns {Array<[string, string]>} */
-export const worldSetPrograms = (src) => [[VS, src.meshFs], [CHAR_SKIN_VS, skinFaceFs(src.charFs)], [bbVertexShader(src.bbVs), src.bbFs], [TERRAIN_VS, src.terrainFs], [DECAL_VS, src.decalFs ?? DECAL_FS]];
+export const worldSetPrograms = (src) => [[VS, src.meshFs], [CHAR_SKIN_VS, skinFaceFs(src.charFs)], [bbVertexShader(src.bbVs), billboardPixelShader(src.bbFs)], [TERRAIN_VS, src.terrainFs], [DECAL_VS, src.decalFs ?? DECAL_FS]];
 
 export class Renderer {
   // HARD3: two fields this class mints LAZILY, with `??=` at their point
@@ -2410,7 +2413,7 @@ export class Renderer {
       key: src.key,
       mesh: this._buildProgram(VS, src.meshFs),
       char: this._charSkinProgram(src.charFs),   // MWNPC1: the skin in the world's character program
-      bb: this._buildProgram(bbVertexShader(src.bbVs), src.bbFs),   // LA-COST3: a lane may add to the billboard VS (its flat's sun, once a quad)
+      bb: this._buildProgram(bbVertexShader(src.bbVs), billboardPixelShader(src.bbFs)),   // LA-COST3: a lane may add to the billboard VS (its flat's sun, once a quad)
       terrain: this._buildProgram(TERRAIN_VS, src.terrainFs),
       // FAR-CLIP1: and the terrain's CLIP variant (terrainClipFs, above), built from this set's own terrain shader the
       // first time it is asked for (_ensureTerrainClip: the streaming host's Deep Waters mount, or the draw of a pixel
@@ -2630,6 +2633,7 @@ export class Renderer {
     this.bbUTex = gl.getUniformLocation(this.bbProgram, 'uTex');
     this.bbUEmissionTex = gl.getUniformLocation(this.bbProgram, 'uEmissionTex');
     this.bbUSpectral = gl.getUniformLocation(this.bbProgram, 'uSpectral');
+    this.bbUPixelBlock = gl.getUniformLocation(this.bbProgram, 'uNpcPixelBlock');
     this.bbUConceal = gl.getUniformLocation(this.bbProgram, 'uConceal');   // ECV1
     this.bbUHitFlash = gl.getUniformLocation(this.bbProgram, 'uHitFlash');   // HITFLASH1
     this.bbUDissolve = gl.getUniformLocation(this.bbProgram, 'uDissolve');   // DISSOLVE
@@ -5895,7 +5899,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // first time a mesh is drawn in the automap's wireframe mode. A
     // bundle built without it simply cannot be wireframed (drawMeshWire
     // draws nothing), which is the honest answer for a hand-built one.
-    const bundle = /** @type {any} */ ({ pixelKind: model.pixelKind ?? 'environment', vao, subMeshes, buffers, triIndices: model.indices, bounds });
+    const bundle = /** @type {any} */ ({ pixelKind: model.pixelKind ?? 'environment', vao, subMeshes, buffers, triIndices: model.indices, bounds, cullWorldSubMeshes: model.cullWorldSubMeshes });
     if (shadowVao) { bundle.shadowVao = shadowVao; bundle.shadowCells = shadowCells; }   // LA-AUDIT A1
     if (shadowVao && prepass) bundle.prepass = true;   // drawn depth first from its cells (depthPrepass.js), asked at upload
     const wl = this._wlApertures(model);
@@ -7543,6 +7547,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     if (!batch) return;
     releaseCampfireBatch(batch);
     releaseTreasurePile(this, batch);
+    releasePlacedFurnishing(batch);
     releaseLootModel(this, batch);
     batch._dead = true;   // EL2: a shadow record from the last frame may still hold it
     batch._place = null;   // PERF-EXT1: the placement grid is the batch's, and goes with it
@@ -7592,6 +7597,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   destroyBatch(batch) {
     releaseCampfireBatch(batch);
     releaseTreasurePile(this, batch);
+    releasePlacedFurnishing(batch);
     const gl = this.gl;
     batch._dead = true;   // EL2
     if (batch._arena) { this._bbArenaFree(batch); return; }   // PERF-ARENA: its range back to its arena
@@ -8096,7 +8102,6 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    */
   drawSnow(surface, u, tex) {
     this._close2D();   // PERF-2D
-    if(pixelWorldSnow(this,surface,u,tex))return;
     const gl = this.gl, S = this._ensureTerrainSnow(), L = S.loc, P = this._snowPass;
     if (!S.el && this._elLocsOf) S.el = this._elLocsOf(S.program);
     this._use(S.program);
@@ -8260,7 +8265,6 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    *  ground, the set as it is. */
   drawTerrain(surface, modelMatrix, arrayTex, tilemapTex, tileSize, clip = false, eco = null, snow = null) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
-    if(pixelWorldTerrain(this,surface,modelMatrix,arrayTex,tilemapTex,tileSize,clip,eco,snow))return;
     const gl = this.gl;
     if (!!clip !== this._terrainClip) this._terrainVariant(!!clip);   // FAR-CLIP1
     this._use(this.terrainProgram);
@@ -8905,7 +8909,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   drawBillboards(batches, camRight, camUp) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
     batches = drawTreasurePiles(this, drawCampfireBillboards(this, batches));
-    batches = drawGroundLoot(this, batches);
+    batches = drawPlacedFurnishings(this, drawGroundLoot(this, batches));
     const gl = this.gl;
     // PERF-ARENA: the still flats share their arena's VAO, so consecutive flats skip the bind on the shadow's word - and
     // a pass that bound an array of its own behind the shadow's back (a foreign pass that forgot markForeignPass) would
@@ -9076,7 +9080,16 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // another program (a lane swapped between two calls). A flip is the
     // sign of `w`, compared by value like the rest.
     let lastW = NaN, lastH = NaN, lastOx = NaN, lastOy = NaN, lastOz = NaN;
+    const npcRows = this._spriteDepth > 0 || this._panelSaved ? 0 : charPixelRows('npc');
+    const block = npcRows > 0 ? blockPixels(gl.getParameter(gl.VIEWPORT)[3], npcRows) : 1;
+    const npcArchives = block > 1 ? npcBillboardArchives() : null;
+    let lastPixelBlock = NaN;
     const drawOne = (b) => {
+      const pixelBlock = npcArchives?.has(b.archive) ? block : 1;
+      if (pixelBlock !== lastPixelBlock) {
+        gl.uniform1f(this.bbUPixelBlock, pixelBlock);
+        lastPixelBlock = pixelBlock;
+      }
       const key = billboardKey(b);   // FA1/MAC4: the key follows every field it is made of (billboardKey.js)
       const tex = this.textures.get(key) ?? this._textureMissed(key);   // FIELD BUGS 2026-10-04d PLACE-LRU: a picture let go is made again
       if (!tex) return;
@@ -9202,6 +9215,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       gl.depthMask(true);
       gl.disable(gl.BLEND);
     }
+    if (lastPixelBlock > 1) gl.uniform1f(this.bbUPixelBlock, 1);
     this._activeTexture(gl.TEXTURE0);
     this._bindVao(null);
     gl.enable(gl.CULL_FACE);
@@ -9366,8 +9380,11 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     if (mesh.wl && this._wlKind && !wire) this._wl.note(mesh, modelMatrix, texRemap, this._wlKind, this._wlNow);   // WL1: a window drawn is a window that lights
     if (!wire && !noShadow && this._casting) this._shadows.recordMesh(mesh, modelMatrix, texRemap, 1 - (this._dissolve ?? 1));   // EL2; AUDIT BAY A12: a fading ship's share of her shadow; AUDIT WAGON-HITCH B2: never a grown mesh's
     this._bindVao(wire ? wireMesh.vao : mesh.vao);
+    const worldPlanes = !wire && mesh.cullWorldSubMeshes && this._proj && this._view
+      ? spherePlanes(mat4Multiply(this._proj, this._view)) : null;
     for (let smi = 0; smi < mesh.subMeshes.length; smi++) {
       const sm = mesh.subMeshes[smi];
+      if (worldPlanes && !sphereInPlanes(worldPlanes, sm._bounds[0], sm._bounds[1], sm._bounds[2], sm._bounds[3])) continue;
       // EV2: the resolved textures cache on the sub-mesh, stamped with
       // the texture generation and the remap's identity. The old body
       // built the `${archive}_${record}` key fresh here - per sub-mesh,

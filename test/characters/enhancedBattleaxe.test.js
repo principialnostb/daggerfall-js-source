@@ -2,11 +2,9 @@ import { meshesToNif } from '../../tools/nifWrite.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { enhancedAxeRecord, enhancedAxeModel } from '../../src/characters/ownModels/enhancedBattleaxe.js';
+import { enhancedAxeArchive, enhancedAxeRecord, enhancedAxeModel } from '../../src/characters/ownModels/enhancedBattleaxe.js';
 import { enhancedAxeShapes } from '../../tools/enhancedBattleaxe.mjs';
 import { setPref } from '../../src/systems/uiPrefs.js';
-import { MOD_PACKS } from '../../src/systems/enhancedModCatalog.js';
-import { modResourceGlob, setModGroupEnabled } from '../../src/systems/enhancedModResources.js';
 import { MwBsaFile } from '../../src/formats/morrowind/mwBsaFile.js';
 import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../../src/formats/morrowind/mwNifMesh.js';
@@ -40,24 +38,33 @@ test('all retail War Axe records retain their own materials, UVs and head widths
     }
   }
 });
-test('record enhancement covers every axe independently and rejects one-handed and incomplete sources', { skip: !existsSync(data + 'Morrowind.esm') }, () => {
-  const oldStorage = globalThis.localStorage;
-  globalThis.localStorage = { getItem: () => null, setItem: () => {} };
+test('improved axes load directly from Morrowind without body resources or customization', { skip: !existsSync(data + 'Morrowind.esm') }, async () => {
+  setPref('modelCustomization', false);
   try {
-    setPref('enhancedBattleaxes', true); setPref('modelCustomization', true); setModGroupEnabled('bodies', true);
-    for (const pack of MOD_PACKS.filter(p => p.group === 'bodies')) modResourceGlob('../../Mods/**/*', { ['../../Mods/' + pack.folder + '/test.nif']: 'local' });
+    const source = new MwBsaFile(new Uint8Array(readFileSync(data + 'Morrowind.bsa')));
+    const archive = enhancedAxeArchive([source]);
     const records = weaponRecords(new Uint8Array(readFileSync(data + 'Morrowind.esm')));
-    for (const rec of records.filter(r => r.model && [7,8].includes(r.type))) {
-      const urls = { ['meshes/' + enhancedAxeModel(rec.model)]: 'local' };
-      const output = enhancedAxeRecord(rec, urls);
+    for (const rec of records.filter(r => r.model && [7, 8].includes(r.type))) {
+      const output = enhancedAxeRecord(rec);
       assert.equal(output.model, rec.type === 8 ? enhancedAxeModel(rec.model) : rec.model);
-      assert.equal(output.id, rec.id); assert.equal(output.speed, rec.speed);
-      assert.equal(enhancedAxeRecord(rec, {}), rec);
+      assert.equal(output.id, rec.id);
+      assert.equal(output.speed, rec.speed);
+      if (rec.type !== 8) continue;
+      const path = 'meshes/' + output.model;
+      assert.equal(archive.has(path), true);
+      const [bytes, sameBytes] = await Promise.all([archive.load(path), archive.load(path)]);
+      assert.equal(bytes, sameBytes);
+      assert.equal(archive.get(path), bytes);
+      assert.notDeepEqual(bytes, source.get('meshes/' + rec.model));
+      assert.ok(flattenNif(parseNif(bytes)).length);
     }
-    setModGroupEnabled('bodies', false);
+    setPref('enhancedBattleaxes', false);
     const rec = records.find(r => r.type === 8);
-    assert.equal(enhancedAxeRecord(rec, { ['meshes/' + enhancedAxeModel(rec.model)]: 'local' }), rec);
-  } finally { setPref('enhancedBattleaxes', false); setModGroupEnabled('bodies', true); globalThis.localStorage = oldStorage; }
+    assert.equal(enhancedAxeRecord(rec), rec);
+  } finally {
+    setPref('enhancedBattleaxes', true);
+    setPref('modelCustomization', true);
+  }
 });
 test('2D axes cannot use blunt weapons or cross one/two-handed classes; 3D ignores a stale one-handed choice', { skip: !existsSync(data + 'Morrowind.esm') }, () => {
   for (const templateIndex of [127,128]) {

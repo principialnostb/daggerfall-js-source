@@ -1971,6 +1971,7 @@ export function poseChanged(a, b, eps = 0.01) {
   if (!a || !b) return true;
   return Math.abs(a.x - b.x) > eps || Math.abs(a.y - b.y) > eps || Math.abs(a.z - b.z) > eps
     || Math.abs(wrapAngle(a.yaw - b.yaw)) > eps || Math.abs(a.pitch - b.pitch) > eps || (a.mv | 0) !== (b.mv | 0)   // SLAM13: the yaw difference is WRAPPED - the relay keeps the pose the door wrapped into (-PI, PI], and a player standing at the seam drifts across it by 2PI, which the bare difference called a move
+    || (a.mair | 0) !== (b.mair | 0) || (a.mcr | 0) !== (b.mcr | 0)
     || (a.wd | 0) !== (b.wd | 0) || (a.an | 0) !== (b.an | 0)   // MAC7 #1: a draw and a swing go out at once, as a step does
     || (a.am | 0) !== (b.am | 0) || (a.sr | 0) !== (b.sr | 0) || (a.cn | 0) !== (b.cn | 0)   // MAC7 #2: and the arrow, the spell stance, the cast
     || (a.rd | 0) !== (b.rd | 0) || (a.rv | 0) !== (b.rv | 0) || (a.rc | 0) !== (b.rc | 0)   // RIDE: a mount or a dismount goes out at once, as a step does; COATS1: and a coat chosen in the saddle
@@ -2071,7 +2072,7 @@ export const poseHandsOf = (usingRightHand, strikeHand) => ({ ...(usingRightHand
 /** A pose the room will relay, or null. */
 export function validPose(p) {
   if (!p || typeof p !== 'object') return null;
-  const { x, y, z, yaw, pitch, mv, wd, an, as, am, sr, cn, cr, ce, ar, fk, rd, rv, rc, hs, lh, ah, wb, dd, hl, lt, lc, hk, hp, hb, hq, hu, uq, xk, xp, xh, cv, cl, cw, ck, cy, cd, st, ga, gb, gm, ts, pl, ab, fy, gh: ghost } = p;
+  const { x, y, z, yaw, pitch, mv, wd, an, as, bms, bhm, mair, mcr, am, sr, cn, cr, ce, ar, fk, rd, rv, rc, hs, lh, ah, wb, dd, hl, lt, lc, hk, hp, hb, hq, hu, uq, xk, xp, xh, cv, cl, cw, ck, cy, cd, st, ga, gb, gm, ts, pl, ab, fy, gh: ghost } = p;
   if (![x, y, z, yaw, pitch].every(finite)) return null;
   if (Math.abs(x) > POSE_BOUND || Math.abs(z) > POSE_BOUND || Math.abs(y) > POSE_Y_BOUND) return null;
   // ONCRASH1 (2026-09-15, Mac: "reports of player browser crashing when
@@ -2096,6 +2097,9 @@ export function validPose(p) {
   return {
     x, y, z, yaw: wrapAngle(yaw), pitch, mv: mv === 2 ? 2 : mv ? 1 : 0,
     wd: wd === 2 ? 2 : wd ? 1 : 0, an: uint(an, 65535) ?? 0, as: uint(as, POSE_STRIKES.length - 1) ?? 0,
+    ...(mair === 1 || mair === 2 || mair === 3 ? { mair } : {}),
+    ...(mcr === 1 ? { mcr } : {}),
+    ...(Number.isInteger(bms) && bms > 0 && bms <= 2500 && Number.isInteger(bhm) && bhm >= 0 && bhm <= bms ? { bms, bhm } : {}),
     am: am ? 1 : 0, sr: sr ? 1 : 0, cn: uint(cn, 65535) ?? 0, cr: uint(cr, POSE_CAST_RANGES - 1) ?? 0,
     ce: uint(ce, POSE_CAST_ELEMENTS - 1) ?? 4,   // SPELLFX1: the cast's element - a pose from before it reads Magic
     ar: uint(ar, 65535) ?? 0,   // SPELLFX1: arrows loosed - a peer draws a shaft for each new one

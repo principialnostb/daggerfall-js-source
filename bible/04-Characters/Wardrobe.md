@@ -68,3 +68,41 @@ file: a departure from `WeaponBasics.GetModdedWeaponFilename` for a drawn copy.
 
 - A sworn one's kit underground: a dungeon's lane streams no kit, so neither a given piece nor its look reaches another
   screen in a dungeon. `src/scenes/exterior.js` stands no sworn one.
+
+## 13.11-build cosmetic profiles
+
+Daggerfall Unity has no transmog (see the Daggerfall Unity section above).
+This fork extends the idea to another player's renderer through an independent
+HTTP service. The game relay and the game look format keep their existing contract.
+
+Run the service with node tools/cosmeticsService.mjs. It binds to 127.0.0.1:8793
+by default. Both local Vite ports use that same endpoint unless overridden.
+Start the service once, alongside the two game clients.
+For shared testing, put it behind HTTPS and configure
+VITE_COSMETICS_URL at client build time. COSMETICS_HOST, COSMETICS_PORT and
+COSMETICS_ORIGIN configure the standalone service.
+
+The relay URL is hashed into a namespace shared across adjacent rooms. The service leases each
+profile to its first writer for 60 seconds between refreshes, using an independent
+write token. This lease does not verify game identity. Use the service in trusted
+testing until the profile publisher can prove ownership of the game peer ID.
+
+The world render path calls world.js:"const visiblePeers = cosmeticPeers(online, playerEntity, gateCrowd.cut(ranged," for player
+3D bodies. This hook is in world.js. No hooks were added to exterior.js,
+worldModes.js or dungeonContext.js. Verify those paths in play before claiming
+coverage. The 3D renderer uses the profile for identity, hair, proportions, models,
+clothing texture tinting and Better Bodies skin choices. Viewer nudity
+settings still apply. The paperdoll fallback resolves received choices against
+its local catalog. Animated class sprites retain their own art.
+The separate HTTP exchange is exercised by two independent clients in
+test/net/cosmeticProfile.test.js. This check does not launch the game renderer.
+ Separate
+mount, aura and other effect renderers need their own
+integration if exposed by this build's customization.
+
+For a player-hosted test, start the service once and open its local page at
+http://127.0.0.1:8793/. The page checks and copies the public HTTPS address
+provided by a tunnel or reverse proxy forwarding to the service port. Players
+enter that same address in the Enhanced Mod Compatibility menu. The address
+is saved per client and can be changed without rebuilding the executable.
+For a Vite session, VITE_WESTLY_FACES=1 selects the Westly face and hair pack.

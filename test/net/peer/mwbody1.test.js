@@ -90,7 +90,7 @@ function rigFactory(log, { okFor = () => true, throwFor = () => false, third = t
 const newLog = () => ({ builds: [], rigs: [], inFlight: 0, peak: 0 });
 const settle = async (n = 6) => { for (let i = 0; i < n; i++) await flush(); };
 
-test('MWBODY1: PeerBodies - one rig per peer built from its look ONE AT A TIME, the camera fed from the pose, the view third once built, stepped by dt, drawn at the feet with the yaw only once stepped, released when the look changes, the feet following the origin (mutants: the singleton rig, builds in parallel, the doll under the body)', async () => {
+test('MWBODY1: PeerBodies - one rig per peer built from its look ONE AT A TIME, the camera fed from the pose, the view third once built, stepped by dt, drawn at the feet with the yaw only once stepped, replaced without losing coverage when the look changes, the feet following the origin (mutants: the singleton rig, builds in parallel, the doll under the body)', async () => {
   const log = newLog();
   let now = 1000;
   const pb = new PeerBodies({ renderer: { id: 'r' }, createRig: rigFactory(log), buildOpts: (look) => ({ race: look.race }), now: () => now });
@@ -125,10 +125,39 @@ test('MWBODY1: PeerBodies - one rig per peer built from its look ONE AT A TIME, 
   a.look = { ...a.look, race: 'Khajiit' }; pb.sync([a, b], toScene, 0.02, [0, 0, -10]);
   assert.equal(log.rigs.length, 2, 'within BODY_REBUILD_MS: the old body stands'); assert.equal(log.rigs[0].unloaded, false);
   now += BODY_REBUILD_MS + 1; pb.sync([a, b], toScene, 0.02, [0, 0, -10]);
-  assert.equal(log.rigs[0].unloaded, true); assert.equal(log.rigs.length, 3); await settle(); assert.equal(log.builds.at(-1), 'Khajiit');
+  assert.equal(log.rigs[0].unloaded, false); assert.equal(pb.has('aaaa'), true); await settle(); assert.equal(log.rigs.length, 3); assert.equal(log.builds.at(-1), 'Khajiit'); assert.equal(log.rigs[0].unloaded, true); assert.equal(pb.has('aaaa'), true);
   pb.destroy(); assert.equal(log.rigs[2].unloaded, true); assert.equal(pb.draw({}, V), 0);
 });
 
+test('an in-flight appearance is discarded when superseded and a failed build leaves the visible rig alone', async () => {
+  const log = newLog();
+  let now = 1000;
+  const pb = new PeerBodies({
+    renderer: {}, createRig: rigFactory(log, { okFor: opts => opts.race !== 'Nobody' }),
+    buildOpts: look => ({ race: look.race }), now: () => now, warn: () => {},
+  });
+  const a = peer('aaaa', 'Nord');
+  const sync = () => pb.sync([a], toScene, .016, [0, 0, -10]);
+  const change = race => { a.look = { ...a.look, race }; sync(); };
+  sync(); await settle(); sync();
+  now += BODY_REBUILD_MS + 1;
+  change('Khajiit');
+  await Promise.resolve();
+  assert.equal(log.builds.at(-1), 'Khajiit');
+  change('Nobody');
+  await settle();
+  assert.equal(log.rigs[1].unloaded, true);
+  assert.equal(log.rigs[0].unloaded, false);
+  assert.equal(pb.has('aaaa'), true);
+  sync(); await settle();
+  assert.equal(log.rigs[2].unloaded, true);
+  assert.equal(log.rigs[0].unloaded, false);
+  assert.equal(pb.has('aaaa'), true);
+  change('Redguard'); await settle();
+  assert.equal(log.rigs[0].unloaded, true);
+  assert.equal(pb.has('aaaa'), true);
+  pb.destroy();
+});
 test('MWBODY1: the linger, the jump and the range - a peer gone keeps its body BODY_LINGER_MS (no rebuild on a flicker) and is released after; a released body\'s build is skipped, and one in flight is unloaded when it lands; a jump resets the pace; past BODY_RANGE the rig sleeps and the doll stands (mutants: a flicker rebuilding the body, the released build run anyway, a snap read as a sprint)', async () => {
   const log = newLog();
   let now = 1000;
@@ -155,7 +184,7 @@ test('MWBODY1: the linger, the jump and the range - a peer gone keeps its body B
   pb.sync([c, d], toScene, 0.016, [0, 0, -10]); const rigs = log.rigs.length;   // d again: a new rig, building
   now += BODY_REBUILD_MS + 1; c.look = { ...c.look, race: 'Khajiit' }; pb.sync([c, d], toScene, 0.016, [0, 0, -10]);   // c's look changes while its first rig stands: a new rig for c
   await settle();
-  assert.equal(log.rigs.length, rigs + 1); assert.equal(pb.has('cccc'), false, 'the new body is not yet stepped'); pb.sync([c, d], toScene, 0.016, [0, 0, -10]);
+  assert.equal(log.rigs.length, rigs + 1); assert.equal(pb.has('cccc'), true, 'the replacement is already posed when it becomes visible'); pb.sync([c, d], toScene, 0.016, [0, 0, -10]);
   assert.equal(pb.has('cccc'), true, 'the new body stands'); assert.equal(pb.has('dddd'), true);
   // a jump: the pace resets instead of easing across it
   c.shown = pose(1 + JUMP_UNITS + 1, 1); pb.sync([c, d], toScene, 0.016, [0, 0, -10]);
@@ -225,7 +254,7 @@ test('MWBODY1: the host - the gate is the enhanced skin (read once) and Morrowin
   assert.match(w, /const enhanced = isEnhanced\(\);[^\n]*\n\s*peerBodies = new PeerBodies\(\{ renderer, enabled: \(\) => enhanced && morrowindDataCount\(\) > 0, generation: morrowindDataGeneration, collider: \(\) => collider, gate: BODY_BUILD_GATE(?:, horses: \(\) => horseRigFor\(renderer\))?(?:, buildOpts: playerBuildOpts)? \}\);/, 'the enhanced skin, the data, and its generation');   // PIN MOVED (MW-HEADS2): and a player's build - the port's own heads   // PIN MOVED, COATS3D: and the 3D horse a rider sits
   // Boat map markers cache the adjusted poses before the existing concealment and render ordering.
   // PIN MOVED (PEER-RANGE): the drawn list is cut to the draw distance before the court's crowd, and the dolls' sync is handed the room's whole list (test/systems/peerrange.test.js)
-  assert.match(w, /const drawable = isCellRoom\(online\.room\) && csaOn\(\) \? csaAboard\.glue\(staffFollow\.drawable\(\), [^\n]*\) : staffFollow\.drawable\(\);[^\n]*\s*\n\s*_peerMapPoses\.clear\(\);\n\s*for \(const d of drawable\) if \(d\?\.shown\) _peerMapPoses\.set\(d\.id, d\.shown\);\n(?:\s*if \(hccOn\(\)\) hcc\.driverGlue\(drawable, \{ toWire: campToWire \}\);[^\n]*\n)?\s*const ranged = peerRange\.cut\(cabin \? drawable : drawable\.filter\(\(d\) => !csaPeers\.isBelowDeck\(d\.id\)\), [^\n]*\n\s*const visiblePeers = gateCrowd\.cut\(ranged, \{ on: modes\?\.gateArenaDay\?\.\(\) != null \|\| [^\n]*\}\);[^\n]*\n\s*peerCastVisuals\(visiblePeers\);[^\n]*\n(?:[^\n]*\n){0,12}?\s*const seen = \[\];\n\s*for \(const d of visiblePeers\) \{[\s\S]*?\n\s*seen\.push\(d\);\n\s*\}\n\s*peerCandlesFrame\(seen, dt\);[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*peerRiders\.sync\(seen,[^\n]*\n\s*const afoot = seen\.filter\(\(d\) => d\.shown\?\.rd !== POSE_RIDE\.Dragon && \(peerRidesIn3d\(d\) \|\| !peerRiders\.isRiding\(d\.id\)\) && !d\.shown\?\.wb \|\| \(peerIsWolf\(d\.shown\) && !d\.shown\.rd\)\);[^\n]*\n\s*peerBodies\.sync\(afoot, onlineToScene, dt, player\.pos, \{ priority: \(id\) => !!social\?\.isPartyPeer\(id\), conceal: veilOf \}\);[^\n]*\n(?:(?!\s*peerBodies|\s*remotePlayers\.sync)[^\n]*\n){0,40}?\s*remotePlayers\.sync\(visiblePeers, onlineToScene, \{ bodyHeight: \(id\) => peerRiders\.heightOf\(id\) \|\| peerBodies\.heightOf\(id\) \|\| peerWalkers\.heightOf\(id\), dt, eye: travelView\?\.eye \?\? player\.pos, view: peerEye, poseAgeMs: \(p\) => online\.poseAgeMs\(p\), conceal: veilOf, hidden: \(id\) => _hiddenPeers\.has\(id\) && \(pvpFlag\.barKept\(id\) \? 'bar' : true\)(?:, grow: tvGrow)?(?:, room: drawable)? \}\);/, 'the bodies sync before the dolls - PCORPSE1/3\'s fallen bodies are settled between the two (SPELLFX1: a peer\'s new cast is read off the same drawable list first; INVIS-NET: the concealed sifted out of it, then PEERLIGHT2: the Light-spell candles of those drawn; RIDE: a rider is drawn next and the bodies stand the peers afoot, the doll\'s height the rider\'s, else the body\'s)');   // PIN MOVED (GATE-CROWD): the drawn list is cut to a court's crowd first (test/systems/gatecrowd.test.js) - CROWD-WIDE: everywhere a stranger cannot fight me; PIN MOVED (AUDIT COATS3D A3): a rider on the 3D horse the bodies' whether or not its sprite stood in; PIN MOVED (DRAGON1): a dragon's rider first left out (remotePlayers stands the dragon); PIN MOVED (AUDIT CAPE-CARD A1): `view`, the camera a class sprite turns to
+  assert.match(w, /const drawable = isCellRoom\(online\.room\) && csaOn\(\) \? csaAboard\.glue\(staffFollow\.drawable\(\), [^\n]*\) : staffFollow\.drawable\(\);[^\n]*\s*\n\s*_peerMapPoses\.clear\(\);\n\s*for \(const d of drawable\) if \(d\?\.shown\) _peerMapPoses\.set\(d\.id, d\.shown\);\n(?:\s*if \(hccOn\(\)\) hcc\.driverGlue\(drawable, \{ toWire: campToWire \}\);[^\n]*\n)?\s*const ranged = peerRange\.cut\(cabin \? drawable : drawable\.filter\(\(d\) => !csaPeers\.isBelowDeck\(d\.id\)\), [^\n]*\n\s*const visiblePeers = cosmeticPeers\(online, playerEntity, gateCrowd\.cut\(ranged, \{ on: modes\?\.gateArenaDay\?\.\(\) != null \|\| [^\n]*\}\), now\);[^\n]*\n\s*peerCastVisuals\(visiblePeers\);[^\n]*\n(?:[^\n]*\n){0,12}?\s*const seen = \[\];\n\s*for \(const d of visiblePeers\) \{[\s\S]*?\n\s*seen\.push\(d\);\n\s*\}\n\s*peerCandlesFrame\(seen, dt\);[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*peerRiders\.sync\(seen,[^\n]*\n\s*const afoot = seen\.filter\(\(d\) => d\.shown\?\.rd !== POSE_RIDE\.Dragon && \(peerRidesIn3d\(d\) \|\| !peerRiders\.isRiding\(d\.id\)\) && !d\.shown\?\.wb \|\| \(peerIsWolf\(d\.shown\) && !d\.shown\.rd\)\);[^\n]*\n\s*peerBodies\.sync\(afoot, onlineToScene, dt, player\.pos, \{ priority: \(id\) => !!social\?\.isPartyPeer\(id\), conceal: veilOf \}\);[^\n]*\n(?:(?!\s*peerBodies|\s*remotePlayers\.sync)[^\n]*\n){0,40}?\s*remotePlayers\.sync\(visiblePeers, onlineToScene, \{ bodyHeight: \(id\) => peerRiders\.heightOf\(id\) \|\| peerBodies\.heightOf\(id\) \|\| peerWalkers\.heightOf\(id\), dt, eye: travelView\?\.eye \?\? player\.pos, view: peerEye, poseAgeMs: \(p\) => online\.poseAgeMs\(p\), conceal: veilOf, hidden: \(id\) => _hiddenPeers\.has\(id\) && \(pvpFlag\.barKept\(id\) \? 'bar' : true\)(?:, grow: tvGrow)?(?:, room: drawable)? \}\);/, 'the bodies sync before the dolls - PCORPSE1/3\'s fallen bodies are settled between the two (SPELLFX1: a peer\'s new cast is read off the same drawable list first; INVIS-NET: the concealed sifted out of it, then PEERLIGHT2: the Light-spell candles of those drawn; RIDE: a rider is drawn next and the bodies stand the peers afoot, the doll\'s height the rider\'s, else the body\'s)');   // PIN MOVED (GATE-CROWD): the drawn list is cut to a court's crowd first (test/systems/gatecrowd.test.js) - CROWD-WIDE: everywhere a stranger cannot fight me; PIN MOVED (AUDIT COATS3D A3): a rider on the 3D horse the bodies' whether or not its sprite stood in; PIN MOVED (DRAGON1): a dragon's rider first left out (remotePlayers stands the dragon); PIN MOVED (AUDIT CAPE-CARD A1): `view`, the camera a class sprite turns to
   assert.match(w, /const drawPeerBodies = \(proj, view, eye, face = null\) => \{ if \(peerBodies\) peerBodies\.draw\(canvas, \{ proj, view, eye, flashOf: peerFlashOf, grow: face \? peerGrow : null, up: face\?\.up \?\? null \}\); peerWalkers\?\.drawLanterns\(\); \(_mode\(\) === 'interior' \? familyRoom : _mode\(\) === 'exterior' \? familyStreet : null\)\?\.draw\(canvas, \{ proj, view, eye \}\); \};/,   // PIN MOVED (OW-PEERS, FIELD BUGS 2026-10-01 #11): grown and leaned under the Overworld (test/net/peer/fb1001_overworld.test.js)
  'the hook draws the bodies (HITFLASH1: each with its hurt flash - hitflash1.test.js; HT-WAIST-BACK: and, beside them, the walkers\' lanterns - htwaistback.test.js)');
   assert.match(w, /drawPeerBodies: \(\{ proj, view, eye \}\) => drawPeerBodies\(proj, view, eye\),/, 'the mode machine gets the hook');

@@ -479,7 +479,6 @@ export function armorLookRecords(armorRecords, row, stem) {
     .filter((r) => {
       const id = String(r.id || '').toLowerCase();
       return (
-        !r.enchanted &&
         armorStemOf(id) === stem &&
         row.tokens.some((t) => id.includes(t)) &&
         !(row.not ?? []).some((n) => id.includes(n))
@@ -888,6 +887,7 @@ export function dfWornEquipment(slots, EQUIP_SLOTS, ARMOR_ENUM_) {
         templateIndex: it.templateIndex,
         name: CLOTHING_NAME[it.templateIndex],
         dye: it.dye ?? 0,
+        ...(it.cosmeticDye != null ? { cosmeticDye: it.cosmeticDye } : {}),
         ...(look ? { mwRecord: look } : {}),
       });
     }
@@ -943,6 +943,7 @@ export function composeWornArmor({
   bodyPool,
   female = false,
   colourOf = null,
+  hasMesh = null,
   helmStyle = undefined,
   looks = null,
   cloakStyle = 'classic',
@@ -1017,6 +1018,7 @@ export function composeWornArmor({
         recordId: o.id,
         piece,
         hides: o.hides,
+        ...equipmentFit('outfit', 'clearance'),
       };
       for (const h of o.hides)
         deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: outfitAdd });
@@ -1060,7 +1062,7 @@ export function composeWornArmor({
       // (Cloak1, Cloak2); one cloak is drawn, the first, and the second says so - two of one mesh would be one.
       const cloak = ownCloakFor(
         { ...piece, name },
-        { style: piece.cloakStyle ?? cloakStyle, look: cloakLooks?.[piece.templateIndex] ?? 'classic' },
+        { style: piece.cloakStyle ?? cloakStyle, look: piece.ownStyle ?? cloakLooks?.[piece.templateIndex] ?? 'classic' },
       );
       if (cloak) {
         if (cloakAdd) {
@@ -1074,6 +1076,7 @@ export function composeWornArmor({
           model: cloak.model,
           recordId: cloak.id,
           piece,
+          ...equipmentFit('cloak', 'drape'),
         };
         cloakName = name;
         continue;
@@ -1138,6 +1141,8 @@ export function composeWornArmor({
           recordId: own.id,
           piece,
           ...(p.showsSkin ? { showsSkin: true } : {}),
+          ...equipmentFit(row.name, p.fitMode ?? armorFitMode(piece, own.id),
+            p.fitMode === 'rigid' ? ['upperleg'] : undefined),
           ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}),
         }; // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
         claim(at, prio, add);
@@ -1206,16 +1211,28 @@ export function composeWornArmor({
       }
       const cut = wear ? beastCut(armo, wear) : null;
       if (cut?.bared) notes.push(`armor ${piece.templateIndex}: ${beastBared(armo.id)}`);
-      composeRefs(cut?.rec ?? armo, prio, female, bodyById, claim, notes, piece);
+      const claimArmor = (part, priority, add) => {
+        const footOrLeg = /^(foot|ankle|knee|upperleg):/.test(ARMO_PART[part]?.shadows ?? '');
+        // A meshless reservation can hide bare skin. It cannot replace cloth.
+        if (!add && footOrLeg) {
+          deferredHides.push({ part, prio: priority, under: null });
+          return;
+        }
+        if (add && footOrLeg && hasMesh && !hasMesh(`meshes/${add.model}`)) return;
+        claim(part, priority, add);
+      };
+      composeRefs(cut?.rec ?? armo, prio, female, bodyById, claimArmor, notes, piece);
     }
   }
-  // A gauntlet must hide bare skin under its cuff, but must not reserve
-  // away a forearm plate (or another valid part mesh) merely because that
-  // mesh is declared later in equipment order. Existing mesh ownership wins;
-  // the mesh's own claim already shadows the skin in that slot.
+  // Explicit coverage on a worn armour model also covers lower-priority
+  // clothing. A meshless retail knee reservation still lets trousers show,
+  // and a fitted armour panel keeps its slot under an overlapping cuff.
   for (const h of deferredHides) {
     const slot = slots[h.part];
-    if (slot && !slot.add) claim(h.part, h.prio, null, h.under);
+    if (h.under && h.under !== outfitAdd && (!slots.some((owner) => owner.add === h.under)
+      || (hasMesh && !hasMesh(`meshes/${h.under.model}`)))) continue;
+    const coversClothing = slot?.add?.piece?.kind === 'clothing' && h.under && h.under !== outfitAdd;
+    if (slot && (!slot.add || coversClothing)) claim(h.part, h.prio, null, h.under);
     else if (slot?.add?.showsSkin) slot.hiddenUnder = true; // MW-IRON5: a part that shows its skin still hides it when another part covers it whole
   }
   if (hairHidden) claim(1, hairHidden, null);
@@ -1327,8 +1344,17 @@ function shieldMeshOf(armo, female, bodyById, notes) {
  * does not opt clothing into the separate skin-transfer renderer: the original
  * NIF remains responsible for its UVs, material and bone weights.
  */
-const CLOTHING_FIT_SLOTS = Object.freeze({
-  chest: Object.freeze(['chest', 'groin']),
+const EQUIPMENT_FIT_SLOTS = Object.freeze({
+  head: Object.freeze(['head']),
+  hair: Object.freeze(['head']),
+  neck: Object.freeze(['neck', 'chest']),
+  skirt: Object.freeze(['groin', 'upperleg']),
+  tail: Object.freeze(['tail']),
+  'right pauldron': Object.freeze(['clavicle', 'upperarm']),
+  'left pauldron': Object.freeze(['clavicle', 'upperarm']),
+  outfit: Object.freeze(['head', 'neck', 'chest', 'groin', 'upperleg', 'knee', 'ankle', 'foot', 'upperarm', 'forearm', 'wrist', 'hand']),
+  cloak: Object.freeze(['chest', 'clavicle', 'upperarm']),
+  cuirass: Object.freeze(['chest', 'groin']),
   groin: Object.freeze(['groin', 'upperleg', 'knee']),
   'right upper leg': Object.freeze(['upperleg', 'knee', 'groin']),
   'left upper leg': Object.freeze(['upperleg', 'knee', 'groin']),
@@ -1347,6 +1373,17 @@ const CLOTHING_FIT_SLOTS = Object.freeze({
   'right foot': Object.freeze(['foot', 'ankle']),
   'left foot': Object.freeze(['foot', 'ankle']),
 });
+
+function equipmentFit(partName, mode, slots = EQUIPMENT_FIT_SLOTS[partName]) {
+  // Independent nearest-surface projection breaks the authored trouser/boot seam.
+  // Keep lower-leg panels on their own skinning; body morphs still apply.
+  if (/^(left|right) (knee|ankle|foot)$/.test(partName)) slots = [];
+  return slots ? { fitBodySlots: slots, fitMode: mode } : {};
+}
+
+function armorFitMode(piece, recordId) {
+  return (armorWeightOf(recordId) ?? armorWeightOfMaterial(piece.material)) === 'heavy' ? 'rigid' : 'posedClearance';
+}
 
 /** One record's part references, claimed at one priority. */
 function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
@@ -1388,13 +1425,14 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
       model: body.model,
       recordId: id,
       piece,
-      ...(piece?.kind === 'clothing' && CLOTHING_FIT_SLOTS[row.name] && (!trousers || retailTrousers)
-        ? {
-            fitBodySlots: CLOTHING_FIT_SLOTS[row.name],
-            fitMode: retailTrousers ? 'trousers' : 'clearance',
-            ...(retailTrousers && bulkyTrousers ? { trouserEase: 0.12 } : {}),
-          }
-        : {}),
+      ...(trousers && piece?.kind === 'clothing' && row.shadows ? { missingMeshSkin: row.shadows } : {}),
+      ...(piece?.kind === 'clothing'
+        // The default pants have separate panels sharing the knee seam. Keep
+        // the authored seam rather than projecting their panels independently.
+        ? equipmentFit(row.name, retailTrousers ? 'trousers' : trousers ? 'posedClearance' : rec.type === MW_CLOTHING_TYPE.Shirt ? 'shirt' : 'clearance',
+          trousers && rec.id === 'common_pants_01' ? [] : undefined)
+        : piece ? equipmentFit(row.name, armorFitMode(piece, rec.id)) : {}),
+      ...(retailTrousers && bulkyTrousers ? { trouserEase: 0.12 } : {}),
     });
   }
 }

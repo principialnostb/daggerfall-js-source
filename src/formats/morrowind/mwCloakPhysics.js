@@ -86,6 +86,71 @@ export function createCloakPhysics(piece) {
   };
 }
 
+// Index the posed cloth anew each call: either the cloth or a rigid attachment can move.
+const contactScratch = new WeakMap();
+
+function contactDepths(state, points, surfaces) {
+  const count = points.length / 3;
+  let grid = contactScratch.get(state);
+  if (!grid || grid.depth.length !== count) {
+    const side = Math.max(1, Math.min(32, Math.ceil(Math.sqrt(count / 4))));
+    grid = { side, heads: new Int32Array(side * side), next: new Int32Array(count), depth: new Float64Array(count) };
+    contactScratch.set(state, grid);
+  }
+  const { side, heads, next, depth } = grid;
+  heads.fill(-1);
+  depth.fill(-Infinity);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (let i = 0; i < points.length; i += 3) {
+    const x = points[i], z = points[i + 2];
+    if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+  }
+  if (minX === Infinity) return depth;
+  const scaleX = maxX > minX ? side / (maxX - minX) : 0;
+  const scaleZ = maxZ > minZ ? side / (maxZ - minZ) : 0;
+  const cellX = x => Math.min(side - 1, Math.max(0, Math.floor((x - minX) * scaleX)));
+  const cellZ = z => Math.min(side - 1, Math.max(0, Math.floor((z - minZ) * scaleZ)));
+  for (let v = 0; v < count; v++) {
+    const x = points[3*v], z = points[3*v + 2];
+    if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+    const cell = cellZ(z) * side + cellX(x);
+    next[v] = heads[cell];
+    heads[cell] = v;
+  }
+  for (const { positions, indices } of surfaces) {
+    if (!positions || !indices) continue;
+    for (let t = 0; t + 2 < indices.length; t += 3) {
+      const a = indices[t] * 3, b = indices[t+1] * 3, c = indices[t+2] * 3;
+      const ax = positions[a], az = positions[a+2], bx = positions[b], bz = positions[b+2];
+      const cx = positions[c], cz = positions[c+2];
+      const left = Math.min(ax,bx,cx), right = Math.max(ax,bx,cx);
+      const bottom = Math.min(az,bz,cz), top = Math.max(az,bz,cz);
+      if (right < minX || left > maxX || top < minZ || bottom > maxZ) continue;
+      const abx = bx-ax, abz = bz-az, acx = cx-ax, acz = cz-az;
+      const den = abx*acz - abz*acx;
+      if (!(Math.abs(den) >= 1e-8)) continue;
+      const ay = positions[a+1], by = positions[b+1], cy = positions[c+1];
+      const x0 = cellX(left), x1 = cellX(right), z1 = cellZ(top);
+      for (let iz = cellZ(bottom); iz <= z1; iz++) {
+        for (let ix = x0; ix <= x1; ix++) {
+          for (let v = heads[iz*side + ix]; v !== -1; v = next[v]) {
+            const x = points[3*v], z = points[3*v + 2];
+            if (x < left || x > right || z < bottom || z > top) continue;
+            const wb = ((x-ax)*acz - (z-az)*acx) / den;
+            const wc = (abx*(z-az) - abz*(x-ax)) / den;
+            if (wb >= -1e-4 && wc >= -1e-4 && wb + wc <= 1.0001) {
+              depth[v] = Math.max(depth[v], (1-wb-wc)*ay + wb*by + wc*cy);
+            }
+          }
+        }
+      }
+    }
+  }
+  return depth;
+}
+
 /**
  * Keep only the part of a back-mounted shield's cloak still covered by the
  * shield at its fitted rest pose. This intentionally does not simulate contact:
@@ -103,17 +168,6 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       || posedCloth.length !== state.pos.length
       || !surfaces.some((surface) => surface.positions?.length && surface.indices?.length >= 3)) return 0;
 
-  const insideTriangle = (x, z, ax, az, bx, bz, cx, cz) => {
-    const abx = bx - ax, abz = bz - az;
-    const acx = cx - ax, acz = cz - az;
-    const den = abx * acz - abz * acx;
-    if (Math.abs(den) < 1e-8) return false;
-    const px = x - ax, pz = z - az;
-    const u = (px * acz - pz * acx) / den;
-    const v = (abx * pz - abz * px) / den;
-    return u >= -1e-4 && v >= -1e-4 && u + v <= 1.0001;
-  };
-
   const pos = state.pos, prev = state.prev, base = state.base;
   // Remember last frame's footprint before rebuilding it. A vertex that leaves
   // the shield must be released to the authored fit, not carry the artificial
@@ -125,36 +179,10 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   // SHIELD-SINK: the footprint and the press are read off the fitted cloth, posed - read off the pressed cloth, a press
   // undid itself every other footprint (2.38, 0.38, 2.00, 0.38 units a fifth of a second apart)
   const from = posedBase?.length === posedCloth.length ? posedBase : posedCloth;
+  const depths = contactDepths(state, from, surfaces);
   for (let v = 0; v < posedCloth.length / 3; v++) {
     const o = v * 3;
-    const x = from[o], z = from[o + 2];
-    let shieldSurfaceY = -Infinity;
-    for (const surface of surfaces) {
-      const gearPositions = surface.positions;
-      const gearIndices = surface.indices;
-      for (let t = 0; t + 2 < gearIndices.length; t += 3) {
-        const ia = gearIndices[t] * 3;
-        const ib = gearIndices[t + 1] * 3;
-        const ic = gearIndices[t + 2] * 3;
-        if (ia + 2 >= gearPositions.length || ib + 2 >= gearPositions.length
-            || ic + 2 >= gearPositions.length) continue;
-        const ax = gearPositions[ia], ay = gearPositions[ia + 1], az = gearPositions[ia + 2];
-        const bx = gearPositions[ib], by = gearPositions[ib + 1], bz = gearPositions[ib + 2];
-        const cx = gearPositions[ic], cy = gearPositions[ic + 1], cz = gearPositions[ic + 2];
-        if (x < Math.min(ax, bx, cx) || x > Math.max(ax, bx, cx)
-            || z < Math.min(az, bz, cz) || z > Math.max(az, bz, cz)) continue;
-        if (!insideTriangle(x, z, ax, az, bx, bz, cx, cz)) continue;
-        // Cloth and rigid gear share rig space. Interpolate each surface's depth
-        // at this exact (x,z), so the cloak stays on the body side of weapons,
-        // scabbards, quivers and shields as their bones move.
-        const den = (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
-        if (Math.abs(den) < 1e-8) continue;
-        const wb = ((x - ax) * (cz - az) - (z - az) * (cx - ax)) / den;
-        const wc = ((bx - ax) * (z - az) - (bz - az) * (x - ax)) / den;
-        const wa = 1 - wb - wc;
-        shieldSurfaceY = Math.max(shieldSurfaceY, wa * ay + wb * by + wc * cy);
-      }
-    }
+    const shieldSurfaceY = depths[v];
     const covered = Number.isFinite(shieldSurfaceY);
     if (!covered) {
       if (wasShieldPinned[v]) {
@@ -207,7 +235,7 @@ export function releaseCloakShieldContact(piece) {
   state.shieldClearance.fill(0);
 }
 
-export function rebuildNormals(positions, indices, out, fallback) {
+export function rebuildNormals(positions, indices, out, fallback, winding = 1) {
   if (!out || out.length !== positions.length) return;
   out.fill(0);
   for (let i = 0; i + 2 < indices.length; i += 3) {
@@ -222,7 +250,7 @@ export function rebuildNormals(positions, indices, out, fallback) {
   for (let i = 0; i < out.length; i += 3) {
     const length = Math.hypot(out[i], out[i + 1], out[i + 2]);
     if (length > 1e-8) {
-      out[i] /= length; out[i + 1] /= length; out[i + 2] /= length;
+      out[i] *= winding / length; out[i + 1] *= winding / length; out[i + 2] *= winding / length;
     } else if (fallback?.length === out.length) {
       out[i] = fallback[i]; out[i + 1] = fallback[i + 1]; out[i + 2] = fallback[i + 2];
     }

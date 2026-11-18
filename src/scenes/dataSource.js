@@ -839,6 +839,20 @@ async function _openMorrowindArchives(gen) {
   // could build: a Data Files folder attached whole is thousands of them.
   const looseNames = (await storedMorrowindNames()).filter((n) => MW_LOOSE_EXT.test(n));
   if (looseNames.length) archives.push(makeLazyLooseArchive(looseNames, (n) => assetBytes(MW_STORE, n)));
+  if (globalThis.location?.protocol === 'dagger:') {
+    const root = 'dagger://game/local-morrowind-loose';
+    try {
+      const response = await fetch(root);
+      const files = response.ok && response.headers.get('Content-Type')?.includes('application/json') ? await response.json() : [];
+      if (Array.isArray(files) && files.length) archives.push(makeLazyLooseArchive(files, async (name) => {
+        const url = root + '/' + name.split('/').map(encodeURIComponent).join('/');
+        const asset = await fetch(url);
+        return asset.ok ? new Uint8Array(await asset.arrayBuffer()) : null;
+      }));
+    } catch (error) {
+      console.warn('[morrowind] Local loose files:', error);
+    }
+  }
   // Bundled replacement packs follow user loose files (which win collisions)
   // and precede retail BSA archives.
   try {
@@ -888,6 +902,8 @@ async function _openMorrowindArchives(gen) {
       console.warn(`morrowind archive ${n}: ${err.message}`);
     }
   }
+  const { enhancedAxeArchive } = await import('../characters/ownModels/enhancedBattleaxe.js');
+  archives.push(enhancedAxeArchive([...archives]));
   // AUDIT 68 S18-mw-cache-stale-generation: stamped with the generation the open began under, and kept only while
   // that is still the live one - the live counter here made a set opened before an attach read as current.
   if (gen === _mwGeneration) _mwArchiveCache = { gen, archives };
@@ -996,7 +1012,35 @@ export async function countMorrowindArchives() {
 
 /** Bootstrap arm (scenes/shared.js): count the stored archives once so
  *  the settings dialog can report attachment without an async hop. */
+async function attachLocalDesktopMorrowind() {
+  const location = globalThis.location;
+  const desktop = location?.protocol === 'dagger:';
+  const localDev = import.meta.env?.DEV && ['localhost', '127.0.0.1', '[::1]'].includes(location?.hostname);
+  if (!desktop && !localDev) return;
+  const stored = new Set((await storedMorrowindNames()).map((name) => name.toLowerCase()));
+  const core = ['Morrowind.esm', 'Morrowind.bsa'];
+  if (core.every((name) => stored.has(name.toLowerCase()))) return;
+  const base = desktop ? 'dagger://game/local-morrowind/' : '/local-morrowind/';
+  const missing = [];
+  for (const name of core) {
+    if (stored.has(name.toLowerCase())) continue;
+    const response = await fetch(base + name);
+    if (response.ok && (!localDev || response.headers.get('Content-Type') === 'application/octet-stream')) missing.push(new File([await response.blob()], name));
+  }
+  if (!missing.length) return;
+  await storeMorrowindFiles(missing);
+  for (const expansion of ['Tribunal', 'Bloodmoon']) {
+    for (const ext of ['esm', 'bsa']) {
+      const name = expansion + '.' + ext;
+      if (stored.has(name.toLowerCase())) continue;
+      const response = await fetch(base + name);
+      if (response.ok && (!localDev || response.headers.get('Content-Type') === 'application/octet-stream')) await storeMorrowindFiles([new File([await response.blob()], name)]);
+    }
+  }
+}
+
 export async function registerMorrowindData() {
+  await attachLocalDesktopMorrowind();
   const names = await storedMorrowindNames();
   const next = archiveCount(names);
   const sizes = await storedMorrowindSizes(names);
@@ -1291,7 +1335,11 @@ async function registerTextureStoreNow({ warm }) {
   setDfmodDetailSource(() => getPref('dfmodTextureDetail'));   // DFMOD2: the packs card's detail choice
   await registerPlayerReplacements();   // the Replacements pane's pictures, which outrank every pack
   const { testBuildPaperdollPacks } = await import('../systems/testBuildPaperdoll.js');
-  installVanillaEnhancedPack(await testBuildPaperdollPacks());   // VE4: the shipped mods, in one load order with the attached
+  const testPacks = await testBuildPaperdollPacks().catch((error) => {
+    console.warn('[textures] bundled Paperdoll Enhanced:', error);
+    return [];
+  });
+  installVanillaEnhancedPack(testPacks);   // VE4: the shipped mods, in one load order with the attached
   const names = await storedTextureNames();
   const n = setTextureReplacements(names, loadTextureFile);
   setWeaponWidgetSources(names, loadTextureFile);   // WW1: Weapon Widget's bundle, its double-scale textures

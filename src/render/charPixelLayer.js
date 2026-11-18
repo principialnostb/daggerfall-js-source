@@ -22,7 +22,7 @@ import { CHAR_PIXEL_INITIAL, CHAR_PIXEL_PREFS } from '../systems/charPixel.js';
 
 /** The rows a dial stands at (0 off) - `who` fp, player or npc. */
 export function charPixelRows(who) {
-  if (!modGroupReady('bodies')) return 0;
+  if (who !== 'npc' && !modGroupReady('bodies')) return 0;
   const v = Number(getPref(CHAR_PIXEL_PREFS[who] ?? CHAR_PIXEL_PREFS.npc));
   return Number.isFinite(v) && v >= 0 ? v : CHAR_PIXEL_INITIAL[who] ?? 0;
 }
@@ -144,9 +144,9 @@ export function footprintBlockPixels(height, rows, fraction, referenceFraction, 
  * Optional opacity applies only to pixel write-back: translucent callers draw opaque into the isolated target;
  * their HD/one-pixel fallback belongs to the caller. Character callers keep the default one.
  */
-export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null) {
+export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null, viewport = null) {
   const gl = renderer.gl;
-  const vp = /** @type {Int32Array} */ (gl.getParameter(gl.VIEWPORT));
+  const vp = /** @type {Int32Array} */ (viewport ?? gl.getParameter(gl.VIEWPORT));
   const footprint = footprintProfile && corners
     ? screenRect(corners, mul4(renderer._proj, renderer._view, _pv), vp[2], vp[3], 0)
     : null;

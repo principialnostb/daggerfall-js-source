@@ -44,7 +44,7 @@ export function textureIntro() {
   const intro = node('section', 'card emc-texture-intro', '');
   intro.append(node('h3', '', local('Текстуры и внешний вид', 'Textures and appearance')),
     node('p', 'meta', local('Подключайте ресурсы и включайте нужные наборы кнопками на карточках. Некоторые наборы включают модели и плагины вместе с текстурами; их состав указан в описании.', 'Connect resources and enable packs using the card actions. Some packs include meshes and plugins alongside textures; each description explains its contents.')),
-    node('p', 'meta emc-pending', local('Изменения источников применяются после перезапуска игры. Сохранённые настройки и порядок загрузки ресурсов остаются прежними.', 'Source changes take effect after restarting the game. Saved settings and resource loading order are retained.')));
+    node('p', 'meta emc-pending', local('Изменения источников применяются после перезапуска. Базовые текстуры брони, лиц и причёсок могут уже включать ресурсы модов и видны при отключённых наборах.', 'Source changes apply after a restart. Base armor, face and hair textures can already include mod art that stays visible with these packs off.')));
   return intro;
 }
 /** Replace the legacy source bar with resource actions, preserving saved values and online locks. */

@@ -63,6 +63,14 @@ port's own, worn on the Morrowind body that the port draws when the player attac
 
 ## Added on Dev (merged 2026-11-13)
 
+## Clothing under the plate
+
+In the shared local and peer outfit composer, the explicit full-slot coverage of a worn
+plate can reserve a lower-priority cloth panel (mwItemMap.js:"const coversClothing =").
+An overlapping armour panel keeps its mesh. A meshless retail leg reservation keeps an existing cloth panel. A named leg model missing from the archives cannot replace cloth. A hidden slot only inherits explicit coverage when the armour part that provides it is present. This extends DFO's 3D clothes composition beyond DFU's
+paper-doll images
+([ItemHelper.GetItemImage](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Game/Items/ItemHelper.cs)).
+
 ## Rigid breastplate shell (2026-11-09)
 Fist-series geometry diagnostics found adjacent shell vertices carried by different clavicle and spine bones.
 Those bones turn independently during a punch, stretching the metal plate. The first cuirass shape now follows

@@ -19,7 +19,7 @@ time, damage and cadence are DFU's and untouched; the arm's way of showing it is
 
 | Law | Module | What it decides |
 | --- | --- | --- |
-| MW-PACE1 (before this arc) | `src/combat/fpArm.js` blowPace | a peer's / NPC's blow fitted to the machine's schedule |
+| MW-PACE1 (before this arc) | `src/combat/fpArm.js` blowPace | a peer's melee blow fitted to the sender's timing, with swing-gap estimation for NPCs and poses without timing |
 | MW-PACE2 / MW-PACE3 | `src/combat/blowFlow.js` (PACE, CALM, calmBlowPlan, recoverRate) | the PLAYER's blow: its own sections' speeds |
 | ARM-LED HIT | `src/combat/weapon/armLedBlow.js` | the machine's hit waits for the arm to land it |
 | BLOW-FLOW | `src/combat/blowFlow.js` (BLOW_FLOW, blowBlendSeconds, blendWeightAt) | the blends between blows and back to the stance |

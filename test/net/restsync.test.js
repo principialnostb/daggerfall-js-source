@@ -193,6 +193,7 @@ test('AUDIT SETS M1: A FOE\'S MAXIMUM RIDES THE DUNGEON\'S STREAM - every full f
   const many = () => Array.from({ length: 20 }, (_, i) => foe({ entity: { health: 10, maxHealth: 40 + i, level: 1, items: [] } }));
   const roomy = many();
   const host = side({ authority: true, layout: roomy });
+  host.foes.indexOf = () => assert.fail('a layout snapshot already has each foe index');
   const full = host.foesFrame(true);
   assert.deepEqual(full.f.map((r) => r.k), roomy.map((f) => f.entity.maxHealth), 'a full frame with room: every foe\'s maximum');
   assert.equal(host.foesFrame(false), null, 'and a quiet room says nothing between');

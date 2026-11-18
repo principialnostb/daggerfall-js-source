@@ -9,6 +9,8 @@ the live solve, so deep strides do not set the standing silhouette.
 
 This note documents the current implementation contract. The classic cloak path is the reference; the Simply mesh is adapted to that path rather than given an unrelated placement system.
 
+For contact with back-mounted equipment, `src/formats/morrowind/mwCloakPhysics.js` groups the posed cloak vertices into cells in the rig’s X–Z plane. Each gear triangle visits the cells its bounds touch. The exact triangle test determines coverage, and the highest intersecting surface determines clearance. The cells are rebuilt for each pose.
+
 ## Required behavior
 
 - **Vanilla** selects the project's classic cloak mesh and keeps its existing bind, placement, and body-fit behavior unchanged.

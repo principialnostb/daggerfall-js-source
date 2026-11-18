@@ -61,6 +61,7 @@ import { calculateSuccessfulHit, calculateStruckBodyPart } from '../combat/formu
 import { liveStat } from '../systems/statMods.js';
 import { worldMinutes } from '../systems/worldTick.js';
 import { FlatAnim } from '../render/flatAnimation.js';
+import { markDroppedTorchModel } from '../render/furnishingMorrowind.js';
 import { toColor32 } from '../formats/color32Order.js';   // TEX1: the SHAPE the upload path reads
 import { decodePng } from '../systems/textureReplacement.js';
 import { torchRange } from '../systems/playerTorch.js';
@@ -160,12 +161,20 @@ export function createDroppedTorches({
     const build = (entry) => {
       if (d.dead || !entry?.count || !renderer?.createBillboardBatch) return;
       d.size = { w: entry.size.w / scale() * (d.mirrored ? -1 : 1), h: entry.size.h / scale() };
-      d.batch = renderer.createBillboardBatch(DROPPED_ARCHIVE, d.record, d.size, [d.pos]);
+      d.batch = renderer.createBillboardBatch(DROPPED_ARCHIVE, d.record, d.size, [[0, 0, 0]]);
+      d.batch.origin = d.pos;
+      markTorchModel(d);
       d.batch.frame = 0;
       d.anim = entry.count > 1 ? new FlatAnim(DROPPED_ARCHIVE, entry.count, false) : null;
     };
     if (ready) build(ready); else framesLoading.get(d.record).then(build).catch(() => {});
   }
+  function markTorchModel(d) {
+    if (d.template === TEMPLATES.Torch) {
+      markDroppedTorchModel(d.batch, { group: GROUP_FOR[d.template], templateIndex: d.template });
+    }
+  }
+
   function unmount(d) {
     if (d.batch) { renderer?.destroyBillboardBatch?.(d.batch); d.batch = null; }
     if (d.loop) { d.loop.stop?.(); d.loop = null; }
@@ -226,7 +235,11 @@ export function createDroppedTorches({
       // AUDIT 68 S18-torch-batch-churn: built ONCE about the origin; the flight rides `origin` and the spin rides
       // `size` (both draw-time uniforms), where every 0.02 s step used to free the VAO and build another.
       p.batch = renderer?.createBillboardBatch?.(DROPPED_ARCHIVE, record, p.size, [[0, 0, 0]]) ?? null;
-      if (p.batch) { p.batch.frame = 0; p.batch.origin = flightBase(p); }
+      if (p.batch) {
+        p.batch.frame = 0;
+        p.batch.origin = flightBase(p);
+        markTorchModel(p);
+      }
       p.anim = entry.count > 1 ? new FlatAnim(DROPPED_ARCHIVE, entry.count, false) : null;
     };
     if (ready) build(ready); else framesLoading.get(record).then(build).catch(() => {});
@@ -471,7 +484,6 @@ export function createDroppedTorches({
     const [dx, dy, dz] = offset;
     for (const d of dropped) {
       d.pos[0] += dx; d.pos[1] += dy; d.pos[2] += dz;
-      if (d.batch) { renderer.destroyBillboardBatch(d.batch); d.batch = renderer.createBillboardBatch(DROPPED_ARCHIVE, d.record, d.size, [d.pos]); d.batch.frame = d.anim?.frame ?? 0; }
       d.loop?.move?.(d.pos);
     }
     for (const p of projectiles) {
@@ -497,7 +509,6 @@ export function createDroppedTorches({
       const m = dy(d.pos[0], d.pos[2]);
       if (!m) continue;
       d.pos[1] += m;
-      if (d.batch) { renderer.destroyBillboardBatch(d.batch); d.batch = renderer.createBillboardBatch(DROPPED_ARCHIVE, d.record, d.size, [d.pos]); d.batch.frame = d.anim?.frame ?? 0; }
       d.loop?.move?.(d.pos);
     }
   }

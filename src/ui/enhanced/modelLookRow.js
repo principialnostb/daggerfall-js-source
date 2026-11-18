@@ -1,7 +1,7 @@
 import { itemAppearanceKey } from '../../systems/item/itemAppearanceKey.js';
 import { pixelatedPreviewUrl, previewPixelKey, itemPreviewImageRendering } from './previewPixelation.js';
 import { ownCloakFor } from '../../characters/ownModels/ownClothingModels.js';
-import { CLOTHING_NAME } from '../../formats/morrowind/mwItemMap.js';
+import { armorRowOf, CLOTHING_NAME } from '../../formats/morrowind/mwItemMap.js';
 import { appearanceFigure } from './appearanceFigure.js';
 import { modelDyeKey, modelDyeOf, setModelDye } from '../../systems/modelDye.js';
 import { CLOTHING_DYES, DYE_NAMES } from '../../characters/dyes.js';
@@ -55,7 +55,7 @@ export function modelLookRow({ item, fpArm, ownLooks = null, onChange, catalog =
     if (cloak) { look.picture = null; look.records = [{ id: cloak.id, model: cloak.model }]; }
   }
   const kind = modelLookKind(item);
-  const pauldron = item.templateIndex === 105 || item.templateIndex === 106;
+  const pauldron = armorRowOf(item.templateIndex)?.tokens.includes('pauldron') ?? false;
   const key = `${itemAppearanceKey(item, true)}|${item.group}:${item.templateIndex}:${item.material ?? 0}`;
   const make = (tag, cls, text = '') => { const n = document.createElement(tag); n.className = cls; n.textContent = text; return n; };
   const activeKey = () => { const id = modelLookOf(item); if (id) return `rec:${id}`; const on = own.find((l) => l.on); return on ? on.key : 'original'; };

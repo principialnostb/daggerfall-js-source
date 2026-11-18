@@ -81,7 +81,7 @@ rides the foe stream; online, each client judges its own feet. On the arena's sa
 - Billboard props block sight and missiles, both ways (Mac).
 - Two melee and two ranged attackers a target; the rest hold the ring and wait (Mac).
 - Animals and the cowardly human classes flee; undead, daedra, constructs and guards fight to the death (Mac).
-- The anti-grief spacing and doorway rule are always on, on the classic lane too (Mac).
+- The anti-grief spacing and doorway rule are always on, on the classic lane too (Mac). Spacing compares capsules in neighbouring horizontal cells and preserves the pair order of the pool. Doorway filtering uses the current pool index to identify streamed enemies.
 - Telegraphed blows go to level 10 and up or elites, used sparingly, always readable and dodgeable (Mac).
 - With the switch off, DFU's motor runs to the bit; a seeded pin proves it.
 

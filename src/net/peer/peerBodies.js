@@ -76,6 +76,7 @@ import { EQUIP_SLOTS } from '../../systems/equip.js';
 import { mwRaceId } from '../../formats/morrowind/mwNpc.js';
 import { CAPSULE_HEIGHT } from '../../player/motor.js';
 import { dissolveShadowless } from '../../systems/dissolve.js'; // AUDIT MWNPC16-18 R1: a body burnt more than half away casts none
+import { applyCosmeticItems, cosmeticBodyMorphs, cosmeticIdentityOptions } from '../cosmetics/identityOptions.js';
 import { peerStubEntity, lookKey } from '../remotePlayers.js';
 import { POSE_STRIKES } from '../wire.js'; // MAC7 #1: the swing's kind, by the wire's index
 import { handDesc } from '../../combat/playerWeapon.js'; // AUDIT MIXED-PAIR L4-3: the look's hands, read as the local rig reads its own
@@ -175,7 +176,7 @@ export const BODY_REBUILD_MS = 10000;
 /** A strike the rig refused (an equip in flight, a shot still releasing) is asked again this many frames, then dropped (AUDIT WORLD C3). */
 export const PENDING_FRAMES = 60;
 /** MW-PACE1 (Mac: "Morrowind attack animations don't scale with attack speed/multiple attacks when attack speed is
- *  high"): A PEER'S BLOW, PACED BY ITS OWN GAPS. The wire carries a swing's count and kind, not the sender's Speed - but
+ *  high"): A PEER'S BLOW. When a pose carries no explicit melee timing, the receiver estimates the pace from swing counts:
  *  a held button keeps swinging (WeaponSwingMode 2), and the sender's machine starts each blow the frame after the last
  *  is done, so the gap between two counts IS the sender's blow. A burst's shortest gap paces its blows (a pause in a
  *  fight only lengthens a gap), its hit two fifths in (the machine's HIT_FRAME_MELEE of MELEE_NUM_FRAMES); a gap past
@@ -190,6 +191,10 @@ export function peerBlowPace(pace, gapS) {
   const g = Math.max(PEER_BLOW_MIN_S, gapS);
   return pace == null ? g : Math.min(pace, g);
 }
+export const peerStrikeTiming = (shown, pace) => shown.bms
+  ? { seconds: shown.bms / 1000, hitAt: shown.bhm / 1000, step: shown.bst, lead: true }
+  : peerBlow(pace);
+
 export const peerBlow = (pace) =>
   pace == null ? null : { seconds: pace, hitAt: (pace * HIT_FRAME_MELEE) / MELEE_NUM_FRAMES.StrikeDown };
 /** The drawn yaw eases toward the pose's at this rate (a second) - a turn the rig can see every frame, not one that stops between poses. */
@@ -272,7 +277,7 @@ const _stubSlots = new WeakMap(); // MW-CROWD: a look's stand-in's slots, once a
  *  template, metal, hand and the look it wears. A peer re-dressing the weapon in hand (or taking up its twin in another
  *  metal) is a new weapon to the body; the template and the hand alone kept the old one, and its glow went out. */
 export const heldWeaponKey = (/** @type {any} */ it) =>
-  it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|${appearanceSig(it)}` : '';
+  it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|${appearanceSig(it)}|${it.__mwLook ?? ''}|${it.ownStyle ?? ''}` : '';
 export function peerWeaponOf(look, shown = null) {
   return stubSlotsOf(look)[shown?.lh ? EQUIP_SLOTS.LeftHand : EQUIP_SLOTS.RightHand] ?? null;
 }
@@ -293,7 +298,7 @@ export function peerWrapsGlow(look) {
 function stubSlotsOf(look) {
   let slots = look && typeof look === 'object' ? _stubSlots.get(look) : null;
   if (!slots) {
-    slots = peerStubEntity(look).equip.slots;
+    slots = applyCosmeticItems(peerStubEntity(look).equip.slots, look?.cosmetic);
     if (look && typeof look === 'object') _stubSlots.set(look, slots);
   }
   return slots;
@@ -374,7 +379,7 @@ function bodyLookKey(look) {
         ? lookKey({ ...look, items: items.filter((it) => it?.group !== 'Weapons') })
         : lookKey(look)) +
       npcKeyOf(look) +
-      outfitKeyOf(look);
+      outfitKeyOf(look) + (look.cosmeticKey ?? '');
     _bodyLookKeys.set(look, k);
   }
   return k;
@@ -397,14 +402,14 @@ export function peerBuildOpts(look, shown = null, glyphs = null) {
   const wolf = peerIsWolf(shown);
   const skin = wolf ? werewolfSkinOf(glyphs) : null; // SHADOW-FANG: the glyphs the relay read off the peer's own token
   const npc = wolf ? null : npcHintOf(look); // MWNPC17: a dressed NPC's seed and rung (characters/wardrobe.js) - a player's look carries none
-  const worn = dfWornEquipment(stub.equip.slots, EQUIP_SLOTS, ARMOR_ENUM);
+  const worn = dfWornEquipment(stubSlotsOf(look), EQUIP_SLOTS, ARMOR_ENUM);
   return {
     race: mwRaceId(stub.race),
     female: stub.gender === 'female',
     faceIndex: stub.faceIndex | 0,
     armor: [...(npc ? withNpcPicks(worn, npc) : worn), ...outfitPiece(look, wolf)], // MWNPC17: each garment its rung and its pick; BEAST-BOOTS: a beast NPC's helm and boots go to the composer as a player's do; MW-FOLK1: and a townsperson's outfit
     // DISC12: the hand in use; WEREWOLF1: a wolf holds nothing (the build refuses the hand anyway)
-    weapon: wolf ? null : (stub.equip.slots[shown?.lh ? EQUIP_SLOTS.LeftHand : EQUIP_SLOTS.RightHand] ?? null),
+    weapon: wolf ? null : peerWeaponOf(look, shown),
     hasAmmo: false,
     reachSweep: false, // MWNPC3: a peer is never looked out of - no first-person reach sweep in its build
     ...(wolf ? { werewolf: true, ...(skin ? { skin } : {}) } : {}), // WEREWOLF1: Bloodmoon's wolf - its skeleton, head, hair and robe; SHADOW-FANG: its skin
@@ -419,6 +424,10 @@ export function peerBuildOpts(look, shown = null, glyphs = null) {
  *  heads. */
 export const playerBuildOpts = (look, shown = null, glyphs = null) => ({
   ...peerBuildOpts(look, shown, glyphs),
+  ...(!peerIsWolf(shown) ? cosmeticIdentityOptions(look?.cosmetic) : {}),
+  remoteBodySkin: !peerIsWolf(shown) && look?.cosmetic?.version === 1 && look.cosmetic.body ? look.cosmetic.body : null,
+  remoteCosmetics: look?.cosmetic?.version === 1,
+  remoteBodyMorphs: peerIsWolf(shown) ? null : cosmeticBodyMorphs(look?.cosmetic),
   ownHeads: true,
 });
 
@@ -471,7 +480,9 @@ export function peerCamera(shown, feet, speed = 0, cam = null, yaw = peerBodyYaw
     },
   };
   const moving = peerMoving(shown); // CLIMB5: a shimmy along a lip is no walk
-  c.move.grounded = !peerClimbing(shown); // CLIMB5: on the wall the body is off the ground - the in-air pose the local third person takes there
+  c.move.grounded = !peerClimbing(shown) && shown.mair !== 1;
+  c.move.swimming = shown.mair === 2;
+  c.move.levitating = shown.mair === 3;
   c.pos[0] = feet[0];
   c.pos[1] = feet[1];
   c.pos[2] = feet[2];
@@ -481,7 +492,7 @@ export function peerCamera(shown, feet, speed = 0, cam = null, yaw = peerBodyYaw
   c.move.running = shown.mv === 2;
   c.move.speed = moving ? speed : 0;
   c.move.travel = travel; // AUDIT BODY-MOTION RIG-3: the ground the drawn feet crossed (world, cumulative) - the legs' own travel and its way
-  c.sneaking = peerKneeling(shown); // PEER-ACTS: kneeling at an act (a herb, the Basket's search, the knife at a body) - the rig's crouched idle, Morrowind's own (it has no kneel)
+  c.sneaking = shown.mcr === 1 || peerKneeling(shown); // PEER-ACTS: kneeling at an act (a herb, the Basket's search, the knife at a body) - the rig's crouched idle, Morrowind's own (it has no kneel)
   return c;
 }
 
@@ -771,9 +782,10 @@ export class PeerBodies {
         if (!!b.wolf !== peerIsWolf(peer.shown)) {
           if (b.byForm && now - b.born < BODY_REBUILD_MS) this._formWait.set(id, b.born + BODY_REBUILD_MS);
           this._flipped.add(id);
+          this._release(id);
+          continue;
         }
-        this._release(id);
-        continue;
+        if (b.state === 'ok') this._queueAppearance(b);
       }
       b.veil = conceal ? (conceal(id) ?? null) : null; // INVIS-LOOK: a concealed peer's body keeps standing, drawn translucent (drawVeiled)
       this._place(b, peer, toScene, dt, near);
@@ -1119,6 +1131,7 @@ export class PeerBodies {
     b.peer = null;
     // AUDIT MWBODY A1: a throw from one peer's rig is that peer's doll, never the frame's end
     try {
+      if (this._buildOpts === playerBuildOpts) b.rig.setSeriesWanted?.(peer.shown.bsr === 1);
       this._arm(b, peer.shown, peer.look, peer.ak); // ARMORY-FISTS: and their kit
       b.bank = Math.min(EFFECTS_BANK_MAX_S, b.bank + dt); // AUDIT WB9 (bodies F1)
       if (pose) this._poseHorse(b); // HORSE-VIEW: astride, its horse first - the skin is posed to the seat of the horse's own new pose
@@ -1262,7 +1275,7 @@ export class PeerBodies {
                 strike: POSE_STRIKES[shown.as | 0] ?? 'StrikeDown',
                 hold: shown.wd === 2,
                 left: PENDING_FRAMES,
-                blow: peerBlow(b.blowPace),
+                blow: peerStrikeTiming(shown, b.blowPace),
                 hand: hands?.dual ? (shown.ah ? 'L' : 'R') : null,
               }
             : null; // AUDIT MIXED-PAIR L4-3: a pair's strike with the hand that made it
@@ -1275,6 +1288,7 @@ export class PeerBodies {
             blow: b.pending.blow ?? null,
             roll: b.swing,
             hand: b.pending.hand ?? null,
+            peerPlayer: this._buildOpts === playerBuildOpts,
           })
         ) {
           b.held = b.pending.hold;
@@ -1339,11 +1353,63 @@ export class PeerBodies {
     } catch {
       /* a console is not the body's problem */
     }
-    this._release(b.id);
+    if (this._bodies.get(b.id) === b) this._release(b.id);
   }
 
-  async _build(b, look, shown = null, glyphs = null) {
-    if (this._bodies.get(b.id) !== b) return; // released before its turn: no parse for a body already gone
+  _queueAppearance(body) {
+    if (body.appearanceQueued) return;
+    const peer = this._live.get(body.id);
+    const key = peerBodyKey(peer.look, peer.shown, peer.glyphs);
+    if (this._failed.get(key)?.until > this._now()) return;
+    body.appearanceQueued = true;
+    const build = async () => {
+      try {
+        await this._replaceAppearance(body);
+      } finally {
+        body.appearanceQueued = false;
+      }
+    };
+    if (this._gate) this._queue = gateBuild(this._gate, build, this._buildInRange);
+    else this._queue = this._queue.then(build).catch(() => null);
+  }
+
+  async _replaceAppearance(body) {
+    const peer = this._live.get(body.id);
+    if (!peer || this._bodies.get(body.id) !== body || body.far || body.wolf !== peerIsWolf(peer.shown)) return;
+    const { look, shown, glyphs } = peer;
+    const key = peerBodyKey(look, shown, glyphs);
+    if (key === body.key || this._failed.get(key)?.until > this._now()) return;
+    const next = { id: body.id, key, wolf: body.wolf, far: false, rig: this._createRig(), state: 'building', weapon: null, builtAt: 0 };
+    let adopted = false;
+    try {
+      next.rig.attach(this.renderer, () => body.cam);
+      await this._build(next, look, shown, glyphs, body);
+      const live = this._live.get(body.id);
+      if (next.state !== 'ok' || this._bodies.get(body.id) !== body || body.far || !live ||
+          peerBodyKey(live.look, live.shown, live.glyphs) !== key) return;
+      next.rig.update(0, { pose: true, effectsDt: 0 });
+      const old = { rig: body.rig };
+      body.rig = next.rig;
+      body.key = key;
+      body.weapon = next.weapon;
+      body.ammo = null;
+      body.builtAt = next.builtAt;
+      body.pending = null;
+      body.held = false;
+      body.hit = null;
+      body.dead = null;
+      body.stale = true;
+      adopted = true;
+      this._unloadSpare(old);
+    } catch (error) {
+      this._fail(next, `replacement threw: ${error?.message ?? error}`);
+    } finally {
+      if (!adopted) this._unloadSpare(next);
+    }
+  }
+
+  async _build(b, look, shown = null, glyphs = null, owner = b) {
+    if (this._bodies.get(b.id) !== owner) return; // released before its turn: no parse for a body already gone
     // AUDIT MW-NPC B4 (MWNPC11's NO RIG PAST THE RANGE): an NPC lane's body whose actor fell past the cut while it waited
     // its turn on the one queue is let go unbuilt - it would stand as its sprite (a scene's first frame, a hitch's, cut
     // before the other lanes had reported, queued more than the frame's bodies); offered within it again, it is queued again
@@ -1362,7 +1428,8 @@ export class PeerBodies {
       res = null;
       reason = `threw: ${e?.message ?? e}`;
     }
-    if (this._bodies.get(b.id) !== b) {
+    if (this._bodies.get(b.id) !== owner) {
+      if (owner !== b) return; // the replacement owns its own cleanup
       try {
         b.rig.unload();
       } catch {

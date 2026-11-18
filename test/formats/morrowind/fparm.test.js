@@ -2087,11 +2087,13 @@ test('MW-D30: the priority law - armor beats clothing, the robe beats the cuiras
   const robe = { kind: 'clothing', templateIndex: 163, name: 'Plain Robes' };
   // armor beats clothing on the same slot: prio 3 over 2.
   const a = composeWornArmor({ pieces: [shirt, cuirass], armors, clothes, bodyPool, female: false });
-  assert.deepEqual(a.adds.map((x) => x.recordId), ['b_cu'], 'the cuirass did not beat the shirt');
+  assert.deepEqual(a.adds.map(({ recordId, fitMode, fitBodySlots }) => [recordId, fitMode, fitBodySlots]),
+    [['b_cu', 'rigid', ['chest', 'groin']]], 'the rigid cuirass did not beat the shirt');
   // the robe's base 11 beats the cuirass's 0: prio 24 over 3 - and its
   // RESERVES hide the legs and arms skin with no refs at all.
   const b = composeWornArmor({ pieces: [robe, cuirass], armors, clothes, bodyPool, female: false });
-  assert.deepEqual(b.adds.map((x) => x.recordId), ['b_robe'], 'the robe did not beat the cuirass');
+  assert.deepEqual(b.adds.map(({ recordId, fitMode, fitBodySlots }) => [recordId, fitMode, fitBodySlots]),
+    [['b_robe', 'clearance', ['chest', 'groin']]], 'the fitted robe did not beat the cuirass');
   assert.ok(b.shadows.includes('upperleg:right') && b.shadows.includes('forearm:left'),
     'the robe reserve did not hide the limbs');
   // ties go to the LATER piece in the reference order: two garments of
@@ -2099,7 +2101,8 @@ test('MW-D30: the priority law - armor beats clothing, the robe beats the cuiras
   // that CAN tie - nothing does at different bases - by symmetry:
   // shirt alone still dresses.
   const c = composeWornArmor({ pieces: [shirt], armors, clothes, bodyPool, female: false });
-  assert.deepEqual(c.adds.map((x) => x.recordId), ['b_shirt']);
+  assert.deepEqual(c.adds.map(({ recordId, fitMode, fitBodySlots }) => [recordId, fitMode, fitBodySlots]),
+    [['b_shirt', 'shirt', ['chest', 'groin']]]);
   // THE +1 ITSELF, swept at the source: in the reference's own walk
   // order armor always precedes the generic garments, so with a
   // first-claimant tie rule the armor bit never flips an outcome this
@@ -2135,6 +2138,64 @@ test('MW-D30: the skirt reserve and the readout - garments ride the equip table'
     { kind: 'clothing', templateIndex: 165, name: 'Short Shirt', dye: 0 },
     { kind: 'clothing', templateIndex: 154, name: 'Casual Cloak', dye: 0 },
   ]);
+});
+
+test('steel plate greaves opt both thighs into rigid fitting', () => {
+  const greaves = { kind: 'armor', templateIndex: ARMOR_ENUM.Greaves, material: ARMOR_MATERIAL.Steel, ownStyle: 'plate' };
+  const { adds } = composeWornArmor({ pieces: [greaves], armors: [], bodyPool: [] });
+  assert.deepEqual(adds.map(({ partName, fitMode, fitBodySlots }) => [partName, fitMode, fitBodySlots]).sort(), [
+    ['left upper leg', 'rigid', ['upperleg']],
+    ['right upper leg', 'rigid', ['upperleg']],
+  ]);
+});
+
+test('plate boots hide covered trouser panels while meshless chain knees keep them', () => {
+  const knee = ARMO_PART.findIndex(({ name }) => name === 'right knee');
+  const options = {
+    clothes: [{
+      id: 'common_pants_01', model: 'pants.nif', type: 0, name: '', enchanted: false,
+      parts: [{ part: knee, male: 'pants_knee' }],
+    }],
+    bodyPool: [{ id: 'pants_knee', model: 'pants_knee.nif' }],
+    armors: [{
+      id: 'imperial_chain_greaves', model: 'chain.nif', name: '', enchanted: false,
+      parts: [{ part: knee }],
+    }],
+  };
+  const trousers = { kind: 'clothing', name: 'Casual Pants' };
+  const boots = { templateIndex: ARMOR_ENUM.Boots, material: ARMOR_MATERIAL.Steel };
+  const chain = { templateIndex: ARMOR_ENUM.Greaves, material: ARMOR_MATERIAL.Chain };
+  const kneeModel = (pieces, hasMesh) => composeWornArmor({ ...options, pieces, hasMesh })
+    .adds.find((add) => add.partName === 'right knee')?.model;
+
+  assert.equal(kneeModel([trousers, chain]), 'pants_knee.nif');
+  assert.equal(kneeModel([trousers, boots]), undefined);
+  assert.equal(kneeModel([trousers, boots], () => false), 'pants_knee.nif');
+});
+
+test('default Casual Pants keep their knee seams and boots replace only covered panels', () => {
+  const leftFoot = ARMO_PART.findIndex(({ name }) => name === 'left foot');
+  const leftAnkle = ARMO_PART.findIndex(({ name }) => name === 'left ankle');
+  const leftKnee = ARMO_PART.findIndex(({ name }) => name === 'left knee');
+  const leftThigh = ARMO_PART.findIndex(({ name }) => name === 'left upper leg');
+  const ref = (part, male) => ({ part, male });
+  const pants = { kind: 'clothing', name: 'Casual Pants' };
+  const boot = { kind: 'armor', templateIndex: ARMOR_ENUM.Boots, material: 0, mwRecord: 'netch_leather_boots' };
+  const base = {
+    pieces: [pants, boot],
+    clothes: [{ id: 'common_pants_01', model: 'pants.nif', type: 0,
+      parts: [ref(leftThigh, 'thigh'), ref(leftKnee, 'knee'), ref(leftAnkle, 'ankle')] }],
+    armors: [{ id: 'netch_leather_boots', model: 'boot.nif', parts: [ref(leftFoot, 'boot'), ref(leftAnkle, 'shaft'), ref(leftKnee)] }],
+    bodyPool: ['thigh', 'knee', 'ankle'].map((id) => ({ id, model: 'c/c_m_pants_' + id + '.nif' }))
+      .concat([{ id: 'boot', model: 'boot.nif' }, { id: 'shaft', model: 'shaft.nif' }]),
+  };
+  const parts = (hasMesh) => Object.fromEntries(composeWornArmor({ ...base, hasMesh }).adds.map((row) => [row.partName, row]));
+  const full = parts(() => true);
+  assert.equal(full['left ankle'].recordId, 'shaft');
+  assert.equal(full['left knee'].recordId, 'knee');
+  assert.deepEqual(full['left upper leg'].fitBodySlots, []);
+  assert.deepEqual(full['left knee'].fitBodySlots, []);
+  assert.equal(parts((path) => path !== 'meshes/shaft.nif')['left ankle'].recordId, 'ankle');
 });
 
 test('MW-D31: the first person wears gauntlets, sleeves and the shield - never a helmet in your face', () => {

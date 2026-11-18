@@ -23,3 +23,11 @@ test('shared pixel pass preserves character drawing when no mesh callback is sup
  drawPixelatedCharacters(r,[d],0);
  assert.deepEqual(seen,[[d.mesh,d.model]]);
 });
+
+test('a mesh pass can reuse the viewport its caller just read', () => {
+  const draws = [];
+  const r = { gl: {}, drawCharacter: (...args) => draws.push(args) };
+  const mesh = {}, model = identity();
+  drawPixelatedCharacters(r, [{ mesh, model }], 540, null, undefined, 1, null, [0, 0, 960, 540]);
+  assert.deepEqual(draws, [[mesh, model]]);
+});

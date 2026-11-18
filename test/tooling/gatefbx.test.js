@@ -247,7 +247,7 @@ test('AUDIT GATE-FBX C2/C3 the host: /unstuck in a gate\'s court is refused in i
   assert.ok(un > ws.indexOf('if (/^\\/unstuck(\\s+cancel)?$/i.test(text.trim())) {') && un < ws.indexOf('const inZone = wildHere() && !(TEST_GODMODE && staffPowers().god);'), 'before the zone\'s and the town\'s ways');
   assert.match(COURT_TEXT.noUnstuck, /Deadlands/);
   assert.match(ws, /\n {4}if \(modes\?\.gateArenaDay\?\.\(\) != null\) gateCourt\?\.stepsIn\(drawable, \(d\) => \(d\?\.shown \? onlineToScene\(d\.shown\) : null\)\);/, 'the room\'s every player, in the court');
-  assert.ok(ws.indexOf('gateCourt?.stepsIn(drawable') > ws.indexOf('const visiblePeers = gateCrowd.cut('), 'beside the crowd\'s cut, never through it');
+  assert.ok(ws.indexOf('gateCourt?.stepsIn(drawable') > ws.indexOf('const visiblePeers = cosmeticPeers(online, playerEntity, gateCrowd.cut('), 'beside the crowd\'s cut, never through it');
 });
 
 test('AUDIT GATE-FBX C1 the court gone silent: standing in it, my frames seeing no word of its fight for COURT_SILENT_MS - no state at all, or one whose heardAt never moves - it is silent, and the host casts me out by the way that is lost (no door stands in it until he falls); each word keeps it alive; a fallen Warden\'s court (his portal stands) or the Wrath\'s, never; a frame COURT_FRAME_GAP_MS after the last (a screen asleep) counts none; under the step\'s veil or out of the court, never (mutants: the silence never counted; the sleeping screen counted)', () => {

@@ -20,7 +20,7 @@ const line = (head) => { const a = D.indexOf(head); assert.ok(a > 0, `src has ${
 /** The helpers as the context declares them: the room's predicate, the party's word on my quest foe, and the run from
  *  `_sharedFoe` to the damage door - with the door's one subtraction. */
 function helpers() {
-  const a = D.indexOf('function _sharedFoe(f) {'), b = D.indexOf('function damageFoe(foe, damage,', a);
+  const a = D.indexOf('function _sharedFoe(f, index = undefined) {'), b = D.indexOf('function damageFoe(foe, damage,', a);
   assert.ok(a > 0 && b > a, 'the helpers are found');
   const door = strip(D.slice(b, D.indexOf('if (foe.entity.health <= 0) {', b))).match(/foe\.entity\.health -=[^;]*;/g);
   assert.equal(door?.length, 1, 'one subtraction at the door');
@@ -51,7 +51,7 @@ test('PSCALE-OWN: my shared quest\'s foe underground is as tough as the party st
     d.healFoe(vamp, 20); assert.equal(vamp.entity.health, 96, 'a heal of 20 on it fought by four is 8');
   }
   // the record: the own lane's (roomRecord), `n` because it is shared - what a party member's puppet reads
-  assert.match(strip(D), /if \(!f\.dead && _sharedFoe\(f\)\) \{ const n = fightN\(f\); if \(n > 1\) r\.n = n; \}/);
+  assert.match(strip(D), /if \(!f\.dead && _sharedFoe\(f, seeded \? undefined : i\)\) \{ const n = fightN\(f\); if \(n > 1\) r\.n = n; \}/);
   // PIN MOVED (AUDIT MW-NPC II K3): the own lane's records carry the owner's look seed (`true`, roomRecord's `seeded`)
   assert.match(strip(D), /const r = roomRecord\(f, f\._ownSeq, full \|\| !!heirOf, true\);/, 'the own lane\'s frame is that record');
 });

@@ -171,3 +171,29 @@ test('GPU skin stream restreams only the skinned cloak row after physics changes
   assert.notDeepEqual(Array.from(updates[0].data), Array.from(packed.stream), 'the GPU receives the simulated positions and normals');
   assert.deepEqual(restreamMovedRows(layout, lanesOf), [], 'the same state is not uploaded twice');
 });
+
+test('contact grid keeps edge vertices, overlapping gear depth and releases moving gear across cells', () => {
+  const side = 9, count = side * side, base = new Float32Array(count * 3);
+  for (let v = 0; v < count; v++) {
+    base[v * 3] = v % side;
+    base[v * 3 + 2] = Math.floor(v / side);
+  }
+  const state = { base, pos: base.slice(), prev: base.slice(), shieldPinned: new Uint8Array(count),
+    shieldClearance: new Float32Array(count) };
+  const piece = { clothPhysics: state, batch: { positions: base.slice() } };
+  const surface = height => ({ positions: Float32Array.of(0, height, 0, 8, height, 0, 0, height, 8),
+    indices: Uint16Array.of(0, 1, 2) });
+  const low = surface(1), high = surface(2);
+  for (const height of [2, 1]) {
+    assert.equal(resolveCloakShieldContact(piece, base, [low, high]), 45);
+    for (let v = 0; v < count; v++) {
+      const covered = base[v * 3] + base[v * 3 + 2] <= 8;
+      assert.equal(state.shieldPinned[v], Number(covered));
+      assert.equal(state.pos[v * 3 + 1], covered ? Math.fround(height + 0.38) : 0);
+    }
+    for (let i = 0; i < high.positions.length; i += 3) high.positions[i] += 12;
+  }
+  assert.equal(resolveCloakShieldContact(piece, base, [high]), 0);
+  assert.deepEqual(state.prev, base);
+  assert.deepEqual(state.pos, base);
+});

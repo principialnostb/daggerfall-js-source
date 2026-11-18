@@ -26,7 +26,7 @@ export const sweepHeight = (ai) => ai.controllerHeight ?? ai.height ?? CAPSULE_H
 export const spacingSkips = (f) => !!f?.dead || !!f?.puppet || !f?.ai?.feet;
 
 let _push = new Float64Array(64);
-let _live = new Uint8Array(32);
+
 const _was = [0, 0, 0],
   _from = [0, 0, 0],
   DOWN = [0, -1, 0];
@@ -53,21 +53,37 @@ export function spaceFoes(foes, collider, dt, skip = spacingSkips) {
   if (n && dt > 0 && collider?.move) keepFoesOffBodies(foes, collider, skip); // TRUNK-FOES: a lone foe too
   if (n < 2 || !(dt > 0) || !collider?.move) return 0;
   if (_push.length < n * 2) _push = new Float64Array(n * 2);
-  if (_live.length < n) _live = new Uint8Array(n);
-  let live = 0;
+
+  const live = [];
+  const cells = new Map();
   for (let i = 0; i < n; i++) {
-    _live[i] = skip(foes[i], i) ? 0 : 1;
-    live += _live[i];
+    if (skip(foes[i], i)) continue;
+    const [x, , z] = foes[i].ai.feet;
+    if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+    const cx = Math.floor(x / FOE_SPACING_GAP), cz = Math.floor(z / FOE_SPACING_GAP);
+    const key = `${cx},${cz}`;
+    const cell = cells.get(key) ?? [];
+    if (!cell.length) cells.set(key, cell);
+    cell.push(i);
+    live.push({ i, cx, cz });
   }
-  if (live < 2) return 0;
+  if (live.length < 2) return 0;
   _push.fill(0, 0, n * 2);
   let touched = false;
-  for (let i = 0; i < n; i++) {
-    if (!_live[i]) continue;
+  const nearby = [];
+  for (const { i, cx, cz } of live) {
+    nearby.length = 0;
+    // Overlapping centres can only occupy the same or neighbouring cells.
+    for (let x = -1; x <= 1; x++) {
+      for (let z = -1; z <= 1; z++) {
+        const cell = cells.get(`${cx + x},${cz + z}`);
+        if (cell) for (const j of cell) if (j > i) nearby.push(j);
+      }
+    }
+    nearby.sort((a, b) => a - b); // preserve push accumulation order
     const a = foes[i].ai.feet,
       ha = sweepHeight(foes[i].ai);
-    for (let j = i + 1; j < n; j++) {
-      if (!_live[j]) continue;
+    for (const j of nearby) {
       const b = foes[j].ai.feet,
         hb = sweepHeight(foes[j].ai);
       if (!(a[1] < b[1] + hb && b[1] < a[1] + ha)) continue; // one above the other: no contact
@@ -272,8 +288,9 @@ export const DOORWAY_CLEAR_SPEED = 1.6;
 export function clearDoorways(foes, doors, collider, dt, skip = spacingSkips) {
   if (!(dt > 0) || !collider?.move || !foes?.length || !doors?.length) return 0;
   let moved = 0;
-  for (const f of foes) {
-    if (skip(f)) continue;
+  for (let i = 0; i < foes.length; i++) {
+    const f = foes[i];
+    if (skip(f, i)) continue;
     const ai = f.ai,
       feet = ai.feet;
     for (const d of doors) {

@@ -1,3 +1,4 @@
+import { drawHorsePixelated } from '../render/npcPixel.js';
 // @ts-check
 // COATS3D (bible/06-Systems/Horse-Coats.md, "The 3D horse"): THE 3D HORSE, ITS GL HALF - one per renderer
 // (`horseRigFor`), shared by every horse the Morrowind lane draws: the player's own under them (player/mwView.js),
@@ -41,7 +42,8 @@ import {
   horseLookOfCode,
 } from '../systems/horse/horseCoats.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
-import { MW_ARM_PIXEL, CHAR_SPRITE_RT_SIZE } from '../render/renderer.js';
+import { blockPixels, charPixelRows } from '../render/charPixelLayer.js';
+import { CHAR_SPRITE_RT_SIZE } from '../render/renderer.js';
 import { decodePng } from '../systems/textureReplacement.js';
 import { multiply, trs, transformPoint } from './mat4.js';
 
@@ -394,7 +396,7 @@ export function createHorseRig({
     if (fresh) pose(h);
     if (outOfView(bx.center, Math.hypot(bx.halfW, bx.halfH), view, proj)) return false;
     if (!conceal) {
-      renderer.drawCharacter(h.mesh, h.model);
+      drawHorsePixelated(renderer, h.mesh, h.model, bx);
       return true;
     }
     drawRigSpriteBox(
@@ -411,11 +413,11 @@ export function createHorseRig({
     return true;
   }
 
-  /** The rider's horse in first person: the world's own camera, a screen-sized picture at the arm's dial, laid over
+  /** The rider's horse in first person: the world's own camera, a screen-sized picture at the NPC tier, laid over
    *  the world where Daggerfall drew its riding sprite (the hosts draw the hands after it). */
   function drawFirstPerson(h, canvas, { proj, view }) {
     if (!h?.model || !canvas) return false;
-    const pixel = MW_ARM_PIXEL; // the arm's dial, and the target's room for the screen's frame at it
+    const pixel = blockPixels(canvas.clientHeight, charPixelRows('npc'));
     const wantW = canvas.clientWidth / pixel,
       wantH = canvas.clientHeight / pixel;
     const edge = renderer.charSpriteRoom?.(Math.ceil(Math.max(wantW, wantH))) ?? CHAR_SPRITE_RT_SIZE;

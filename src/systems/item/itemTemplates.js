@@ -401,7 +401,7 @@ export function inventoryItemImage(item, identity = undefined) {
   // shows that record in the list too; a style look is read in the variants block below
   const look = paperdollLookFor(item);
   if (look?.t !== undefined) item = { ...item, templateIndex: look.t };
-  if (Number.isInteger(look?.d)) item = { ...item, dye: look.d }; // GARMENT-DYES: the chosen colour (itemDyeColor reads a garment's `dye` first)
+  if (Number.isInteger(look?.d)) item = { ...item, dye: look.d };
   const t = clothingDisplayTemplate(templateByIndex(item.templateIndex), identity?.gender, ITEM_TEMPLATES);
   if (!t) return null;
   // THUNDERLOCK-ART: a weapon of the port's own draws its own picture in a list, never its doll layer
@@ -461,10 +461,7 @@ export function inventoryItemImage(item, identity = undefined) {
       archive,
       record,
       dye: itemDyeColor(item),
-      dyeTarget:
-        Number.isInteger(look?.d) && (item.group === 'MensClothing' || item.group === 'WomensClothing')
-          ? 2
-          : itemDyeTarget(item),
+      dyeTarget: itemDyeTarget(item),
     };
   }
   let archive, record;

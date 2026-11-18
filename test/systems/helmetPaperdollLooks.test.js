@@ -63,7 +63,7 @@ test('tabs and row arrows only browse; selecting 2D preserves tab/page on invent
     tabs.children[1].onclick();
     const seen = [];
     for (let page = 0; page < 2; page++) {
-      const [cards, arrows] = panel.children[0].children;
+      const [cards, arrows] = panel.children.at(-1).children;
       seen.push(...cards.children.map((b) => b.title));
       if (page < 1) arrows.children[1].onclick();
       else assert.equal(arrows.children[1].disabled, true);
@@ -71,12 +71,12 @@ test('tabs and row arrows only browse; selecting 2D preserves tab/page on invent
     assert.equal(changes, 0);
     assert.equal(helmetPaperdollVariant(helm), null);
     assert.deepEqual(seen, ['Исходный', '2D-облик 1', '2D-облик 2', '2D-облик 4', '2D-облик 5', '2D-облик 6']);   // the own style (3) once, as Original
-    panel.children[0].children[0].children[0].onclick();
+    panel.children.at(-1).children[0].children[0].onclick();
     assert.equal(changes, 1);
     assert.equal(helmetPaperdollVariant(helm), 3);
     const again = helmetAppearancePicker(options);
     assert.equal(again.children[1].attributes['aria-label'], '2D-облик');
-    assert.equal(again.children[1].children[0].children[0].children[0].title, '2D-облик 4');
+    assert.equal(again.children[1].children.at(-1).children[0].children[0].title, '2D-облик 4');
     again.children[0].children[0].onclick();
     assert.equal(changes, 1);
     assert.equal(again.children[1].children[0], modelRow);
@@ -86,9 +86,9 @@ test('tabs and row arrows only browse; selecting 2D preserves tab/page on invent
     setPref('modelCustomization', false);
     assert.deepEqual(helmetAppearancePicker(options).children[0].children.map((b) => b.textContent), ['2D-облик']);
     setPref('modelCustomization', true); setPref('morrowindThirdPersonOnly', false);
-    assert.deepEqual(helmetAppearancePicker(options).children[0].children.map((b) => b.textContent), ['3D-модель']);
+    assert.deepEqual(helmetAppearancePicker(options).children[0].children.map((b) => b.textContent), ['3D', '2D']);
     setPref('modelCustomization', false);
-    assert.equal(helmetAppearancePicker(options), null);
+    assert.deepEqual(helmetAppearancePicker(options).children[0].children.map((b) => b.textContent), ['2D-облик']);
   } finally { setPref('modelCustomization', previous3D); setPref('morrowindThirdPersonOnly', previous2D); globalThis.document = previousDocument; setPref(HELMET_2D_PREF, previous); }
 });
 

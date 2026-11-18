@@ -397,6 +397,9 @@ export function lerpPose(from, to, t) {
     x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z + (to.z - from.z) * k,
     yaw: lerpAngle(from.yaw, to.yaw, k), pitch: from.pitch + (to.pitch - from.pitch) * k, mv: to.mv,
     wd: to.wd ?? 0, an: to.an ?? 0, as: to.as ?? 0,   // MAC7 #1: the arm's three ride the drawn pose whole - nothing to ease
+    ...(to.mair ? { mair: to.mair } : {}),
+    ...(to.mcr ? { mcr: to.mcr } : {}),
+    ...(to.bms ? { bms: to.bms, bhm: to.bhm } : {}),
     am: to.am ?? 0, sr: to.sr ?? 0, cn: to.cn ?? 0, cr: to.cr ?? 0,   // MAC7 #2: and the other four
     ce: to.ce ?? 4,   // SPELLFX1: the cast's element, whole
     ar: to.ar ?? 0,   // SPELLFX1: and the arrows loosed
@@ -2830,6 +2833,8 @@ export class OnlineSession {
   }
 
   /** The frame's pose: sent at POSE_HZ when it moved, and every HEARTBEAT_MS regardless. A channel session refuses it (AUDIT CHAT D3). */
+  visualPose() { return this._pose; }
+
   sendPose(pose) {
     if (!this.presence) return false;
     if (this._ghost && pose && pose.gh !== 1) pose = { ...pose, gh: 1 };   // the toybox's ghost: veiled to the staff who see it

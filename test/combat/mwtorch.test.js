@@ -243,6 +243,9 @@ test('AUDIT MW-TORCH F3/F5: with a LIGH record and its mesh but no Shield Bone, 
   assert.equal(built.ok, true, built.ok ? '' : `${built.stage}: ${built.error}`);
   assert.deepEqual(built.allLights.map((l) => [l.id, l.model, l.carry]), [['torch', 'l/torch.nif', true]], 'the appended LIGH record rides the walk');
   assert.equal(built.torch, null, 'built doused: no torch part');
+  const groundModel = await arm.groundLootModel({ group: 'UselessItems2', templateIndex: 247 });
+  assert.equal(groundModel?.modelKey, 'meshes/l/torch.nif');
+  groundModel.release();
   assert.equal(built.torchTried, undefined);
   const opened = counters.opened;
   const p = arm.setTorch(true);

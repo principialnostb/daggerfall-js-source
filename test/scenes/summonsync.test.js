@@ -265,7 +265,7 @@ test('SUMMON-SYNC: my loose stand hunts every player in the room - my quest foe 
 
 test('SUMMON-SYNC: my loose stand is weighed by who fights it, counted by me whoever holds the seat; another\'s loose puppet reads its owner\'s count; my allied summon never', () => {
   _resetPartyScaleForTests();
-  const a = D.indexOf('function _sharedFoe(f) {'), b = D.indexOf('function damageFoe(foe, damage,', a);
+  const a = D.indexOf('function _sharedFoe(f, index = undefined) {'), b = D.indexOf('function damageFoe(foe, damage,', a);
   const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
   const door = strip(D.slice(b, D.indexOf('if (foe.entity.health <= 0) {', b))).match(/foe\.entity\.health -=[^;]*;/g);
   const summon = loose({ entity: { health: 100, maxHealth: 200 } });

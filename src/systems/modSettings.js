@@ -7148,6 +7148,10 @@ export function modSetting(vendor, key) {
 function readModSetting(vendor, key) {
   const def = declaredKey(vendor, key);
   if (!def) throw new Error(`modSetting: ${vendor}/${key} is not a declared switch`);
+  if (import.meta.env?.DEV && import.meta.env?.VITE_WESTLY_FACES === '1' && vendor === 'morrowind-textures') {
+    if (key === 'WestlysFacesRefurbished') return enabledModValue(vendor, key, true);
+    if (key === 'WestlysFacesRefurbishedSource') return 2;
+  }
   const forced = onlineModSetting(vendor, key); // MODS-ONLINE-2: online, a key the room's ground depends on reads the room's value and the store is not written; REALM P0.2: and a balance mod's every key its shipped default
   if (forced !== undefined) return forced;
   const v = load()[vendor]?.[key];

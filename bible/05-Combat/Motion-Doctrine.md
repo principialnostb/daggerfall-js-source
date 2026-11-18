@@ -1665,3 +1665,16 @@ idle moved the arm the chosen turn leapt between them, 0.23 radians at once, eas
 The open twitch above (01-36-50, "the arm twitches in the neutral pose") is this. The sword arm and the shield arm in
 the recording are the same mechanism by the same signature (the elbow, at an interval) but were not reproduced offline
 - the probe stands them on the retail stance idles, which never reach the skin; to be seen in the game.
+
+### Animation diagnostics in the 13.11 build
+
+Animation diagnostics used to serialize and write up to 200 events to browser storage on each playback milestone. The work ran on the frame that advanced the combat clip. `fpArm.js:"function logAnimationDiagnostic(key, detail) {"` now collects events only after `setMorrowindAnimationDiagnosticsEnabled()` is called in DevTools. The diagnostic export can still read events from earlier sessions. This changes DFO's Morrowind rig diagnostics, which have no counterpart in DFU's combat animation.
+
+## Remote jump and landing
+
+The player pose carries the motor's airborne, swimming or levitating state. Takeoff and landing trigger pose sends. The remote rig uses the same jump selection as the local rig. Grounded and older poses omit the field. Climbing keeps its own pose state and mounted players keep the riding path. Crouch and sneak use the local motor's sneak state in the remote rig; changes trigger a pose send and standing clears the flag.
+
+
+## Peer melee playback
+
+The cosmetics service carries the attacker's strike step with its attack counter and timing. A peer with that timing uses the same per-section plan as the local arm (`peerBodies.js:"export const peerStrikeTiming ="`). Packet intervals no longer determine the rate of a strike with a matched schedule. The combat regression drives two rigs through the same clip and compares each frame at different arrival intervals. Without timing, a remote player uses the default local melee rate instead of a packet interval. The cosmetics sample also carries the attacker's series flag, which gives the follow-through the same recovery rule. This continues DFO's 3D playback departure from DFU's classic FPSWeapon frames.

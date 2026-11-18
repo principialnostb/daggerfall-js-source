@@ -18,7 +18,7 @@ const CAT = {
   armors: [
     armo('steel_cuirass'), armo('daedric_cuirass'), armo('ebony_cuirass'), armo('iron_cuirass'),
     armo('steel_cuirass_dup', 'a/steel_cuirass.nif'),                      // the steel mesh twice: one choice
-    { ...armo('ebony_cuirass_enchanted'), enchanted: true },               // enchanted: no look
+    { ...armo('ebony_cuirass_enchanted'), enchanted: true },               // unique enchanted mesh
     armo('netch_leather_cuirass'), armo('chitin cuirass'), armo('bonemold_cuirass'), armo('imperial_chain_cuirass'),
     armo('iron_gauntlet_left'), armo('iron_gauntlet_right'), armo('daedric_gauntlet_left'), armo('daedric_gauntlet_right'),
     armo('ebony_bracer_left'),                                             // one side only: no pair, no look
@@ -58,12 +58,56 @@ test('the weight class, the side and the stem read every spelling retail uses', 
 
 test('armour offers every record of its piece in its family\'s weight class, pairs whole, no duplicate mesh, never its own', keep(() => {
   const cuirass = { group: 'Armor', templateIndex: 102, material: steel };
-  assert.deepEqual(modelLookChoices(cuirass, CAT).map((c) => c.id), ['daedric_cuirass', 'ebony_cuirass', 'iron_cuirass']);   // steel is Original; netch, chitin, bonemold, chain are other families
+  assert.deepEqual(modelLookChoices(cuirass, CAT).map((c) => c.id), ['daedric_cuirass', 'ebony_cuirass', 'ebony_cuirass_enchanted', 'iron_cuirass']);   // steel is Original; netch, chitin, bonemold, chain are other families
   assert.deepEqual(modelLookChoices({ group: 'Armor', templateIndex: 102, material: ARMOR_MATERIAL.Leather }, CAT).map((c) => c.id), ['chitin_cuirass']);
   assert.deepEqual(modelLookChoices({ group: 'Armor', templateIndex: 102, material: ARMOR_MATERIAL.Chain }, CAT).map((c) => c.id), ['bonemold_cuirass']);
+  assert.deepEqual(modelLookChoices({ ...cuirass, artifact: true, rarity: 'gilded' }, CAT), modelLookChoices(cuirass, CAT));
+  assert.equal(mwArmorRecords(CAT.armors, 102, steel, null, 'ebony_cuirass_enchanted').records[0].id, 'ebony_cuirass_enchanted');
   const gauntlets = modelLookChoices({ group: 'Armor', templateIndex: 103, material: steel }, CAT);
   assert.deepEqual(gauntlets.map((c) => c.id).sort(), ['bm_ice_gauntlet', 'daedric_gauntlet', 'iron_gauntlet'].sort());   // the one-sided ebony bracer is none
   assert.equal(gauntlets.find((c) => c.id === 'daedric_gauntlet').models.length, 2);
+}));
+
+test('same-name armour choices are kept when their meshes differ', () => {
+  const cuirass = { group: 'Armor', templateIndex: 102, material: steel };
+  const armors = [
+    { ...armo('steel_cuirass'), name: 'Steel Cuirass' },
+    { ...armo('steel_cuirass_alt_a'), name: 'Steel Cuirass' },
+    { ...armo('steel_cuirass_alt_b'), name: 'Steel Cuirass' },
+    { ...armo('steel_cuirass_duplicate', 'a/steel_cuirass_alt_a.nif'), name: 'Steel Cuirass' },
+  ];
+  assert.deepEqual(modelLookChoices(cuirass, { armors }).map(({ id, label }) => [id, label]), [
+    ['steel_cuirass_alt_a', 'Steel Cuirass 1'],
+    ['steel_cuirass_alt_b', 'Steel Cuirass 2'],
+  ]);
+});
+
+test('RRI Chausses and Spaulders expose the 3D choices for their armour family and slot', keep(async () => {
+  const { setModSetting, modSetting } = await import('../../src/systems/modSettings.js');
+  const { RRI_VENDOR } = await import('../../src/systems/roleplayRealismItems/rriItems.js');
+  const { installRoleplayRealismItems } = await import('../../src/systems/roleplayRealismItems/rriInstall.js');
+  const { setItemFields } = await import('../../src/systems/item/itemTemplates.js');
+  const enabled = modSetting(RRI_VENDOR, 'Enabled'), armor = modSetting(RRI_VENDOR, 'newArmor');
+  setModSetting(RRI_VENDOR, 'Enabled', true);
+  setModSetting(RRI_VENDOR, 'newArmor', true);
+  installRoleplayRealismItems();
+  try {
+    const armors = ['bonemold_greaves', 'bonemold_pauldron_l', 'bonemold_pauldron_r',
+      'daedric_pauldron_l', 'imperial_chain_greaves'].map((id) => armo(id));
+    const cases = [[516, ARMOR_MATERIAL.Chain, 'bonemold_greaves'],
+      [517, ARMOR_MATERIAL.Steel, 'bonemold_pauldron_l'],
+      [518, ARMOR_MATERIAL.Chain, 'bonemold_pauldron_r']];
+    for (const [templateIndex, material, id] of cases) {
+      const item = setItemFields({ group: 'Armor', templateIndex, material, variant: 0 });
+      const choice = modelLookChoices(item, { armors }).find((look) => look.records[0].id === id);
+      assert.ok(choice, item.name);
+      assert.equal(mwArmorRecords(armors, templateIndex, material, null, choice.id).records[0].id, id);
+      if (templateIndex === 517) assert.ok(modelLookChoices(item, { armors }).every((l) => l.records[0].id === id));
+    }
+  } finally {
+    setModSetting(RRI_VENDOR, 'Enabled', enabled);
+    setModSetting(RRI_VENDOR, 'newArmor', armor);
+  }
 }));
 
 test('the resolvers draw the chosen record, and fall back to their own pick when the archives lack it', () => {
@@ -125,7 +169,7 @@ test('the 3D tab is one row: the own looks then the records, "Original" only whe
     let changes = 0;
     const titles = (row) => { const out = []; let guard = 0; const next = () => row.children[1].children[1]; while (!row.children[1].children[0].disabled && guard++ < 20) row.children[1].children[0].onclick(); guard = 0; for (;;) { out.push(...row.children[0].children.map((b) => b.title)); if (next().disabled || guard++ > 20) break; next().onclick(); } return out; };
     const plain = modelLookRow({ item: cuirass, catalog: CAT, onChange: () => changes++, thumb: async () => null });
-    assert.deepEqual(titles(plain), ['Исходный', 'daedric cuirass', 'ebony cuirass', 'iron cuirass']);
+    assert.deepEqual(titles(plain), ['Исходный', 'daedric cuirass', 'ebony cuirass', 'ebony cuirass enchanted', 'iron cuirass']);
     const own = [{ value: 'plate', label: 'Steel plate', thumb: 'data:x', on: true }, { value: 'iron', label: 'Iron', thumb: 'data:y', on: false }];
     const mixed = modelLookRow({ item: { ...cuirass, templateIndex: 102 }, catalog: CAT, ownLooks: own, onChange: () => changes++, thumb: async () => null });
     assert.deepEqual(titles(mixed).slice(0, 4), ['Steel plate', 'Iron', 'steel cuirass', 'daedric cuirass'], 'one heap: the own looks, the Morrowind record they stand over (never lost), then the rest - no Original');

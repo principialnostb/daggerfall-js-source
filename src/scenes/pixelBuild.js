@@ -1,3 +1,5 @@
+import { streetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
+import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
 // HOST-SPLIT: moved verbatim out of src/scenes/world.js's bootWorld (bible/01-Overview/Host-Split.md) by tools/hostMove.mjs.
 // The host constructs it where the code stood. What it reads of the host's scope comes through `host`: the
 // settled names by value at construction, every live one (a `let` someone writes, a `const` made below) read at its
@@ -258,7 +260,7 @@ export function createPixelBuild(host) {
         continue;
       }
       const size = plain;   // the record, uploaded (world/naturePicture.js)
-      const batch = renderer.createBillboardBatch(archive, record, size, centers);
+      const batch = markPlacedFurnishing(renderer.createBillboardBatch(archive, record, size, centers), centers);
       batch._box = flatBatchAabb(centers, size);   // EV3
       batch.sway = floraSwayOf(archive, g.natureSet, size.h);   // WIND3: the flora lean with the wind, nothing else does
       batch.windfall = windfallResponse(archive, record);   // WINDFALL1: its record's wind mask - every nature batch, as the mod patches them (TryPatchBatch: 500..511)
@@ -465,7 +467,7 @@ export function createPixelBuild(host) {
     const lightSize = (record) =>
       billboardSize(light210, record);
     const addFlat = (archive, record, x, y, z, skin = null) => {
-      const c = [x, y, z];
+      const c = streetLanternCenter(skin?.fixture, [x, y, z]);
       flatLog.push({ archive, record, c, ...skin });
       if (skin?.wild != null) standsOnGround(c);   // FLORA-GROUND, THE RINGS: the wild's flats stand on the ground by its law - the kernel's woods and scatter, the roadside pairs' fallback
     };
@@ -797,7 +799,7 @@ export function createPixelBuild(host) {
           const off = flat.archive === natureArchive || (hillSeat && isNatureArchive(flat.archive)) ? groundOffPlane(samples, avg, fx, fz) : 0;
           const hillY = hillSeat && isNatureArchive(flat.archive) ? NATURE_FLATS_Y + off - (blockY - locLocal[1]) : null;
           const fy = hillY !== null ? blockY + seatNatureFlat(hillSeat, flat.x, flat.z, hillY) : flat.archive === natureArchive ? locLocal[1] + flat.y + off : blockY + flat.y + lift;
-          addFlat(flat.archive, flat.record, fx, fy, fz, { block, n });
+          addFlat(flat.archive, flat.record, fx, fy, fz, { block, n, fixture: flat });
           // FLORA-GROUND, THE RINGS (scenes/floraSeat.js): a nature flat stood on the ground - the climate's, the plane's
           // band under it; a hill block's where no mound raised it - is drawn on the ground its pixel draws at every ring
           if (hillY !== null ? seatNatureFlat(hillSeat, flat.x, flat.z, hillY) === hillY : flat.archive === natureArchive) standsOnGround(flatLog[flatLog.length - 1].c);
@@ -808,7 +810,7 @@ export function createPixelBuild(host) {
             blockY + light.y,
             locLocal[2] + b.originZ + light.z,
           ];
-          pixelLights.push(lp);
+          pixelLights.push(placeStreetLight(light, lp, fabricLift(fabric, b.originX + light.x, b.originZ + light.z)));
           // HEARTH1: a town brazier is a fire, so the survival law wants
           // it. Split off the SAME walk that builds the lanterns - the
           // record is the only thing that tells the two apart and this
@@ -1356,7 +1358,7 @@ export function createPixelBuild(host) {
       uploadRecord(archive, record);
       const base = billboardSize(t, record);
       const size = { w: base.w * scale.x, h: base.h * scale.y };
-      const batch = renderer.createBillboardBatch(archive, record, size, centers);
+      const batch = markPlacedFurnishing(renderer.createBillboardBatch(archive, record, size, centers), centers);
       batch._box = flatBatchAabb(centers, size);
       unionBox(batch._box);
       armFlatAnim(batch, t, archive, record, flatAnims, uploadRecordFrame);

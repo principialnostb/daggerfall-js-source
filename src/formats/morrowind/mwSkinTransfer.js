@@ -442,20 +442,28 @@ export function fitGarmentClearance(
   { clearance = 0.35, maxDistance = 3.0, maxPush = 2.5, conform = false, side = null, ease = 0 } = {},
 ) {
   if (!garment?.positions?.length || !sources?.length) return garment;
+  const surfaces = garmentFitSurfaces(sources, (batch, positions) => {
+    ctx.skinBatch(batch, ctx.skeleton, ctx.pose, ctx.mats, positions, null);
+  });
+  return fitGarmentToSurfaces(garment, surfaces, { clearance, maxDistance, maxPush, conform, side, ease });
+}
+
+export function equipmentBoneSide(name) {
+  const bone = String(name ?? '').toLowerCase();
+  return /\b(?:l|left)\b/.test(bone) ? 'left' : /\b(?:r|right)\b/.test(bone) ? 'right' : null;
+}
+
+/** Build one surface per body section for reuse across garment panels in the same pose. */
+export function garmentFitSurfaces(sources, poseSource) {
   const surfaces = [];
-  const wantedSide = side === 'left' || side === 'right' ? side : null;
   for (const batch of sources) {
     if (!batch?.positions?.length || !batch?.indices?.length) continue;
     // Keep groin surfaces shared, but never let a left/right leg panel snap
     // to the other thigh or calf. The caller tags each source with the BODY
     // slot and bone used to bind it; untagged legacy callers keep old behavior.
-    if (wantedSide && batch.fitSlot && batch.fitSlot !== 'groin' && batch.fitBone) {
-      const bone = String(batch.fitBone).toLowerCase();
-      const sourceSide = /\b(?:l|left)\b/.test(bone) ? 'left' : /\b(?:r|right)\b/.test(bone) ? 'right' : null;
-      if (sourceSide && sourceSide !== wantedSide) continue;
-    }
+    const side = batch.fitSlot && batch.fitSlot !== 'groin' ? equipmentBoneSide(batch.fitBone) : null;
     const posed = new Float32Array(batch.positions.length);
-    ctx.skinBatch(batch, ctx.skeleton, ctx.pose, ctx.mats, posed, null);
+    poseSource(batch, posed);
     const normals = new Float32Array(posed.length);
     const I = batch.indices;
     for (let t = 0; t + 2 < I.length; t += 3) {
@@ -494,15 +502,23 @@ export function fitGarmentClearance(
       }
     }
     const bvh = buildSurfaceBvh(posed, I, normals);
-    if (bvh) surfaces.push({ bvh, normals });
+    if (bvh) surfaces.push({ bvh, normals, side });
   }
+  return surfaces;
+}
+
+export function fitGarmentToSurfaces(garment, surfaces,
+  { clearance = 0.35, maxDistance = 3.0, maxPush = 2.5, conform = false, side = null, ease = 0, maxClearance = Infinity } = {},
+) {
   if (!surfaces.length) return garment;
+  const wantedSide = side === 'left' || side === 'right' ? side : null;
   const positions = Float32Array.from(garment.positions);
   let adjusted = 0;
   for (let i = 0; i + 2 < positions.length; i += 3) {
     const p = [positions[i], positions[i + 1], positions[i + 2]];
     let best = null;
     for (const surface of surfaces) {
+      if (wantedSide && surface.side && surface.side !== wantedSide) continue;
       const hit = nearestSurfacePoint(p, surface.bvh, surface.normals, maxDistance * maxDistance);
       if (hit && (!best || hit.distance2 < best.distance2)) best = hit;
     }
@@ -524,8 +540,9 @@ export function fitGarmentClearance(
       }
       continue;
     }
-    if (signed >= clearance) continue;
-    const push = Math.min(maxPush, clearance - signed);
+    const targetClearance = Math.max(clearance, Math.min(maxClearance, signed));
+    const push = Math.max(-maxPush, Math.min(maxPush, targetClearance - signed));
+    if (!push) continue;
     positions[i] += best.normal[0] * push;
     positions[i + 1] += best.normal[1] * push;
     positions[i + 2] += best.normal[2] * push;

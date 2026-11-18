@@ -43,6 +43,7 @@ ipcRenderer.on('dagger:update-ready', (_e, info) => {
 });
 
 contextBridge.exposeInMainWorld('daggerShell', {
+  cosmeticsHost: (action, port) => ipcRenderer.invoke('dagger:cosmetics-host', action, port),
   // Enough identity for an about-line; never load-bearing.
   platform: process.platform,
   versions: { app: process.env.npm_package_version ?? '', electron: process.versions.electron },

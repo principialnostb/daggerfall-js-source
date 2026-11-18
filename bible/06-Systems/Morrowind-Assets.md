@@ -146,7 +146,7 @@ positions back into each panel's attachment space. Side filtering keeps each
 leg on its own body surfaces. The fit retains part of the authored volume
 and rebuilds the normals. The NIF, UVs, material and attachment stay intact.
 The selector uses the clothing record and original trouser model path.
-Expensive Pants 6 and trousers pointing to custom model paths bypass the fit.
+Expensive Pants 6 and custom trouser models use posed clearance and skip the retail rest-pose conform pass.
 Mod replacements should be evaluated as mesh/material pairs before selection.
 The Common 1 A quilted trousers and Common 1 E hide trousers use a stronger
 fit across the four panels. Their patterns match the front and rear views

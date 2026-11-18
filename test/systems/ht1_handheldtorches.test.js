@@ -655,7 +655,7 @@ test('HT1: SpawnLightSource - the billboard of the mod\'s record at the point (a
   const d = q.p.spawnLightSource(T.Torch, [1, 0, 2], 1000);
   assert.deepEqual([d.record, d.time, d.mirrored, d.pixelKey], [DROPPED_RECORD.Torch, 1000, false, null]);
   await settle();
-  assert.ok(d.batch); assert.deepEqual([d.batch.archive, d.batch.record, d.batch.centers], [DROPPED_ARCHIVE, 0, [[1, 0, 2]]]);
+  assert.ok(d.batch); assert.deepEqual([d.batch.archive, d.batch.record, d.batch.origin], [DROPPED_ARCHIVE, 0, [1, 0, 2]]);
   near(d.batch.size.w, 31 * GLOBAL_SCALE); near(d.batch.size.h, 34 * GLOBAL_SCALE);
   assert.equal(q.uploads.filter((u) => u.startsWith('112358:0#')).length, 4, 'four frames of record 0');
   assert.equal(q.emissions.filter(([k, o]) => k.startsWith('112358:0#') && o.white === true).length, 4, 'the _Emission twins, white');
@@ -727,8 +727,10 @@ test('HT1: the activation - the six records at 3.2 as targets, Grab or Steal pic
   o.p.tick(0); const a = o.p.spawnLightSource(T.Torch, [50, 0, 0], 100); const b = o.p.spawnLightSource(T.Torch, [150, 0, 0], 100); await settle();
   assert.deepEqual([a.pixelKey, b.pixelKey], ['px:0', 'px:1']);
   o.p.collectPixel('px:0'); assert.deepEqual(o.p.dropped, [b]); assert.equal(o.alive.size, 1);
+  const batch = b.batch;
   o.p.offsetAll([-100, 0, 7]);
-  assert.deepEqual(b.pos, [50, 0, 7]); assert.deepEqual(b.batch.centers, [[50, 0, 7]]); assert.deepEqual(o.loops[1].moves, [[50, 0, 7]]);
+  assert.equal(b.batch, batch);
+  assert.deepEqual(b.pos, [50, 0, 7]); assert.deepEqual(b.batch.origin, [50, 0, 7]); assert.deepEqual(o.loops[1].moves, [[50, 0, 7]]);
   // HandheldTorchesSaveData: position, time, template; restored by spawning; a dead or unknown one skipped
   const snap = o.p.snapshot((p) => [p[0] + 1000, p[1], p[2]]);
   assert.deepEqual(snap, [{ position: [1050, 0, 7], time: 100, itemTemplateIndex: T.Torch }]);

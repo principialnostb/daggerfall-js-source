@@ -45,7 +45,7 @@ import { ITEM_TEMPLATES } from '../systems/item/itemTemplates.js';
 // identity and this file reloads on identity change - AUDIT 23).
 
 import { ImgFile } from '../formats/imgFile.js';
-import { paperdollLookOf, lookedPiece } from '../systems/paperdollLooks.js';   // PAPERDOLL-LOOKS: the player's 2D card look
+import { paperdollLookOf, lookedPiece, peerPaperdollLook } from '../systems/paperdollLooks.js';   // PAPERDOLL-LOOKS: the player's 2D card look
 import { activeAppearanceIdentity, appearanceDisplayKey, appearanceEditorEnabled } from '../characters/activeAppearance.js';
 import { modGroupEnabled } from '../systems/enhancedModResources.js';
 import { packImgTexture } from './packArt.js';   // OVH2: a worn UI pack's backdrop
@@ -645,7 +645,7 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
   // drawn as its own pieces, never in this viewer's choices; and a garment drawn as another (GARMENT-KINDS) is layered and
   // lined as the one it is drawn as (a shirt drawn as a robe goes over the cuirass)
   const mine = entity?.isPlayer === true && !entity?.isPeer;
-  const lookOf = (it) => (mine ? paperdollLookOf(it) : null);
+  const lookOf = (it) => mine ? paperdollLookOf(it) : peerPaperdollLook(it, it.cosmeticPaperdoll, { gender: deps.gender, race: deps.race });
   const drawnTemplate = (it) => lookedPiece(drawnPiece(it), lookOf(it)).piece.templateIndex;
   const worn = table.filter(Boolean).map((it) => ({ it, t: getTemplate(drawnTemplate(it)) })).filter((w) => w.t);
   // cloak interiors first (BlitCloakInterior: cloak2 then cloak1,

@@ -176,7 +176,7 @@ and the digitigrade feet, skinned for retail's `base_animkna.nif` as it stands. 
 ## Not done
 
 - **The beasts' first-person hands** are still retail's: the pack's `bb_n_<race>_<sex>_hds.1st.nif` are not carried.
-- **Worn armour and clothing are not morphed** - a slider shapes the bare body, a cuirass keeps its own shape.
+- With active body morphs, third-person worn equipment uses posed anatomical surface regions from the wearer, including covered skin. Cloth and flexible armour push away from the body surface locally. Rigid armour follows the position and size of its donor region with translation and uniform scale. Helmets follow head scale through the head bone. Cloaks check near the shoulders and keep their drape and physics. Held items and shields use their attachment instead. Local and remote players use the same fit with their own proportions.
 - **Curvybody** (in `Mods/Bodies`, unpacked) is not tried; the other archives there (the 3.2 `.7z`, Body Options, MEL
   Hair) are sources, not loaded.
 - **The HD skin** is checked on one race only (section 3).
@@ -199,3 +199,16 @@ long as the NIF's; the beast's mesh by race, sex and underwear and all its skins
 `test/formats/nudeflats.test.js` pins `ownModesty` and `bareChestShown`. Failures in `fparm`,
 `better_bodies_first_person`, `nudeflats` and `mwnpc_audit` that were on the branch before this work are not made by it
 (16 now, 17 before).
+
+Visible rigid skin segments use their attachment bone to participate in the same morph and seam pass as skinned segments. The width and depth controls carry the hand with its wrist displacement. Shoulder displacement follows the weighted arm side, including when an arm crosses the torso. Third-person trousers only hide the skin at a named mesh slot when that mesh is present in the loaded archives. A meshless armour knee reservation leaves a trouser panel in place and hides bare skin when the slot has no mesh. A solid armour knee part has priority over trousers when its mesh is available. Shoulder spread and leg spacing use a skeletal length, keeping their amplitude independent of which skin pieces clothing covers.
+
+Equipment fitting recognizes both full side names and skeleton abbreviations (Bip01 L/R). Rigid equipment selects donors on its own side; cloth clearance uses the same side parser. The regression is in test/formats/morrowind/mwEquipmentFit.test.js. This continues the 3D equipment departure from DFU ItemHelper.GetItemImage, whose paper-doll images do not fit a posed skeleton.
+
+
+## Visual motion over the cosmetics service (2026-11-17)
+
+The owner approved sending jump, swim, levitation, crouch and strike timing through the configured HTTPS cosmetics service because the public relay cannot be updated. The payload includes the room and update stamp, but no coordinates. The existing profile endpoint accepts the additional motion object. Clients refresh it at most every 100 ms, with eight peer reads per cycle. Appearance capture remains every five seconds and motion does not change the appearance cache key. Motion expires after 1.5 seconds without a new stamp and only applies in the same room. A strike waits at most 250 ms for matching timing, then uses the existing fallback. This is DFO multiplayer behavior; DFU has no corresponding peer transport.
+
+Tests: test/net/cosmeticProfile.test.js exercises two HTTP clients, motion expiry, room isolation and matching strike timing. test/net/peer/motionTransport.test.js checks the relay path. Live rendering on two player clients still needs confirmation.
+
+The retail Netch Leather Boots and Extravagant Pants 01 composition was checked against the owner's Morrowind.esm. Both ankle slots belong to the boots; the pants retain groin, knee and upper-leg panels. This establishes slot coverage, not the absence of intersections in animated geometry. The reported left-heel flicker remains unverified in the rendered game. Casual Pants use the authored seams of the default record on both local and peer bodies. The separately fitted thigh could move away from the fixed knee panel. Body proportions still deform these parts.
