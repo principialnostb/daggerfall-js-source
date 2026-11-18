@@ -7,8 +7,9 @@ import { join, resolve } from 'node:path';
 import pack from '../app/lib/emcReleasePack.cjs';
 import { packForPath } from '../src/systems/enhancedModCatalog.js';
 
-const { ASSET_NAME, MAX_PACK, MAX_INDEX, allowedPath, hasPaperdoll, paperdollFiles } = pack;
-const [source, destination] = process.argv.slice(2);
+const { ASSET_NAME, FACE_ASSET_NAME, MAX_PACK, MAX_INDEX, allowedPath, hasFaces, hasPaperdoll, isFaceResource, paperdollFiles } = pack;
+const facesOnly = process.argv.includes('--faces-only');
+const [source, destination] = process.argv.slice(2).filter((arg) => arg !== '--faces-only');
 if (!source || !destination) throw new Error('Usage: node tools/prepareEmcOffer.mjs <approved-resource-root> <output-folder>');
 const root = resolve(source);
 const names = [];
@@ -16,14 +17,15 @@ function scan(parent) {
   for (const entry of readdirSync(join(root, parent), { withFileTypes: true })) {
     const file = parent + '/' + entry.name;
     if (entry.isDirectory()) scan(file);
-    if (entry.isFile() && allowedPath(file) && (paperdollFiles.includes(file) || packForPath('/' + file))) names.push(file);
+    if (entry.isFile() && allowedPath(file) && (facesOnly ? isFaceResource(file) : paperdollFiles.includes(file) || packForPath('/' + file))) names.push(file);
   }
 }
 scan('Mods');
-if (!hasPaperdoll(names.map((path) => ({ path })))) throw new Error('Paperdoll Enhanced bundle and index are required');
+const validate = facesOnly ? hasFaces : hasPaperdoll;
+if (!validate(names.map((path) => ({ path })))) throw new Error('EMC source files are incomplete');
 names.sort((a, b) => a.localeCompare(b));
 if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) throw new Error('Duplicate EMC paths');
-const output = join(resolve(destination), ASSET_NAME);
+const output = join(resolve(destination), facesOnly ? FACE_ASSET_NAME : ASSET_NAME);
 const temp = output + '.body';
 const files = [];
 let size = 0;

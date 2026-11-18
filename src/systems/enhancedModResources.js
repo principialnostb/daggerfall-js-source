@@ -4,7 +4,7 @@ const DB = 'dfo-enhanced-resources-v1';
 const urls = new Map();
 const records = new Map();
 const bundled = new Map();
-const registeredPatterns = new Set();
+const registeredPatterns = new Map();
 let database, pending;
 const desktopPack = new Map();
 export const desktopEmcResource = (path) => desktopPack.get(path);
@@ -82,7 +82,9 @@ export function globPattern(pattern) {
 export function modResourceGlob(patterns, original) {
   const list=Array.isArray(patterns)?patterns:[patterns];
   const matchers=list.map(globPattern);
-  for(const pattern of list)registeredPatterns.add(pattern);
+  for (const pattern of list) {
+    registeredPatterns.set(pattern, globPattern(pattern.slice(pattern.indexOf('Mods/'))));
+  }
   const prefix=list[0].slice(0,list[0].indexOf('Mods/'));
   for(const path of Object.keys(original)){
     const pack=packForPath(path);
@@ -111,21 +113,33 @@ export function modResourceGlob(patterns, original) {
   return result;
 }
 export function modPackState(id) {
-  const state = resourceConnectionState({ importedCount: records.get(id)?.files.length || 0, bundledCount: bundled.get(id)?.size || 0, removed: removed[id] === true });
-  return { ...state, imported: records.has(id), bundled: bundled.has(id) };
+  const builtIn = bundled.get(id) ?? new Set();
+  const matchers = [...registeredPatterns.values()];
+  const imported = [];
+  for (const row of records.values()) {
+    for (const file of row.files) {
+      if (packForPath('/' + file.path)?.id === id && matchesModLoader(file.path, matchers)) imported.push(file.path);
+    }
+  }
+  const state = resourceConnectionState({ count: imported.length ? combinedModFileCount(builtIn, imported) : builtIn.size, removed: removed[id] === true });
+  return { ...state, imported: state.connected && imported.length > 0, bundled: state.connected && builtIn.size > 0 };
 }
 export const modGroupReady = id => modGroupEnabled(id) && MOD_PACKS.filter(pack=>pack.group===id).every(pack=>modPackState(pack.id).connected);
-export function resourceConnectionState({ importedCount = 0, bundledCount = 0, removed = false } = {}) {
-  const count = removed ? 0 : importedCount || bundledCount;
-  return { connected: count > 0, count };
+export function resourceConnectionState({ count = 0, removed = false } = {}) {
+  return removed ? { connected: false, count: 0 } : { connected: count > 0, count };
 }
+export function combinedModFileCount(builtIn, imported) {
+  return new Set([...builtIn, ...imported].map((path) => path.toLowerCase())).size;
+}
+const matchesModLoader = (path, matchers = [...registeredPatterns.values()]) => matchers.some((re) => re.test(path));
 export function normalizeModFiles(pack, files) {
   const marker=pack.folder.toLowerCase()+'/';
   const accepted=[];
   for(const file of files){
     let path=(file.webkitRelativePath||file.name).replaceAll('\\','/');
     const at=path.toLowerCase().indexOf(marker);
-    path=at>=0?path.slice(at+marker.length):path.slice(path.indexOf('/')+1);
+    if (at >= 0) path = path.slice(at + marker.length);
+    else if (!/^(?:Data Files|Meshes|Textures|00 Core)\//i.test(path)) path = path.slice(path.indexOf('/') + 1);
     if(path.split('/').some(p=>p==='..')||! /\.(kf|nif|dds|tga|esp)$/i.test(path))continue;
     accepted.push({path:'Mods/'+pack.folder+'/'+path,blob:file});
   }
@@ -146,10 +160,8 @@ async function commitPack(id,value){
 export async function attachModFolder(id,files){
   const pack=MOD_PACKS.find(p=>p.id===id); if(!pack)throw new Error('Неизвестная модификация.');
   const assets=normalizeModFiles(pack,files);
-  const compatible=assets.filter(file=>[...registeredPatterns].some(pattern=>{
-    const prefix=pattern.slice(0,pattern.indexOf('Mods/'));
-    return globPattern(pattern).test(prefix+file.path);
-  }));
+  const matchers = [...registeredPatterns.values()];
+  const compatible = assets.filter((file) => matchesModLoader(file.path, matchers));
   if(!compatible.length)throw new Error('Структура папки не соответствует загрузчику. Выберите корневую папку распакованного мода.');
   for(const asset of compatible){
     const bytes=new Uint8Array(await asset.blob.slice(0,80).arrayBuffer());
@@ -162,7 +174,7 @@ export async function attachModFolder(id,files){
   if(pack.group==='bodies' && (!compatible.some(f=>/\.nif$/i.test(f.path)) || !compatible.some(f=>/\.(dds|tga)$/i.test(f.path)))){
     if(pack.id!=='gauntlets')throw new Error('Для этого мода нужны модели и соответствующие текстуры.');
   }
-  await commitPack(id,{id,revision:Date.now(),files:assets});
+  await commitPack(id,{id,revision:Date.now(),files:compatible});
   const next = {...removed}; delete next[id]; write(removedKey,next); delete removed[id];
 }
 export async function removeModResources(id){

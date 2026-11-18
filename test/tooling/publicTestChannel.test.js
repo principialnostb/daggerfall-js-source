@@ -129,3 +129,33 @@ test('developer EMC supports direct and redirected downloads while keeping the c
   await auth.action('emc-link');
   assert.deepEqual(copied, { url: temporary, size: asset.size, sha256: asset.digest.slice(7) });
 });
+
+
+test('complete EMC offers retain an installed base and mount the independent faces component', async (t) => {
+  const root = profile(t);
+  const baseContents = emcPack.paperdollFiles.map((path) => ({ path, size: 1 }));
+  const facesContents = ['Meshes/b/head.nif', 'Textures/head.dds'].map((path) => ({
+    path: "Mods/Textures/Westly's Faces Refurbished/Data Files/" + path, size: 1,
+  }));
+  const bytes = (files) => {
+    const index = Buffer.from(JSON.stringify(files));
+    const prefix = Buffer.alloc(4);
+    prefix.writeUInt32LE(index.length);
+    return Buffer.concat([prefix, index, Buffer.alloc(files.length, 107)]);
+  };
+  const base = bytes(baseContents);
+  const faces = bytes(facesContents);
+  let fetched = 0;
+  const store = emcPack.emcStore(root, { fetch: async () => { fetched++; return new Response(faces); } }, { requireFaces: true });
+  await store.installFrom({ size: base.length, sha256: hash(base) }, async () => new Response(base));
+  assert.equal(store.ready(), false);
+  assert.equal(store.readyPart('base'), true);
+  const offer = (part) => ({ size: part.length, sha256: hash(part), url: temporary });
+  await assert.rejects(store.install(JSON.stringify(offer(base))), /complete EMC offer/);
+  assert.deepEqual(await store.install(JSON.stringify({ base: offer(base), faces: offer(faces) })), { files: 2 });
+  assert.equal(fetched, 1);
+  assert.equal(store.ready(), true);
+  const names = [...baseContents, ...facesContents].map((asset) => asset.path);
+  assert.deepEqual(await store.serve(['test-emc']).json(), names);
+  assert.equal(await store.serve(['test-emc', '2']).text(), 'k');
+});

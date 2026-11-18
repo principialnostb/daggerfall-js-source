@@ -812,6 +812,26 @@ export async function loadMorrowindArchives() {
   return promise;
 }
 
+const LOCAL_MORROWIND_LOOSE = 'dagger://game/local-morrowind-loose';
+async function localMorrowindLooseNames() {
+  if (globalThis.location?.protocol !== 'dagger:') return [];
+  try {
+    const response = await fetch(LOCAL_MORROWIND_LOOSE);
+    const files = response.ok && response.headers.get('Content-Type')?.includes('application/json') ? await response.json() : [];
+    return Array.isArray(files) ? files : [];
+  } catch (error) {
+    console.warn('[morrowind] Local loose files:', error);
+    return [];
+  }
+}
+
+export async function morrowindLooseHeadHairCounts() {
+  const count = (names) => new Set(names.filter((name) => /(?:^|[\\/_ -])(?:head|hair)/i.test(name) && /\.nif$/i.test(name))
+    .map((name) => name.replaceAll('\\', '/').toLowerCase())).size;
+  const [imported, local] = await Promise.all([storedMorrowindNames(), localMorrowindLooseNames()]);
+  return { imported: count(imported), local: count(local) };
+}
+
 async function _openMorrowindArchives(gen) {
   const { MwBsaFile } = await import('../formats/morrowind/mwBsaFile.js');
   const names = (await storedMorrowindNames()).filter((n) => /\.bsa$/i.test(n));
@@ -839,20 +859,12 @@ async function _openMorrowindArchives(gen) {
   // could build: a Data Files folder attached whole is thousands of them.
   const looseNames = (await storedMorrowindNames()).filter((n) => MW_LOOSE_EXT.test(n));
   if (looseNames.length) archives.push(makeLazyLooseArchive(looseNames, (n) => assetBytes(MW_STORE, n)));
-  if (globalThis.location?.protocol === 'dagger:') {
-    const root = 'dagger://game/local-morrowind-loose';
-    try {
-      const response = await fetch(root);
-      const files = response.ok && response.headers.get('Content-Type')?.includes('application/json') ? await response.json() : [];
-      if (Array.isArray(files) && files.length) archives.push(makeLazyLooseArchive(files, async (name) => {
-        const url = root + '/' + name.split('/').map(encodeURIComponent).join('/');
-        const asset = await fetch(url);
-        return asset.ok ? new Uint8Array(await asset.arrayBuffer()) : null;
-      }));
-    } catch (error) {
-      console.warn('[morrowind] Local loose files:', error);
-    }
-  }
+  const onDisk = await localMorrowindLooseNames();
+  if (onDisk.length) archives.push(makeLazyLooseArchive(onDisk, async (name) => {
+    const url = LOCAL_MORROWIND_LOOSE + '/' + name.split('/').map(encodeURIComponent).join('/');
+    const asset = await fetch(url);
+    return asset.ok ? new Uint8Array(await asset.arrayBuffer()) : null;
+  }));
   // Bundled replacement packs follow user loose files (which win collisions)
   // and precede retail BSA archives.
   try {

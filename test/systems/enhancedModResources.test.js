@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { globPattern, modResourceGlob, normalizeModFiles, modPackState, resourceConnectionState } from '../../src/systems/enhancedModResources.js';
+import { globPattern, modResourceGlob, normalizeModFiles, modPackState, resourceConnectionState, combinedModFileCount } from '../../src/systems/enhancedModResources.js';
 import { MOD_PACKS } from '../../src/systems/enhancedModCatalog.js';
 test('runtime glob admits exactly the same subtrees and brace extensions',()=>{
  const re=globPattern('../../../Mods/Animations/Test/**/*.{kf,KF}');
@@ -19,6 +19,10 @@ test('folder normalization preserves the mod package layout and rejects unrelate
  const file={webkitRelativePath:'Better Bodies/Nude/Data Files/Meshes/bb/a.nif'};
  assert.equal(normalizeModFiles(pack,[file])[0].path,'Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/a.nif');
  assert.throws(()=>normalizeModFiles(pack,[{webkitRelativePath:'Better Bodies/readme.txt'}]));
+ const faces=MOD_PACKS.find(p=>p.id==='texture-westly-faces');
+ const picked={webkitRelativePath:'Data Files/Meshes/b/face.nif'};
+ assert.equal(normalizeModFiles(faces,[picked])[0].path,
+  "Mods/Textures/Westly's Faces Refurbished/Data Files/Meshes/b/face.nif");
 });
 
 test('existing build resources are connected and repeated loader views do not inflate the file count',()=>{
@@ -31,10 +35,10 @@ test('existing build resources are connected and repeated loader views do not in
  assert.equal(state.count,1);
  assert.equal(modPackState('not-installed').connected,false);
 });
-test('disconnected build resources are absent; user imports take precedence when connected',()=>{
- assert.deepEqual(resourceConnectionState({bundledCount:115,removed:true}),{connected:false,count:0});
- assert.deepEqual(resourceConnectionState({bundledCount:115}),{connected:true,count:115});
- assert.deepEqual(resourceConnectionState({bundledCount:115,importedCount:98}),{connected:true,count:98});
+test('connection counts include the union of usable build resources and imports without duplicate overrides',()=>{
+ assert.deepEqual(resourceConnectionState({count:3,removed:true}),{connected:false,count:0});
+ const count=combinedModFileCount(new Set(['mods/skin.dds','mods/body.nif']), ['Mods/SKIN.DDS','Mods/Head.NIF']);
+ assert.deepEqual(resourceConnectionState({count}),{connected:true,count:3});
 });
 
 

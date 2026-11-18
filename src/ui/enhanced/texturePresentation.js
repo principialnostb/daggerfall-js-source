@@ -65,14 +65,30 @@ export function decorateTextureTile(tile, id, render = () => {}) {
   return tile;
 }
 
+function showMorrowindAppearanceSources(tile) {
+  const note = node('p', 'meta emc-source-note', '');
+  note.hidden = true;
+  tile.append(note);
+  import('../../scenes/dataSource.js').then((source) => source.morrowindLooseHeadHairCounts()).then(({ imported, local: disk }) => {
+    const sources = [];
+    if (disk) sources.push(local(`папка Morrowind — ${disk}`, `Morrowind folder — ${disk}`));
+    if (imported) sources.push(local(`общий импорт Morrowind — ${imported}`, `general Morrowind import — ${imported}`));
+    if (!sources.length) return;
+    note.textContent = local(`Модели голов и причёсок: ${sources.join(' · ')}. Эти файлы имеют приоритет над EMC. Авторство из этих источников не определяется.`,
+      `Head and hair meshes: ${sources.join(' · ')}. These files take priority over EMC. Their mod provenance is unknown.`);
+    note.hidden = false;
+  }).catch(() => {});
+}
+
 function appendTextureActions(tile, id, render) {
   const pack = MOD_PACKS.find(pack => pack.feature === id);
   if (!pack) return;
   const state = modPackState(pack.id);
   tile.append(node('p', 'meta emc-credits', local('Автор уточняется · Интеграция: BLOODBATH', 'Author unconfirmed · Integration: BLOODBATH')));
   tile.append(node('p', 'meta emc-status', state.connected
-    ? local(`Ресурсы подключены · файлов: ${state.count}`, `Resources connected · files: ${state.count}`)
-    : local('Ресурсы не подключены', 'Resources not connected')));
+    ? local(`Пакет EMC подключён · файлов: ${state.count}`, `EMC pack connected · files: ${state.count}`)
+    : local('Отдельный пакет EMC не подключён', 'Separate EMC pack not connected')));
+  if (id === 'mw-textures-westly-faces') showMorrowindAppearanceSources(tile);
   const actions = document.createElement('div'); actions.className = 'acts';
   const action = (ru, en, cls, run) => {
     const button = node('button', `act ${cls}`, local(ru, en)); button.type = 'button';

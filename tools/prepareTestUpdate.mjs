@@ -103,8 +103,17 @@ async function prepare(legacyPath, buildPath, outputPath, version, mode, reusabl
   const oldArchive = join(legacy, 'client/resources/app.asar');
   const dist = join(build, 'dist');
   requirePublicStage(build);
-  if (publicBuild && mode === '--reuse-assets') throw new Error('Public builds require a fresh clean seed and game pack');
-  const files = publicBuild ? gameSeed(dist, { version: baseVersion, shell: 'a'.repeat(64) }).files : legacySeed(oldArchive);
+  if (publicBuild && mode === '--reuse-assets') throw new Error('Public builds require a verified public seed and a fresh game pack');
+  let reusedPublicSeed;
+  if (mode === '--reuse-public-seed') {
+    if (!publicBuild || !reusablePath || !/^[a-f0-9]{64}$/.test(process.env.DFO_TEST_PUBLIC_SEED_SHA ?? '')) {
+      throw new Error('Supply a previously published public seed and its SHA-256');
+    }
+    reusedPublicSeed = resolve(reusablePath);
+    if (await digest(reusedPublicSeed) !== process.env.DFO_TEST_PUBLIC_SEED_SHA) throw new Error('Public seed checksum differs from the published seed');
+  }
+  const files = reusedPublicSeed ? seedFiles(asar.getRawHeader(reusedPublicSeed).header.files.dist.files)
+    : publicBuild ? gameSeed(dist, { version: baseVersion, shell: 'a'.repeat(64) }).files : legacySeed(oldArchive);
   checkReleaseFiles(files.map((f) => f.path));
   checkReleaseFiles(gameFilesOf(dist));
   mkdirSync(output, { recursive: true });
@@ -123,7 +132,7 @@ async function prepare(legacyPath, buildPath, outputPath, version, mode, reusabl
     unpackDir: 'node_modules/{workerd,@cloudflare/workerd-*}',
   });
   if (mode === '--local') {
-    if (publicBuild) cpSync(await packPublicSeed(dist, work), join(client, 'resources/game-seed.asar'));
+    if (publicBuild) cpSync(reusedPublicSeed ?? await packPublicSeed(dist, work), join(client, 'resources/game-seed.asar'));
     else cpSync(oldArchive, join(client, 'resources/game-seed.asar'));
     console.log(join(client, 'DFO Online Mod.exe'));
     return;
@@ -134,7 +143,7 @@ async function prepare(legacyPath, buildPath, outputPath, version, mode, reusabl
   execFileSync(sevenZip, ['a', '-tzip', '-ssw', join(output, zip), '*'], { cwd: client, stdio: 'inherit' });
 
   const reusable = mode === '--reuse-assets' ? resolve(reusablePath) : null;
-  const seedArchive = publicBuild ? await packPublicSeed(dist, work) : await packSeed(legacy, files, work, output, reusable);
+  const seedArchive = reusedPublicSeed ?? (publicBuild ? await packPublicSeed(dist, work) : await packSeed(legacy, files, work, output, reusable));
   const seed = await seedParts(seedArchive, output);
   await packReleaseGame(dist, work, output, { version, shell }, reusable);
   const tag = 'dfo-1311-v' + version;

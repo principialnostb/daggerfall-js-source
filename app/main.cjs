@@ -554,10 +554,10 @@ function handleDagger(req) {
 // and its answer is kept in news.json, so the panel is never empty while
 // the next one is asked for, or when GitHub does not answer.
 const TEST_CONFIG = TEST_UPDATE_BUILD ? require('./test-update-build.json') : null;
-const TEST_EMC = TEST_CONFIG ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net) : null;
+const TEST_EMC = TEST_CONFIG ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net, { requireFaces: true }) : null;
 const TEST_ACCESS = TEST_CONFIG
   ? require('./lib/publicTestChannel.cjs').publicTestChannel({
-    userData: app.getPath('userData'), net, safeStorage, emc: TEST_EMC, fetchAsset: globalThis.fetch,
+    userData: app.getPath('userData'), net, safeStorage, emc: TEST_EMC, fetchAsset: globalThis.fetch, requireFaces: true,
     clientId: TEST_CONFIG.clientId, openBrowser: (url) => shell.openExternal(url),
     copy: (value) => require('electron').clipboard.writeText(value),
   })
