@@ -179,6 +179,23 @@
     tab(true);
     status('Signed out.');
   }));
+  function emcFailure(error) {
+    const message = String(error?.message ?? '');
+    const status = /GitHub request failed \((\d{3})\)/.exec(message);
+    if (status) return 'GitHub access check failed (HTTP ' + status[1] + ').';
+    if (/Activate a test invitation first/.test(message)) return 'Test access is inactive. Activate your invitation.';
+    if (/GitHub write access required/.test(message)) return 'Developer access check failed. Sign in again.';
+    if (/JSON|Invalid EMC download offer|Invalid URL|Expected a temporary GitHub asset link|complete EMC offer/.test(message)) return 'Invalid EMC offer. Paste the full text copied by the administrator.';
+    if (/EMC link expired or unavailable/.test(message)) return 'GitHub refused the EMC download. Request a fresh offer.';
+    if (/checksum|too large|Invalid EMC|Incomplete EMC|incomplete|Unexpected data/.test(message)) return 'EMC package verification failed. Contact the administrator.';
+    if (/ENOSPC/.test(message)) return 'Insufficient disk space for EMC.';
+    if (/EACCES|EPERM|EBUSY/.test(message)) return 'Cannot write the EMC files. Check folder permissions and open files.';
+    if (/in progress/.test(message)) return 'An EMC installation is already running.';
+    const network = /\b(?:net::)?(ERR_[A-Z_]+)\b/.exec(message);
+    if (network) return 'EMC network request failed (' + network[1] + ').';
+    if (/timeout|timed out/i.test(message)) return 'The EMC request timed out. Try again.';
+    return 'The launcher could not complete the EMC request. Report this message and your launcher version.';
+  }
   function bindEmc(form, input, report) {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -191,8 +208,8 @@
           const installed = await call('emc', input.value.trim());
           input.value = '';
           report('Installed ' + installed.files + ' EMC files.');
-        } catch {
-          report('Download failed. Check your test access and ask the administrator for a fresh EMC link.');
+        } catch (error) {
+          report(emcFailure(error));
         } finally {
           button.disabled = false;
         }
