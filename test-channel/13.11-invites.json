@@ -35,7 +35,8 @@
     "label": "Daniil Ribal"
   },
   {
-    "hash": "3d2b58bb7fd594852f71366341fda6e3942d68b9e02a9f743ed3788495a9c7df",
-    "label": "Test"
+    "hash": "9cc792d6c5c907c6a5100f022d8b16c44c5257be15a77c4c5b313221774962ef",
+    "label": "Test",
+    "revoked": true
   }
 ]
