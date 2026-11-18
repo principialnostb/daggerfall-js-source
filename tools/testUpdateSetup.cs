@@ -81,13 +81,15 @@ internal static class TestUpdateSetup
 
     private static bool HasClient(string folder)
     {
-        return File.Exists(Path.Combine(folder, "DFO Online Mod.exe"))
+        return (File.Exists(Path.Combine(folder, "DFO Online Mod.exe")) || File.Exists(Path.Combine(folder, "DFO 13.11.exe")) || File.Exists(Path.Combine(folder, "DFO Test Build.exe")))
             && File.Exists(Path.Combine(folder, "resources", "app.asar"))
-            && File.Exists(Path.Combine(folder, "resources", "game-seed.asar"));
+            && (File.Exists(Path.Combine(folder, "DFO Online Mod.exe")) || File.Exists(Path.Combine(folder, "resources", "game-seed.asar")));
     }
 
     private static string ClientFolder(string folder)
     {
+        foreach (var candidate in new[] { Path.Combine(folder, "DFO Test Build"), Path.Combine(folder, "client", "DFO Test Build") })
+            if (File.Exists(Path.Combine(candidate, "DFO Test Build.exe")) && HasClient(candidate)) return candidate;
         var nested = Path.Combine(folder, "client");
         return HasClient(nested) ? nested : folder;
     }
@@ -96,7 +98,9 @@ internal static class TestUpdateSetup
     {
         var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
         var previousFolder = Path.Combine(programs, "DFO Online 13.11");
-        var defaultFolder = HasClient(previousFolder) ? previousFolder : Path.Combine(programs, "DFO Test Build");
+        var defaultFolder = Path.Combine(programs, "DFO Test Build");
+        foreach (var candidate in new[] { defaultFolder, Path.Combine(programs, "dfo-1311-test"), previousFolder })
+            if (HasClient(ClientFolder(candidate))) { defaultFolder = candidate; break; }
         using (var window = new Form())
         {
             window.Text = "DFO Test Build Setup";
@@ -142,7 +146,7 @@ internal static class TestUpdateSetup
                         var client = ClientFolder(folder.FullName);
                         if (!HasClient(client)) throw new IOException("Select the DFO Test Build folder or its parent containing the client folder.");
                         destination = client;
-                        note.Text = "Client found: " + client + "\nSetup checks the game archive and downloads a replacement if needed.";
+                        note.Text = "Client found: " + client + "\nSetup updates the launcher and reuses matching game files.";
                     }
                     else
                     {
@@ -186,6 +190,29 @@ internal static class TestUpdateSetup
         using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("setup.txt"))
         using (var reader = new StreamReader(stream))
             config = reader.ReadToEnd().Split('\n');
+        if (config.Length == 3 && config[2].StartsWith("DFO-Test-Build-Client.exe ", StringComparison.Ordinal))
+        {
+            var isLegacyClient = File.Exists(Path.Combine(destination, "DFO Online Mod.exe"));
+            var target = isLegacyClient ? Path.Combine(destination, "DFO Test Build") : destination;
+            if (isLegacyClient && Directory.Exists(target) && Directory.GetFileSystemEntries(target).Length != 0 && !HasClient(target))
+                throw new IOException("A different folder already exists at " + target);
+            var temp = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+            try
+            {
+                status("Preparing the launcher…");
+                var api = "https://api.github.com/repos/principialnostb/daggerfall-js-source/releases";
+                var list = localAssets == null ? ReleaseAssets(api, config[1], null) : null;
+                var installer = Download(api, list, null, config[2], temp.FullName, localAssets);
+                using (var proc = Process.Start(new ProcessStartInfo(installer, "/S /D=" + target) { UseShellExecute = false }))
+                {
+                    proc.WaitForExit();
+                    if (proc.ExitCode != 0 || !File.Exists(Path.Combine(target, "DFO Test Build.exe")))
+                        throw new IOException("Launcher installation did not finish in " + target);
+                }
+                return target;
+            }
+            finally { temp.Delete(true); }
+        }
 
         var publicInstall = config[0].StartsWith("public:", StringComparison.Ordinal);
         if (publicInstall) destination = ClientFolder(destination);
@@ -386,7 +413,7 @@ internal static class TestUpdateSetup
 
     private static void OpenLauncher(string folder, string token, bool service)
     {
-        var info = new ProcessStartInfo(Path.Combine(folder, "DFO Online Mod.exe"));
+        var info = new ProcessStartInfo(Path.Combine(folder, File.Exists(Path.Combine(folder, "DFO Test Build.exe")) ? "DFO Test Build.exe" : "DFO Online Mod.exe"));
         info.WorkingDirectory = folder;
         info.UseShellExecute = false;
         if (token != null) info.EnvironmentVariables[service ? "DFO_1311_ACCESS_SESSION" : "DFO_1311_INSTALL_TOKEN"] = token;

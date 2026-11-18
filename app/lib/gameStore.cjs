@@ -59,7 +59,7 @@ const freshState = (seedVersion) => ({ channel: GAME_CHANNEL, seed: seedVersion,
 /**
  * The game store over `root` (<userData>/Game), for an install whose bundled copy is `seed` (readSeed's) under `dist`.
  */
-function openGameStore({ root, seed, dist }) {
+function openGameStore({ root, seed, dist, importRoots = [] }) {
   const seedFiles = new Map(seed.files.map((f) => [f.path, f.sha256]));
   const STATE = path.join(root, 'state.json');
   const versionDir = (v) => path.join(root, `v${v}`);
@@ -160,7 +160,25 @@ function openGameStore({ root, seed, dist }) {
         fs.rmSync(dir, { recursive: true, force: true });
         fs.mkdirSync(path.join(dir, 'files'), { recursive: true });
         // what this copy holds already is copied, hashed again on the way - a file changed on disk is fetched instead
-        const fetch = [...plan.fetch];
+        const fetch = [];
+        for (const entry of plan.fetch) {
+          let recovered = false;
+          for (const source of importRoots) {
+            const file = path.join(source, entry.path);
+            try {
+              if (fs.statSync(file).size !== entry.size) continue;
+              const bytes = fs.readFileSync(file);
+              if (sha256(bytes) !== entry.sha256) continue;
+              writeDurable(into(entry.path), bytes);
+              own.add(entry.path);
+              recovered = true;
+              break;
+            } catch (error) {
+              if (!['ENOENT', 'ENOTDIR', 'EACCES'].includes(error.code)) throw error;
+            }
+          }
+          if (!recovered) fetch.push(entry);
+        }
         for (const c of plan.carry) {
           const src = c.from.own ? path.join(versionDir(index.version), 'files', c.from.path) : path.join(dist, c.from.path);
           let bytes = null;

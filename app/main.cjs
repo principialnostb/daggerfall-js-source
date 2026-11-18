@@ -165,7 +165,8 @@ function openGame() {
   const seed = app.isPackaged ? loadSeed(GAME_SEED, TEST_CONFIG?.nsis ? '13.11.0' : app.getVersion()) : null;
   if (!seed) return;
   try {
-    gameStore = openGameStore({ root: GAME_ROOT(), seed, dist: DIST });
+    const importRoots = TEST_CONFIG?.nsis ? require('./lib/legacyInstall.cjs').legacyGameRoots(process.execPath, app.getPath('userData')) : [];
+    gameStore = openGameStore({ root: GAME_ROOT(), seed, dist: DIST, importRoots });
     const did = gameStore.startup();
     if (did.rolledBack) console.warn(`[game] v${did.rolledBack} never came up - the version before it plays again`);
   } catch (err) {

@@ -1,4 +1,5 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
@@ -11,7 +12,7 @@ export async function buildTestShell({ build, work, output, version, stageShell,
   const settings = JSON.parse(readFileSync(join(projectDir, 'test-update-build.json')));
   json('test-update-build.json', { ...settings, nsis: true });
   const pkg = require('./package.json');
-  json('package.json', { name: 'dfo-1311-test', productName: 'DFO 13.11', main: 'main.cjs', version,
+  json('package.json', { name: 'dfo-1311-test', productName: 'DFO Test Build', main: 'main.cjs', version,
     description: 'DFO test launcher', author: pkg.author, dependencies: pkg.dependencies });
   // The game store needs a valid seed entry. First launch stages the actual game through its file channel.
   const seed = join(work, 'seed');
@@ -30,11 +31,21 @@ export async function buildTestShell({ build, work, output, version, stageShell,
     extraResources: [{ from: archive, to: 'game-seed.asar' }],
     asarUnpack: ['**/node_modules/workerd/**', '**/node_modules/@cloudflare/workerd-*/**'],
     win: { icon: require.resolve('../public/icons/icon-512.png') },
-    nsis: { artifactName: 'DFO-13.11-Setup.exe', oneClick: true, perMachine: false },
+    nsis: { artifactName: 'DFO-Test-Build-Client.exe', oneClick: true, perMachine: false },
     publish: { provider: 'generic', url: 'https://github.com/' + settings.repository + '/releases/download/' + tag + '/' },
   } });
-  for (const name of ['DFO-13.11-Setup.exe', 'DFO-13.11-Setup.exe.blockmap', 'latest.yml']) {
+  for (const name of ['DFO-Test-Build-Client.exe', 'DFO-Test-Build-Client.exe.blockmap', 'latest.yml']) {
     cpSync(join(out, name), join(output, name));
   }
+  const client = 'DFO-Test-Build-Client.exe';
+  const hash = createHash('sha256').update(readFileSync(join(out, client))).digest('hex');
+  const config = join(work, 'setup.txt');
+  writeFileSync(config, ['public:' + settings.repository, tag, client + ' ' + hash].join('\n'));
+  const master = join(output, 'DFO-Test-Build-Setup.exe');
+  execFileSync(join(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'), ['/nologo', '/codepage:65001',
+    '/target:winexe', '/reference:System.IO.Compression.dll', '/reference:System.IO.Compression.FileSystem.dll',
+    '/reference:System.Web.Extensions.dll', '/reference:System.Drawing.dll', '/out:' + master,
+    '/resource:' + config + ',setup.txt', require.resolve('../tools/testUpdateSetup.cs')]);
+  cpSync(master, join(output, 'DFO-13.11-Setup.exe')); // Existing clients request this exact name.
   return shell;
 }

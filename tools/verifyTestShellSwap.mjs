@@ -58,9 +58,19 @@ try {
   for (let i = 0; i < 150; i++) {
     if (existsSync(problem)) throw new Error(readFileSync(problem, 'utf8'));
     if (existsSync(marker)) {
-      const version = cli("(Get-Process -Name 'DFO 13.11' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:DFO_VERIFY_PROGRAM -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1).ProductVersion");
+      const version = cli("(Get-Process -Name 'DFO Test Build' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq (Join-Path (Split-Path $env:DFO_VERIFY_PROGRAM) 'DFO Test Build.exe') -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1).ProductVersion");
       if (version === yaml.version || version === yaml.version + '.0') {
         console.log('Verified automatic shell download, install and reopened window: ' + version);
+        // Exercise the same master installation path used after the folder picker confirms.
+        cli("Get-Process -Name 'DFO Test Build' -ErrorAction SilentlyContinue | Stop-Process -Force");
+        const legacy = join(scratch, 'previous client');
+        const { mkdirSync } = await import('node:fs');
+        mkdirSync(join(legacy, 'resources'), { recursive: true });
+        writeFileSync(join(legacy, 'DFO Online Mod.exe'), '');
+        writeFileSync(join(legacy, 'resources', 'app.asar'), 'previous files');
+        execFileSync(join(assets, 'DFO-Test-Build-Setup.exe'), ['--local-install', legacy, assets], { timeout: 120000 });
+        if (!existsSync(join(legacy, 'DFO Test Build', 'DFO Test Build.exe'))
+          || readFileSync(join(legacy, 'resources', 'app.asar'), 'utf8') !== 'previous files') throw new Error('Legacy migration failed');
         break;
       }
     }
