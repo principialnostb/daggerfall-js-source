@@ -7,5 +7,9 @@
     "hash": "f088a1df0874fc366c641cf16dcffeed67436d74e032d5c0da887e997c7e5e15",
     "label": "123",
     "revoked": true
+  },
+  {
+    "hash": "e16ea146fcd70bc0159ddc6c48efea7d7826e7db110327af67f4a130a736711e",
+    "label": "Test1"
   }
 ]
