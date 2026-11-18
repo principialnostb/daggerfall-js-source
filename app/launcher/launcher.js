@@ -170,6 +170,16 @@
   const lost = (at) => !at || at === document.body || at.disabled || !at.isConnected || !at.checkVisibility() || !!at.closest('[inert]');
   function render(v) {
     lastView = v;
+    if (v.emcProgress && !v.waitingForUpdate) {
+      const { stage, part, received, total } = v.emcProgress;
+      const mb = (bytes) => (bytes / 1048576).toFixed(1);
+      const status = stage === 'downloading' ? 'Downloading EMC ' + part
+        : stage === 'verifying' ? 'Verifying EMC ' + part
+          : stage === 'access' ? 'Checking test access for EMC' : 'Connecting to GitHub for EMC ' + part;
+      v = { ...v, status, detail: '', busy: true, progress: stage === 'downloading'
+        ? { percent: 100 * received / total, label: mb(received) + ' of ' + mb(total) + ' MiB', transferred: received, total }
+        : null };
+    }
     // nothing stays over the first run's card as it comes up, or over the game starting
     if (v.panel !== 'news' || v.launching) screen = null;
     if (drawer && ((v.panel === 'setup' && lastPanel !== 'setup') || v.launching)) settings(false);
@@ -205,17 +215,15 @@
     const requirement = $('test-play-requirement');
     const dockAction = $('test-dock-action');
     const gate = v.testPlayGate;
-    if (changed('emc-progress', v.emcProgress)) {
-      document.dispatchEvent(new CustomEvent('launcher-emc-progress', { detail: v.emcProgress }));
-    }
-    document.dispatchEvent(new CustomEvent('launcher-update-gate', { detail: v.waitingForUpdate }));
+    const emc = v.emcProgress;
+    document.dispatchEvent(new CustomEvent('launcher-update-gate', { detail: v.waitingForUpdate || !!emc }));
     requirement.textContent = gate?.message ?? '';
     requirement.hidden = !gate || !!gate.emc;
     $('test-dock').hidden = !gate;
     dockAction.hidden = !gate?.invite;
     $('test-dock-retry').hidden = !gate?.retryEmc;
     $('test-dock').closest('.bar').toggleAttribute('data-test-gate', !!gate);
-    $('test-dock-emc').hidden = !gate?.emc;
+    $('test-dock-install').hidden = !gate?.emc || !!emc;
 
     $('news').hidden = v.panel !== 'news';
     $('hero').hidden = v.panel !== 'news' || !v.news.items.length;

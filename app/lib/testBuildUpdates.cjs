@@ -63,7 +63,8 @@ async function fetchTestPackRange(pack, start, end, fetchRange) {
     if (!part || localStart >= part.size) throw new Error('Missing game pack part');
     const localEnd = Math.min(end - index * PART_SIZE, part.size);
     const result = await fetchRange(part.url, localStart, localEnd);
-    if (result.status !== 206 || result.contentRange !== `bytes ${localStart}-${localEnd - 1}/${part.size}`
+    if (result.status !== 206) throw new Error('Game pack download refused (HTTP ' + result.status + ')');
+    if (result.contentRange !== `bytes ${localStart}-${localEnd - 1}/${part.size}`
       || result.bytes.length !== localEnd - localStart) throw new Error('Incorrect game pack range');
     buffers.push(result.bytes);
     offset += localEnd - localStart;
@@ -72,4 +73,20 @@ async function fetchTestPackRange(pack, start, end, fetchRange) {
   return { status: 206, contentRange: `bytes ${start}-${end - 1}/${size}`, bytes: Buffer.concat(buffers) };
 }
 
-module.exports = { PART_SIZE, testApi, packPartName, testRelease, testReleases, testReleaseDownload, testGameAssets, fetchTestPackRange };
+async function retryGitHub(request, { signal, shouldRetry = (value) => value.status >= 500 || value.status === 408 } = {}) {
+  const { setTimeout: delay } = require('node:timers/promises');
+  for (const wait of [250, 750, 0]) {
+    signal?.throwIfAborted();
+    try {
+      const response = await request();
+      if (wait === 0 || !shouldRetry(response)) return response;
+      await response.body?.cancel().catch(() => {});
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (!wait || !/abort|timed out|network|fetch failed|net::ERR_/i.test(String(error.message))) throw error;
+    }
+    await delay(wait, undefined, { signal });
+  }
+}
+
+module.exports = { retryGitHub, PART_SIZE, testApi, packPartName, testRelease, testReleases, testReleaseDownload, testGameAssets, fetchTestPackRange };

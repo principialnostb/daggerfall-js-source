@@ -6,7 +6,8 @@ const { createHash } = require('node:crypto');
 const { Readable } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const { Transform } = require('node:stream');
-const { createBrotliDecompress } = require('node:zlib');
+const { createBrotliDecompress, gzipSync, gunzipSync } = require('node:zlib');
+const { retryGitHub } = require('./testBuildUpdates.cjs');
 const { isSafeGamePath } = require('./gameChannel.cjs');
 
 const MAX_PACK = 2 * 1024 ** 3 - 1;
@@ -57,6 +58,18 @@ function temporaryUrl(value) {
   return url.href;
 }
 
+const offerPrefix = 'DFO1-';
+function encodeOffer(offer) {
+  return offerPrefix + gzipSync(JSON.stringify(offer)).toString('base64url');
+}
+function decodeOffer(text) {
+  if (!text.startsWith(offerPrefix)) return JSON.parse(text);
+  const encoded = text.slice(offerPrefix.length);
+  if (!/^[A-Za-z0-9_-]{1,12000}$/.test(encoded)) throw new Error('Invalid EMC download offer');
+  try { return JSON.parse(gunzipSync(Buffer.from(encoded, 'base64url'), { maxOutputLength: 12000 }).toString('utf8')); }
+  catch { throw new Error('Invalid EMC download offer'); }
+}
+
 function offerOf(text) {
   return downloadOffer(JSON.parse(text));
 }
@@ -92,12 +105,13 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
     catch { return false; }
   }
 
-  async function install(text) {
-    const data = JSON.parse(text);
+  async function install(text, access) {
+    access?.throwIfAborted();
+    const data = decodeOffer(text);
     if (!data?.base && !data?.faces) {
       if (requireFaces) throw new Error('A complete EMC offer is required');
       const offer = downloadOffer(data);
-      return installFrom(offer, (signal) => openUrl(offer.url, signal));
+      return installFrom(offer, (signal) => openUrl(offer.url, signal), 'base', access);
     }
     // Validate the complete offer before installing either component.
     const parts = Object.entries({ base: data.base, faces: data.faces })
@@ -105,12 +119,13 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
       .map(([part, offer]) => [part, downloadOffer(offer)]);
     let files = 0;
     for (const [part, offer] of parts) {
+      access?.throwIfAborted();
       if (readyPart(part) && fs.statSync(locations[part].path).size === offer.size) {
         const installed = createHash('sha256');
         for await (const chunk of fs.createReadStream(locations[part].path)) installed.update(chunk);
         if (installed.digest('hex') === offer.sha256) continue;
       }
-      const result = await installFrom(offer, (signal) => openUrl(offer.url, signal), part);
+      const result = await installFrom(offer, (signal) => openUrl(offer.url, signal), part, access);
       files += result.files;
     }
     if (!readyPart('base') || (requireFaces && !readyPart('faces'))) throw new Error('A complete EMC offer is required');
@@ -119,13 +134,14 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
 
   const openUrl = (url, signal) => net.fetch(url, { redirect: 'error', cache: 'no-store', signal });
 
-  async function installFrom(offer, openDownload, part = 'base') {
+  async function installFrom(offer, openDownload, part = 'base', access) {
     const location = locations[part];
     if (!location) throw new Error('Unknown EMC component');
     if (installing) throw new Error('An EMC download is in progress');
     installing = true;
     const temp = location.path + '.download';
     const stop = new AbortController();
+    const signal = access ? AbortSignal.any([access, stop.signal]) : stop.signal;
     let timer, lastReport = 0;
     function armTimeout() {
       if (timer) timer.refresh();
@@ -136,7 +152,7 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
       await fs.promises.mkdir(root, { recursive: true });
       report('connecting', 0);
       armTimeout();
-      const response = await openDownload(stop.signal);
+      const response = await retryGitHub(() => openDownload(signal), { signal });
       if (!response.ok || !response.body) {
         await response.body?.cancel().catch(() => {});
         throw new Error('EMC download refused (HTTP ' + response.status + ')');
@@ -156,12 +172,13 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
         }
         callback(null, chunk);
       } });
-      await pipeline(Readable.fromWeb(response.body), check, fs.createWriteStream(temp, { flags: 'w' }), { signal: stop.signal });
+      await pipeline(Readable.fromWeb(response.body), check, fs.createWriteStream(temp, { flags: 'w' }), { signal });
       clearTimeout(timer);
       report('verifying', size);
       if (size !== offer.size || hash.digest('hex') !== offer.sha256) throw new Error('EMC checksum failed');
       const next = readPack(temp);
       if (!location.check(next)) throw new Error('This EMC package is incomplete. Ask for a new temporary link.');
+      signal.throwIfAborted();
       await fs.promises.rename(temp, location.path);
       partFiles.set(part, next);
       return { files: next.length };
@@ -216,4 +233,4 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
   };
 }
 
-module.exports = { ASSET_NAME, FACE_ASSET_NAME, MAX_PACK, MAX_INDEX, allowedPath, readPack, temporaryUrl, offerOf, emcStore, hasPaperdoll, hasFaces, isFaceResource, paperdollFiles };
+module.exports = { ASSET_NAME, FACE_ASSET_NAME, MAX_PACK, MAX_INDEX, allowedPath, readPack, temporaryUrl, offerOf, encodeOffer, emcStore, hasPaperdoll, hasFaces, isFaceResource, paperdollFiles };

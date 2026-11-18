@@ -9,23 +9,6 @@
     get('emc-form').hidden = waitingForUpdate || !profile || admin(profile);
   });
   let profile, rows = [], confirming, issuedId, busy = false;
-  let emcReport;
-  document.addEventListener('launcher-emc-progress', ({ detail: transfer }) => {
-    for (const bar of document.querySelectorAll('.emc-progress')) {
-      bar.hidden = transfer?.stage !== 'downloading';
-      if (bar.hidden) continue;
-      bar.max = transfer.total;
-      bar.value = transfer.received;
-    }
-    if (!transfer) return;
-    const { stage, part, received, total } = transfer;
-    const mb = (bytes) => (bytes / 1048576).toFixed(1);
-    const label = stage === 'connecting' ? 'Connecting to GitHub for EMC ' + part + '…'
-      : stage === 'verifying' ? 'Verifying EMC ' + part + '…'
-        : 'Downloading EMC ' + part + ' · ' + mb(received) + ' / ' + mb(total) + ' MiB';
-    if (emcReport) emcReport(label);
-    else get('play-requirement').textContent = label;
-  });
   const status = (message) => { get('status').textContent = message; };
   function display() {
     const search = get('search').value.trim().toLowerCase();
@@ -195,8 +178,9 @@
   get('emc-remove').addEventListener('click', () => run(async () => {
     if ((await call('emc-remove'))?.removed) status('EMC removed. You can install it again.');
   }));
-  get('sign-out').addEventListener('click', () => run(async () => {
-    await call('sign-out');
+  get('sign-out').addEventListener('click', async () => {
+    try { await call('sign-out'); }
+    catch (error) { status(requestFailure(error)); return; }
     draw(null);
     rows = [];
     confirming = null;
@@ -204,11 +188,12 @@
     formState(false);
     tab(true);
     status('Signed out.');
-  }));
+  });
   function requestFailure(error, emc = false) {
     const message = String(error?.message ?? '');
     const status = /GitHub request failed \((\d{3})\)/.exec(message);
     if (status) return 'GitHub access check failed (HTTP ' + status[1] + ').';
+    if (/Test access was interrupted/.test(message)) return 'Test access was interrupted. Verify access and retry.';
     if (/Update required before installing EMC/.test(message)) return 'Finish updating the launcher before installing EMC.';
     if (/Activate a test invitation first/.test(message)) return 'Test access is inactive. Activate your invitation.';
     if (/Invalid invitation/.test(message)) return 'The invitation code is invalid.';
@@ -236,8 +221,8 @@
       run(async () => {
         const button = form.querySelector('button');
         button.disabled = true;
-        emcReport = report;
-        report('Checking your test access…');
+        get('dialog').close();
+        report('');
         try {
           const installed = await call('emc', input.value.trim());
           input.value = '';
@@ -245,17 +230,17 @@
         } catch (error) {
           report(requestFailure(error, true));
         } finally {
-          emcReport = null;
           button.disabled = false;
         }
       });
     });
   }
-  bindEmc(get('emc-form'), get('emc'), status);
-  bindEmc(get('dock-emc'), get('dock-link'), (message) => {
+  get('dock-install').addEventListener('click', () => opened('emc'));
+  bindEmc(get('emc-form'), get('emc'), (message) => {
+    status(message);
     const feedback = get('dock-feedback');
     feedback.textContent = message;
-    feedback.hidden = false;
+    feedback.hidden = !message;
   });
   get('dock-retry').addEventListener('click', () => run(() => call('emc-retry')));
   get('emc-link').addEventListener('click', () => run(async () => {

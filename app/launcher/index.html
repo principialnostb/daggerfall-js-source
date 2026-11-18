@@ -60,12 +60,8 @@
           <p id="test-play-requirement" role="status" hidden></p>
           <button id="test-dock-retry" class="plaque small" type="button" hidden>Retry EMC</button>
           <button id="test-dock-action" class="plaque small" type="button">Enter invitation</button>
-          <form id="test-dock-emc" class="test-dock-emc" hidden>
-            <label for="test-dock-link">Temporary EMC download link</label>
-            <div class="test-inline"><input id="test-dock-link" placeholder="Paste the offer from your administrator" maxlength="12000" autocomplete="off" spellcheck="false" required><button class="plaque small primary" type="submit">Install EMC</button></div>
-            <p id="test-dock-feedback" role="status" hidden></p>
-          </form>
-          <progress class="emc-progress" aria-label="EMC download progress" hidden></progress>
+          <button id="test-dock-install" class="plaque small primary" type="button" hidden>Install EMC</button>
+          <p id="test-dock-feedback" role="status" hidden></p>
         </div>
         <div id="progress" class="progress" hidden>
           <div class="track" role="progressbar" aria-labelledby="status" aria-valuemin="0" aria-valuemax="100"><i></i></div>
@@ -202,7 +198,6 @@
         <div class="test-inline"><input id="test-emc" maxlength="12000" autocomplete="off" spellcheck="false" aria-describedby="test-emc-help" required><button class="plaque primary" type="submit">Install EMC</button></div>
       </form>
     </div>
-    <progress class="emc-progress" aria-label="EMC download progress" hidden></progress>
     <footer class="test-footer"><p id="test-status" role="status" aria-live="polite"></p><div class="test-footer-actions"><button type="button" id="test-emc-remove" class="plaque small test-danger" hidden>Remove EMC</button><button type="button" id="test-sign-out" class="plaque small" hidden>Sign out</button></div></footer>
   </dialog>
   <script src="test-access.js"></script>

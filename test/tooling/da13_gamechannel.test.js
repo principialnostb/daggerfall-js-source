@@ -443,18 +443,18 @@ test('DA13: the shell - the game\'s channel asked first everywhere, served by th
   const ask = sliceOf('async function askGame() {', '/** The files `manifest` asks of this copy');
   assert.match(ask, /if \(!gameStore\) return 'installer';/, 'no seed: the installer\'s path, as before DA13');
   assert.match(ask, /if \(!latest\) return gameStore\.active\(\) \? 'offline' : 'installer';/, 'a game ahead of its installer is never compared by the installer\'s path');
-  assert.match(ask, /if \(!isNewerRelease\(gameVersion\(\), latest\.tag\)\) return 'current';/, 'compared against the GAME this copy plays');
+  assert.match(ask, /if \(!isNewerRelease\(gameVersion\(\), latest\.tag\)\) \{[\s\S]*?return 'current';/, 'compared against the GAME this copy plays');
   assert.match(ask, /const manifest = parseManifestFile\(Buffer\.from\(await res\.arrayBuffer\(\)\), \{ version \}\);/);
   assert.match(ask, /if \(manifest\.pack\.size !== latest\.game\.packSize\) throw/);
-  assert.match(ask, /\} catch \(err\) \{\s*if \(gameJob\?\.version === version\) gameJob = null;\s*if \(version && !TEST_CONFIG\?\.nsis\) gameStore\.fail\(version\);/, 'legacy transports remember the failure - that release is the installer\'s');
+  assert.match(ask, /\} catch \(err\) \{\s*if \(gameJob\?\.version === version\) gameJob = null;[\s\S]*?if \(version && !TEST_CONFIG\?\.nsis\) gameStore\.fail\(version\);/, 'legacy transports remember the failure - that release is the installer\'s');
   assert.match(sliceOf('function gameFailed(', '/** The installer\'s path, quietly'), /gameStore\.fail\(version\);[\s\S]*if \(launcher && !launcher\.state\.launch\) \{ launcherDispatch\(\{ type: 'game-failed' \}\); startLaunchCheck\(\); return; \}\s*if \(updateChecksEnabled\(\)\) askInstaller\(\);/,
     'a download that failed hands the release to the installer\'s path at once');
-  assert.match(sliceOf('function downloadGame(', '/** A version of the game is here'), /\(err\) => \{ gameJob = null; gameFailed\(version, err\); \}/);
+  assert.match(sliceOf('function downloadGame(', '/** A version of the game is here'), /\(err\) => \{ gameJob = null; if \(access\?\.aborted\) resumeTestUpdate\(\); else gameFailed\(version, err\); \}/);
   const arrived = sliceOf('function gameArrived(', '/** The channel could not bring');
   assert.match(arrived, /if \(!gameWindow \|\| gameWindow\.isDestroyed\(\)\) \{\s*gameStore\.activate\(version\);\s*launcherDispatch\(\{ type: 'game-applied', version \}\);/, 'no page running: played at once');
   assert.match(arrived, /if \(gameStore\.ready\(\) !== version\) gameStore\.markReady\(version\);/, 'a page running: never switched under it');
   // every check asks it first: the launcher's, the hourly one, --play's, the menu's
-  assert.match(sliceOf('function startLaunchCheck()', 'function runLauncher()'), /askGame\(\)\.then\(\(g\) => \{\s*if \(g === 'current'\) launcherDispatch\(\{ type: 'check-none' \}\);\s*else if \(g === 'offline'\) launcherDispatch\(\{ type: 'check-failed' \}\);\s*if \(g !== 'installer'\) return;/);
+  assert.match(sliceOf('function startLaunchCheck()', 'function runLauncher()'), /askGame\(\)\.then\(\(g\) => \{\s*if \(access\?\.aborted\) return;\s*if \(g === 'current'\) launcherDispatch\(\{ type: 'check-none' \}\);\s*else if \(g === 'offline'\) launcherDispatch\(\{ type: 'check-failed'.*\}\);\s*if \(g !== 'installer'\) return;/);
   assert.match(sliceOf('function startRechecks()', '// ---- the window'), /if \(await askGame\(\) !== 'installer'\) return;\s*if \(currentUpdateTransport\(\) === 'updater'\) \{/);
   assert.match(sliceOf('async function runDirect(', '// The launcher\'s two words.'), /askGame\(\)\.then\(\(g\) => \{ if \(g === 'installer'\) askInstaller\(\); \}\);/);
   assert.match(main, /click: \(\) => checkForUpdatesLoudly\(\),/);

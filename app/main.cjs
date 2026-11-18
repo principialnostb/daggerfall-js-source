@@ -582,7 +582,7 @@ const RELEASES_LIST_API = 'https://api.github.com/repos/principialnostb/daggerfa
 const RELEASES_TAG_API = 'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases/tags/';   // + the hosting pin's tag (main's release, not the fork's)
 const RELEASES_PAGE = TEST_RELEASES?.page ?? 'https://github.com/principialnostb/daggerfall-js-source/releases/latest';
 const { isNewerRelease } = require('./lib/updateCheck.cjs');
-const { testRelease, testReleases, testReleaseDownload, testGameAssets, fetchTestPackRange } = require('./lib/testBuildUpdates.cjs');
+const { testRelease, testReleases, testReleaseDownload, testGameAssets, fetchTestPackRange, retryGitHub } = require('./lib/testBuildUpdates.cjs');
 const { updateTransport } = require('./lib/autoUpdate.cjs');
 const { UNLOAD_ASK, leaves, restartAsk, reinstallAsk, installFailedAsk, goesAhead } = require('./lib/shellDialogs.cjs');
 const { goneAsk, restarts, hangAsk, restartsHung, createStopCount, goneLine, logWith } = require('./lib/rendererGone.cjs');   // FIELD BUGS 2026-10-21b RENDERER-GONE
@@ -655,8 +655,8 @@ let _autoUpdater = null;
 function autoUpdater() {
   if (_autoUpdater) return _autoUpdater;
   const { autoUpdater: au } = require('electron-updater');
-  au.autoDownload = true;
-  au.autoInstallOnAppQuit = true;
+  au.autoDownload = !TEST_ACCESS;
+  au.autoInstallOnAppQuit = !TEST_ACCESS;
   au.allowPrerelease = false;
   au.allowDowngrade = false;
   au.logger = null;
@@ -680,6 +680,7 @@ function autoUpdater() {
  *  An install that failed on the spot (an AppImage where the player cannot
  *  write) is the install's to answer (installFailed). */
 function onUpdaterEvent(kind, info) {
+  if (TEST_ACCESS && !testSession) return;
   if (kind === 'error') {
     // AUDIT INSTALL R2-A2: heard only for what has no promise to say it - an install that failed (L2-4). A check's
     // failure and a download's each reject their own promise (askUpdater): read off this one event, an hourly re-check
@@ -745,6 +746,8 @@ let downloading = null;
  *  checksum, a full disk) frees Play (L2-1), and never as an unhandled
  *  rejection. */
 async function askUpdater() {
+  const access = testSession?.signal;
+  if (TEST_ACCESS && !access) return null;
   if (TEST_CONFIG?.nsis) {
     const setup = await TEST_RELEASES.setupLink();
     const prefix = 'https://github.com/' + TEST_RELEASES.repository + '/releases/download/';
@@ -752,12 +755,24 @@ async function askUpdater() {
     if (!/^dfo-1311-v13\.11\.[1-9]\d*\/DFO-13\.11-Setup\.exe$/.test(tail)) throw new Error('Invalid shell release');
     autoUpdater().setFeedURL({ provider: 'generic', url: setup.slice(0, setup.lastIndexOf('/') + 1), useMultipleRangeRequest: false });
   }
-  return autoUpdater().checkForUpdates().then((r) => {
+  access?.throwIfAborted();
+  const updater = autoUpdater();
+  return updater.checkForUpdates().then((r) => {
+    access?.throwIfAborted();
+    if (access && r?.isUpdateAvailable && !downloading) {
+      const cancel = () => r.cancellationToken.cancel();
+      access.addEventListener('abort', cancel, { once: true });
+      r.downloadPromise = updater.downloadUpdate(r.cancellationToken).finally(() => access.removeEventListener('abort', cancel));
+    }
     if (r?.downloadPromise && !downloading) {
       const d = { token: r.cancellationToken };
       downloading = d;
       r.downloadPromise
-        .then(() => {}, () => { if (downloading === d) { stopStallWatch(); launcherDispatch({ type: 'download-failed' }); } })
+        .then(() => {}, (error) => {
+          if (downloading !== d || access?.aborted) return;
+          stopStallWatch();
+          launcherDispatch({ type: 'download-failed', http: TEST_ACCESS ? error?.statusCode : undefined });
+        })
         .finally(() => { if (downloading === d) downloading = null; });
     } else r?.downloadPromise?.catch(() => {});
     return r ?? null;
@@ -1103,11 +1118,18 @@ async function checkForUpdatesViaUpdater() {
  *  `download` is this copy's own installer - the dmg, the portable exe -
  *  as the release lists it (BR5), else by the name that never moves
  *  (REL5), or the release page where there is no one file to name. */
+let testReleaseHttp;
 async function fetchLatestRelease() {
   try {
-    if (TEST_ACCESS && TEST_RELEASES !== TEST_ACCESS) await TEST_ACCESS.authorizeUpdate();
+    if (TEST_ACCESS && !testSession) return null;
     const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };
-    const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LATEST_API, options));
+    const access = testSession?.signal;
+    const res = TEST_RELEASES
+      ? await retryGitHub(() => TEST_RELEASES.releases({
+        ...options, signal: access ? AbortSignal.any([access, AbortSignal.timeout(10000)]) : options.signal,
+      }), { signal: access })
+      : await net.fetch(RELEASES_LATEST_API, options);
+    if (TEST_ACCESS) testReleaseHttp = res.ok ? undefined : res.status;
     if (!res.ok) return null;
     const data = await res.json();
     const json = TEST_RELEASES ? testRelease(data) : data;
@@ -1195,6 +1217,11 @@ async function checkForUpdates() {
 /** DA13: the channel's two requests - a release's game manifest and ranges of its pack - made only to GitHub's own
  *  download links for this repository's releases (lib/downloads.cjs RELEASES_URL). */
 function gameFetch(url, init) {
+  if (TEST_ACCESS) {
+    if (!testSession) throw new Error('Test access required');
+    const access = testSession.signal;
+    init = { ...init, signal: init?.signal ? AbortSignal.any([init.signal, access]) : access };
+  }
   if (TEST_RELEASES) return TEST_RELEASES.asset(url, init);
   if (typeof url !== 'string' || !url.startsWith(`${RELEASES_URL}/download/`)) return Promise.reject(new Error('not one of this repository\'s release downloads'));
   return net.fetch(url, init);
@@ -1245,21 +1272,34 @@ let gameJob = null;
  *                installer, which the installer's path cannot compare against: nothing is asked until the next check.
  */
 async function askGame() {
+  const access = testSession?.signal;
+  if (TEST_ACCESS && !access) return 'offline';
   if (!gameStore) return 'installer';
   if (gameJob) return 'game';
   let version = null;
   try {
+    if (TEST_ACCESS) testReleaseHttp = undefined;
     const latest = await fetchLatestRelease();
+    access?.throwIfAborted();
     if (gameJob) return 'game';
     if (!latest && TEST_ACCESS) return 'offline';
     if (!latest) return gameStore.active() ? 'offline' : 'installer';
-    if (!isNewerRelease(gameVersion(), latest.tag)) return 'current';
+    if (!isNewerRelease(gameVersion(), latest.tag)) {
+      if (TEST_CONFIG?.nsis) {
+        const setup = await TEST_RELEASES.setupLink();
+        access.throwIfAborted();
+        const shell = /\/dfo-1311-v(13\.11\.\d+)\//.exec(setup ?? '')?.[1];
+        if (shell && isNewerRelease(app.getVersion(), 'app-v' + shell)) return 'installer';
+      }
+      return 'current';
+    }
     version = versionOfTag(latest.tag);
     if (gameStore.ready() === version) { gameArrived(version); return 'game'; }
     if (gameStore.hasFailed(version)) return 'installer';
     gameJob = { version };
     if (!latest.game) throw new Error('the release carries no game');
-    const res = await gameFetch(latest.game.manifest, { headers: { 'User-Agent': 'daggerfall-js-app' }, signal: AbortSignal.timeout(30000) });
+    const request = () => gameFetch(latest.game.manifest, { headers: { 'User-Agent': 'daggerfall-js-app' }, signal: AbortSignal.timeout(30000) });
+    const res = TEST_ACCESS ? await retryGitHub(request, { signal: access }) : await request();
     if (!res.ok) throw new Error(`its manifest answered HTTP ${res.status}`);
     const manifest = parseManifestFile(Buffer.from(await res.arrayBuffer()), { version });
     if (manifest.pack.size !== latest.game.packSize) throw new Error('the release\'s pack is not the one its manifest names');
@@ -1269,10 +1309,12 @@ async function askGame() {
       console.warn(`[game] v${version} is the installer's: ${why}`);
       return 'installer';
     }
-    downloadGame(manifest, latest.game.pack);
+    access?.throwIfAborted();
+    downloadGame(manifest, latest.game.pack, access);
     return 'game';
   } catch (err) {
     if (gameJob?.version === version) gameJob = null;
+    if (access?.aborted) { resumeTestUpdate(); return 'offline'; }
     if (version && !TEST_CONFIG?.nsis) gameStore.fail(version);
     if (version && TEST_CONFIG?.nsis) {
       launcherDispatch({ type: 'game-available', version });
@@ -1286,16 +1328,19 @@ async function askGame() {
 
 /** The files `manifest` asks of this copy, fetched and staged (gameStore.stage): its progress told to the launcher, its
  *  end gameArrived - or, on any failure, the installer's path for that release (gameFailed). */
-function downloadGame(manifest, packUrl) {
+function downloadGame(manifest, packUrl, access) {
   const { version } = manifest;
   let lastProgress = 0;
   launcherDispatch({ type: 'game-available', version, preparing: true });
   gameStore.stage(manifest, {
-    fetchRange: (start, end) => TEST_UPDATE_BUILD
-      ? fetchTestPackRange(packUrl, start, end, fetchPackRange)
-      : fetchPackRange(packUrl, start, end),
+    fetchRange: (start, end) => {
+      access?.throwIfAborted();
+      return TEST_UPDATE_BUILD ? fetchTestPackRange(packUrl, start, end, (url, from, to) =>
+        retryGitHub(() => fetchPackRange(url, from, to), { signal: access })) : fetchPackRange(packUrl, start, end);
+    },
     onProgress: (progress) => {
       const now = Date.now();
+      if (access?.aborted) return;
       const { phase, checked, files, transferred, total } = progress;
       if (now - lastProgress < 100 && transferred !== 0 && (phase === 'preparing' || transferred !== total)) return;
       lastProgress = now;
@@ -1303,8 +1348,8 @@ function downloadGame(manifest, packUrl) {
       else launcherDispatch({ type: 'progress', percent: total ? (100 * transferred) / total : 100, transferred, total });
     },
   }).then(
-    () => { gameJob = null; gameArrived(version); },
-    (err) => { gameJob = null; gameFailed(version, err); },
+    () => { gameJob = null; if (access?.aborted) resumeTestUpdate(); else gameArrived(version); },
+    (err) => { gameJob = null; if (access?.aborted) resumeTestUpdate(); else gameFailed(version, err); },
   );
 }
 
@@ -1316,6 +1361,7 @@ function gameArrived(version) {
     if (!gameWindow || gameWindow.isDestroyed()) {
       gameStore.activate(version);
       launcherDispatch({ type: 'game-applied', version });
+      if (TEST_CONFIG?.public && launcher?.win && !launcher.win.isDestroyed()) launcher.win.webContents.reload();
       return;
     }
     if (gameStore.ready() !== version) gameStore.markReady(version);
@@ -1330,7 +1376,8 @@ function gameArrived(version) {
 function gameFailed(version, err) {
   if (TEST_CONFIG?.nsis) {
     console.warn('Game download interrupted:', err?.message ?? err);
-    launcherDispatch({ type: 'game-failed' });
+    const http = /(?:HTTP |answered )(\d{3})/.exec(err?.message)?.[1];
+    launcherDispatch({ type: 'game-failed', http });
     return;
   }
   try { gameStore.fail(version); } catch { /* the failure is told below either way */ }
@@ -1797,6 +1844,7 @@ function openLauncherWindow() {
   win.on('closed', () => {
     if (launcher?.win !== win) return;
     const handingOver = launcher.state.launch === 'started';
+    if (TEST_ACCESS) blockTestAccess();
     launcher.stop.abort();   // R2-D1: its probes go with it - a search, a folder being looked at
     launcher = null;
     stopStallWatch();
@@ -1812,6 +1860,9 @@ const testUpdateReady = () => launcher?.state.update.status === 'current' && !in
 const testAccessGate = { message: 'Activate an invitation or sign in as a developer.', invite: true };
 let testPlayGate = TEST_ACCESS ? testAccessGate : null;
 let testPlayCheck;
+let testSession = null;
+let testAccessEpoch = 0;
+let changingTestIdentity = false;
 let developerEmcDownload;
 let developerEmcError;
 let emcRemovedByPlayer = false;
@@ -1821,20 +1872,43 @@ function emcProgressChanged(progress) {
   renderLauncher();
 }
 
+function resumeTestUpdate() {
+  if (testSession && launcher && !gameJob && launcher.state.update.status === 'checking') startLaunchCheck();
+}
+function blockTestAccess(message = testAccessGate.message) {
+  testAccessEpoch++;
+  testSession?.abort();
+  testSession = null;
+  testPlayGate = { ...testAccessGate, message };
+  clearTimeout(launchCheckTimer);
+  stopStallWatch();
+  if (updateReady && !updateReady.game) updateReady = null;
+  launcherDispatch({ type: 'test-access-blocked' });
+}
+
 function startDeveloperEmc() {
   if (emcRemovedByPlayer || developerEmcDownload || developerEmcError || TEST_EMC.ready()) return;
-  developerEmcDownload = TEST_ACCESS.installDeveloperEmc().then(({ error }) => { developerEmcError = error; }).finally(() => {
+  const access = testSession.signal;
+  developerEmcDownload = TEST_ACCESS.installDeveloperEmc(access).then(({ error }) => {
+    if (!access.aborted) developerEmcError = error;
+  }).finally(() => {
     developerEmcDownload = null;
     refreshTestPlay();
   });
 }
 function refreshTestPlay() {
   if (!TEST_ACCESS) return Promise.resolve(true);
-  if (!testUpdateReady()) return Promise.resolve(false);
+  if (changingTestIdentity || !launcher) return Promise.resolve(false);
+  const epoch = testAccessEpoch;
   testPlayCheck ??= (async () => {
     try {
       const developer = await TEST_ACCESS.authorizeUpdate();
-      if (!testUpdateReady()) return false;
+      if (epoch !== testAccessEpoch || changingTestIdentity) return false;
+      if (!testSession) {
+        testSession = new AbortController();
+        resumeTestUpdate();
+      }
+      if (!testUpdateReady()) { renderLauncher(); return false; }
       if (TEST_EMC.ready()) testPlayGate = null;
       else if (developer) {
         startDeveloperEmc();
@@ -1844,7 +1918,11 @@ function refreshTestPlay() {
           ? { message: developerEmcError, retryEmc: true }
           : { message: 'Downloading and verifying EMC from GitHubвЂ¦' };
       } else testPlayGate = { message: 'Install the EMC resources to play.', emc: true };
-    } catch { testPlayGate = testAccessGate; }
+    } catch (error) {
+      if (epoch !== testAccessEpoch) return false;
+      const status = /GitHub request failed \((\d{3})\)/.exec(error.message)?.[1];
+      blockTestAccess(status ? 'Could not verify access (GitHub HTTP ' + status + ').' : undefined);
+    }
     renderLauncher();
     return !testPlayGate;
   })().finally(() => { testPlayCheck = null; });
@@ -1860,8 +1938,14 @@ function renderLauncher() {
   if (w && !w.isDestroyed()) {
     const view = viewOf(launcher.state);
     if (testPlayGate || initialGamePending()) view.play = { ...view.play, enabled: false };
-    const waitingForUpdate = !!TEST_ACCESS && !testUpdateReady();
-    w.webContents.send('launcher:view', { ...view, emcProgress, waitingForUpdate, testPlayGate: waitingForUpdate ? null : testPlayGate });
+    const waitingForUpdate = !!TEST_ACCESS && (!testSession || !testUpdateReady());
+    if (TEST_ACCESS && !testSession) {
+      view.status = 'Test access required';
+      view.detail = '';
+      view.progress = null;
+      view.statusActions = [];
+    }
+    w.webContents.send('launcher:view', { ...view, emcProgress, waitingForUpdate, testPlayGate: waitingForUpdate && testSession ? null : testPlayGate });
   }
 }
 
@@ -1944,8 +2028,10 @@ function installFromLauncher() {
   if (launcher.installing) return;
   launcher.installing = true;
   const l = launcher, version = launcher.state.update.version;
+  const access = testSession?.signal;
   setTimeout(() => {
     if (l !== launcher) return;
+    if (TEST_ACCESS && (!access || access.aborted)) { l.installing = false; advanceLauncher(); return; }
     // a dialog the player opened during the notice holds it too - its close runs advanceLauncher, and this again
     if (l.dialogs) { l.installing = false; return; }
     installNow(version);
@@ -2074,19 +2160,24 @@ function judgeSaved(l, dir) {
  *  an answer that comes later still lands (launcherState MAY_FIND). */
 let launchCheckTimer;
 function startLaunchCheck() {
+  const access = testSession?.signal;
+  if (TEST_ACCESS && !access) return;
   clearTimeout(launchCheckTimer);
   launchCheckTimer = setTimeout(() => launcherDispatch({ type: 'check-timeout' }), CHECK_TIMEOUT_MS).unref?.();
   // DA13: the game's own channel first - only the files that changed; the installer's path answers what it cannot carry
   askGame().then((g) => {
+    if (access?.aborted) return;
     if (g === 'current') launcherDispatch({ type: 'check-none' });
-    else if (g === 'offline') launcherDispatch({ type: 'check-failed' });
+    else if (g === 'offline') launcherDispatch({ type: 'check-failed', ...(TEST_ACCESS ? { http: testReleaseHttp } : {}) });
     if (g !== 'installer') return;
     if (currentUpdateTransport() === 'updater') {
       // null is electron-updater declining to check at all (an AppImage run outside its AppImage, say): no event
       // will come, so it is said now rather than after the timeout
       askUpdater()
-        .then((r) => { if (!r) launcherDispatch({ type: 'check-failed' }); })
-        .catch(() => launcherDispatch({ type: 'check-failed' }));
+        .then((r) => { if (!r && !access?.aborted) launcherDispatch({ type: 'check-failed' }); })
+        .catch((error) => {
+          if (!access?.aborted) launcherDispatch({ type: 'check-failed', http: TEST_ACCESS ? error?.statusCode : undefined });
+        });
       return;
     }
     noticeCheck().then((r) => {
@@ -2144,7 +2235,10 @@ function runLauncher() {
     }),
   };
   buildMenu();
-  if (checkEnabled) {
+  if (TEST_ACCESS) {
+    launcher.win.on('focus', refreshTestPlay);
+    refreshTestPlay();
+  } else if (checkEnabled) {
     startLaunchCheck();
     fetchNews();
     startRechecks();
@@ -2223,11 +2317,23 @@ ipcMain.handle('launcher:test-access', async (e, action, value) => {
   if (action === 'github-login' || action === 'sign-out') developerEmcError = null;
   if (refresh) await testPlayCheck;
   if (action === 'emc' && !testUpdateReady()) throw new Error('Update required before installing EMC');
-  const answer = await TEST_ACCESS.action(action, value);
-  if (refresh) {
-    await refreshTestPlay();
-    if (answer?.role && !TEST_ACCESS) startLaunchCheck();
+  if (action === 'sign-out') {
+    changingTestIdentity = true;
+    blockTestAccess();
+    try { return await TEST_ACCESS.action(action, value); }
+    finally { changingTestIdentity = false; }
   }
+  const access = testSession?.signal;
+  if (action === 'emc' && !access) throw new Error('Activate a test invitation first');
+  if (action === 'emc' && (emcProgress || developerEmcDownload)) throw new Error('An EMC operation is in progress');
+  if (action === 'emc') emcProgressChanged({ stage: 'access' });
+  let answer;
+  try { answer = await TEST_ACCESS.action(action, value, access); }
+  catch (error) {
+    if (action === 'emc' && access?.aborted) throw new Error('Test access was interrupted');
+    throw error;
+  } finally { if (action === 'emc') emcProgressChanged(null); }
+  if (refresh) await refreshTestPlay();
   return answer;
 });
 ipcMain.on('launcher:ready', (e) => {
@@ -2235,8 +2341,11 @@ ipcMain.on('launcher:ready', (e) => {
   renderLauncher();
   if (!TEST_ACCESS) return;
   refreshTestPlay();
-  const timer = setInterval(refreshTestPlay, 60000);
-  e.sender.once('destroyed', () => clearInterval(timer));
+  if (!launcher.testAccessTimer) {
+    const timer = setInterval(refreshTestPlay, 30000);
+    launcher.testAccessTimer = timer;
+    e.sender.once('destroyed', () => clearInterval(timer));
+  }
 });
 ipcMain.on('launcher:act', async (e, msg) => {
   if (!fromLauncher(e)) return;

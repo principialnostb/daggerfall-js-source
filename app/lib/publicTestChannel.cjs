@@ -5,7 +5,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const { createHash, randomBytes } = require('node:crypto');
 const { testApi, testRelease } = require('./testBuildUpdates.cjs');
-const { ASSET_NAME, FACE_ASSET_NAME, MAX_PACK, temporaryUrl } = require('./emcReleasePack.cjs');
+const { ASSET_NAME, FACE_ASSET_NAME, MAX_PACK, temporaryUrl, encodeOffer } = require('./emcReleasePack.cjs');
 
 const repository = 'principialnostb/daggerfall-js-source';
 const branch = '13.11-build';
@@ -135,7 +135,9 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   function emcErrorMessage(error) {
     return error.message === 'GitHub request failed (404)'
       ? 'This GitHub sign-in cannot read the private EMC repository. Check repository access and sign in again.'
-      : error.message === 'EMC transfer timed out'
+      : /(?:GitHub request failed|EMC download refused \(HTTP) \(?\d{3}\)/.test(error.message)
+        ? error.message + '. Check access or request a fresh offer.'
+        : error.message === 'EMC transfer timed out'
         ? 'The EMC transfer stopped responding. Retry the download.'
         : 'Could not download EMC from GitHub. Check your connection and try again.';
   }
@@ -162,7 +164,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     };
   }
 
-  async function installDeveloperEmc() {
+  async function installDeveloperEmc(access) {
     try {
       const token = adminToken();
       if (!await adminProfile(token)) return { error: 'Sign in with GitHub as a developer to install EMC.' };
@@ -176,14 +178,14 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
           if (download.status === 404) throw new Error('GitHub request failed (404)');
           if (download.status !== 302) return download;
           return net.fetch(temporaryUrl(download.headers.get('location')), { redirect: 'error', cache: 'no-store', signal });
-        }, part);
+        }, part, access);
         files += installed.files;
       }
       return { files };
     } catch (error) { return { error: emcErrorMessage(error) }; }
   }
 
-  async function action(name, value) {
+  async function action(name, value, access) {
     if (name === 'github-login') return action('github-token', await githubCredential());
     if (name === 'github' && clientId) {
       const flow = await device('device/code');
@@ -239,7 +241,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     }
     if (name === 'emc') {
       await authorizeUpdate();
-      return emc.install(value);
+      return emc.install(value, access);
     }
     const token = adminToken();
     if (!await adminProfile(token)) throw new Error('Administrator sign-in required');
@@ -256,7 +258,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
           }
           offer[part] = { url: temporaryUrl(download.headers.get('location')), ...asset };
         }
-        copy(JSON.stringify(requireFaces ? offer : offer.base));
+        copy(requireFaces ? encodeOffer(offer) : JSON.stringify(offer.base));
         return { copied: true };
       } catch (error) { return { error: emcErrorMessage(error) }; }
     }

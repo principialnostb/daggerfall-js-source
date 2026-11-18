@@ -171,7 +171,11 @@ test('complete EMC offers retain an installed base and mount the independent fac
   assert.deepEqual(await store.serve(['test-emc']).json(), []);
   assert.equal(store.serve(['test-emc', '2']).status, 404);
   await store.installFrom({ size: base.length, sha256: hash(base) }, async () => new Response(base));
-  await store.install(JSON.stringify({ base: offer(base), faces: offer(faces) }));
+  const compressed = emcPack.encodeOffer({ base: offer(base), faces: offer(faces) });
+  assert.match(compressed, /^DFO1-[\w-]+$/);
+  const revoked = AbortSignal.abort();
+  await assert.rejects(store.install(compressed, revoked), { name: 'AbortError' });
+  await store.install(compressed);
   assert.deepEqual(await store.serve(['test-emc']).json(), names);
 });
 

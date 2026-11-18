@@ -223,6 +223,12 @@ function reduce(state, ev) {
       // The shell's word on the private server - hosting, joined, or why not (app/main.cjs privateAct)
       s.priv = { status: 'off', ...ev.priv };
       break;
+    case 'test-access-blocked':
+      if (s.requireCurrent) {
+        s.update = { status: 'checking', kind: null, version: null, percent: 0, transferred: 0, total: 0, download: null };
+        if (s.launch === 'requested') s.launch = null;
+      }
+      break;
     case 'check-start':
       // the player turned the check on from the launcher
       if (u.status === 'skipped' || (s.requireCurrent && ['offline', 'failed'].includes(u.status))) u.status = 'checking';
@@ -233,7 +239,10 @@ function reduce(state, ev) {
       break;
     case 'check-failed':
     case 'check-timeout':
-      if (u.status === 'checking') u.status = 'offline';
+      if (u.status === 'checking' || (s.requireCurrent && u.status === 'offline')) {
+        u.status = 'offline';
+        u.http = ev.http;
+      }
       break;
     case 'check-available':
       if (s.launch || !MAY_FIND.has(u.status)) break;
@@ -263,7 +272,7 @@ function reduce(state, ev) {
       }
       break;
     case 'download-failed':
-      if (u.status === 'downloading') u.status = 'failed';
+      if (u.status === 'downloading') { u.status = 'failed'; u.http = ev.http; }
       break;
     case 'play-now':
       // "Play without updating": the download goes on and installs when the game quits (DA7)
@@ -294,6 +303,7 @@ function reduce(state, ev) {
       // DA13: the channel could not bring it - the shell asks the installer's path next, from a check
       if (u.kind === 'game' && (u.status === 'downloading' || u.status === 'background')) {
         u.status = s.requireCurrent ? 'failed' : 'checking';
+        u.http = ev.http;
         u.kind = null;
         if (!s.requireCurrent) u.version = null;
       }
@@ -400,6 +410,7 @@ function reduce(state, ev) {
  */
 function nextStep(s) {
   if (s.launch === 'started') return 'wait';
+  if (s.requireCurrent && s.update.status === 'installing') return 'install';
   if (s.setup.status === 'looking') return 'detect';
   // AUDIT INSTALL R2-A8: until the game's files are SET - the saved folder still being looked at included
   if (s.update.status === 'installing') return SETUP_DONE.has(s.setup.status) ? 'install' : 'wait';
@@ -670,7 +681,7 @@ function viewOf(s) {
     v.busy = true;
   } else if (u.status === 'installing') {
     v.progress = { percent: 100, label: 'Downloaded' };
-    if (!SETUP_DONE.has(st.status)) {
+    if (!s.requireCurrent && !SETUP_DONE.has(st.status)) {
       v.status = `v${u.version} is ready to install`;
       v.detail = 'It installs once your game files are set - then DFO Online reopens by itself.';
     } else {
@@ -723,7 +734,8 @@ function viewOf(s) {
     v.status = 'Up to date';
   }
   if (s.requireCurrent && ['failed', 'offline'].includes(u.status)) {
-    v.detail = 'Check your connection to GitHub and retry to continue.';
+    v.detail = u.http ? 'GitHub refused the update (HTTP ' + u.http + '). Retry to continue.'
+      : 'Check your connection to GitHub and retry to continue.';
     v.statusActions = [{ id: 'retry-update', label: 'Retry update', primary: true }];
   } else if (s.requireCurrent && u.status === 'stuck') {
     v.detail = 'Run the installer to finish the launcher update.';
