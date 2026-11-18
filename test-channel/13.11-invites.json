@@ -38,5 +38,9 @@
     "hash": "9cc792d6c5c907c6a5100f022d8b16c44c5257be15a77c4c5b313221774962ef",
     "label": "Test",
     "revoked": true
+  },
+  {
+    "hash": "a00da24d3eee19617c18af364f3d1ee1462a67f29f26fa3146fae0c3ac2df6de",
+    "label": "Tester1"
   }
 ]
