@@ -1607,7 +1607,7 @@ async function createWindow({ onShown = null } = {}) {
     width: 1280,
     height: 800,
     backgroundColor: '#111111',
-    title: 'DFO Online',
+    title: TEST_CONFIG?.public ? 'DFO Test Build' : 'DFO Online',
     show: !onShown,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -1769,7 +1769,7 @@ function openLauncherWindow() {
     fullscreenable: false,
     show: false,
     backgroundColor: '#0a0c11',
-    title: 'DFO Online',
+    title: TEST_CONFIG?.public ? 'DFO Test Build' : 'DFO Online',
     webPreferences: {
       preload: path.join(__dirname, 'launcherPreload.cjs'),
       contextIsolation: true,

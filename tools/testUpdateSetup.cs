@@ -114,7 +114,7 @@ internal static class TestUpdateSetup
             var heading = new Label { Text = "Install DFO Test Build", AutoSize = true,
                 Font = new System.Drawing.Font(window.Font.FontFamily, 17, System.Drawing.FontStyle.Bold) };
             heading.SetBounds(24, 21, 535, 31);
-            var clean = new RadioButton { Text = "New installation", Checked = !HasClient(defaultFolder) };
+            var clean = new RadioButton { Text = "New installation", Checked = !HasClient(ClientFolder(defaultFolder)) };
             clean.SetBounds(24, 68, 535, 23);
             var repair = new RadioButton { Text = "Check and update an existing installation", Checked = !clean.Checked };
             repair.SetBounds(24, 99, 535, 23);

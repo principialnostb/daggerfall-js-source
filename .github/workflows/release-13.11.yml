@@ -119,7 +119,7 @@ jobs:
           if (Test-Path "$env:DFO_TEST_OUTPUT/assets/DFO-13.11-Setup.exe") { $setupTag = $tag }
           $setupUrl = "https://github.com/$env:RELEASE_REPO/releases/download/$setupTag/DFO-Test-Build-Setup.exe"
           $notes = "Test build from $env:GITHUB_SHA`n`n[Download setup]($setupUrl)`n`n<!-- setup-tag: $setupTag -->"
-          gh release create $tag --repo $env:RELEASE_REPO --target $env:GITHUB_SHA --latest=false --draft --title "13.11 Test $env:VERSION" --notes $notes
+          gh release create $tag --repo $env:RELEASE_REPO --target $env:GITHUB_SHA --latest=false --draft --title "DFO Test Build $env:VERSION" --notes $notes
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $files = (Get-ChildItem -LiteralPath "$env:DFO_TEST_OUTPUT/assets" -File).FullName
           gh release upload $tag --repo $env:RELEASE_REPO @files
