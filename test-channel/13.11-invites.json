@@ -4,7 +4,8 @@
     "label": "Owner"
   },
   {
-    "hash": "41bbfed8d650a4279177855a00596a449a21ddcfd522c40e721785442047c3f9",
-    "label": "123"
+    "hash": "f088a1df0874fc366c641cf16dcffeed67436d74e032d5c0da887e997c7e5e15",
+    "label": "123",
+    "revoked": true
   }
 ]
