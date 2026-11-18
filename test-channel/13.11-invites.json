@@ -9,7 +9,8 @@
     "revoked": true
   },
   {
-    "hash": "e16ea146fcd70bc0159ddc6c48efea7d7826e7db110327af67f4a130a736711e",
-    "label": "Test1"
+    "hash": "afc54aee09751ddeb0cd28557f9459874e3bc2043be5fe59633f6d00d4274448",
+    "label": "Test1",
+    "revoked": true
   }
 ]
