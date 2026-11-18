@@ -170,32 +170,43 @@ function openGameStore({ root, seed, dist, importRoots = [] }) {
         await io.mkdir(path.join(dir, 'files'), { recursive: true });
         // what this copy holds already is copied, hashed again on the way - a file changed on disk is fetched instead
         const fetch = [];
-        for (const entry of plan.fetch) {
-          let recovered = false;
-          for (const source of importRoots) {
-            const file = path.join(source, entry.path);
+        const jobs = [
+          ...plan.fetch.map((entry) => ({ entry, sources: importRoots.map((root) => path.join(root, entry.path)) })),
+          ...plan.carry.map((entry) => ({
+            entry,
+            sources: [entry.from.own
+              ? path.join(versionDir(index.version), 'files', entry.from.path)
+              : path.join(dist, entry.from.path)],
+          })),
+        ];
+        let checked = 0, nextLocal = 0;
+        onProgress({ phase: 'preparing', checked, files: jobs.length });
+        const reuse = async ({ entry, sources }) => {
+          for (const file of sources) {
             try {
               if ((await io.stat(file)).size !== entry.size) continue;
               const bytes = await io.readFile(file);
-              if (sha256(bytes) !== entry.sha256) continue;
+              if (bytes.length !== entry.size || sha256(bytes) !== entry.sha256) continue;
               await writeStagedFile(into(entry.path), bytes);
               own.add(entry.path);
-              recovered = true;
-              break;
+              return;
             } catch (error) {
               if (!['ENOENT', 'ENOTDIR', 'EACCES'].includes(error.code)) throw error;
             }
           }
-          if (!recovered) fetch.push(entry);
-        }
-        for (const c of plan.carry) {
-          const src = c.from.own ? path.join(versionDir(index.version), 'files', c.from.path) : path.join(dist, c.from.path);
-          let bytes = null;
-          try { bytes = await io.readFile(src); } catch { /* gone: fetched instead */ }
-          if (!bytes || bytes.length !== c.size || sha256(bytes) !== c.sha256) { fetch.push(c); continue; }
-          await writeStagedFile(into(c.path), bytes);
-          own.add(c.path);
-        }
+          fetch.push(entry);
+        };
+        const scan = async () => {
+          while (!stop && nextLocal < jobs.length) {
+            await reuse(jobs[nextLocal++]);
+            checked++;
+            onProgress({ phase: 'preparing', checked, files: jobs.length });
+          }
+        };
+        const scans = await Promise.allSettled(Array.from({ length: Math.min(FETCH_CONCURRENCY, jobs.length) },
+          () => scan().catch((error) => { stop = true; throw error; })));
+        const scanFailure = scans.find((result) => result.status === 'rejected');
+        if (scanFailure) throw scanFailure.reason;
         const ranges = planRanges(fetch);
         const total = ranges.reduce((n, r) => n + r.end - r.start, 0);
         let transferred = 0, next = 0;

@@ -164,6 +164,15 @@ test('complete EMC offers retain an installed base and mount the independent fac
   const names = [...baseContents, ...facesContents].map((asset) => asset.path);
   assert.deepEqual(await store.serve(['test-emc']).json(), names);
   assert.equal(await store.serve(['test-emc', '2']).text(), 'k');
+  await store.remove();
+  assert.equal(store.ready(), false);
+  assert.equal(store.readyPart('base'), false);
+  assert.equal(store.readyPart('faces'), false);
+  assert.deepEqual(await store.serve(['test-emc']).json(), []);
+  assert.equal(store.serve(['test-emc', '2']).status, 404);
+  await store.installFrom({ size: base.length, sha256: hash(base) }, async () => new Response(base));
+  await store.install(JSON.stringify({ base: offer(base), faces: offer(faces) }));
+  assert.deepEqual(await store.serve(['test-emc']).json(), names);
 });
 
 test('EMC times out before headers and after a stalled body, then allows another attempt', async (t) => {

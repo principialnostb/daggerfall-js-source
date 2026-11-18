@@ -175,6 +175,20 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
     }
   }
 
+  async function remove() {
+    if (installing) throw new Error('An EMC operation is in progress');
+    installing = true;
+    try {
+      for (const [part, location] of Object.entries(locations)) {
+        await fs.promises.rm(location.path, { force: true });
+        partFiles.delete(part);
+        mounted = null;
+      }
+    } finally {
+      installing = false;
+    }
+  }
+
   function serve(parts) {
     const base = inspect('base');
     const faces = inspect('faces');
@@ -197,7 +211,7 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
   }
 
   return {
-    install, installFrom, serve, readyPart,
+    install, installFrom, remove, serve, readyPart,
     ready: () => readyPart('base') && (!requireFaces || readyPart('faces')),
   };
 }

@@ -1289,16 +1289,18 @@ async function askGame() {
 function downloadGame(manifest, packUrl) {
   const { version } = manifest;
   let lastProgress = 0;
-  launcherDispatch({ type: 'game-available', version });
+  launcherDispatch({ type: 'game-available', version, preparing: true });
   gameStore.stage(manifest, {
     fetchRange: (start, end) => TEST_UPDATE_BUILD
       ? fetchTestPackRange(packUrl, start, end, fetchPackRange)
       : fetchPackRange(packUrl, start, end),
-    onProgress: ({ transferred, total }) => {
+    onProgress: (progress) => {
       const now = Date.now();
-      if (transferred !== total && now - lastProgress < 100) return;
+      const { phase, checked, files, transferred, total } = progress;
+      if (now - lastProgress < 100 && transferred !== 0 && (phase === 'preparing' || transferred !== total)) return;
       lastProgress = now;
-      launcherDispatch({ type: 'progress', percent: total ? (100 * transferred) / total : 100, transferred, total });
+      if (phase === 'preparing') launcherDispatch({ type: 'game-preparing', checked, files });
+      else launcherDispatch({ type: 'progress', percent: total ? (100 * transferred) / total : 100, transferred, total });
     },
   }).then(
     () => { gameJob = null; gameArrived(version); },
@@ -1812,6 +1814,7 @@ let testPlayGate = TEST_ACCESS ? testAccessGate : null;
 let testPlayCheck;
 let developerEmcDownload;
 let developerEmcError;
+let emcRemovedByPlayer = false;
 let emcProgress = null;
 function emcProgressChanged(progress) {
   emcProgress = progress;
@@ -1819,7 +1822,7 @@ function emcProgressChanged(progress) {
 }
 
 function startDeveloperEmc() {
-  if (developerEmcDownload || developerEmcError || TEST_EMC.ready()) return;
+  if (emcRemovedByPlayer || developerEmcDownload || developerEmcError || TEST_EMC.ready()) return;
   developerEmcDownload = TEST_ACCESS.installDeveloperEmc().then(({ error }) => { developerEmcError = error; }).finally(() => {
     developerEmcDownload = null;
     refreshTestPlay();
@@ -1835,7 +1838,9 @@ function refreshTestPlay() {
       if (TEST_EMC.ready()) testPlayGate = null;
       else if (developer) {
         startDeveloperEmc();
-        testPlayGate = developerEmcError
+        testPlayGate = emcRemovedByPlayer
+          ? { message: 'EMC is ready to reinstall.', retryEmc: true }
+          : developerEmcError
           ? { message: developerEmcError, retryEmc: true }
           : { message: 'Downloading and verifying EMC from GitHubвЂ¦' };
       } else testPlayGate = { message: 'Install the EMC resources to play.', emc: true };
@@ -2172,6 +2177,34 @@ async function runDirect(dir) {
   startRechecks();
 }
 
+async function removeLauncherEmc() {
+  if (!launcher || launcher.state.launch || gameWindow || developerEmcDownload || emcProgress) {
+    throw new Error('An EMC operation is in progress');
+  }
+  const active = launcher;
+  const { response } = await launcherDialog(() => dialog.showMessageBox(active.win, {
+    type: 'question',
+    message: 'Remove downloaded EMC?',
+    detail: 'This removes the local EMC packages. You can install them again from Test access.',
+    buttons: ['Cancel', 'Remove EMC'],
+    defaultId: 0,
+    cancelId: 0,
+  }));
+  if (response !== 1 || launcher !== active) return { removed: false };
+  if (active.state.launch || gameWindow || developerEmcDownload || emcProgress) {
+    throw new Error('An EMC operation is in progress');
+  }
+  emcRemovedByPlayer = true;
+  testPlayGate = testAccessGate;
+  try {
+    await TEST_EMC.remove();
+    return { removed: true };
+  } finally {
+    await refreshTestPlay();
+    renderLauncher();
+  }
+}
+
 // The launcher's two words. Only ITS window is heard, and only these
 // actions; a link is a name from LAUNCHER_LINKS, never a URL from the page.
 ipcMain.handle('launcher:test-access', async (e, action, value) => {
@@ -2180,7 +2213,12 @@ ipcMain.handle('launcher:test-access', async (e, action, value) => {
   if (action === 'open-developer') return process.argv.includes('--dfo-open-developer');
   if (!TEST_ACCESS?.action || typeof action !== 'string' || (value !== undefined && (typeof value !== 'string' || value.length > (action === 'emc' ? 12000 : action === 'github-token' ? 512 : 80)))) return null;
   if (['emc', 'emc-retry'].includes(action) && !testUpdateReady()) throw new Error('Update required before installing EMC');
-  if (action === 'emc-retry') { developerEmcError = null; return refreshTestPlay(); }
+  if (action === 'emc-retry') {
+    emcRemovedByPlayer = false;
+    developerEmcError = null;
+    return refreshTestPlay();
+  }
+  if (action === 'emc-remove') return removeLauncherEmc();
   const refresh = ['invite', 'github-login', 'sign-out', 'emc'].includes(action);
   if (action === 'github-login' || action === 'sign-out') developerEmcError = null;
   if (refresh) await testPlayCheck;

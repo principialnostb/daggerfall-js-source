@@ -248,6 +248,7 @@ function reduce(state, ev) {
       break;
     case 'progress':
       if (u.status === 'downloading') {
+        u.preparing = null;
         u.percent = clampPercent(ev.percent);
         u.transferred = Number(ev.transferred) || 0;
         u.total = Number(ev.total) || u.total;
@@ -275,9 +276,13 @@ function reduce(state, ev) {
       // DA13: the game's own channel carries it - the files that changed, fetched before play as an installer is
       if (s.launch || !MAY_FIND.has(u.status)) break;
       u.kind = 'game';
+      u.preparing = ev.preparing ? { checked: 0, files: 0 } : null;
       u.version = ev.version ?? null;
       u.status = 'downloading';
       u.percent = 0; u.transferred = 0; u.total = Number(ev.total) || 0;
+      break;
+    case 'game-preparing':
+      if (u.status === 'downloading' && u.kind === 'game') u.preparing = { checked: ev.checked, files: ev.files };
       break;
     case 'game-applied':
       // DA13: the version this copy plays is the one the channel brought - Play runs it, nothing installs or restarts
@@ -674,11 +679,16 @@ function viewOf(s) {
       v.busy = true;
     }
   } else if (u.status === 'downloading') {
-    v.status = `Downloading v${u.version}`;
+    v.status = u.preparing ? `Checking local files for v${u.version}` : `Downloading v${u.version}`;
     v.detail = u.kind === 'game'
       ? 'Only the files that changed. It is ready before you play, so you are on the same version as everyone online.'
       : 'It installs before you play, so you are on the same version as everyone online.';
     v.progress = { percent: u.percent, label: u.total ? `${mb(u.transferred)} of ${mb(u.total)} MB` : 'Starting the download' };
+    if (u.preparing) {
+      const { checked, files } = u.preparing;
+      v.detail = 'The launcher checks which files it can reuse before contacting the download server.';
+      v.progress = { percent: files ? 100 * checked / files : 0, label: files ? `${checked} of ${files} files checked` : 'Preparing the file list' };
+    }
     // the page works out the speed and the time left from the bytes as they arrive
     if (u.total > 0) Object.assign(v.progress, { transferred: Math.max(0, Number(u.transferred) || 0), total: u.total });
     v.busy = true;

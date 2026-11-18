@@ -47,8 +47,12 @@ test('test builds hold Play until an update is applied and offer a retry on fail
   let state = initialState({
     current: '13.11.13', transport: 'updater', requireCurrent: true, checkEnabled: true, inGamePicker: true,
   });
-  state = reduce(state, { type: 'game-available', version: '13.11.14' });
+  state = reduce(state, { type: 'game-available', version: '13.11.14', preparing: true });
+  state = reduce(state, { type: 'game-preparing', checked: 3, files: 4 });
+  assert.deepEqual(viewOf(state).progress, { percent: 75, label: '3 of 4 files checked' });
   assert.deepEqual(viewOf(state).statusActions, []);
+  state = reduce(state, { type: 'progress', transferred: 0, total: 100, percent: 0 });
+  assert.match(viewOf(state).status, /^Downloading/);
   state = reduce(state, { type: 'play-now' });
   assert.equal(state.launch, null);
   assert.equal(state.update.status, 'downloading');

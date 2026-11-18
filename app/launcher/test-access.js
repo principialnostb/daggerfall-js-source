@@ -111,6 +111,7 @@
     get('admin').hidden = !developer;
     get('emc-form').hidden = waitingForUpdate || !value || developer;
     get('sign-out').hidden = !value;
+    get('emc-remove').hidden = !value;
   }
   async function run(work) {
     if (busy) return;
@@ -191,6 +192,9 @@
     await call('copy-existing', issuedId);
     status('Invitation copied.');
   }));
+  get('emc-remove').addEventListener('click', () => run(async () => {
+    if ((await call('emc-remove'))?.removed) status('EMC removed. You can install it again.');
+  }));
   get('sign-out').addEventListener('click', () => run(async () => {
     await call('sign-out');
     draw(null);
@@ -217,7 +221,7 @@
     if (/checksum|too large|Invalid EMC|Incomplete EMC|incomplete|Unexpected data/.test(message)) return 'EMC package verification failed. Contact the administrator.';
     if (/ENOSPC/.test(message)) return 'Insufficient disk space for EMC.';
     if (/EACCES|EPERM|EBUSY/.test(message)) return 'Cannot write the EMC files. Check folder permissions and open files.';
-    if (/in progress/.test(message)) return 'An EMC installation is already running.';
+    if (/in progress/.test(message)) return 'Close the game or wait for the current EMC operation to finish.';
     const network = /\b(?:net::)?(ERR_[A-Z_]+)\b/.exec(message);
     if (network) return 'GitHub network request failed (' + network[1] + ').';
     if (/timeout|timed out/i.test(message)) return 'The EMC request timed out. Try again.';
