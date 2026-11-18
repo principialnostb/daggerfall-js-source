@@ -30,7 +30,7 @@ export async function buildTestShell({ build, work, output, version, stageShell,
     directories: { output: out }, npmRebuild: false,
     extraResources: [{ from: archive, to: 'game-seed.asar' }],
     asarUnpack: ['**/node_modules/workerd/**', '**/node_modules/@cloudflare/workerd-*/**'],
-    win: { icon: require.resolve('../public/icons/icon-512.png') },
+    win: { icon: require.resolve('./test-build.ico') },
     nsis: { include: require.resolve('../tools/testMasterDestination.nsh'), artifactName: 'DFO-Test-Build-Client.exe', oneClick: true, perMachine: false },
     publish: { provider: 'generic', url: 'https://github.com/' + settings.repository + '/releases/download/' + tag + '/' },
   } });
