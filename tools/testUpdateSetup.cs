@@ -13,6 +13,12 @@ using System.Web.Script.Serialization;
 
 internal static class TestUpdateSetup
 {
+    static TestUpdateSetup()
+    {
+        // The standalone .NET Framework executable can otherwise negotiate legacy TLS.
+        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+    }
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CreateHardLink(string newFile, string existingFile, IntPtr reserved);
 
@@ -242,7 +248,6 @@ internal static class TestUpdateSetup
         Directory.CreateDirectory(stage);
         try
         {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             status("Downloading the launcher…");
             var endpoint = config[0].StartsWith("https://", StringComparison.Ordinal) ? config[0] + "/releases" : "https://api.github.com/repos/" + config[0] + "/releases";
             if (config[0].StartsWith("public:", StringComparison.Ordinal))
@@ -367,7 +372,6 @@ internal static class TestUpdateSetup
 
     private static string Authorize(string service, string access, Action<string> status)
     {
-        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
         if (access != "github")
             return (string)Post(service, "/access/invite", new { code = access })["token"];
         var start = Post(service, "/access/github/start", new { });

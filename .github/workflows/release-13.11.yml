@@ -93,6 +93,12 @@ jobs:
         run: |
           node tools/prepareTestUpdate.mjs --game-only "$env:DFO_TEST_OUTPUT/stage" "$env:DFO_TEST_OUTPUT/assets" $env:VERSION previous-13.11/DFO-Online-game.json.gz
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Verify installer HTTPS on Windows Framework
+        if: hashFiles('app/release/workflow-13.11/assets/DFO-Test-Build-Setup.exe') != ''
+        shell: powershell
+        env:
+          PREVIOUS_TAG: ${{ steps.setup.outputs.setup_tag }}
+        run: ./tools/verifyTestSetupTls.ps1 -Setup "$env:DFO_TEST_OUTPUT/assets/DFO-Test-Build-Setup.exe" -PreviousTag $env:PREVIOUS_TAG
       - name: Verify automatic shell replacement and restart
         if: github.ref_name == 'codex/1311-launcher-preview'
         shell: pwsh
