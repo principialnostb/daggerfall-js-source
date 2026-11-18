@@ -224,7 +224,7 @@ function previousShell(previous, build, work) {
   const base = process.env.DFO_TEST_PREVIOUS_SOURCE;
   if (publicBuild && /^[a-f0-9]{40}$/.test(base ?? '')) {
     execFileSync('git', ['merge-base', '--is-ancestor', base, 'HEAD'], { cwd: root });
-    const inputs = ['app', '.build-13.11-test-medium.mjs', 'tools/testUpdateSetup.cs', 'tools/buildTestShell.mjs', 'public/icons/icon-512.png',
+    const inputs = ['app', '.build-13.11-test-medium.mjs', 'tools/testUpdateSetup.cs', 'tools/buildTestShell.mjs', 'tools/testMasterDestination.nsh', 'public/icons/icon-512.png',
       ':(exclude)app/launcher/**'];
     const changed = execFileSync('git', ['diff', '--name-only', base, 'HEAD', '--', ...inputs], { cwd: root, encoding: 'utf8' });
     if (changed.trim()) return null;

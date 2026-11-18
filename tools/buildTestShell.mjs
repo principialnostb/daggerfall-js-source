@@ -31,7 +31,7 @@ export async function buildTestShell({ build, work, output, version, stageShell,
     extraResources: [{ from: archive, to: 'game-seed.asar' }],
     asarUnpack: ['**/node_modules/workerd/**', '**/node_modules/@cloudflare/workerd-*/**'],
     win: { icon: require.resolve('../public/icons/icon-512.png') },
-    nsis: { artifactName: 'DFO-Test-Build-Client.exe', oneClick: true, perMachine: false },
+    nsis: { include: require.resolve('../tools/testMasterDestination.nsh'), artifactName: 'DFO-Test-Build-Client.exe', oneClick: true, perMachine: false },
     publish: { provider: 'generic', url: 'https://github.com/' + settings.repository + '/releases/download/' + tag + '/' },
   } });
   for (const name of ['DFO-Test-Build-Client.exe', 'DFO-Test-Build-Client.exe.blockmap', 'latest.yml']) {

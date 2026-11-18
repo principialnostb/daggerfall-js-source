@@ -203,11 +203,13 @@ internal static class TestUpdateSetup
                 var api = "https://api.github.com/repos/principialnostb/daggerfall-js-source/releases";
                 var list = localAssets == null ? ReleaseAssets(api, config[1], null) : null;
                 var installer = Download(api, list, null, config[2], temp.FullName, localAssets);
-                using (var proc = Process.Start(new ProcessStartInfo(installer, "/S /D=" + target) { UseShellExecute = false }))
+                var start = new ProcessStartInfo(installer, "/S") { UseShellExecute = false };
+                start.EnvironmentVariables["DFO_TEST_MASTER_DESTINATION"] = target;
+                using (var proc = Process.Start(start))
                 {
                     proc.WaitForExit();
                     if (proc.ExitCode != 0 || !File.Exists(Path.Combine(target, "DFO Test Build.exe")))
-                        throw new IOException("Launcher installation did not finish in " + target);
+                        throw new IOException("Launcher installation did not finish (exit " + proc.ExitCode + ") in " + target);
                 }
                 return target;
             }
