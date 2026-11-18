@@ -50,7 +50,17 @@ try {
     config: { appId: 'dev.dfo.test1311', electronVersion: require('electron/package.json').version,
       directories: { output: out }, nsis: { oneClick: true, perMachine: false, artifactName: 'previous.exe' },
       publish: { provider: 'generic', url: feed } } });
-  execFileSync(join(out, 'previous.exe'), ['/S'], { timeout: 120000 });
+  // The hosted runner can briefly refuse the just-created fixture executable.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      execFileSync(join(out, 'previous.exe'), ['/S'], { timeout: 120000 });
+      break;
+    } catch (error) {
+      console.warn('Previous-client fixture setup:', { attempt, status: error.status, code: error.code });
+      if (attempt >= 3) throw error;
+      await delay(5000);
+    }
+  }
   const program = join(process.env.LOCALAPPDATA, 'Programs', 'dfo-1311-test', 'DFO 13.11.exe');
   const cli = (cmd) => execFileSync('powershell.exe', ['-NoProfile', '-Command', cmd], {
     encoding: 'utf8', env: { ...process.env, DFO_VERIFY_PROGRAM: program, DAGGER_NO_UPDATE_CHECK: '1' } }).trim();
