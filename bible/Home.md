@@ -94,7 +94,7 @@ it; `test/tooling/citeanchor.test.js` resolves every anchor and refuses a live n
 
 **PATCH NOTES** live in the PR description under `## Patch notes: <title>`, in ASD-STE100 Simplified Technical
 English, checked by `scripts/steNotes.mjs` (STE-NOTES, the owner). Never commit a patch-notes file
-(`01-Overview/Desktop-App.md`).
+(`01-Overview/Desktop-App.md`). The Windows test channel has its own [installation and release guide](01-Overview/DFO-Test-Build.md).
 
 **UPDATES ARE NUMBERED, AND NOBODY BUMPS THEM** (Mac). Every merge to main is the next update, MAJOR.MINOR.PATCH. The
 line is in `scripts/updateLine.mjs`; the patch is counted from git (`scripts/updateNumber.mjs`). No PR writes a

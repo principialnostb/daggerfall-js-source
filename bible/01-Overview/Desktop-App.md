@@ -5,6 +5,8 @@ website deploys, with no fork of the game code. It adds saves as real files, ARE
 folder, a launcher, and updates that fetch only the files that changed. Players download it from the landing page's
 installer links; it opens on the launcher, and Play starts the game.
 
+The Windows **DFO Test Build** channel has a separate [installation, update and troubleshooting guide](DFO-Test-Build.md).
+
 ## How it works
 
 ### The shell
