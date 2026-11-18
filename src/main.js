@@ -57,13 +57,14 @@ async function boot() {
   (await import('./systems/enhancedModProfile.js')).enableStandardModProfile();
   const { TEST_BUILD_CONTENT } = await import('./systems/testBuildContent.js');
   if (TEST_BUILD_CONTENT) {
-    const [{ testBuildPaperdollPacks }, { installVanillaEnhancedPack }] = await Promise.all([
+    const [{ testBuildPaperdollPacks }, { installVanillaEnhancedPack }, { bundledMorrowindModsArchive }] = await Promise.all([
       import('./systems/testBuildPaperdoll.js'),
       import('./systems/vanillaEnhanced/vanillaEnhancedPack.js'),
       // Register the bundled file lists before the menu reads resource readiness.
       import('./systems/bundledMorrowindMods.js'),
       import('./combat/fpArm.js'),
     ]);
+    bundledMorrowindModsArchive();
     if (TEST_BUILD_CONTENT.paperdoll || globalThis.daggerShell?.testEmc) {
       await testBuildPaperdollPacks().then(installVanillaEnhancedPack).catch((error) =>
         console.warn('[boot] bundled Paperdoll Enhanced:', error));
