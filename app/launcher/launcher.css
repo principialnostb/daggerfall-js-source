@@ -50,7 +50,7 @@ html .address { cursor: text !important; }
   margin: 0; font-family: 'Jacquard 12', serif; font-weight: 400; font-size: 58px; line-height: 0.9;
   text-shadow: 4px 4px 0 rgba(0,0,0,0.7);
 }
-.wordmark img { display: block; width: auto; height: clamp(84px, 15.3vh, 112px); filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.55)); }
+.wordmark img { display: block; width: min(285px, 30vw); height: auto; filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.55)); }
 .links { display: flex; align-items: center; gap: 4px; padding-top: 6px; }
 .links .link { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; }
 .links .plaque { margin-left: 10px; }
@@ -372,7 +372,7 @@ body[data-over="settings"] .drawer { transform: none; visibility: visible; trans
 /* a short window (a 1366x768 laptop at 125%): a smaller mark, a tighter headline, shorter windows over the page */
 @media (max-height: 590px) {
   .top { padding-top: 14px; }
-  .wordmark img { height: 72px; }
+  .wordmark img { width: min(215px, 30vw); }
   .middle { padding-top: 6px; }
   .hero-title { font-size: 36px; -webkit-line-clamp: 2; }
   .hero-text { -webkit-line-clamp: 1; }
