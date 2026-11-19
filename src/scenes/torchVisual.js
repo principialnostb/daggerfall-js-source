@@ -2,7 +2,7 @@ import { buildFixtureCeilingLink, buildLightFixture, FIXTURE_PAINT, fixtureEmits
 import { buildTorchBracket, buildTorchBody, TORCH_ARCHIVE } from '../world/torchModel.js';
 import { campfirePaint, buildCampfireFlame, CAMPFIRE_FRAMES } from '../world/campfireModel.js';
 import { transformPoint, trs } from '../world/mat4.js';
-import { drawCampPixelFlame } from './campfirePixelFlame.js';
+import { drawCampPixelFlame, drawCampPixelFlameShells } from './campfirePixelFlame.js';
 import { createGothicLantern, usesGothicLantern } from '../world/gothicLantern.js';
 import { TORCH_COLLAR_Y } from '../world/torchMount.js';
 import { createClassicStreetLantern, usesClassicStreetLantern } from '../world/classicStreetLantern.js';
@@ -64,10 +64,7 @@ function drawFixture(renderer, cache, fixture, pos, height, frame, ceilingGap, y
     const model = trs(at[0], at[1] - .12 * size, at[2], 0, 0, 0, size, size, size);
     const layers = cache.frames[frame];
     drawCampPixelFlame(renderer, layers[0], model);
-    if (flame.broad) {
-      drawCampPixelFlame(renderer, layers[1], model, .47);
-      drawCampPixelFlame(renderer, layers[2], model, .26);
-    }
+    if (flame.broad) drawCampPixelFlameShells(renderer, layers[1], layers[2], model);
   }
   if (fixture.pane) renderer.drawMesh(fixture.pane, model, null, { translucent: .42, noShadow: true });
 }
@@ -127,7 +124,9 @@ export function createTorchVisual(r, kind) {
       // Camp tongues are narrowed and seated in the torch cup; their animation is shared.
       const cup = transformPoint(body, 0, .74, 0);
       const m = trs(...cup, 0, 0, 0, .36*h, .40*h, .36*h);
-      cache.frames[frame].forEach((mesh,i)=>drawCampPixelFlame(r,mesh,m,[1,.47,.26][i]));
+      const [core, middle, outer] = cache.frames[frame];
+      drawCampPixelFlame(r, core, m);
+      drawCampPixelFlameShells(r, middle, outer, m);
     },
     destroy() {
       if(dead)return;dead=true;

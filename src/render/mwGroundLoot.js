@@ -65,17 +65,21 @@ export async function loadGroundLootModel(item, cat, renderer, {
   catch (err) { releaseGpu(mesh); throw err; }
   const extent = max.map((v, i) => (v - min[i]) / 2);
   const pixelMesh = { pixelFootprint: { bounds: { center: [0, extent[1], 0], extent }, area: .025, maxScale: 1.5 } };
+  const tabletopPixelMesh = { bounds: [0, extent[1], 0, Math.hypot(...extent)] };
   const equipment = ['Armor', 'Weapons', 'MensClothing', 'WomensClothing'].includes(item.group);
+  const scaleFor = length => length > 0 ? length / span : 1 / MW_UNITS_PER_METER;
+  const heightScale = equipment ? THIRD_PERSON_HEIGHT_SCALE : 1;
   return {
+    heightAt: length => 2 * extent[1] * scaleFor(length) * heightScale,
     modelKey: path.toLowerCase().replaceAll('\\', '/'),
-    draw(x, y, z, yaw, decorLength = 0) {
-      const scale = decorLength > 0 ? decorLength / span : 1 / MW_UNITS_PER_METER;
+    draw(x, y, z, yaw, decorLength = 0, tabletopPixels = false) {
+      const scale = scaleFor(decorLength);
       const width = scale * (equipment ? THIRD_PERSON_HORIZONTAL_SCALE : 1);
-      const height = scale * (equipment ? THIRD_PERSON_HEIGHT_SCALE : 1);
+      const height = scale * heightScale;
       const root = trs(x, y, z, 0, yaw, 0, width, height, width);
       const model = multiply(root, local);
       const draw = () => renderer.drawCharacter(mesh, model);
-      if (!pixelWorldDraw(renderer, 'objects', pixelMesh, root, draw)) draw();
+      if (!pixelWorldDraw(renderer, 'objects', tabletopPixels ? tabletopPixelMesh : pixelMesh, root, draw)) draw();
     },
     release: () => releaseGpu(mesh),
   };

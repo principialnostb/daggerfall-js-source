@@ -1,6 +1,6 @@
 // @ts-check
 import { rememberCampfireBatch, releaseCampfireBatch, drawCampfireBillboards } from './campfireBillboards.js';
-import { drawTreasurePiles, releaseTreasurePile } from './treasurePiles.js';
+import { acquireTreasureModel, drawTreasurePiles, releaseTreasureModel, releaseTreasurePile } from './treasurePiles.js';
 import { drawGroundLoot, releaseLootModel } from './groundLootModels.js';
 import { drawPlacedFurnishings, releasePlacedFurnishing } from './furnishingMorrowind.js';
 // WebGL2 renderer for world geometry. Presentation layer - ours, not DFU's
@@ -3954,11 +3954,11 @@ export class Renderer {
    * Frame uniforms re-upload from the beginFrame caches, mirroring
    * the water/billboard paths.
    */
-  drawCharacter(mesh, modelMatrix) {
+  drawCharacter(mesh, modelMatrix, shadowSphere = null) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
     const gl = this.gl;
     const c = this._char;
-    if (this._casting && this._spriteDepth === 0 && this._studioDepth === 0) this._shadows.recordCharacter(mesh, modelMatrix);   // EL7: the rigs cast - never from the sprite target or the studio bake
+    if (this._casting && this._spriteDepth === 0 && this._studioDepth === 0) this._shadows.recordCharacter(mesh, modelMatrix, shadowSphere);
     this._use(this.charProgram);
     this._uploadCloudShadow('char');   // VC4
     gl.uniformMatrix4fv(c.model, false, modelMatrix);
@@ -7547,7 +7547,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     if (!batch) return;
     releaseCampfireBatch(batch);
     releaseTreasurePile(this, batch);
-    releasePlacedFurnishing(batch);
+    releasePlacedFurnishing(this, batch, releaseTreasureModel);
     releaseLootModel(this, batch);
     batch._dead = true;   // EL2: a shadow record from the last frame may still hold it
     batch._place = null;   // PERF-EXT1: the placement grid is the batch's, and goes with it
@@ -7597,7 +7597,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   destroyBatch(batch) {
     releaseCampfireBatch(batch);
     releaseTreasurePile(this, batch);
-    releasePlacedFurnishing(batch);
+    releasePlacedFurnishing(this, batch, releaseTreasureModel);
     const gl = this.gl;
     batch._dead = true;   // EL2
     if (batch._arena) { this._bbArenaFree(batch); return; }   // PERF-ARENA: its range back to its arena
@@ -8909,7 +8909,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   drawBillboards(batches, camRight, camUp) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
     batches = drawTreasurePiles(this, drawCampfireBillboards(this, batches));
-    batches = drawPlacedFurnishings(this, drawGroundLoot(this, batches));
+    batches = drawPlacedFurnishings(this, drawGroundLoot(this, batches), acquireTreasureModel);
     const gl = this.gl;
     // PERF-ARENA: the still flats share their arena's VAO, so consecutive flats skip the bind on the shadow's word - and
     // a pass that bound an array of its own behind the shadow's back (a foreign pass that forgot markForeignPass) would

@@ -5096,6 +5096,27 @@ export function thirdPersonSupportZ(body, standingZ, death) {
   return Number.isFinite(standingZ) ? standingZ : body?.minZ;
 }
 
+function isCorpseSupportRange(range) {
+  const { hidden, slot } = range;
+  return !hidden && !CARRIED_SLOTS.includes(slot) && slot !== 'offweapon' && slot !== HIP_LIGHT_SLOT && !/^shield\b/i.test(slot ?? '');
+}
+
+/** Match the ground to the visible body of the settled corpse. */
+export function corpseMeshMinZ(ranges, skin) {
+  let minZ = Infinity;
+  const point = [0, 0, 0];
+  for (const range of ranges) {
+    if (!isCorpseSupportRange(range) || range.box?.minZ >= minZ) continue;
+    const piece = range.piece;
+    for (let i = 0; i < range.count; i++) {
+      const vertex = piece.indices[i];
+      const z = skin ? skinnedVertex(skin, piece, vertex, skin.palette, point)?.[2] : piece.positions[vertex * 3 + 2];
+      if (Number.isFinite(z)) minZ = Math.min(minZ, z);
+    }
+  }
+  return minZ;
+}
+
 export function createFpArm({ playerAppearance = false } = {}) {
   let renderer = null;
   let camera = null;
@@ -5456,6 +5477,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // range's minZ changes as the legs swing; grounding against that moving bound
   // translates the entire actor every frame and makes the pelvis/legs bob.
   let thirdGroundMinZ = null;
+  let thirdCorpseMinZ = null;
   let thirdMesh = null;
   let thirdPacked = null;
   let thirdSkin = null;          // MWNPC1: the third body's GPU skin layout (formats/morrowind/mwGpuSkin.js), while it skins on the GPU
@@ -5732,7 +5754,17 @@ export function createFpArm({ playerAppearance = false } = {}) {
     })();
   }
 
-  function releaseThirdMesh() { releaseGpu(thirdMesh); thirdMesh = null; thirdSkin = null; }   // MWNPC1: a rebuilt mesh lays its pieces out again
+  function releaseThirdMesh() {
+    releaseGpu(thirdMesh);
+    thirdMesh = null;
+    thirdSkin = null;
+    thirdCorpseMinZ = null;
+  }
+
+  function thirdSupportZ(body) {
+    if (Number.isFinite(thirdCorpseMinZ)) return thirdCorpseMinZ;
+    return thirdPersonSupportZ(body, thirdGroundMinZ, thirdCorpseMinZ == null ? null : deathState);
+  }
 
   /** TEXTURE-HEAL (the owner, 2026-10-28: "проверь ... качество загрузки что бы не пропадала текстура с оружия"): A
    *  PICTURE WHOSE BYTES NEVER CAME IS ASKED FOR AGAIN. A texture whose read failed or lagged (a store or a dev server
@@ -8359,6 +8391,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       hitState = null; hitSource = null;
       idleState = null; idleSource = null; idleGroup = null;
       deathState = pick ? pick.state : null; deathSource = pick ? pick.source : null;
+      thirdCorpseMinZ = null;
       return !!pick;
     },
 
@@ -8366,6 +8399,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     revive() {
       if (!dead && !deathState) return;
       dead = false; deathState = null; deathSource = null; hitState = null; hitSource = null;
+      thirdCorpseMinZ = null;
       refreshIdle(true);
     },
 
@@ -8903,6 +8937,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
           else if (r.slot === HIP_LIGHT_SLOT) r.hidden = !hipVisible();   // HT-WAIST: lit, and never the carried-left rule
           else if (HOLSTER_SLOTS.includes(r.slot)) r.hidden = holsterHidden(r.slot, weaponShown, { arrowShown, tag: r.piece?.tag });   // WS1: the holster while the hand is empty, the scabbard always, the quiver less the round on the string
         }
+        // Anchor only after the final pose has been uploaded. The GPU's
+        // conservative boxes can extend below the mesh and would lift it off the floor.
+        if (pose && deathState && deathState.time >= deathState.stopTime && !thirdBlendFrom && thirdCorpseMinZ == null) {
+          thirdCorpseMinZ = corpseMeshMinZ(thirdMesh.ranges, thirdMesh.skin ? thirdSkin : null);
+        }
         return;
       }
       // MW-D51: RULES 25+26 FOR ONE MASK - the "torch" state wins the
@@ -9434,7 +9473,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // transform; that feedback makes the feet/pelvis bob and the legs appear to
       // twitch, especially from a low upward camera angle.
       if (!playerAppearance && body && thirdGroundMinZ == null) thirdGroundMinZ = body.minZ;
-      const supportMinZ = thirdPersonSupportZ(body, thirdGroundMinZ, deathState);
+      const supportMinZ = thirdSupportZ(body);
       const groundedModel = !horse && body && Number.isFinite(supportMinZ) ? groundThirdPersonModel(model, supportMinZ, feet[1]) : model;
       const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
@@ -9498,7 +9537,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
         if (horse?.mesh && horse.model && horse.box) drawHorsePixelated(renderer, horse.mesh, horse.model, horse.box);
         const draws = [{ mesh: thirdMesh, model: groundedModel }];
         const corners = boxCorners(box, (x, y, z) => transformPoint(groundedModel, x, y, z));
-        drawPixelatedCharacters(renderer, draws, charPixelRows(who), corners);
+        if (who === 'player') {
+          // The live rig has no mesh bounds. Use the posed world-space box so only lights that reach it replay the body.
+          castSphere[0] = center[0]; castSphere[1] = center[1]; castSphere[2] = center[2];
+          castSphere[3] = 0;
+          for (const [x, y, z] of corners) castSphere[3] = Math.max(castSphere[3], Math.hypot(x - center[0], y - center[1], z - center[2]) + 1e-4);
+          drawPixelatedCharacters(renderer, draws, charPixelRows(who), corners, (d) => renderer.drawCharacter(d.mesh, d.model, castSphere));
+        } else {
+          drawPixelatedCharacters(renderer, draws, charPixelRows(who), corners);
+        }
         return true;
       }
       // Concealment still uses the sprite compositor because its dissolve/fade contract
@@ -9533,7 +9580,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const mid = Math.hypot(((minX + maxX) / 2) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE, ((minY + maxY) / 2) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE, ((minZ + maxZ) / 2) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE);
       if (reach && !renderer.shadowReachSphere(feet[0], feet[1], feet[2], Math.hypot(halfW, halfH) + mid)) return false;
       const rawModel = thirdModel(feet, yaw, grow);
-      const model = deathState ? groundThirdPersonModel(rawModel, thirdPersonSupportZ(visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS), thirdGroundMinZ, deathState), feet[1]) : rawModel;
+      const model = deathState ? groundThirdPersonModel(rawModel, thirdSupportZ(visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS)), feet[1]) : rawModel;
       const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       if (reach && !renderer.shadowReachSphere(center[0], center[1], center[2], Math.hypot(halfW, halfH))) return false;
       castBody(model, center, halfW, halfH, anchored);

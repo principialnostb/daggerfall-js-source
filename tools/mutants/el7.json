@@ -146,8 +146,8 @@
   {
     "name": "renderer-char-from-sprite",
     "file": "src/render/renderer.js",
-    "old": "    if (this._casting && this._spriteDepth === 0 && this._studioDepth === 0) this._shadows.recordCharacter(mesh, modelMatrix);",
-    "new": "    if (this._casting) this._shadows.recordCharacter(mesh, modelMatrix);",
+    "old": "    if (this._casting && this._spriteDepth === 0 && this._studioDepth === 0) this._shadows.recordCharacter(mesh, modelMatrix, shadowSphere);",
+    "new": "    if (this._casting) this._shadows.recordCharacter(mesh, modelMatrix, shadowSphere);",
     "tests": [
       "test/render/el7_polish.test.js"
     ]

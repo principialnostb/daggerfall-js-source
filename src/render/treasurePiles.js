@@ -49,7 +49,7 @@ export function markClassicDungeonPreview(batch, mesh, pose) {
   return batch;
 }
 
-function acquire(renderer, record, remains = null, authored = null) {
+export function acquireTreasureModel(renderer, record, remains = null, authored = null) {
   let cache = caches.get(renderer);
   if (!cache) {
     const paints = treasurePaints();
@@ -93,11 +93,11 @@ export function releaseTreasurePile(renderer, batch) {
   entries.delete(batch);
   if (!entry) return;
   releaseFurnishingMorrowind(entry);
-  if (entry.mesh) releaseModel(renderer, entry.record);
-  for (const record of entry.variants?.keys() ?? []) releaseModel(renderer, record);
+  if (entry.mesh) releaseTreasureModel(renderer, entry.record);
+  for (const record of entry.variants?.keys() ?? []) releaseTreasureModel(renderer, record);
 }
 
-function releaseModel(renderer, record) {
+export function releaseTreasureModel(renderer, record) {
   const cache = caches.get(renderer);
   const model = cache.meshes.get(record);
   if (--model.users === 0) {
@@ -129,10 +129,10 @@ export function drawTreasurePiles(renderer, batches, propsEnabled = dungeonDecor
         for (const { position, pose, shell, object, local, mesh, bonesPose } of entry.burials) {
           if (!object && planes && !sphereInPlanes(planes, ...position, 2.1)) continue;
           if (mesh) {
-            if (!entry.variants.has(shell)) entry.variants.set(shell, acquire(renderer, shell, null, mesh));
+            if (!entry.variants.has(shell)) entry.variants.set(shell, acquireTreasureModel(renderer, shell, null, mesh));
             const body = entry.variants.get(shell);
             if (parts && bonesPose && !entry.variants.has(entry.record)) {
-              entry.variants.set(entry.record, acquire(renderer, entry.record, parts));
+              entry.variants.set(entry.record, acquireTreasureModel(renderer, entry.record, parts));
             }
             const draw = () => {
               renderer.drawMesh(body, pose);
@@ -142,11 +142,11 @@ export function drawTreasurePiles(renderer, batches, propsEnabled = dungeonDecor
             continue;
           }
           if (shell === 'coffin-remains') continue;
-          if (!entry.variants.has(shell)) entry.variants.set(shell, acquire(renderer, shell));
+          if (!entry.variants.has(shell)) entry.variants.set(shell, acquireTreasureModel(renderer, shell));
           renderer.drawMesh(entry.variants.get(shell), object ? multiply(object.matrix, local) : pose);
           if (parts && !mesh && !workshopKind(shell) && shell !== CLOSED_SARCOPHAGUS_SHELL) {
             const remains = isVioletSarcophagusShell(shell) ? VIOLET_SARCOPHAGUS_REMAINS : entry.record;
-            if (!entry.variants.has(remains)) entry.variants.set(remains, acquire(renderer, remains, parts));
+            if (!entry.variants.has(remains)) entry.variants.set(remains, acquireTreasureModel(renderer, remains, parts));
             renderer.drawMesh(entry.variants.get(remains), pose);
           }
         }
@@ -177,13 +177,13 @@ export function drawTreasurePiles(renderer, batches, propsEnabled = dungeonDecor
         if (planes && !sphereInPlanes(planes, x, y + h / 2, z, Math.hypot(w, h))) continue;
         if (remains) {
           const variant = entry.previewVariant ?? dungeonRemainsVariant(entry.record, px, pz);
-          if (!entry.variants.has(variant)) entry.variants.set(variant, acquire(renderer, variant, parts));
+          if (!entry.variants.has(variant)) entry.variants.set(variant, acquireTreasureModel(renderer, variant, parts));
           const yaw = ((Math.round(px * 17) ^ Math.round(pz * 31)) & 15) * 22.5;
           renderer.drawMesh(entry.variants.get(variant), trs(x, y, z, 0, yaw, 0));
         } else if (furnishing) {
           furnishing.draw(x, y, z, 0);
         } else {
-          entry.mesh ??= acquire(renderer, entry.record);
+          entry.mesh ??= acquireTreasureModel(renderer, entry.record);
           renderer.drawMesh(entry.mesh, trs(x, y, z, 0, 0, 0, w, h, w));
         }
       }
@@ -195,7 +195,7 @@ export function drawTreasurePiles(renderer, batches, propsEnabled = dungeonDecor
       planes ??= spherePlanes(multiply(renderer._proj, renderer._view));
       if (!sphereInPlanes(planes, x, y + h / 2, z, Math.hypot(w, h))) continue;
     }
-    entry.mesh ??= acquire(renderer, entry.record);
+    entry.mesh ??= acquireTreasureModel(renderer, entry.record);
     renderer.drawMesh(entry.mesh, trs(x, y, z, 0, entry.yaw, 0, w, h, w));
   }
   return remaining ?? batches;

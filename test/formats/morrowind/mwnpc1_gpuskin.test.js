@@ -359,11 +359,11 @@ test('MWNPC1g the GLSL says what its JS law says: the blend, the post composed o
 
 test('MWNPC1h drawCharacter: the palette sampler always reads a complete texture, the body\'s for its draw and the identity after; drawCharacter records no shadow under the sprite target - a body casts through recordShadowBody (MWNPC16, section 24)', () => {
   const src = rd('src/render/renderer.js');
-  const draw = src.slice(src.indexOf('  drawCharacter(mesh, modelMatrix) {'), src.indexOf('  _charSpriteRT() {'));
+  const draw = src.slice(src.indexOf('  drawCharacter(mesh, modelMatrix, shadowSphere = null) {'), src.indexOf('  _charSpriteRT() {'));
   // PIN MOVED (MWNPC16): the shadow door no longer turns a skinned body away - it casts through its own skinned depth
   // program (test/render/mwnpc16_bodyshadow.test.js) - but drawCharacter still records nothing under the sprite target, the one
   // place a skinned body is drawn: its shadow is recordShadowBody's, from drawThird
-  assert.ok(draw.includes('if (this._casting && this._spriteDepth === 0 && this._studioDepth === 0) this._shadows.recordCharacter(mesh, modelMatrix);'), 'the sprite target records no shadow');
+  assert.ok(draw.includes('if (this._casting && this._spriteDepth === 0 && this._studioDepth === 0) this._shadows.recordCharacter(mesh, modelMatrix, shadowSphere);'), 'the sprite target records no shadow');
   assert.ok(draw.includes('    if (skin) {\n      gl.uniform1f(c.skin, skin.pairs);'), 'uSkin set only by a skinned draw (LA-COST1: an unskinned call sends nothing new)');
   assert.ok(draw.includes('gl.bindTexture(gl.TEXTURE_2D, skin.tex);'));
   const once = src.slice(src.indexOf('  _charSkinProgram(fs) {'), src.indexOf('  /** LA-COST7 (2026-09-27, Mac: "performance improvements"): THE SET\'S LOCATIONS'));

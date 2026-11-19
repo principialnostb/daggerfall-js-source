@@ -14,6 +14,10 @@ The player turns it on and sizes it under Settings, Combat > With Morrowind data
   still building, or refused.
 - **The pose is the actor's state.** `npcShown` maps feet, facing, gait, a drawn weapon, swings, casts, hits and death
   onto the pose fields the peer rig plays. Hit recoil and death are `hurt` and `die` in `src/combat/fpArm.js`.
+  Daggerfall Unity's [CreateLootableCorpseMarker](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Utility/GameObjectHelper.cs#L723-L761)
+  places the corpse marker at the ground position under the enemy. DFO also grounds the visible 3D death pose.
+  `corpseMeshMinZ` measures the visible body once per rig and death. Weapons, shields and carried lights do not set its
+  height. The body and its shadow share that correction.
 - **Looks.** Each population has an adapter that turns an actor into a look: foes `foeLook`
   (`src/characters/foeBodies.js`), walkers `folkLook` (`src/characters/folkBodies.js`), standing people `personLook`
   and placed figures `figureLook` (`src/characters/peopleBodies.js`), rosters and residents

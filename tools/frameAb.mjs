@@ -9,10 +9,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const D = process.env.OUT || join(tmpdir(), 'frameProbe');
 const [scene, A, B] = process.argv.slice(2);
-if (!scene || !A || !B) throw new Error('frameAb: node tools/frameAb.mjs <scene> <tagA> <tagB>');
+if (!scene || !A || !B) throw new Error('Usage: frameAb.mjs <scene> <tagA> <tagB>, or frameAb.mjs --runs <nameA> <nameB>');
+const [runA, runB] = scene === '--runs' ? [A, B] : [scene + '.' + A, scene + '.' + B];
 const load = (t) => ({
-  j: JSON.parse(readFileSync(`${D}/${scene}.${t}.json`, 'utf8')),
-  p: JSON.parse(readFileSync(`${D}/${scene}.${t}.cpuprofile`, 'utf8')),
+  j: JSON.parse(readFileSync(`${D}/${t}.json`, 'utf8')),
+  p: JSON.parse(readFileSync(`${D}/${t}.cpuprofile`, 'utf8')),
 });
 const incl = (prof, frames, re) => {
   const byId = new Map(prof.nodes.map((n) => [n.id, n]));
@@ -39,8 +40,8 @@ const incl = (prof, frames, re) => {
   }
   return (tot * med) / frames;
 };
-const a = load(A),
-  b = load(B);
+const a = load(runA),
+  b = load(runB);
 const rows = [
   ['world host frame', /^frame src\/scenes\/world\.js/],
   // the frame's parts, by the function V8 prints (a closure moved out of the frame keeps its name, PERF-V8)
@@ -55,6 +56,10 @@ const rows = [
   ['  the grass', /^(draw|update) src[/]render[/]labGrass[.]js/],
   ['  the modes frame', /^frame src[/]scenes[/]worldModes[.]js/],
   ['  the bodies', /^(draw|pose|skin)[A-Za-z]* src[/](net[/]peer[/]peerBodies|formats[/]morrowind[/]mwGpuSkin)[.]js/],
+  ['  local player pose', /^update src[/]combat[/]fpArm[.]js/],
+  ['  character pixel pass', /^drawPixelatedCharacters src[/]render[/]charPixelLayer[.]js/],
+  ['  pixelated world fixtures', /^pixelWorldDraw src[/]render[/]worldPixelLayer[.]js/],
+  ['    fixture depth readback', /^readTiles src[/]render[/]fixtureDepth[.]js/],
   ['shadow pass render', /^render src\/render\/shadowPass\.js/],
   ['  replay', /^replay src\/render\/shadowPass\.js/],
   ['  _dynamicNear', /^_dynamicNear /],
@@ -85,7 +90,7 @@ const rows = [
   ['garbage collector', /^\(garbage collector\)/],
 ];
 const f = (x) => x.toFixed(3).padStart(8);
-console.log(`${scene}: ${A} vs ${B} (ms a frame, by sample count; frames ${a.j.cpu.frames}/${b.j.cpu.frames})`);
+console.log(`${runA} vs ${runB} (ms a frame, by sample count; frames ${a.j.cpu.frames}/${b.j.cpu.frames})`);
 for (const [nm, re] of rows) {
   const x = incl(a.p, a.j.cpu.frames, re),
     y = incl(b.p, b.j.cpu.frames, re);
@@ -102,9 +107,9 @@ const dr = (j) =>
   );
 console.log(`GL calls a frame       ${f(gl(a.j))} ${f(gl(b.j))}\ndraws a frame          ${f(dr(a.j))} ${f(dr(b.j))}`);
 console.log(
-  `heap a frame (bytes)   ${String(a.j.heap.bytesPerFrame).padStart(8)} ${String(b.j.heap.bytesPerFrame).padStart(8)}`,
+  `heap a frame (bytes)   ${String(a.j.heap?.bytesPerFrame ?? 'skipped').padStart(8)} ${String(b.j.heap?.bytesPerFrame ?? 'skipped').padStart(8)}`,
 );
-const hs = (j, re) => j.heap.top.filter(([k]) => re.test(k)).reduce((s, [, v]) => s + v, 0);
+const hs = (j, re) => j.heap?.top.filter(([k]) => re.test(k)).reduce((s, [, v]) => s + v, 0) ?? 'skipped';
 console.log(
   `  replay's allocations ${String(hs(a.j, /^replay /)).padStart(8)} ${String(hs(b.j, /^replay /)).padStart(8)}`,
 );

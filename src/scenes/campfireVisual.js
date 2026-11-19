@@ -6,7 +6,7 @@ import { transformedAabb } from '../render/frustum.js';
 import { DECOR_DRAW } from './decor/decorRoom.js';
 import {conformCampBody} from '../world/campfireGround.js';
 import {drawCampPixelBody} from './campfirePixelBody.js';
-import {drawCampPixelFlame} from './campfirePixelFlame.js';
+import {drawCampPixelFlame,drawCampPixelFlameShells} from './campfirePixelFlame.js';
 
 const caches = new WeakMap();
 const flameBounds = [-.8,0,-.8,.8,1.8,.8].map(v=>v*CAMPFIRE_SCALE);
@@ -94,10 +94,7 @@ export function createCampfireVisual(renderer, ground = null) {
         const frame = (Math.floor(time*12 + .45*Math.sin(time*1.7)) + phase) % CAMPFIRE_FRAMES;
         const [core,middle,outer] = cache.frames[frame];
         if(stage!=='glow') drawCampPixelFlame(renderer,core,m);
-        if(stage!=='body'){
-          drawCampPixelFlame(renderer,middle,m,.47);
-          drawCampPixelFlame(renderer,outer,m,.26);
-        }
+        if(stage!=='body') drawCampPixelFlameShells(renderer,middle,outer,m);
       }
     },
     destroy() {

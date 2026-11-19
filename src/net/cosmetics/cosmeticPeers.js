@@ -43,7 +43,7 @@ export function createCosmeticPeers(configuredUrl) {
     }
     const current = state;
     if (now >= current.next && !current.pending) {
-      current.next = now + (session.visualPose ? 100 : 5000);
+      current.next = now + (session.visualPose && peers.length ? 100 : 5000);
       if (!current.profile || now >= current.profileAt + 5000) {
         current.profile = captureCosmeticProfile(entity);
         current.profileAt = now;
@@ -62,10 +62,15 @@ export function createCosmeticPeers(configuredUrl) {
           .then(async (res) => {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             rememberToken(current, (await res.json()).token);
+            current.failureDelay = 0;
             lastPublished = { url: endpoint, at: Date.now() };
             lastPublishFailure = null;
           })
-          .catch((error) => { lastPublishFailure = { url: endpoint, error: error.message }; });
+          .catch((error) => {
+            current.failureDelay = Math.min(30_000, (current.failureDelay || 500) * 2);
+            current.next = Math.max(current.next, now + current.failureDelay);
+            lastPublishFailure = { url: endpoint, error: error.message };
+          });
         const candidates = visible.filter(({ id }) => /^[A-Za-z0-9_-]{4,40}$/.test(id));
         const start = (current.offset ?? 0) % (candidates.length || 1);
         const batch = candidates.slice(start, start + 8);

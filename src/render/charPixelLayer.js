@@ -144,7 +144,7 @@ export function footprintBlockPixels(height, rows, fraction, referenceFraction, 
  * Optional opacity applies only to pixel write-back: translucent callers draw opaque into the isolated target;
  * their HD/one-pixel fallback belongs to the caller. Character callers keep the default one.
  */
-export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null, viewport = null) {
+export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null, viewport = null, alphaState = null) {
   const gl = renderer.gl;
   const vp = /** @type {Int32Array} */ (viewport ?? gl.getParameter(gl.VIEWPORT));
   const footprint = footprintProfile && corners
@@ -210,12 +210,16 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null, d
   // Translucent shells render opaque into the isolated colour/depth target, then blend once per block.
   // Keep their nearest depth for occlusion, while leaving the world's depth untouched.
   const alpha = opacity < 1;
-  const blend = alpha && gl.isEnabled(gl.BLEND), depthMask = alpha ? gl.getParameter(gl.DEPTH_WRITEMASK) : true;
-  const factors = alpha ? [gl.BLEND_SRC_RGB, gl.BLEND_DST_RGB, gl.BLEND_SRC_ALPHA, gl.BLEND_DST_ALPHA].map(k => gl.getParameter(k)) : null;
+  const previous = alpha ? alphaState?.previous ?? {
+    blend: gl.isEnabled(gl.BLEND),
+    depthMask: gl.getParameter(gl.DEPTH_WRITEMASK),
+    factors: [gl.BLEND_SRC_RGB, gl.BLEND_DST_RGB, gl.BLEND_SRC_ALPHA, gl.BLEND_DST_ALPHA].map(k => gl.getParameter(k)),
+  } : null;
+  if (alphaState && previous) alphaState.previous = previous;
   if (alpha) { gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
   try { gl.drawArrays(gl.TRIANGLES, 0, 3); }
   finally {
-    if (alpha) { gl.depthMask(depthMask); gl.blendFuncSeparate(...factors); if (!blend) gl.disable(gl.BLEND); }
+    if (previous) { gl.depthMask(previous.depthMask); gl.blendFuncSeparate(...previous.factors); if (!previous.blend) gl.disable(gl.BLEND); }
   }
   if (culled) gl.enable(gl.CULL_FACE);
   gl.disable(gl.SCISSOR_TEST);

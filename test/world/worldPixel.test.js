@@ -6,7 +6,7 @@ import {FEATURES,checkFeature} from '../../src/systems/features.js';
 import {CHAR_PIXEL_TIERS} from '../../src/systems/charPixel.js';
 import {pixelWorldDraw,pixelWorldMesh,worldPixelActive} from '../../src/render/worldPixelLayer.js';
 import {identity} from '../../src/world/mat4.js';
-import {drawCampPixelFlame} from '../../src/scenes/campfirePixelFlame.js';
+import {drawCampPixelFlame,drawCampPixelFlameShells} from '../../src/scenes/campfirePixelFlame.js';
 
 test('objects use shared tiers and saved environment preferences are ignored',()=>{
  resetPrefs();
@@ -75,6 +75,31 @@ test('pixelated flame shells blend once, keep world depth untouched and restore 
  assert.deepEqual(samples,[{opacity:.26,depthMask:false,blend:true}]);
  assert.equal(state.depthMask,true);assert.equal(r.gl.isEnabled(r.gl.BLEND),false);
  assert.equal(worldPixelActive(r),false);
+});
+test('paired pixelated shells read the incoming blend state once and restore it after both draws',()=>{
+ resetPrefs();
+ const {r,state,samples}=passRenderer(), mesh={pixelKind:'effect'};
+ r.drawMesh=()=>{};
+ const query=r.gl.getParameter;
+ const reads=[];
+ const blendFactors=['BLEND_SRC_RGB','BLEND_DST_RGB','BLEND_SRC_ALPHA','BLEND_DST_ALPHA'];
+ const original=[r.gl.ONE,r.gl.ZERO,r.gl.DST_ALPHA,r.gl.ONE_MINUS_DST_ALPHA];
+ let factors=original;
+ r.gl.blendFuncSeparate=(...values)=>{factors=values;};
+ r.gl.getParameter=(key)=>{
+  reads.push(key);
+  const factor=blendFactors.indexOf(key);
+  return factor<0?query(key):factors[factor];
+ };
+ r.gl.enable(r.gl.BLEND);
+ state.depthMask=false;
+ drawCampPixelFlameShells(r,mesh,mesh,identity());
+ assert.deepEqual(reads.filter(key=>key==='DEPTH_WRITEMASK'||key.startsWith('BLEND_')),
+  ['DEPTH_WRITEMASK','BLEND_SRC_RGB','BLEND_DST_RGB','BLEND_SRC_ALPHA','BLEND_DST_ALPHA']);
+ assert.deepEqual(samples,[{opacity:.47,depthMask:false,blend:true},{opacity:.26,depthMask:false,blend:true}]);
+ assert.equal(state.depthMask,false);
+ assert.equal(r.gl.isEnabled(r.gl.BLEND),true);
+ assert.deepEqual(factors,original);
 });
 test('HD flame preserves the direct translucent draw and core remains shadowless',()=>{
  resetPrefs();setPref(WORLD_PIXEL_KEYS.objects,0);

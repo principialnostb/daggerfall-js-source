@@ -404,21 +404,24 @@ async function windows(cdp, page, { name, url, bootS, errors, extra }) {
   );
   const pframes = (await page.evaluate(() => window.__frame | 0)) - pf0;
   // heap sampling over FRAMES frames
-  await cdp.send('HeapProfiler.enable');
-  await cdp.send('HeapProfiler.startSampling', {
-    samplingInterval: 4096,
-    includeObjectsCollectedByMajorGC: true,
-    includeObjectsCollectedByMinorGC: true,
-  });
-  const hf0 = await waitFrames(page, FRAMES);
-  const { profile: heap } = await cdp.send('HeapProfiler.stopSampling');
-  const hframes = (await page.evaluate(() => window.__frame | 0)) - hf0;
+  let heap = null, hframes = 0;
+  if (process.env.HEAP !== '0') {
+    await cdp.send('HeapProfiler.enable');
+    await cdp.send('HeapProfiler.startSampling', {
+      samplingInterval: 4096,
+      includeObjectsCollectedByMajorGC: true,
+      includeObjectsCollectedByMinorGC: true,
+    });
+    const hf0 = await waitFrames(page, FRAMES);
+    ({ profile: heap } = await cdp.send('HeapProfiler.stopSampling'));
+    hframes = (await page.evaluate(() => window.__frame | 0)) - hf0;
+  }
   const stats = await page.evaluate(() => (window.__fpsStats ? window.__fpsStats() : null));
   const grass = await page.evaluate(() => (window.__grassStats ? window.__grassStats() : null));
   const nodes = await page.evaluate(() => document.getElementsByTagName('*').length);
   const tag = name + (process.env.TAG ? '.' + process.env.TAG : '');
   writeFileSync(`${OUT}/${tag}.cpuprofile`, JSON.stringify(profile));
-  writeFileSync(`${OUT}/${tag}.heapprofile`, JSON.stringify(heap));
+  if (heap) writeFileSync(`${OUT}/${tag}.heapprofile`, JSON.stringify(heap));
   const a = attribute(profile);
   // heap: self size by function
   const heapSelf = new Map();
@@ -428,7 +431,7 @@ async function windows(cdp, page, { name, url, bootS, errors, extra }) {
     heapSelf.set(k, (heapSelf.get(k) || 0) + n.selfSize);
     for (const c of n.children || []) walk(c);
   };
-  walk(heap.head);
+  if (heap) walk(heap.head);
   const res = {
     name,
     url,
@@ -463,7 +466,7 @@ async function windows(cdp, page, { name, url, bootS, errors, extra }) {
         .slice(0, 40)
         .map(([k, v]) => [k, +((v * a.median) / pframes).toFixed(3)]),
     },
-    heap: {
+    heap: heap && {
       frames: hframes,
       bytesPerFrame: Math.round([...heapSelf.values()].reduce((s, v) => s + v, 0) / Math.max(1, hframes)),
       top: [...heapSelf]
@@ -485,10 +488,10 @@ export const summaryLine = (r) =>
     .reduce((s, [, v]) => s + v, 0)
     .toFixed(
       0,
-    )}, draws ${(r.census.perFrame['gl.drawElements'] || 0) + (r.census.perFrame['gl.drawArrays'] || 0) + (r.census.perFrame['gl.drawArraysInstanced'] || 0) + (r.census.perFrame['gl.drawElementsInstanced'] || 0)}, heap ${r.heap.bytesPerFrame} B/frame, dom ${r.domNodes}, errors ${r.errors.length}`;
+    )}, draws ${(r.census.perFrame['gl.drawElements'] || 0) + (r.census.perFrame['gl.drawArrays'] || 0) + (r.census.perFrame['gl.drawArraysInstanced'] || 0) + (r.census.perFrame['gl.drawElementsInstanced'] || 0)}, heap ${r.heap ? r.heap.bytesPerFrame + ' B/frame' : 'skipped'}, dom ${r.domNodes}, errors ${r.errors.length}`;
 /** A window with no frames or no samples, or a page that threw, is not a measurement. */
 export const measured = (r) =>
-  r.cpu.frames > 0 && r.cpu.samples > 0 && r.census.frames > 0 && r.heap.frames > 0 && !r.errors.length;
+  r.cpu.frames > 0 && r.cpu.samples > 0 && r.census.frames > 0 && (r.heap === null || r.heap.frames > 0) && !r.errors.length;
 
 export const SWIFTSHADER_ARGS = [
   '--use-gl=angle',

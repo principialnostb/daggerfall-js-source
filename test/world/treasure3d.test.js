@@ -5,7 +5,8 @@ import { RANDOM_TREASURE_ICONS } from '../../src/systems/loot/lootDataTables.js'
 import { dungeonRemainsKind, dungeonRemainsVariant } from '../../src/world/dungeonRemainsModel.js';
 import { footprintBlockPixels } from '../../src/render/charPixelLayer.js';
 import { buildTreasureModel, hasTreasureModel, selectTreasureAppearance } from '../../src/world/treasureModel.js';
-import { drawTreasurePiles, markDungeonProp, markTreasurePile, releaseTreasurePile } from '../../src/render/treasurePiles.js';
+import { acquireTreasureModel, drawTreasurePiles, markDungeonProp, markTreasurePile, releaseTreasureModel, releaseTreasurePile } from '../../src/render/treasurePiles.js';
+import { drawPlacedFurnishings, markPlacedFurnishing, placedFurnishingModels, releasePlacedFurnishing } from '../../src/render/furnishingMorrowind.js';
 
 test('dungeon treasure rolls stay in the approved set and preserve approved appearances', () => {
   const approved = [0, 20, 22, 24, 25, 30, 37, 43, 45, 46, 47];
@@ -107,5 +108,77 @@ test('static remains distinguish piles, mounted skulls and standalone bones', ()
     const variants = Array.from({ length: 32 }, (_, i) => dungeonRemainsVariant(kind, i * .35, .5));
     assert.equal(new Set(variants).size, kind === 'skull' ? 4 : 3);
     assert.deepEqual(variants, variants.map((_, i) => dungeonRemainsVariant(kind, i * .35, .5)));
+  }
+});
+
+test('placed barrels and their DET aliases share the dungeon fallback without Morrowind', () => {
+  const drawn = [], destroyed = [];
+  const renderer = {
+    createMesh: data => data,
+    drawMesh: (mesh, pose) => drawn.push({ mesh, pose }),
+    destroyMesh: mesh => destroyed.push(mesh),
+    uploadTexture() {},
+    releaseTexture() {},
+  };
+  const barrel = (archive, record) => markPlacedFurnishing({
+    archive, record, vao: {}, size: { w: 1, h: 1.25 }, origin: [10, 0, 2],
+  }, [[2, .5, 3]]);
+  const batches = [barrel(205, 0), barrel(10027, 10)];
+  assert.equal(placedFurnishingModels(batches[0]).spec[0], 'o/contain_barrel_01.nif');
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel), []);
+  assert.equal(drawn.length, 2);
+  assert.equal(drawn[0].mesh, drawn[1].mesh);
+  for (const { pose } of drawn) assert.ok(Math.abs(pose[5] - .78) < 1e-6);
+  assert.deepEqual(Array.from(drawn[0].pose.slice(12, 15)), [12, .5, 5]);
+  releasePlacedFurnishing(renderer, batches[0], releaseTreasureModel);
+  assert.equal(destroyed.length, 0);
+  releasePlacedFurnishing(renderer, batches[1], releaseTreasureModel);
+  assert.deepEqual(destroyed, [drawn[0].mesh]);
+});
+
+test('placed goblets retain their authored dimensions and books have a separate cap', () => {
+  const poses = [];
+  const renderer = { drawMesh: (_, pose) => poses.push(pose) };
+  const goblet = h => markPlacedFurnishing({
+    archive: 200, record: 0, vao: {}, size: { w: h * 2 / 3, h },
+  }, [[2, .75, 3]]);
+  const batches = [goblet(.45), goblet(.12)];
+  assert.equal(placedFurnishingModels({ archive: 56790, record: 1 }).maxLength, undefined);
+  const bottle = placedFurnishingModels({ archive: 205, record: 12 });
+  assert.equal(bottle.maxLength, undefined);
+  assert.equal(bottle.spec[0], 'm/misc_com_bottle_03.nif');
+  const book = placedFurnishingModels({ archive: 209, record: 4 });
+  assert.ok(Math.abs(book.maxLength - .30) < 1e-6);
+  for (const [record, maxLength] of [[0, .78], [8, .58], [9, .58]]) {
+    const storage = placedFurnishingModels({ archive: 205, record });
+    assert.equal(storage.maxLength, maxLength);
+    assert.equal(storage.tabletopPixels, false);
+  }
+  for (const record of [17, 19, 20]) {
+    assert.equal(placedFurnishingModels({ archive: 205, record }).maxLength, undefined);
+  }
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, () => ({})), []);
+  assert.ok(Math.abs(poses[0][5] - .45) < 1e-6);
+  assert.ok(Math.abs(poses[1][5] - .12) < 1e-6);
+  assert.equal(poses[0][13], .75);
+  for (const batch of batches) releasePlacedFurnishing(renderer, batch, () => {});
+});
+
+test('placed book and bottle groups preserve their components and fall back as a unit', () => {
+  for (let record = 0; record <= 10; record++) {
+    const { spec, assembly } = placedFurnishingModels({ archive: 209, record });
+    assert.ok(spec || assembly, '209:' + record);
+  }
+  for (const [archive, record, count] of [[56790, 4, 3], [209, 6, 2], [205, 31, 5]]) {
+    const batch = markPlacedFurnishing({ archive, record, vao: {}, size: { w: .3, h: .2 } }, [[0, 0, 0]]);
+    const { assembly } = placedFurnishingModels(batch);
+    assert.equal(assembly.parts.length, count);
+    assert.ok(assembly.parts.every(([id]) => {
+      const [a, r] = id.split(':').map(Number);
+      return placedFurnishingModels({ archive: a, record: r }).spec;
+    }));
+    const batches = [batch];
+    assert.equal(drawPlacedFurnishings({}, batches, () => assert.fail()), batches);
+    releasePlacedFurnishing({}, batch, () => assert.fail());
   }
 });

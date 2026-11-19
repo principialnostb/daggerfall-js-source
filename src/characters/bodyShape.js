@@ -76,20 +76,33 @@ function regionsOf(piece, skeleton) {
 // two corners part and the body tears at the waist, the hips, the shoulders. Every corner standing where another does
 // takes their average, so the seam moves as one.
 const REGION_KEYS = ['armL', 'armR', 'handL', 'handR', 'legL', 'legR', 'tail'];
+// Signed 17-bit cell coordinates fit exactly in one JS number (51 bits).
+// Oversized or non-finite coordinates keep the original string representation.
+function vertexCell(x, y, z, cell) {
+  const a = Math.round(x / cell), b = Math.round(y / cell), c = Math.round(z / cell);
+  if (a >= -65536 && a < 65536 && b >= -65536 && b < 65536 && c >= -65536 && c < 65536)
+    return ((a + 65536) * 131072 + b + 65536) * 131072 + c + 65536;
+  return [a, b, c].join(',');
+}
+
 function weldRegions(pieces, skeleton, cell) {
   const groups = new Map();
   for (const p of pieces) {
     const r = regionsOf(p, skeleton);
     const n = p.positions.length / 3;
-    if (!r.welded || r.welded.armL.length !== n) r.welded = Object.fromEntries(REGION_KEYS.map((k) => [k, new Float32Array(n)]));
+    if (!r.welded || r.welded.armL.length !== n)
+      r.welded = Object.fromEntries(REGION_KEYS.map((k) => [k, new Float32Array(n)]));
+    for (const k of REGION_KEYS) r.welded[k].set(r[k]);
     for (let v = 0; v < n; v++) {
-      const key = `${Math.round(p.positions[v * 3] / cell)},${Math.round(p.positions[v * 3 + 1] / cell)},${Math.round(p.positions[v * 3 + 2] / cell)}`;
-      let g = groups.get(key);
-      if (!g) groups.set(key, g = []);
-      g.push(r, v);
+      const i = v * 3;
+      const key = vertexCell(p.positions[i], p.positions[i + 1], p.positions[i + 2], cell);
+      const g = groups.get(key);
+      if (g) g.push(r, v);
+      else groups.set(key, [r, v]);
     }
   }
   for (const g of groups.values()) {
+    if (g.length === 2) continue;
     const count = g.length / 2;
     for (const k of REGION_KEYS) {
       let sum = 0;
@@ -110,7 +123,7 @@ export function weldMorphedNormals(pieces, frame) {
   for (const p of pieces) {
     if (!p.normals || p.normals.length !== p.positions.length) continue;
     for (let v = 0; v < p.positions.length / 3; v++) {
-      const key = `${Math.round(p.positions[v * 3] / cell)},${Math.round(p.positions[v * 3 + 1] / cell)},${Math.round(p.positions[v * 3 + 2] / cell)}`;
+      const key = vertexCell(p.positions[v * 3], p.positions[v * 3 + 1], p.positions[v * 3 + 2], cell);
       let g = groups.get(key);
       if (!g) groups.set(key, g = []);
       g.push(p.normals, v * 3);
@@ -340,7 +353,7 @@ export function deformPlayerBodyGeometry(piece, morph, frame, skeleton = null) {
     x += (ox - cx) * ribcage * 0.12 * gauss(oz, zRib, 0.10 * u) * trunk;
 
     // breasts: two spheres in front of the chest - size swells each from its own centre, the rest move it whole
-    const sB = trunk > 1e-3 && depth > -0.2 ? sphere(breastC, ox, oy, oz, side) : null;
+    const sB = (breast || breastOut || breastLift || breastSpacing) && trunk > 1e-3 && depth > -0.2 ? sphere(breastC, ox, oy, oz, side) : null;
     if (sB) {
       const w = sB.w * trunk * smoothstep(-0.2, 0.4, depth);
       const swell = breast * 0.10 * u * w;
@@ -358,7 +371,7 @@ export function deformPlayerBodyGeometry(piece, morph, frame, skeleton = null) {
     // hips and buttocks: the pelvis and the top of the thighs together
     const hipFlesh = trunk + upperThigh;
     x += (ox - cx) * 0.20 * hip * gauss(oz, zHip, 0.16 * u) * hipFlesh;
-    const sBt = hipFlesh > 1e-3 && depth < 0.2 ? sphere(buttC, ox, oy, oz, side) : null;
+    const sBt = (butt || buttOut || buttLift) && hipFlesh > 1e-3 && depth < 0.2 ? sphere(buttC, ox, oy, oz, side) : null;
     if (sBt) {
       const w = sBt.w * Math.min(1, hipFlesh) * smoothstep(0.2, -0.4, depth);
       const swell = butt * 0.10 * u * w;
@@ -368,7 +381,7 @@ export function deformPlayerBodyGeometry(piece, morph, frame, skeleton = null) {
     }
 
     // legs: thickened around each leg's own axis, spread from the hip
-    if (legW > 1e-4) {
+    if ((thigh || calf || legGap) && legW > 1e-4) {
       const legSide = r.weighted ? (r.legL[v] >= r.legR[v] ? 1 : -1) : side;
       const L = F.legs[legSide];
       if (oz > L.knee[2] - 0.02 * u) {

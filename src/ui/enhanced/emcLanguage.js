@@ -608,4 +608,4 @@ EN.set("Серебристый", "Silver");
 EN.set("Седой белый", "White");
 EN.set("Тела зверорас (WIP, не доступно на текущий момент)", "Beast Bodies (WIP, currently unavailable)");
 EN.set("(WIP, не доступно на текущий момент)", "(WIP, currently unavailable)");
-EN.set("Этот переключатель также включает 3D-модели для некоторых расставленных кубков, бутылок и инструментов.", "This setting also enables 3D models for selected placed goblets, bottles and tools.");
+EN.set("Этот переключатель также включает 3D-модели для некоторых расставленных бочек, посуды, тары и инструментов. Некоторые предметы используют встроенные модели без ресурсов Morrowind.", "This setting also enables 3D models for selected placed barrels, tableware, containers and tools. Some props use built-in models without Morrowind assets.");

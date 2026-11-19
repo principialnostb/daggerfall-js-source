@@ -4,11 +4,12 @@ import { readFileSync } from 'node:fs';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';
 import { extractTracks, sampleTrack } from '../../../src/formats/morrowind/mwAnim.js';
 import { accumRootRef } from '../../../src/formats/morrowind/mwSkin.js';
+import { packSkinStream, skinLayout, writeSkinPalette } from '../../../src/formats/morrowind/mwGpuSkin.js';
 import { PART_BONES } from '../../../src/formats/morrowind/mwNpc.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace } from '../../../src/formats/morrowind/mwFaceMatch.js';
 import { assembleFirstPersonArm, poseAssembly } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import {
-  packFpArm, fpSkeletonPath, buildFpArm, createFpArm, wornVerdicts, animWeaponType, UPPER_BODY, wornEquipKeyOf, thirdPersonSupportZ,
+  packFpArm, pieceLanes, fpSkeletonPath, buildFpArm, createFpArm, wornVerdicts, animWeaponType, UPPER_BODY, wornEquipKeyOf, thirdPersonSupportZ, corpseMeshMinZ,
   unequipWeaponHideMode, animationWindowHasMotion,
   FP_CLIP_PATH, NIF_TO_PASS, FP_FIELD_OF_VIEW, firstPersonEye, FP_FLOATS,
   collectArmTextures, isRobertGauntletFirstPersonAdd,
@@ -3676,7 +3677,7 @@ test('MW-TP-GROUND-NPC: NPC foot support is latched once instead of following ev
   const src = rd('src/combat/fpArm.js');
   assert.match(src, /if \(!playerAppearance && body && thirdGroundMinZ == null\) thirdGroundMinZ = body\.minZ;/,
     'an NPC that begins in motion latches its first posed support height');
-  assert.match(src, /const supportMinZ = thirdPersonSupportZ\(body, thirdGroundMinZ, deathState\);/,
+  assert.match(src, /return thirdPersonSupportZ\(body, thirdGroundMinZ,/,
     'subsequent animation frames do not feed their changing leg height back into the root transform');
 });
 
@@ -3687,6 +3688,32 @@ test('A corpse settles to its posed mesh minimum when the death animation ends',
   assert.equal(thirdPersonSupportZ(body, 0, { time: 1, stopTime: 1 }), 18);
 });
 
+
+test('Corpse support agrees on the CPU and GPU using only visible body triangles', () => {
+  const piece = (slot, source) => ({
+    slot, kind: 'rigid', source, indices: [0, 1, 2],
+    positions: source.map((value, i) => i % 3 === 2 ? value + 3 : value),
+  });
+  const low = [0, 0, -50, 1, 0, -40, 0, 1, -30];
+  const pieces = [
+    piece('chest', [0, 0, 4, 1, 0, 6, 0, 1, 8, 0, 0, -90]),
+    piece('weapon', low),
+    piece('offweapon', low),
+    piece('shield (iron)', low),
+    piece('shield-back (iron)', low),
+    piece('hiplight', low),
+    piece('cloak', low),
+  ];
+  const skin = skinLayout(pieces);
+  assert.equal(skin.ok, true);
+  const transform = { a: [1, 0, 0, 0, 1, 0, 0, 0, 1], t: [0, 0, 3] };
+  writeSkinPalette(skin, { fns: { attachmentTransform: () => transform } });
+  const cpu = packFpArm(pieces).ranges;
+  const gpu = packSkinStream(skin, pieceLanes).ranges;
+  cpu.at(-1).hidden = gpu.at(-1).hidden = true;
+  assert.equal(corpseMeshMinZ(cpu, null), 7);
+  assert.equal(corpseMeshMinZ(gpu, skin), 7);
+});
 
 test('MW first-person arms: physical running opens the draw gate without a run clip', () => {
   const arm = createFpArm();

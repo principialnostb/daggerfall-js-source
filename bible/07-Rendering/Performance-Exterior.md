@@ -102,6 +102,20 @@ cheap without changing the picture. The general laws and instruments are `Perfor
   sphere asks only the buckets under its own box; moving and oversized buckets are asked by every query. One visited set
   is cleared per bucket, and the marks' stamp starts a new epoch on wrap (`src/player/collider.js`).
 
+## Measuring a fixed view online
+
+`tools/onlineFrameProbe.mjs` runs against local services. Set `PIXEL=1549,-375` for Skyrim or use the
+default Knightstale start. Use `POV=compare` for first, third and first person in one session, `YAW` in degrees
+and `PEERS=0,2,0` to compare
+a clear view with a small crowd. Set `BROWSER_CHANNEL=chrome ANGLE=d3d11 W=1920 H=952` to use the reported
+backend and viewport. The output records the map pixel, camera mode, heading, GPU and shadow counters.
+Use HEAP=0 to capture the WebGL census and CPU profiles without heap sampling. Compare two views from one session
+with node tools/frameAb.mjs --runs online0-first online0-third and the same OUT directory. The table includes local
+character pose, character pixelation and fixture depth readback. The online clock advances between runs. Compare
+matching daylight, weather and resolution.
+With a fresh test save, `CLOAK=1` equips a cloak and enables the desktop character presentation settings.
+`SHADOW_BOUNDS_AB=1` with `POV=compare` adds an unbounded shadow sample and measures time to the first body draw.
+
 ## Rules
 
 - Picture-neutral: every mechanism here draws the same pixels.

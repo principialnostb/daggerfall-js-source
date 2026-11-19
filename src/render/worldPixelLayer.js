@@ -6,7 +6,7 @@ import {transformPoint} from '../world/mat4.js';
 const active=new WeakSet();
 export const worldPixelActive=r=>active.has(r);
 
-export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1){
+export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null){
  if(active.has(r)||!r.gl||r._spriteDepth>0||r._panelSaved)return false;
  const rows=worldPixelRows(kind)/(mesh?.pixelBlockScale??1);
  if(!rows)return false;
@@ -30,7 +30,7 @@ export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1){
    r._use(r.program);r.gl.uniformMatrix4fv(r.uProj,false,r._proj);
    r._tFrameStamp=-1;
    draw();
-  },opacity,footprint,vp);
+  },opacity,footprint,vp,alphaState);
  }finally{
   active.delete(r);r._tFrameStamp=-1;r._forgetTextureShadows?.();
   r._use(r.program);r.gl.uniformMatrix4fv(r.uProj,false,projection);

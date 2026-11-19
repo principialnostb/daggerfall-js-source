@@ -321,31 +321,39 @@ export function transferSkin(garment, sources, ctx) {
  * the same rest-pose coordinate frame as the garment.
  */
 function closestPointTriangle(p, a, b, c) {
-  const sub = (x, y) => [x[0] - y[0], x[1] - y[1], x[2] - y[2]];
-  const dot = (x, y) => x[0] * y[0] + x[1] * y[1] + x[2] * y[2];
-  const ab = sub(b, a),
-    ac = sub(c, a),
-    ap = sub(p, a);
-  const d1 = dot(ab, ap),
-    d2 = dot(ac, ap);
+  const abx = b[0] - a[0];
+  const aby = b[1] - a[1];
+  const abz = b[2] - a[2];
+  const acx = c[0] - a[0];
+  const acy = c[1] - a[1];
+  const acz = c[2] - a[2];
+  const apx = p[0] - a[0];
+  const apy = p[1] - a[1];
+  const apz = p[2] - a[2];
+  const d1 = abx * apx + aby * apy + abz * apz;
+  const d2 = acx * apx + acy * apy + acz * apz;
   if (d1 <= 0 && d2 <= 0) return { point: a, bary: [1, 0, 0] };
-  const bp = sub(p, b),
-    d3 = dot(ab, bp),
-    d4 = dot(ac, bp);
+  const bpx = p[0] - b[0];
+  const bpy = p[1] - b[1];
+  const bpz = p[2] - b[2];
+  const d3 = abx * bpx + aby * bpy + abz * bpz;
+  const d4 = acx * bpx + acy * bpy + acz * bpz;
   if (d3 >= 0 && d4 <= d3) return { point: b, bary: [0, 1, 0] };
   const vc = d1 * d4 - d3 * d2;
   if (vc <= 0 && d1 >= 0 && d3 <= 0) {
     const v = d1 / (d1 - d3);
-    return { point: [a[0] + v * ab[0], a[1] + v * ab[1], a[2] + v * ab[2]], bary: [1 - v, v, 0] };
+    return { point: [a[0] + v * abx, a[1] + v * aby, a[2] + v * abz], bary: [1 - v, v, 0] };
   }
-  const cp = sub(p, c),
-    d5 = dot(ab, cp),
-    d6 = dot(ac, cp);
+  const cpx = p[0] - c[0];
+  const cpy = p[1] - c[1];
+  const cpz = p[2] - c[2];
+  const d5 = abx * cpx + aby * cpy + abz * cpz;
+  const d6 = acx * cpx + acy * cpy + acz * cpz;
   if (d6 >= 0 && d5 <= d6) return { point: c, bary: [0, 0, 1] };
   const vb = d5 * d2 - d1 * d6;
   if (vb <= 0 && d2 >= 0 && d6 <= 0) {
     const w = d2 / (d2 - d6);
-    return { point: [a[0] + w * ac[0], a[1] + w * ac[1], a[2] + w * ac[2]], bary: [1 - w, 0, w] };
+    return { point: [a[0] + w * acx, a[1] + w * acy, a[2] + w * acz], bary: [1 - w, 0, w] };
   }
   const va = d3 * d6 - d5 * d4;
   if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
@@ -359,7 +367,7 @@ function closestPointTriangle(p, a, b, c) {
   const v = vb * denom,
     w = vc * denom;
   return {
-    point: [a[0] + ab[0] * v + ac[0] * w, a[1] + ab[1] * v + ac[1] * w, a[2] + ab[2] * v + ac[2] * w],
+    point: [a[0] + abx * v + acx * w, a[1] + aby * v + acy * w, a[2] + abz * v + acz * w],
     bary: [1 - v - w, v, w],
   };
 }
@@ -377,13 +385,16 @@ function buildSurfaceBvh(positions, indices, normals) {
     const ids = [indices[i], indices[i + 1], indices[i + 2]];
     if (ids.some((v) => v * 3 + 2 >= positions.length)) continue;
     const pts = ids.map((v) => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]]);
-    const min = [0, 1, 2].map((k) => Math.min(...pts.map((p) => p[k])));
-    const max = [0, 1, 2].map((k) => Math.max(...pts.map((p) => p[k])));
+    const min = [0, 1, 2].map(k => Math.min(pts[0][k], pts[1][k], pts[2][k]));
+    const max = [0, 1, 2].map(k => Math.max(pts[0][k], pts[1][k], pts[2][k]));
     triangles.push({ ids, pts, min, max, center: min.map((v, k) => (v + max[k]) * 0.5) });
   }
   const build = (items) => {
-    const min = [0, 1, 2].map((k) => Math.min(...items.map((t) => t.min[k])));
-    const max = [0, 1, 2].map((k) => Math.max(...items.map((t) => t.max[k])));
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (const item of items) for (let k = 0; k < 3; k++) {
+      if (item.min[k] < min[k]) min[k] = item.min[k];
+      if (item.max[k] > max[k]) max[k] = item.max[k];
+    }
     if (items.length <= 8) return { min, max, items };
     let axis = 0;
     if (max[1] - min[1] > max[axis] - min[axis]) axis = 1;
@@ -397,11 +408,12 @@ function buildSurfaceBvh(positions, indices, normals) {
 function nearestSurfacePoint(p, root, normals, maxDistance2) {
   let best = null,
     bestD2 = maxDistance2;
-  const visit = (node) => {
-    if (!node || boxDistance2(p, node) >= bestD2) return;
+  const visit = (node, distance2) => {
+    if (distance2 >= bestD2) return;
     if (node.items) {
       for (const tri of node.items) {
-        const hit = closestPointTriangle(p, ...tri.pts);
+        if (boxDistance2(p, tri) >= bestD2) continue;
+        const hit = closestPointTriangle(p, tri.pts[0], tri.pts[1], tri.pts[2]);
         const dx = p[0] - hit.point[0],
           dy = p[1] - hit.point[1],
           dz = p[2] - hit.point[2];
@@ -418,14 +430,14 @@ function nearestSurfacePoint(p, root, normals, maxDistance2) {
     const dl = node.left ? boxDistance2(p, node.left) : Infinity;
     const dr = node.right ? boxDistance2(p, node.right) : Infinity;
     if (dl < dr) {
-      visit(node.left);
-      visit(node.right);
+      visit(node.left, dl);
+      visit(node.right, dr);
     } else {
-      visit(node.right);
-      visit(node.left);
+      visit(node.right, dr);
+      visit(node.left, dl);
     }
   };
-  visit(root);
+  visit(root, boxDistance2(p, root));
   return best;
 }
 
@@ -519,7 +531,7 @@ export function fitGarmentToSurfaces(garment, surfaces,
     let best = null;
     for (const surface of surfaces) {
       if (wantedSide && surface.side && surface.side !== wantedSide) continue;
-      const hit = nearestSurfacePoint(p, surface.bvh, surface.normals, maxDistance * maxDistance);
+      const hit = nearestSurfacePoint(p, surface.bvh, surface.normals, best?.distance2 ?? maxDistance * maxDistance);
       if (hit && (!best || hit.distance2 < best.distance2)) best = hit;
     }
     if (!best) continue;

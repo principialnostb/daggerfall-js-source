@@ -76,7 +76,7 @@ import {
 import { OnlineSession } from '../src/net/online.js';
 import { SESSION_KEY, SERVICE_KEY } from '../src/net/accountClient.js';
 import { realmIo, realmCreate, createRealmSession } from '../src/systems/realmSaves.js';
-import { worldRoom, CHAT_WORLD_ROOM, PIXEL_UNITS } from '../src/net/wire.js';
+import { worldRoom, worldPixelOk, CHAT_WORLD_ROOM, PIXEL_UNITS } from '../src/net/wire.js';
 import { PIXEL_M } from '../src/net/gate/gateLaw.js';
 import { ACCEPTED } from '../src/net/legalLaw.js';
 
@@ -180,6 +180,24 @@ function botPose(bot, at, t) {
 
 async function main() {
   const CROWDS = crowdsOf();
+  const { PIXEL, POV, YAW, ANGLE, BROWSER_CHANNEL, HEADED, CLOAK } = process.env;
+  const pixel = PIXEL === undefined ? null : PIXEL.split(',').map(Number);
+  const heading = YAW === undefined ? null : Number(YAW);
+  if (pixel && (!/^-?\d+,-?\d+$/.test(PIXEL) || !pixel.every(worldPixelOk))) {
+    throw new Error('PIXEL must be a valid Tamriel map pixel (x,y)');
+  }
+  if (POV !== undefined && !['first', 'third', 'compare'].includes(POV)) throw new Error('POV must be first, third or compare');
+  const compareShadowBounds = POV === 'compare' && process.env.SHADOW_BOUNDS_AB === '1';
+  const views = POV === 'compare'
+    ? (compareShadowBounds ? ['first', 'third-unbounded', 'first-rearmed', 'third', 'first'] : ['first', 'third', 'first'])
+    : [POV];
+  const prefs = CLOAK === '1'
+    ? { tutorialPopups: false, modelCustomization: true, morrowindThirdPersonOnly: true, charPixelPlayer: 360, charPixelNpc: 360 }
+    : { tutorialPopups: false };
+  if (heading !== null && (!YAW.trim() || !Number.isFinite(heading))) throw new Error('YAW must be a heading in degrees');
+  const useHardware = ANGLE || HEADED === '1';
+  const browserArgs = useHardware ? ['--enable-webgl', '--ignore-gpu-blocklist'] : SWIFTSHADER_ARGS;
+  if (ANGLE) browserArgs.push(`--use-angle=${ANGLE}`);
   const state = (stateDir = mkdtempSync(join(tmpdir(), 'online-frame-probe-')));
   const restore = { warn: console.warn, info: console.info };
   let server = null,
@@ -192,7 +210,20 @@ async function main() {
     server = await createServer({
       root: ROOT,
       configFile: `${ROOT}/vite.config.js`,
-      plugins: probePlugins(),
+      plugins: [
+        ...probePlugins(),
+        ...(compareShadowBounds ? [editsPlugin('shadow-bounds-probe', [{
+          file: 'src/combat/fpArm.js',
+          edits: [[
+            '          drawPixelatedCharacters(renderer, draws, charPixelRows(who), corners, (d) => renderer.drawCharacter(d.mesh, d.model, castSphere));',
+            '          drawPixelatedCharacters(renderer, draws, charPixelRows(who), corners, (d) => {\n'
+              + '            renderer.drawCharacter(d.mesh, d.model, globalThis.__probeUnboundedShadow ? null : castSphere);\n'
+              + '            globalThis.__probeFirstBodyDraw ??= performance.now();\n'
+              + '            globalThis.__probePlayerBodyDraws++;\n'
+              + '          });',
+          ]],
+        }])] : []),
+      ],
       server: { port: PORT, strictPort: true, hmr: false, watch: null },
       logLevel: 'error',
     });
@@ -215,19 +246,40 @@ async function main() {
       [SERVICE_KEY]: LOAD_SERVICE,
     });
     const pio = realmIo({ fetch: io0.fetch, storage: playerStorage });
-    browser = await chromium.launch({ args: SWIFTSHADER_ARGS });
+    browser = await chromium.launch({ channel: BROWSER_CHANNEL, headless: HEADED !== '1', args: browserArgs });
 
     let saveText = process.env.SAVE && existsSync(process.env.SAVE) ? readFileSync(process.env.SAVE, 'utf8') : null;
     if (saveText) console.log(`== the first save: ${process.env.SAVE}`);
     else {
       console.log('== the first save: an offline boot at Knightstale, composed by the world host');
       const ctx = await browser.newContext({ viewport: { width: W, height: H } });
+      await ctx.addInitScript((prefs) => localStorage.setItem('dagger.ui.v1', JSON.stringify(prefs)), prefs);
       const page = await ctx.newPage();
       await page.goto(
         `http://localhost:${PORT}/play/?world&region=Wayrest&loc=Knightstale&class=1&novideo&shot&play&tod=15:00`,
       );
       await page.waitForFunction(() => window.__shotReady === true, null, { timeout: 1200000, polling: 500 });
       await waitFrames(page, 3);
+      if (pixel) {
+        await page.evaluate(([x, y]) => window.__tesaJump(x, y), pixel);
+        await page.waitForFunction(
+          (key) => window.__currentPixel() === key && window.__streamIdle(),
+          pixel.join(','),
+          { timeout: 1200000, polling: 500 },
+        );
+        await waitFrames(page, 3);
+      }
+      if (CLOAK === '1') {
+        await page.evaluate(async () => {
+          const { addItem } = await import('/src/systems/inventory.js');
+          const { equipItem } = await import('/src/systems/equip.js');
+          const { mintCondition, setItemFields } = await import('/src/systems/item/itemTemplates.js');
+          const player = window.__playerEntity;
+          const cloak = mintCondition(setItemFields({ group: 'MensClothing', templateIndex: 154, dye: 2 }));
+          addItem(player.items, cloak);
+          if (equipItem(player, cloak) === null) throw new Error('The test cloak could not be equipped');
+        });
+      }
       saveText = await page.evaluate(() => window.__probeSaveText());
       await ctx.close();
       if (saveText && process.env.SAVE) writeFileSync(process.env.SAVE, saveText);
@@ -251,15 +303,17 @@ async function main() {
     console.log('== the online boot');
     const ctx = await browser.newContext({ viewport: { width: W, height: H } });
     await ctx.addInitScript(
-      ({ sk, sv, sess, base }) => {
+      ({ sk, sv, sess, base, prefs }) => {
         try {
           localStorage.setItem(sk, sess);
           localStorage.setItem(sv, base);
+          localStorage.setItem('dagger.ui.v1', JSON.stringify(prefs));
         } catch {
           /* a page without storage reads none */
         }
       },
       {
+        prefs,
         sk: SESSION_KEY,
         sv: SERVICE_KEY,
         sess: JSON.stringify({ secret: made.secret, id: made.id, name: made.name }),
@@ -305,9 +359,28 @@ async function main() {
       failed.push(`the boot (${bootErrors[0]})`);
     }
     const [px, py] = (await page.evaluate(() => window.__currentPixel())).split(',').map(Number);
+    if (pixel && (px !== pixel[0] || py !== pixel[1])) throw new Error(`Expected map pixel ${pixel}, loaded ${px},${py}`);
     const cell = worldRoom(px, py);
     // AUDIT PERF-ON4 F3: settled before the first crowd - the grass, then the way book standing still over 30 frames
     await settle(page);
+    const setView = async (pov, unboundedShadow) => {
+      if (!pov && heading === null) return;
+      await page.evaluate(async ({ pov, heading, unboundedShadow }) => {
+        const view = await import('/src/player/mwView.js');
+        window.__probeUnboundedShadow = unboundedShadow;
+        window.__probePlayerBodyDraws = 0;
+        window.__probeFirstBodyDraw = null;
+        window.__probeViewRequested = performance.now();
+        if (heading !== null) window.__look(heading * Math.PI / 180, 0);
+        if (pov === 'first') {
+          view.mwViewHoldThird(false);
+          view.mwViewFirstPerson();
+        }
+        if (pov === 'third' && !view.mwViewHoldThird(true)) throw new Error('Third person is unavailable for this character');
+        if (pov && view.mwViewThirdPerson() !== (pov === 'third')) throw new Error(`Could not set ${pov} person`);
+      }, { pov, heading, unboundedShadow });
+      await waitFrames(page, 12);
+    };
     let ways = -1,
       still = 0,
       waysFrames = 0;
@@ -412,23 +485,47 @@ async function main() {
         if (o?.status === 'open' && o.peers === crowd) break;
         await sleep(500);
       }
-      await waitFrames(page, 30);
-      console.warn = restore.warn;
-      console.info = restore.info;
-      errors = [];
-      // the census wraps the page's WebGL and DOM doors, and measure() takes the wrappers off after its window: put them
-      // on again for each crowd (the last crowd's off first, so nothing is wrapped twice)
-      await page.evaluate(`window.__censusOff?.(); ${CENSUS}`);
-      const r = await measure(ctx, page, { name, url, bootS, errors, extra: () => probe() });
-      const ready = o?.status === 'open' && o.peers === crowd;
-      console.log(
-        `== ${name}: ${summaryLine(r)}, peers ${r.extra?.peers ?? '?'} of ${crowd} (${r.extra?.status ?? '?'}), ways ${r.extra?.ways ?? '?'}`,
-      );
-      if (!measured(r)) failed.push(`${name} (${r.errors[0] ?? 'an empty window'})`);
-      if (!ready)
-        failed.push(
-          `${name} (${o?.peers ?? 'no'} peers of ${crowd} drawn, the session ${o?.status ?? o?.error ?? 'unread'})`,
+      for (const [viewIndex, mode] of views.entries()) {
+        const unboundedShadow = mode === 'third-unbounded';
+        const pov = mode?.split('-')[0];
+        await setView(pov, unboundedShadow);
+        await waitFrames(page, 30);
+        console.warn = restore.warn;
+        console.info = restore.info;
+        errors = [];
+        const sample = views.length > 1 ? `${name}-${mode}${viewIndex === views.length - 1 ? '-repeat' : ''}` : name;
+        // the census wraps the page's WebGL and DOM doors, and measure() takes the wrappers off after its window: put them
+        // on again for each crowd (the last crowd's off first, so nothing is wrapped twice)
+        await page.evaluate(`window.__censusOff?.(); ${CENSUS}`);
+        const r = await measure(ctx, page, {
+          name: sample, url, bootS, errors,
+          extra: async () => ({
+            ...await probe(),
+            pixel: [px, py],
+            pov: pov ?? null,
+            unboundedShadow,
+            heading,
+            ...await page.evaluate(() => ({
+              gpu: window.__renderer?.gpuName ?? null,
+              playerBodyDraws: window.__probePlayerBodyDraws ?? 0,
+              firstBodyMs: window.__probeFirstBodyDraw == null ? null : window.__probeFirstBodyDraw - window.__probeViewRequested,
+              shadows: window.__renderer?.shadows?.stats ?? null,
+              shadowKind: window.__renderer?.shadows?.kind ?? null,
+            })),
+          }),
+        });
+        const ready = o?.status === 'open' && o.peers === crowd;
+        console.log(
+          `== ${sample}: ${summaryLine(r)}, peers ${r.extra?.peers ?? '?'} of ${crowd} (${r.extra?.status ?? '?'}), ways ${r.extra?.ways ?? '?'}`,
         );
+        if (!measured(r)) failed.push(`${sample} (${r.errors[0] ?? 'an empty window'})`);
+        if (compareShadowBounds && pov === 'third' && !r.extra?.playerBodyDraws)
+          failed.push(`${sample} (the player's world mesh was not drawn)`);
+        if (!ready)
+          failed.push(
+            `${sample} (${o?.peers ?? 'no'} peers of ${crowd} drawn, the session ${o?.status ?? o?.error ?? 'unread'})`,
+          );
+      }
       console.warn = () => {};
       console.info = () => {};
     }

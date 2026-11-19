@@ -118,3 +118,17 @@ test('EL7: on the fake GL - the rigs are recorded and replayed (never from the s
   assert.ok(calls.some((c) => c[0] === 'useProgram' && c[1] === r.waterSurfaceProgram) && !calls.some((c) => c[1] === 'uSunShadow'), 'classic: the classic program, no map');
   assert.ok(ShadowPass);
 });
+
+test('a world rig sends one posed sphere to shadow replay, even when the mesh has no bounds', () => {
+  const { canvas } = recordingGl();
+  const r = new Renderer(canvas);
+  r.setLightingLane(EL_LANE);
+  const rig = r.createCharacterMesh(new Float32Array(9 * 6), { bounds: false });
+  const sphere = new Float32Array([3, 4, 5, 6]);
+  r.drawCharacter(rig, I, sphere);
+  assert.equal(r.shadows.count, 1);
+  const record = r.shadows.records[0];
+  assert.equal(record.bounded, true);
+  sphere.fill(0);
+  assert.deepEqual([...record.sphere], [3, 4, 5, 6]);
+});
