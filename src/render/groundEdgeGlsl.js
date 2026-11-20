@@ -4,6 +4,7 @@
 // terrain programs, the water's sheet and the silt; test/render/coastlook.test.js runs it through test/glsl.mjs against
 // the JS. `uGroundEdge` is the switch (renderer.js `coastEdges`): 0 draws every tile as DFU does.
 import { GROUND_EDGE, COAST_CUT, COAST_CUT_WANDER, packGroundKinds } from '../world/terrain/groundEdge.js';
+import { SHORE_FAMILIES } from '../world/water/waterCorners.js';
 import { CLIP_SENTINEL } from '../world/terrain/terrainSurface.js';
 import { pageParam } from '../systems/pageQuery.js'; // the kill door
 import { isEnhanced } from '../systems/uiSkin.js'; // the skin
@@ -24,11 +25,18 @@ float geWander(vec2 p) {
   if (uGroundEdge <= 0.0) return 0.0;
   p = max(p, vec2(0.0));   // the lattice's index is never negative
   return ${GROUND_EDGE.wander.map((o, k) => `${f(o.amp)} * (2.0 * reNoise(p, ${o.cells}, ${GROUND_EDGE.salt + k}u) - 1.0)`).join(' + ')};
+}
+bool grassyWaterBank(uint data) {
+  uint r = data >> 2u;
+  return ${SHORE_FAMILIES[1].map(r => "r == " + r + "u").join(" || ")};
+}
+float shoreBlendOffset(float share, float wander) {
+  return 2.0 * abs(share - 0.5) * wander;
 }`;
 }
 
 /** `GE_KINDS` (the table packed) and `uint geEntry(uint d)`, 0 for no transition. The sheet reads it too: its shore
- *  wanders where the ground blends and nowhere else (a record whose art reads as water keeps the art's line). */
+ *  shares the ground blend on transition tiles (a record painted as water keeps the art's line). */
 export function groundKindsGlsl() {
   return `const highp uint GE_KINDS[128] = uint[128](${[...packGroundKinds()].map((w) => `${w}u`).join(', ')});
 highp uint geEntry(highp uint d) { return (GE_KINDS[int(d >> 1u)] >> ((d & 1u) * 16u)) & 65535u; }`;
@@ -51,7 +59,9 @@ bool groundMix(highp uint d, vec2 f, vec2 p, out highp uint a, out highp uint b,
   a = (e >> 1u) & 3u; b = (e >> 3u) & 3u;
   highp uint m = (e >> 5u) & 15u;
   float c = mix(mix(float(m & 1u), float((m >> 1u) & 1u), f.x), mix(float((m >> 2u) & 1u), float((m >> 3u) & 1u), f.x), f.y);
-  s = smoothstep(${f(0.5 - s)}, ${f(0.5 + s)}, c + geWander(p));
+  float wander = geWander(p);
+  float offset = a == 0u ? shoreBlendOffset(c, wander) : wander;
+  s = smoothstep(${f(0.5 - s)}, ${f(0.5 + s)}, c + offset);
   return true;
 }
 vec3 geBase(highp uint k, vec2 f, vec2 dux, vec2 duy) { return ${decode}(textureGrad(uTileArr, vec3(f, float(k)), dux, duy).rgb); }

@@ -74,6 +74,7 @@ import { hasPortFor, hasPort, setSeatHarbours, PORT_LOCATION_IDS } from '../syst
 import { WoodsFile, MAP_WIDTH, MAP_HEIGHT } from '../formats/woodsFile.js';
 import { buildTerrainIndices, isOutdoorWaterTile, TERRAIN_TILE_DIM, surfaceHeightAt, surfaceNormalAt, terrainSampleHeightAt, walkGroundAt } from '../world/terrain/terrainSurface.js';   // GRASS-LIT2: the ground's normal under a blade; SNOWFALL1: and a pixel's that keeps none; FLORA-GROUND: the ground's one law
 import { waterUniforms, buildWaterIndices, waterSwitchOn } from '../render/waterSurface.js';   // WATER1: the enhanced water surface over the pixel's own grid; WATER-AUDIT: its own index set
+import { pondTerrain } from '../world/water/pondTerrain.js';
 import { bedFields, sheetDepthsOf } from '../world/water/waterBed.js';   // WATER-NEXT 2: the bed under the water, carved for the eye alone (AUDIT WATER-NEXT H1: the cap's re-carve asks its depths)
 import { createRipples, createRippleStir, RIPPLE_SPAN, RIPPLE_CELLS, BOAT_STIR, BOAT_WAKE_SPEED } from '../world/water/waterRipples.js';   // WATER-NEXT 4: the rings and wakes
 import { waterCorners, WATER_DRAW_MASK_TABLE } from '../world/water/waterCorners.js';   // GRASS-WET1: the one table that says which of a tile's corners stand in water - the DRAW's, because a blade in a puddle is a picture, not a physics
@@ -4985,7 +4986,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   }
   /** WATER-NEXT 2: a water sheet's source - the bed's grid and depths, or (no vertex under water) the terrain's own
    *  positions with no bed (renderer.createWaterSheet). */
-  function waterSheetOf(bed, terrain) { return bed?.depths ? { positions: bed.sheet, depths: bed.sheetDepths } : { terrain }; }   // AUDIT WATER-NEXT H2: the sheet's own depths
+  function waterSheetOf(bed, terrain) { return bed?.depths ? { positions: bed.sheet, depths: bed.sheetDepths, pond: !!bed.pondFloor } : { terrain }; }   // AUDIT WATER-NEXT H2: the sheet's own depths
   // DW-C: THE CLIP'S CULL - a quad, and at a far stride a skirt segment, whose every tile the cap clipped leaves the
   // ground's index set: the mod's discard exactly while a tile is a quad (stride 1). FAR-CLIP1: at EV4's far stride a
   // quad is sixteen tiles and a part-clipped one stands - its clipped tiles are the clip program's to discard
@@ -5647,7 +5648,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     renderer.destroyMesh(p.terrain);
     const bed = waterOn ? hostBed(grid, grid.bed) : null;   // WATER-NEXT 2: the bed at the new ring class - AUDIT WATER-NEXT P1/H1: the kernel's, by the TileMap the water draws from
     p._bed = bed;
-    p.terrain = renderer.createTerrainSurface(grid.bed?.positions ?? grid.positions, grid.bed?.normals ?? grid.normals,
+    p.terrain = pondTerrain(renderer, p.px, p.py, bedBytesOf(p), bed, grid.bed?.positions ?? grid.positions, grid.bed?.normals ?? grid.normals,
       stride === 1 ? TERRAIN_INDICES : TERRAIN_INDICES_LOD);
     const waterIndices = waterOn ? buildWaterIndices(p._dwBytes ?? p.tilemapBytes, stride) : null;   // DW-F: the cap's TileMap, where it patched one
     p.water = waterIndices ? renderer.createWaterSheet(waterIndices, waterSheetOf(bed, p.terrain)) : null;
@@ -27089,7 +27090,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
         // MWNPC8b x RW1: no Morrowind body stands in the view out, so a standing person's flat is drawn here, never left
         // cast-only by the street frame's last mark (it was, for the people nearest the house); the street marks it anew
         fb.castOnly = false;
-        flats.push(fb);
+        r.queueExteriorFlat(flats, fb);
       }
     }
     for (const cell of ground) if (!cell.deepWaters?.hide) r.drawTerrain(cell.dwTerrain ?? cell.terrain, cell._pixelMatrix, snowCover.arrayOf(cell.groundArchive), cell.tilemapTex, 6.4, !!cell._dwBytes, ecoDraw(cell), snowCover.drawOf(cell));   // DW-C: a pure-ocean pixel's ground is not drawn
@@ -32023,7 +32024,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         const off = !pixelVisible || (cullOn && aabbOutside(_planes, b._box, t[0], t[1], t[2]));   // EV3
         if (off && !renderer.shadowReach(b._box, t[0], t[1], t[2])) continue;   // SHADOW-REACH: off screen and out of every shadow's reach
         b.origin = t;
-        (off ? castBatches : allBatches).push(b);   // SHADOW-REACH: the maps alone, or the frame
+        renderer.queueExteriorFlat(off ? castBatches : allBatches, b, off);   // SHADOW-REACH: the maps alone, or the frame
       }
       // MWNPC8b: the street's standing people offered their bodies - the near rings' alone (a billboard's cast-only is
       // read at the draw, so after the walk does as well as before it)

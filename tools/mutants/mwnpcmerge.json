@@ -210,8 +210,8 @@
   {
     "name": "MWNPCMERGE-view-out-cast-only-world",
     "file": "src/scenes/world.js",
-    "old": "        fb.castOnly = false;\n        flats.push(fb);",
-    "new": "        flats.push(fb);",
+    "old": "        fb.castOnly = false;\n        r.queueExteriorFlat(flats, fb);",
+    "new": "        r.queueExteriorFlat(flats, fb);",
     "tests": [
       "test/formats/morrowind/mwnpc_mainmerge.test.js"
     ]

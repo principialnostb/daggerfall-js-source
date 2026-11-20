@@ -26,7 +26,7 @@ test('street fountain keeps the classic footprint, water level and object pixela
     const waterIndices = indices.slice(water.startIndex, water.startIndex + water.primitiveCount * 3);
     assert.ok(waterIndices.length && waterIndices.every(i => Math.abs(positions[i * 3 + 1] + .123) < 1e-6));
   } finally {
-    unregisterCustomModel(STREET_FOUNTAIN_MODEL);
+    for (const id of [STREET_FOUNTAIN_MODEL, 41221, 41222]) unregisterCustomModel(id);
   }
 });
 
@@ -43,5 +43,26 @@ test('the fountain rim is solid and the water source can be picked over it', () 
     const hit = pickActivatableHit([x, 1.7, z], [-x / length, -.9 / length, -z / length], targets, collider);
     assert.equal(hit?.key, 'water:0');
     assert.ok(hit.distance <= hit.reach);
+  }
+});
+
+test('both pentagonal fountains keep the authored waterline and a separate upper pool', () => {
+  registerStreetFountain();
+  try {
+    for (const [id, radius, lower, upper] of [[41221, 2.886, -.436, .983], [41222, 2.15, -.545, .819]]) {
+      const { positions, indices, subMeshes } = customModelFor(id);
+      const pools = subMeshes.filter(s => s.fountainWater === 1);
+      assert.equal(pools.length, 1);
+      assert.ok(subMeshes.some(s => s.fountainWater === -1));
+      const part = pools[0];
+      assert.equal(part.primitiveCount, 15);
+      const vertices = indices.slice(part.startIndex, part.startIndex + part.primitiveCount * 3);
+      assert.deepEqual([...new Set(Array.from(vertices, i => +positions[i * 3 + 1].toFixed(3)))], [lower, upper]);
+      assert.ok(Math.abs(Math.max(...Array.from(vertices, i => positions[i * 3])) - radius) < .001);
+      assert.ok(WATER_SOURCE_MODELS.includes(id));
+      assert.equal(classicPixelKind(id), 'objects');
+    }
+  } finally {
+    for (const id of [STREET_FOUNTAIN_MODEL, 41221, 41222]) unregisterCustomModel(id);
   }
 });

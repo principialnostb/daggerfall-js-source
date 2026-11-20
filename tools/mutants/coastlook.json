@@ -92,8 +92,8 @@
   {
     "name": "COAST-LOOK-js-share-wander-sign",
     "file": "src/world/terrain/groundEdge.js",
-    "old": "  return smoothstep(0.5 - GROUND_EDGE.soft, 0.5 + GROUND_EDGE.soft, share + groundEdgeWander(x, y));",
-    "new": "  return smoothstep(0.5 - GROUND_EDGE.soft, 0.5 + GROUND_EDGE.soft, share - groundEdgeWander(x, y));",
+    "old": "  const wander = groundEdgeWander(x, y);\n  const offset = waterEdge ? shoreBlendOffset(share, wander) : wander;\n  return smoothstep(0.5 - GROUND_EDGE.soft, 0.5 + GROUND_EDGE.soft, share + offset);",
+    "new": "  const wander = groundEdgeWander(x, y);\n  const offset = waterEdge ? shoreBlendOffset(share, wander) : wander;\n  return smoothstep(0.5 - GROUND_EDGE.soft, 0.5 + GROUND_EDGE.soft, share - offset);",
     "tests": [
       "test/render/coastlook.test.js"
     ]
@@ -137,8 +137,8 @@
   {
     "name": "COAST-LOOK-glsl-share-wander-sign",
     "file": "src/render/groundEdgeGlsl.js",
-    "old": "  s = smoothstep(${f(0.5 - s)}, ${f(0.5 + s)}, c + geWander(p));",
-    "new": "  s = smoothstep(${f(0.5 - s)}, ${f(0.5 + s)}, c - geWander(p));",
+    "old": "  float wander = geWander(p);\n  float offset = a == 0u ? shoreBlendOffset(c, wander) : wander;\n  s = smoothstep(${f(0.5 - s)}, ${f(0.5 + s)}, c + offset);",
+    "new": "  float wander = geWander(p);\n  float offset = a == 0u ? shoreBlendOffset(c, wander) : wander;\n  s = smoothstep(${f(0.5 - s)}, ${f(0.5 + s)}, c - offset);",
     "tests": [
       "test/render/coastlook.test.js"
     ]
@@ -272,8 +272,8 @@
   {
     "name": "COAST-LOOK-bed-wander-ungated",
     "file": "src/render/waterBedGlsl.js",
-    "old": "c - (blended ? geWander(p) : 0.0)",
-    "new": "c - geWander(p)",
+    "old": "c - (blended ? shoreBlendOffset(c, geWander(p)) : 0.0)",
+    "new": "c - shoreBlendOffset(c, geWander(p))",
     "tests": [
       "test/render/coastlook.test.js"
     ]
@@ -290,8 +290,8 @@
   {
     "name": "COAST-LOOK-sheet-wander-ungated",
     "file": "src/render/waterSurface.js",
-    "old": "    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, coverage(corners, f) - (geEntry(data) != 0u ? geWander(unwrapped) : 0.0));   // COAST-LOOK: a shore the ground blends on the ground's own line (the water the land's complement)",
-    "new": "    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, coverage(corners, f) - geWander(unwrapped));   // COAST-LOOK: a shore the ground blends on the ground's own line (the water the land's complement)",
+    "old": "    float c = coverage(corners, f);\n    bool bank = geEntry(data) != 0u;\n    float offset = bank ? shoreBlendOffset(c, geWander(unwrapped)) : 0.0;\n    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, c - offset);",
+    "new": "    float c = coverage(corners, f);\n    bool bank = geEntry(data) != 0u;\n    float offset = shoreBlendOffset(c, geWander(unwrapped));\n    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, c - offset);",
     "tests": [
       "test/render/coastlook.test.js"
     ]
@@ -299,8 +299,8 @@
   {
     "name": "COAST-LOOK-sheet-wander-sign",
     "file": "src/render/waterSurface.js",
-    "old": "    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, coverage(corners, f) - (geEntry(data) != 0u ? geWander(unwrapped) : 0.0));   // COAST-LOOK: a shore the ground blends on the ground's own line (the water the land's complement)",
-    "new": "    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, coverage(corners, f) + (geEntry(data) != 0u ? geWander(unwrapped) : 0.0));   // COAST-LOOK: a shore the ground blends on the ground's own line (the water the land's complement)",
+    "old": "    float c = coverage(corners, f);\n    bool bank = geEntry(data) != 0u;\n    float offset = bank ? shoreBlendOffset(c, geWander(unwrapped)) : 0.0;\n    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, c - offset);",
+    "new": "    float c = coverage(corners, f);\n    bool bank = geEntry(data) != 0u;\n    float offset = bank ? shoreBlendOffset(c, geWander(unwrapped)) : 0.0;\n    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, c + offset);",
     "tests": [
       "test/render/coastlook.test.js"
     ]

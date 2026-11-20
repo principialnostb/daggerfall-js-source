@@ -4,7 +4,7 @@ import { multiply, trs } from '../world/mat4.js';
 import { sphereInPlanes, spherePlanes } from './bounds.js';
 import { TOWN_CLUTTER, TOWN_CLUTTER_ARCHIVE, TOWN_ITEMS } from '../world/townStandIns.js';
 import { DET_FLAT_STAND_INS } from '../world/detStandIns.js';
-import { isWaterRack } from '../world/waterRack.js';
+import { isWaterRack, rackFootHeights } from '../world/waterRack.js';
 
 const placedFurnishings = new WeakMap();
 
@@ -173,9 +173,10 @@ export function placedFurnishingModels(batch) {
   };
 }
 
-export function markPlacedFurnishing(batch, centers) {
+export function markPlacedFurnishing(batch, centers, readPondFloor = null) {
   const { spec, lowPoly, alternate, maxLength, tabletopPixels, assembly } = placedFurnishingModels(batch);
   if (spec || lowPoly || assembly) {
+    if (readPondFloor && isWaterRack(lowPoly)) batch.pondRack = true;
     const authoredLength = Math.max(batch.size.w, batch.size.h);
     const length = Math.min(authoredLength, maxLength ?? Infinity);
     const fit = maxLength && authoredLength > maxLength ? maxLength / authoredLength : 1;
@@ -189,6 +190,7 @@ export function markPlacedFurnishing(batch, centers) {
       spec: placedModels.get(record) ?? furnishings.get(record), length, dx, dz, yaw, tabletopPixels: true,
     }));
     placedFurnishings.set(batch, {
+      readPondFloor: isWaterRack(lowPoly) ? readPondFloor : null,
       spec, lowPoly, placements, length, fit, tabletopPixels, assemblyParts, stack: assembly?.stack,
       alternate: placements.some(p => p.alternate) ? { spec: [alternate, false], length, tabletopPixels } : null,
     });
@@ -207,10 +209,22 @@ export function releasePlacedFurnishing(renderer, batch, releaseModel) {
   releaseFurnishingMorrowind(entry);
   if (entry.alternate) releaseFurnishingMorrowind(entry.alternate);
   for (const part of entry.assemblyParts ?? []) releaseFurnishingMorrowind(part);
+  for (const p of entry.placements) if (p.rackMesh) releaseModel(renderer, p.variant);
   if (entry.mesh) releaseModel(renderer, entry.lowPoly);
 }
 
-export function drawPlacedFurnishings(renderer, batches, acquireModel) {
+function fittedRack(renderer, p, id, floor, w, h, acquire, release) {
+  if (floor !== p.floor) {
+    if (p.rackMesh) release(renderer, p.variant);
+    const feet = floor && rackFootHeights(id, p, w, h, floor);
+    p.variant = feet ? { rackId: id, feet } : null;
+    p.rackMesh = p.variant ? acquire(renderer, p.variant) : null;
+    p.floor = floor;
+  }
+  return p.rackMesh;
+}
+
+export function drawPlacedFurnishings(renderer, batches, acquireModel, releaseModel) {
   if (getPref('enhancedGroundLoot') === false) return batches;
   let remaining = null, planes = null;
   for (const [i, batch] of batches.entries()) {
@@ -231,15 +245,18 @@ export function drawPlacedFurnishings(renderer, batches, acquireModel) {
     const { h, w } = batch.size;
     planes ??= !renderer._bbCullOff && renderer._proj && renderer._view
       ? spherePlanes(multiply(renderer._proj, renderer._view)) : null;
-    for (const { x: px, y: py, z: pz, alternate: useAlternate } of entry.placements) {
+    const floor = entry.readPondFloor?.();
+    for (const placement of entry.placements) {
+      const { x: px, y: py, z: pz, alternate: useAlternate } = placement;
       const x = px + ox, y = py + oy, z = pz + oz;
       if (planes && !sphereInPlanes(planes, x, y + h / 2, z, Math.hypot(w, h))) continue;
       const placedModel = useAlternate ? alternate ?? model : model;
       if (parts) drawAssembly(parts, entry.stack, x, y, z);
       else if (placedModel) placedModel.draw(x, y, z, 0);
       else {
-        entry.mesh ??= acquireModel(renderer, entry.lowPoly);
-        renderer.drawMesh(entry.mesh, trs(x, y, z, 0, 0, 0, w * entry.fit, h * entry.fit, w * entry.fit));
+        const rack = entry.readPondFloor && fittedRack(renderer, placement, entry.lowPoly, floor, w * entry.fit, h * entry.fit, acquireModel, releaseModel);
+        const mesh = rack ?? (entry.mesh ??= acquireModel(renderer, entry.lowPoly));
+        renderer.drawMesh(mesh, trs(x, y, z, 0, 0, 0, w * entry.fit, h * entry.fit, w * entry.fit));
       }
     }
   }

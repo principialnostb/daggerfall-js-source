@@ -8,7 +8,7 @@ import { clothReplacementNow } from '../systems/clothReplacementDye.js';
 // kept place holds it (scenes/placeHolds.js); what is asked for outside
 // any place is kept for good, as everything once was.
 
-import { STREET_FOUNTAIN_MODEL } from '../world/streetFountain.js';
+import { isStreetFountain } from '../world/streetFountain.js';
 import {classicPixelKind} from '../systems/worldPixelConfig.js';
 import { TextureFile, LAST_CLASSIC_TEXTURE_ARCHIVE } from '../formats/textureFile.js'; import { changeMask } from '../formats/baseImageFile.js';   // HM1: the item icons' removeMask (one line: the cites below stand)
 import { FlatsFile } from '../formats/flatsFile.js';   // NPC1: captions + portrait indices
@@ -440,7 +440,7 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
     const custom = await customModelBuilt(modelIdNum, { classicModel: classicModelOf }, breathe);   // AUDIT PRE-MERGE 1003 W6: a breath at a time where it can
     if (custom) {
       const gpu = await uploadModel(modelIdNum, custom);
-      if (modelIdNum === STREET_FOUNTAIN_MODEL) gpu.pixelKind = classicPixelKind(modelIdNum);
+      if (isStreetFountain(modelIdNum)) gpu.pixelKind = classicPixelKind(modelIdNum);
       cpuModels.set(modelIdNum, { modelIdNum, positions: custom.positions, indices: custom.indices, subMeshes: custom.subMeshes, doors: custom.doors ?? [], normals: custom.normals, uvs: custom.uvs });
       return gpu;
     }

@@ -1,3 +1,4 @@
+import { isStreetFountain } from '../world/streetFountain.js';
 import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
 // Shared interior build for scene transitions (P3): given a host
 // scene's data caches, lay out one building interior and return
@@ -404,7 +405,7 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
       ? decorBaseModelKey(pi, p.modelIdNum) : null;   // BASE-HIDE: a piece its owner may take out
     drawList.push({ mesh: gpu, matrix, key, aabb });
     // PERF6: the entry stays in drawList for the automap; the main view draws the merge
-    if (!baseKey && cpu.normals && cpu.uvs) { staticBuilder.add(cpu, matrix, resolveTexKey); drawList[drawList.length - 1]._batched = true; }
+    if (!baseKey && !isStreetFountain(p.modelIdNum) && cpu.normals && cpu.uvs) { staticBuilder.add(cpu, matrix, resolveTexKey); drawList[drawList.length - 1]._batched = true; }
     automapEntries.push({
       key,
       aabb,

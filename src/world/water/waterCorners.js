@@ -172,6 +172,9 @@ export const WATER_DRAW_MASK_TABLE = buildWaterMaskTable(true);
  *  sheet's depths and the renderer sets it as a constant, and the leaf is on both their roads already (a home in
  *  world/water/waterBed.js put one more file on the page's boot, test/render/boot2.test.js). */
 export const NO_BED_DEPTH = 1.2;
+// Values below this negative offset carry the surveyed pond's optical depth
+// on the existing sheet attribute. Ordinary beds use either positive metres or -1.2.
+export const POND_DEPTH_OFFSET = 8;
 /** AUDIT WATER-NEXT H2: a sheet vertex over ground that was never carved carries this - NO_BED_DEPTH, negated: the water
  *  shader reads its magnitude as the depth (the tint) and its sign as "no bed under it", which takes no swell. */
 export const SHEET_NO_BED = -NO_BED_DEPTH;

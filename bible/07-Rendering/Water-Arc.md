@@ -20,12 +20,24 @@ town's ponds and moats by the RMB's ground tiles. The terrain pass draws it opaq
   Its distance to the bank (a 3-4 chamfer) sets its depth, a smoothstep to `BED_DEPTH` (4) over `BED_RAMP` (19.2). The
   ground is carved only past one cell from the bank (`SHELF_CHAMFER`), so the sheet's edge always lies on uncarved
   ground. The bed is drawn only; `heightAt` and the feet read the uncarved samples.
+- **Skyrim village pond** (`src/world/water/pondTerrain.js`). At map pixel (1551, -372), a 0.8 m grid follows the
+  water corners of the surveyed settlement. The water sits 0.44 m below the street and the deepest floor is 1.55 m
+  below the street. A curved channel crosses the diagonal shore tile between the two bowls. Its asymmetric banks
+  expose damp soil. Each of the six uprights on a 3D reed rack samples the rendered floor triangle under its foot
+  and extends 0.12 m into submerged ground. The reed deck keeps its authored height. Four small clumps of rushes and three pairs of partly buried stones follow the rendered shoreline.
+  The Objects pixelation setting sizes the pond's reflection, ripple and refraction-direction samples in screen pixels.
+  HD shades each fragment. The depth test and bank coverage use the original fragment in every tier. Blue-green
+  scattering obscures the bed with distance through water, and the full-quality shore fades over 4.5 cm of depth.
+  The shore mesh shares the terrain's lifetime and is drawn before refraction. This local visual
+  departure uses the existing DFU `PlayerMotor.OnShallowWaterTile` rules for wading.
 - **The bed's face** (`src/render/waterBedGlsl.js`). Under the enhanced water a ground water texel takes the climate's
   dirt darkened to silt. A shore record's painted water outside the sheet goes under the silt too, and the fringe beyond
   is wet mud (`src/world/puddleMask.js` `shoreWaterColours`, `SHORE_DRY_RATIO`).
 - **The swell.** Three wave trains about the wind, at deep water's speed, their height the wind's from `SWELL_CALM`
   (0.05) to `SWELL_GALE` (0.34), faded over the bank. `swellAt` is the same sum on the CPU. The open sea takes the swell
-  as slope only.
+  as slope only. On a transition tile the sheet fades its fallback optical depth towards the bank, so silt shows at
+  the edge of small ponds without a carved bed. Full quality still uses the depth of submerged surfaces in the frame.
+  At grassy banks a narrow strip of wet silt and a weaker sky reflection make that shallow water visible.
 - **The body.** Beer-Lambert absorption (`WATER_ABSORB` 0.55, 0.30, 0.22 a unit), replaced by the water's own colour
   (the climate's water texel's mean) lit by the ground's light. On the lighting lane the frame's colour and depth are
   copied once a frame before the first water draw (`AirPass.snapshotUnderWater`), so the water refracts what lies under
@@ -44,8 +56,9 @@ town's ponds and moats by the RMB's ground tiles. The terrain pass draws it opaq
   ring's sea shares the water's own look (`SEA_LOOK_GLSL`), so the sea runs on continuously to the horizon. Ring cells
   inside the streamed rect fill the sea past the world's far plane, only those the eye can see.
 - **The coast** (`src/world/terrain/groundEdge.js`, `src/render/groundEdgeGlsl.js`). A transition tile draws its two
-  kinds' base records at a share moved by a three-octave wander, so shores have no straight tile edges; Deep Waters' sea
-  is cut on a wandering line instead of whole tiles. `?coastedges=off` restores the tile edges.
+  kinds' base records across a soft rim. On marching-square shores the water, silt and bank follow the existing
+  swimming contour. Three octaves of noise vary the blend around it. Deep Waters' sea is cut on a wandering line
+  instead of whole tiles. `?coastedges=off` restores the tile edges.
 - **Town puddles are dry** (`src/world/puddleDry.js`). A one-tile patch of water, or one made only of shallow-water art,
   takes the ground its dry neighbours stand on. It runs where a block is served (`src/formats/blocksFile.js`
   `getBlock`), so every reader of the ground sees one ground, on both skins. Moats, ponds and docks stay.

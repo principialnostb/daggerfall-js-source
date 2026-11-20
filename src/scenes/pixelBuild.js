@@ -1,9 +1,9 @@
-import { streetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
-import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
 // HOST-SPLIT: moved verbatim out of src/scenes/world.js's bootWorld (bible/01-Overview/Host-Split.md) by tools/hostMove.mjs.
 // The host constructs it where the code stood. What it reads of the host's scope comes through `host`: the
 // settled names by value at construction, every live one (a `let` someone writes, a `const` made below) read at its
 // use as `host.<name>` - as the code read them where it was.
+import { streetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
+import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
 import { ANIMAL_SOUND_BY_RECORD, ANIMALS_ARCHIVE } from '../systems/soundClips.js';
 import { applyClimate, getNatureArchive, getTerrainGroundArchive, INTERIOR_SEASON, SEASON, winterSetSnowless } from '../world/climateSwaps.js';
 import { SEA_LEVEL_M } from '../systems/weather/airTemperature.js';   // PRECIP4: heights above the sea, the snow's
@@ -18,6 +18,7 @@ import { boxNearPath, pointNearPath, UNITS_PER_METRE, WOD_PIECE_ROAD_CLEAR, wodP
 import { buildingKeysOfType, castleEntranceOf, siegeFieldOf } from '../systems/siegeField.js';
 import { buildingSummaries } from '../world/buildingSummaries.js';
 import { buildWaterIndices, waterSwitchOn } from '../render/waterSurface.js';
+import { isSurveyedPondPixel, pondTerrain } from '../world/water/pondTerrain.js';
 import { CITY_GATE_CLOSED_MODEL_ID, CITY_GATE_OPEN_MODEL_ID, isBulletinBoard, isCityGate } from '../world/rmbLayout.js';
 import { carveLefay, isLefayTown, monumentSpotOf } from '../world/lefayMonument.js';
 import { carveYards } from '../world/merchantYards/merchantYardSites.js';
@@ -78,7 +79,7 @@ import { seatFlora, standsOnGround, warmFlora } from './floraSeat.js';   // FLOR
 import { isWardenTown } from '../systems/wagon/wagonWarden.js';
 import { isWodShrub, rockSeatDrop, WOD_ROCK_SITES, wodLightPosition, wodLightProperties } from '../world/worldOfDaggerfall/wodLocationObjects.js';
 import { isYardTown } from '../systems/merchantYards.js';
-import { STREET_FOUNTAIN_MODEL } from '../world/streetFountain.js';
+import { isStreetFountain } from '../world/streetFountain.js';
 import { keyResolver, StaticBatchBuilder, TOWN_SHADOW_CELL } from '../render/staticBatch.js';
 import { knownCriminal } from '../systems/standing.js';
 import { layoutLocationSteps, RMB_SIDE } from '../world/locationLayout.js';   // IC-STUTTER: a town laid out a block a step; SOLITUDE-RELIEF: a block's side
@@ -175,6 +176,8 @@ export function createPixelBuild(host) {
    * @param {{ batches: any[], forestGroups: Map<string, any>, coverItems: any[], lptHandles: any[], lptGroups: any[] }} out
    */
   async function standFlatGroups(g, { batches, forestGroups, coverItems, lptHandles, lptGroups, skyrimPlants, hangHosts }) {
+    const pondKey = isSurveyedPondPixel(g.px, g.py) ? g.px + ',' + g.py : null;
+    const readPondFloor = pondKey ? () => built.get(pondKey)?._bed?.pondFloor : null;
     let lptPathMask = null;   // LPT-FIT: the pixel's path tiles, made at its first fitted tree
     // FB1020c TRUNK-FIT: THE PIXEL'S SOLID THINGS, measured before any tree is stood - a fountain, a well, a crate, a statue:
     // PROP-BODIES' own bodies (world/propBodies.js flatBody, each foot off its own picture) of every flat of no nature
@@ -261,7 +264,7 @@ export function createPixelBuild(host) {
         continue;
       }
       const size = plain;   // the record, uploaded (world/naturePicture.js)
-      const batch = markPlacedFurnishing(renderer.createBillboardBatch(archive, record, size, centers), centers);
+      const batch = markPlacedFurnishing(renderer.createBillboardBatch(archive, record, size, centers), centers, readPondFloor);
       batch._box = flatBatchAabb(centers, size);   // EV3
       batch.sway = floraSwayOf(archive, g.natureSet, size.h);   // WIND3: the flora lean with the wind, nothing else does
       batch.windfall = windfallResponse(archive, record);   // WINDFALL1: its record's wind mask - every nature batch, as the mod patches them (TryPatchBatch: 500..511)
@@ -430,7 +433,7 @@ export function createPixelBuild(host) {
     // (heightAt, the samples) never moves - and the water's own sheet, the grid as it stood with the bed's depth.
     // AUDIT WATER-NEXT P1: carved by the kernel on the worker (terrainGen.js restrideGrid), not on this thread
     const bed = hostBed({ positions, normals }, carved);
-    const terrain = renderer.createTerrainSurface(carved?.positions ?? positions, carved?.normals ?? normals,
+    const terrain = pondTerrain(renderer, px, py, tilemapBytes, bed, carved?.positions ?? positions, carved?.normals ?? normals,
       stride === 1 ? TERRAIN_INDICES : TERRAIN_INDICES_LOD);
     // WATER1 / WATER-AUDIT (M4): the water's own quads - null for a pixel without water, which never enters the pass
     const waterIndices = waterOn ? buildWaterIndices(tilemapBytes, stride) : null;
@@ -644,7 +647,7 @@ export function createPixelBuild(host) {
             pixelHomeKeys.add(homeKey);
           }
           models.push(entry);
-          if (!entry._home && placed.modelIdNum !== STREET_FOUNTAIN_MODEL && !isCityGate(placed.modelIdNum) && cpu.normals && cpu.uvs) { addStatic(cpu, local, climateFree); entry._batched = true; }   // PERF4: the remap for this model's textures is in the map by now (awaited above); HOME-LOOK: a home stays out
+          if (!entry._home && !isStreetFountain(placed.modelIdNum) && !isCityGate(placed.modelIdNum) && cpu.normals && cpu.uvs) { addStatic(cpu, local, climateFree); entry._batched = true; }   // PERF4: the remap for this model's textures is in the map by now (awaited above); HOME-LOOK: a home stays out
           await breather.breathe();   // PERF7: a warm build gives the frame back every few milliseconds
           // AUDIT 64 F14: a city gate takes a collider bucket of its own
           // (the pixel's shared bucket has no per-mesh removal), keyed

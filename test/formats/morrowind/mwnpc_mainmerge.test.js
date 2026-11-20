@@ -222,7 +222,7 @@ test('WAGONS2 x MWNPC5c: a companion drawn grown on a wagon under the Overworld 
 test('RW1 x MWNPC8b/8c: the view out through a building\'s glass draws no Morrowind body, so every flat it draws is shown - a standing person\'s never left cast-only by the street frame\'s last mark (by source: both exterior hosts\' view outs; the interiors\' host draws its exterior host\'s, and a dungeon has no glass)', () => {
   const world = rd('src/scenes/world.js');
   const out = world.slice(world.indexOf('  const drawOutsideStreet = (r, planes) => {'), world.indexOf('  const outsideView = () => ({'));
-  assert.match(out, /fb\.origin = t;\n(\s*\/\/[^\n]*\n)*\s*fb\.castOnly = false;\n\s*flats\.push\(fb\);/, 'world.js: each flat shown before it joins the view out\'s draw');
+  assert.match(out, /fb\.origin = t;\n(\s*\/\/[^\n]*\n)*\s*fb\.castOnly = false;\n\s*r\.queueExteriorFlat\(flats, fb\);/, 'world.js: each flat shown before it joins the view out\'s draw');
   assert.ok(out.indexOf('fb.castOnly = false;') < out.indexOf('r.drawBillboards(flats'), 'and before the draw');
   const ext = rd('src/scenes/exterior.js');
   const extOut = ext.slice(ext.indexOf('  const outsideView = () => ({'), ext.indexOf('  var modes = createWorldModes({'));

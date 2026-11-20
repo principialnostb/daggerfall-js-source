@@ -510,3 +510,29 @@ test('PERF-EXT13: the list draws what the pixels drew one by one - draw for draw
     assert.deepEqual(one.r._waterOne, [[null, null, null, null]], 'the one-row door keeps no surface alive');
   }
 });
+
+test('the pond follows the Objects tier live in both rendering lanes', async () => {
+  const { getPref, setPref } = await import('../../src/systems/uiPrefs.js');
+  const key = 'worldPixelObjects', saved = getPref(key);
+  try {
+    for (const lane of [false, true]) {
+      const { H, r, rows, wu } = waterScene(lane);
+      const loc = lane ? r._wsLane : r._ws;
+      r._worldViewportPx = [0, 0, 1920, 1080];
+      const draw = () => r.drawWaterSurfaces(rows, rows.length, 6.4, wu);
+      H.reset();
+      draw();
+      assert.equal(H.byName['uniform1f:uPondBlock'], undefined);
+      rows[0][0] = r.createWaterSheet(new Uint32Array([0, 1, 2]), {
+        positions: new Float32Array([0, 0, 0, 0, 0, 1, 1, 0, 0]), depths: new Float32Array(3), pond: true,
+      });
+      for (const [tier, expected] of [[270, 4], [540, 2], [0, 1]]) {
+        setPref(key, tier);
+        H.reset();
+        draw(); draw();
+        assert.equal(loc.lastPondBlock, expected);
+        assert.equal(H.byName['uniform1f:uPondBlock'], 1);
+      }
+    }
+  } finally { setPref(key, saved); }
+});

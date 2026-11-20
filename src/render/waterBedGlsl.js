@@ -22,6 +22,7 @@ export const WET_MUD = 0.62;
 export const WET_MUD_SHARE = 0.8;
 
 export const WATER_BED_GLSL = `
+in float vBankDepth;
 uniform float uWaterBed;       // WATER-NEXT 2: 1 where the enhanced water lies over this ground
 uniform uvec4 uBedMask[8];     // the draw's water corners, packed as the water's own uWaterMask
 // SHORE-SILT: tl/gx/gy the ground's own texel of this tile (its layer, turned) - a shore's art paints its water past
@@ -41,7 +42,11 @@ vec2 bedCover(uint data, vec2 f, vec2 p, vec3 tl, vec2 gx, vec2 gy, float snowC,
   uint m = (word >> ((data & 7u) * 4u)) & 15u;
   if (m == 0u) return vec2(0.0);
   float c = mix(mix(float(m & 1u), float((m >> 1u) & 1u), f.x), mix(float((m >> 2u) & 1u), float((m >> 3u) & 1u), f.x), f.y);
-  float k = smoothstep(0.3, 0.7, c - (blended ? geWander(p) : 0.0));
+  float k = smoothstep(0.3, 0.7, c - (blended ? shoreBlendOffset(c, geWander(p)) : 0.0));
+  if (blended && grassyWaterBank(data)) {
+    float wet = 0.72 * smoothstep(0.28, 0.5, c) * (1.0 - smoothstep(0.5, 0.7, c));
+    return vec2(max(k, wet), wet);
+  }
   float art = 0.0;
   if (m != 15u && k < 1.0 && !blended) {
     float a = textureGrad(uTileArr, tl, gx, gy).a;
@@ -58,4 +63,10 @@ export const waterBedMix = (decode = (s) => s) =>
     vec3 silt = ${decode(`textureGrad(uTileArr, vec3(tuv, ${BED_RECORD.toFixed(1)}), gx, gy).rgb`)} * vec3(${BED_SILT.map((v) => v.toFixed(2)).join(', ')});
     silt = mix(silt, vec3(dot(silt, vec3(0.299, 0.587, 0.114))) * ${WET_MUD.toFixed(2)}, ${WET_MUD_SHARE.toFixed(2)} * bedK.y);   // SHORE-SILT: the fringe past the sheet is wet mud - darker, greyer
     tex = mix(tex, silt, bedK.x);
+  }
+  if (vBankDepth > 0.0) {
+    vec3 soil = ${decode(`textureGrad(uTileArr, vec3(tuv, 1.0), gx, gy).rgb`)};
+    float wet = smoothstep(0.06, 0.44, vBankDepth);
+    soil *= mix(vec3(0.76, 0.68, 0.54), vec3(0.45, 0.43, 0.38), wet);
+    tex = mix(tex, soil, smoothstep(0.10, 0.30, vBankDepth) * (1.0 - snowC * (1.0 - wet)));
   }`;

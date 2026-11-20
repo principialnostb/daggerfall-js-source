@@ -65,7 +65,8 @@ export function acquireTreasureModel(renderer, record, remains = null, authored 
   }
   let entry = cache.meshes.get(record);
   if (!entry) {
-    const data = authored ?? (workshopKind(record) ? buildDungeonWorkshop(TREASURE_ART, record)
+    const data = authored ?? (record.rackId ? buildWaterRack(TREASURE_ART, record.rackId, record.feet)
+      : workshopKind(record) ? buildDungeonWorkshop(TREASURE_ART, record)
       : isDungeonChainKind(record) ? buildDungeonChain(TREASURE_ART, record)
       : isDungeonColumnKind(record) ? buildDungeonColumn(TREASURE_ART, record)
       : record === 'broken-cage' ? buildBrokenDungeonCage(TREASURE_ART)

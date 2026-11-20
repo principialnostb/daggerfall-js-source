@@ -1,3 +1,4 @@
+import { FOUNTAIN_WATER_GLSL } from './fountainWaterGlsl.js';
 // @ts-check
 import { rememberCampfireBatch, releaseCampfireBatch, drawCampfireBillboards } from './campfireBillboards.js';
 import { acquireTreasureModel, drawTreasurePiles, releaseTreasureModel, releaseTreasurePile } from './treasurePiles.js';
@@ -12,6 +13,7 @@ import { drawPlacedFurnishings, releasePlacedFurnishing } from './furnishingMorr
 //   - Alpha 0 texels are palette-index cutouts; the shader discards them.
 
 import {pixelWorldMesh} from './worldPixelLayer.js';
+import { worldPixelRows } from '../systems/worldPixel.js';
 import { billboardPixelShader, npcBillboardArchives } from './npcPixel.js';
 import { blockPixels, charPixelRows } from './charPixelLayer.js';
 import { CLOUD_SHADOW_GLSL, cloudFarOf } from './cloudShadow.js';   // EE5 / VC4: the cloud shadow's reader - VC6c's one home, shared with the air pass's shafts; OW-HORIZON: and the ground past its square
@@ -72,6 +74,7 @@ precision highp float;
 in vec3 vNormal;
 in vec2 vUV;
 in vec3 vWorldPos;
+${FOUNTAIN_WATER_GLSL}
 uniform sampler2D uTex;
 uniform sampler2D uEmissionTex;
 uniform vec3 uLightDir;
@@ -137,6 +140,7 @@ ${RW_MAIN_DERIVS}
   else if (vWorldPos.y > uClipY) discard;
   dissolveCut();   // SHIP-FADE: a ship sailing into the world or out of it, her share of her fragments (orderedDither.js)
   vec4 tex = texture(uTex, vUV);
+  if (uFountainTime != 0.0) tex.rgb = fountainWater(vUV, uCamPos - vWorldPos, tex.rgb);
   // INCIDENT 2026-09-04: no alpha clip here - DaggerfallDefault.shader is
   // RenderType Opaque with no clip(); the mortar runs of a wall texture
   // are palette index 0 and were being discarded as cutouts.
@@ -993,6 +997,8 @@ void main() {
 const TERRAIN_VS = `#version 300 es
 layout(location=0) in vec3 aPos;
 layout(location=1) in vec3 aNormal;
+layout(location=2) in float aBankDepth;
+out float vBankDepth;
 uniform mat4 uProj;
 uniform mat4 uView;
 uniform mat4 uModel;
@@ -1000,6 +1006,7 @@ out vec3 vNormal;
 out vec3 vWorldPos;
 out vec2 vLocalXZ;
 void main() {
+  vBankDepth = aBankDepth;
   vNormal = mat3(uModel) * aNormal;
   vec4 world = uModel * vec4(aPos, 1.0);
   vWorldPos = world.xyz;
@@ -2526,6 +2533,7 @@ export class Renderer {
     this.uLight3Scale = gl.getUniformLocation(this.program, 'uLight3Scale');
     this.uLight3Color = gl.getUniformLocation(this.program, 'uLight3Color');
     this.uTex = gl.getUniformLocation(this.program, 'uTex');
+    this.uFountainTime = gl.getUniformLocation(this.program, 'uFountainTime');
     this.uEmissionTex = gl.getUniformLocation(this.program, 'uEmissionTex');
     this.uEmissionColor = gl.getUniformLocation(this.program, 'uEmissionColor');
     this.uPointCount = gl.getUniformLocation(this.program, 'uPointCount');
@@ -7458,7 +7466,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       _arena: arena, _q0: q0, _ibOff: q0 * BB_QUAD_INDEX_BYTES,
       _scales: scales ?? null, lptProto: undefined, farH: undefined, sunLift: undefined,
       _place: count > 1 && !dynamic ? placementGrid(centers) : null,
-      _box: undefined, sway: undefined, windfall: undefined, tip: undefined, conceal: undefined, hitFlash: undefined, eliteGlow: undefined, eliteTime: undefined, elitePad: undefined, glint: undefined, dissolve: undefined, crack: undefined, tint: undefined, dye: undefined, noShadow: undefined, ghost: undefined, selfCard: undefined, _dead: undefined, _moveScratch: undefined, dwColumn: undefined,
+      _box: undefined, sway: undefined, windfall: undefined, tip: undefined, conceal: undefined, hitFlash: undefined, eliteGlow: undefined, eliteTime: undefined, elitePad: undefined, glint: undefined, dissolve: undefined, crack: undefined, tint: undefined, dye: undefined, noShadow: undefined, ghost: undefined, selfCard: undefined, pondRack: false, _dead: undefined, _moveScratch: undefined, dwColumn: undefined,
       castOnly: undefined,
       _bbKey: undefined, _bbKeyId: undefined, _bbKeyRecord: undefined, _bbKeyFrame: undefined, _bbKeyArchive: undefined,
       _shGen: undefined, _shAx: NaN, _shAy: NaN, _shAz: NaN, _shSeen: undefined, _shOx: NaN, _shOy: NaN, _shOz: NaN, _shFrame: undefined,
@@ -7580,6 +7588,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   /** Release a createMesh bundle's GPU resources. */
   destroyMesh(mesh) {
     const gl = this.gl;
+    if (mesh.pondShore) releaseTreasureModel(this, mesh);
     mesh._dead = true;   // EL2: a shadow record from the last frame may still hold it
     this._wl?.forget(mesh);   // WL1: none of its windows lights
     for (const b of mesh.buffers) gl.deleteBuffer(b);
@@ -7626,26 +7635,29 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   }
 
   /** Create one pixel's terrain surface (positions + normals grid). */
-  createTerrainSurface(positions, normals, indices) {
+  createTerrainSurface(positions, normals, indices, bankDepth = null, shore = null) {
     const gl = this.gl;
     const indexSet = this._terrainIndices(indices);
     const vao = gl.createVertexArray();
     this._bindVao(vao);
     const buffers = [];
-    const buf = (data, loc) => {
+    const buf = (data, loc, size = 3) => {
       const b = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, b);
       gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
       gl.enableVertexAttribArray(loc);
-      gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 12, 0);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, size * 4, 0);
       buffers.push(b);
       return b;
     };
     buf(positions, 0);
     buf(normals, 1);
+    if (bankDepth) buf(bankDepth, 2, 1);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexSet.buffer);
     this._bindVao(null);
-    return { vao, buffers, indexCount: indexSet.count, bounds: boundsOf(positions) };   // EL5: the replays cull by it
+    const surface = { vao, buffers, indexCount: indexSet.count, bounds: boundsOf(positions) };
+    if (shore) surface.pondShore = acquireTreasureModel(this, surface, null, shore);
+    return surface;   // EL5: the replays cull by it
   }
 
   /** WATER-AUDIT (M4): a second surface over a terrain surface's OWN
@@ -7676,7 +7688,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    *  the water quads (`indices`). Without a bed (`positions` null: no vertex of the grid is under water - a one-tile
    *  stream) it rides the terrain's own position buffer and attribute 1 is the constant NO_BED_DEPTH: the water lies
    *  on the ground as WATER1's did, shallow. destroyWaterSurface frees what it owns. */
-  createWaterSheet(indices, { terrain = null, positions = null, depths = null } = {}) {
+  createWaterSheet(indices, { terrain = null, positions = null, depths = null, pond = false } = {}) {
     const gl = this.gl;
     const vao = gl.createVertexArray();
     this._bindVao(vao);
@@ -7701,7 +7713,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
     this._bindVao(null);
-    return { vao, ebo, buffers: owned, indexCount: indices.length, box: waterSheetBox(indices, positions, terrain?.bounds ?? null) };   // the box: what the copy under the water is taken for
+    return { vao, ebo, buffers: owned, pond, indexCount: indices.length, box: waterSheetBox(indices, positions, terrain?.bounds ?? null) };   // the box: what the copy under the water is taken for
   }
 
   destroyWaterSurface(water) {
@@ -8266,6 +8278,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   drawTerrain(surface, modelMatrix, arrayTex, tilemapTex, tileSize, clip = false, eco = null, snow = null) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
     const gl = this.gl;
+    if (surface.pondShore) this.drawMesh(surface.pondShore, modelMatrix);
     if (!!clip !== this._terrainClip) this._terrainVariant(!!clip);   // FAR-CLIP1
     this._use(this.terrainProgram);
     if (this._casting) this._shadows.recordTerrain(surface, modelMatrix, arrayTex, tilemapTex, tileSize);   // EL2
@@ -8453,7 +8466,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       time: u('uTime'), windDir: u('uWindDir'), windStrength: u('uWindStrength'), rain: u('uRain'),
       lightDir: u('uLightDir'), ambient: u('uAmbient'), sunScale: u('uSunScale'), sunColor: u('uSunColor'),
       moonDir: u('uMoonDir'), moonScale: u('uMoonScale'), moonColor: u('uMoonColor'),
-      zenith: u('uSkyZenith'), horizon: u('uSkyHorizon'), tint: u('uTint'), f0: u('uF0'), shoreSoft: u('uShoreSoft'), groundEdge: u('uGroundEdge'),
+      zenith: u('uSkyZenith'), horizon: u('uSkyHorizon'), tint: u('uTint'), f0: u('uF0'), shoreSoft: u('uShoreSoft'), pondBlock: u('uPondBlock'), groundEdge: u('uGroundEdge'),
       swell: u('uSwell'), absorb: u('uAbsorb'), open: u('uOpen'), openColor: u('uOpenColor'),   // WATER-NEXT 2
       sceneOn: u('uSceneOn'), scene: u('uScene'), sceneDepth: u('uSceneDepth'), sceneSize: u('uSceneSize'),
       rippleOn: u('uRippleOn'), ripple: u('uRipple'), rippleRect: u('uRippleRect'),   // WATER-NEXT 4
@@ -8630,6 +8643,14 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     let bound = null;
     for (let i = 0; i < n; i++) {
       const row = rows[i], surface = row[0], arrayTex = row[2], tilemapTex = row[3], snow = row[4] && this._snowFrame && this._snowTex ? row[4] : null;
+      if (surface.pond) {
+        const height = this._worldViewportPx?.[3] ?? gl.drawingBufferHeight;
+        const block = blockPixels(height, worldPixelRows('objects'));
+        if (block !== L.lastPondBlock) {
+          gl.uniform1f(L.pondBlock, block);
+          L.lastPondBlock = block;
+        }
+      }
       gl.uniformMatrix4fv(L.model, false, row[1]);
       // the row's snow: its first world tile its own; the switch, the altitude and its array's winter half shadowed
       if (snow) {
@@ -8906,10 +8927,20 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     return true;
   }
 
+  // Opaque timbers belong in the colour and depth the water will refract.
+  // Ordinary flats, disabled replacements and shadow-only batches keep their queue.
+  queueExteriorFlat(queue, batch, shadowOnly = false) {
+    if (batch.pondRack && !shadowOnly) {
+      const left = drawPlacedFurnishings(this, [batch], acquireTreasureModel, releaseTreasureModel);
+      if (!left.length) return;
+    }
+    queue.push(batch);
+  }
+
   drawBillboards(batches, camRight, camUp) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
     batches = drawTreasurePiles(this, drawCampfireBillboards(this, batches));
-    batches = drawPlacedFurnishings(this, drawGroundLoot(this, batches), acquireTreasureModel);
+    batches = drawPlacedFurnishings(this, drawGroundLoot(this, batches), acquireTreasureModel, releaseTreasureModel);
     const gl = this.gl;
     // PERF-ARENA: the still flats share their arena's VAO, so consecutive flats skip the bind on the shadow's word - and
     // a pass that bound an array of its own behind the shadow's back (a foreign pass that forgot markForeignPass) would
@@ -9439,7 +9470,9 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
         gl.drawElements(gl.LINES, range.count, gl.UNSIGNED_INT, range.start * 4);
         this.stats.draws++;   // F50: every gl.draw* site carries its own count
       } else {
+        if (sm.fountainWater) gl.uniform1f(this.uFountainTime, sm.fountainWater * (1 + this._wlNow * .001));
         gl.drawElements(gl.TRIANGLES, sm.primitiveCount * 3, gl.UNSIGNED_INT, sm.startIndex * 4);
+        if (sm.fountainWater) gl.uniform1f(this.uFountainTime, 0);
         this.stats.draws++;
       }
     }

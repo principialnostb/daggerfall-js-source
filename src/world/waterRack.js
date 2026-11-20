@@ -45,13 +45,29 @@ function reedBed(mesh, deck) {
   }
 }
 
-export function buildWaterRack(archive, id) {
+const rails = [-.91, -.04, .91];
+const depth = .69;
+const footX = x => x + .045 * Math.sign(x);
+const frameWidth = id => id === '212:16' ? 3.175 : 3.15;
+
+// Convert the visible terrain under each foot back into the frame's authored metres.
+export function rackFootHeights(id, placement, width, height, floor) {
+  const scale = width / frameWidth(id);
+  const feet = [];
+  for (const side of [-1, 1]) for (const x of rails) {
+    const y = floor(placement.x + footX(x) * scale, placement.z + side * depth * scale);
+    const drop = y == null ? 0 : Math.min(0, y - placement.y);
+    feet.push(drop < -0.015 ? (drop - 0.12) * FRAMES.get(id) / height : 0);
+  }
+  return feet.some(y => y < 0) ? feet : null;
+}
+
+export function buildWaterRack(archive, id, feet = null) {
   const mesh = new MeshBench(archive);
   // X/Z use billboard width and Y uses billboard height in the placed-prop pass.
-  const width = id === '212:16' ? 3.175 : 3.15;
+  const width = frameWidth(id);
   const height = FRAMES.get(id);
-  const rails = [-.91, -.04, .91];
-  const depth = .69;
+  let post = 0;
   const deck = 2.4;
   const timber = (a, b, radius, tip = radius, sides = 4) =>
     prism(mesh, WOOD, a, b, radius, tip, sides, { twist: Math.PI / 4, tileV: Math.hypot(...b.map((v, i) => v - a[i])) });
@@ -59,7 +75,8 @@ export function buildWaterRack(archive, id) {
   for (const side of [-1, 1]) {
     const z = side * depth;
     for (const [i, x] of rails.entries()) {
-      timber([x + .045 * Math.sign(x), 0, z], [x, deck, z - side * .025], .098 - i * .006, .078);
+      timber([footX(x), feet?.[post] ?? 0, z], [x, deck, z - side * .025], .098 - i * .006, .078);
+      post++;
     }
     timber([rails[0] - .06, deck - .06, z], [rails[2] + .07, deck - .03, z], .092);
     timber([rails[0], .47 + side * .10, z], [rails[1], .68, z], .067);

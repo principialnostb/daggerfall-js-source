@@ -74,8 +74,8 @@
   {
     "name": "BED-host-uncarved",
     "file": "src/scenes/pixelBuild.js",
-    "old": "    const terrain = renderer.createTerrainSurface(carved?.positions ?? positions, carved?.normals ?? normals,",
-    "new": "    const terrain = renderer.createTerrainSurface(positions, normals,",
+    "old": "    const terrain = pondTerrain(renderer, px, py, tilemapBytes, bed, carved?.positions ?? positions, carved?.normals ?? normals,",
+    "new": "    const terrain = pondTerrain(renderer, px, py, tilemapBytes, bed, positions, normals,",
     "tests": [
       "test/world/terrain/waterbed.test.js"
     ]

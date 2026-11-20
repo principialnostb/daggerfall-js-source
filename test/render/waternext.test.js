@@ -63,7 +63,9 @@ test('WATER-NEXT 2 the look: the path through the water is the scene\'s depth be
   assert.match(fs, /path = max\(bedD - here, bedPath\);/);
   assert.match(fs, /if \(pushedD < here\) uv = uv0; else path = max\(pushedD - here, bedPath\);/);
   // PIN MOVED (AUDIT WATER-NEXT G1/G3): composed premultiplied - the copy at its share, the water's own light at the rest
-  assert.match(fs, /vec3 T = exp\(-uAbsorb \* path\);\s*\n\s*under = textureLod\(uScene, uv, 0\.0\)\.rgb;[^\n]*\n\s*trans = T \* \(1\.0 - F\);\s*\n\s*own = lit \* \(vec3\(1\.0\) - T\) \* \(1\.0 - F\) \+ skyRefl \* F;/);
+  assert.match(fs, /vec3 extinction = uAbsorb;\s+if \(vPond > 0\.5\) extinction \+= vec3\([^)]+\);/);
+  assert.match(fs, /float t = dot\(exp\(-extinction \* path\),/);
+  assert.match(fs, /vec3 T = exp\(-extinction \* path\);\s*\n\s*under = textureLod\(uScene, uv, 0\.0\)\.rgb;[^\n]*\n\s*trans = T \* \(1\.0 - F\);\s*\n\s*own = lit \* \(vec3\(1\.0\) - T\) \* \(1\.0 - F\) \+ skyRefl \* F;/);
   assert.match(fs, /cover = 1\.0 - t \* \(1\.0 - F\);\s*\n\s*own = lit \* \(1\.0 - t\) \* \(1\.0 - F\) \+ skyRefl \* F;/);
   assert.ok(WATER_ABSORB[0] > WATER_ABSORB[1] && WATER_ABSORB[1] > WATER_ABSORB[2], 'red is swallowed first');
   assert.ok(NO_BED_DEPTH > FOAM_DEPTH * 2, 'a sheet with no bed is never a shore, even in a gale');

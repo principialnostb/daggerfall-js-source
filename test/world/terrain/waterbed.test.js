@@ -107,17 +107,68 @@ test('WATER-NEXT 2 the hosts: the world carves at the build and at a restride an
   // PIN MOVED (AUDIT WATER-NEXT P1): the kernel carves (terrainGen.js restrideGrid, on the worker) and the host uploads
   assert.match(w, /bed: waterOn,   \/\/ AUDIT WATER-NEXT P1/, 'the build asks the kernel for the bed');
   assert.match(w, /const bed = hostBed\(\{ positions, normals \}, carved\);/);
-  assert.match(w, /const terrain = renderer\.createTerrainSurface\(carved\?\.positions \?\? positions, carved\?\.normals \?\? normals,/);
+  assert.match(w, /const terrain = pondTerrain\(renderer, px, py, tilemapBytes, bed, carved\?\.positions \?\? positions, carved\?\.normals \?\? normals,/);
   assert.match(w, /const water = waterIndices \? renderer\.createWaterSheet\(waterIndices, waterSheetOf\(bed, terrain\)\) : null;/);
   assert.match(w, /const bed = waterOn \? hostBed\(grid, grid\.bed\) : null;/, 'the restride');
   assert.match(w, /p\.water = idx \? renderer\.createWaterSheet\(idx, waterSheetOf\(p\._bed, p\.terrain\)\) : null;/, 'the cap\'s re-index');
   assert.match(w, /_bed: bed,/);
   assert.match(w, /function hostBed\(grid, bed\) \{ return bed \? \{ sheet: grid\.positions, normals: grid\.normals, depths: bed\.depths, sheetDepths: bed\.sheetDepths, halo: bed\.halo \?\? null \} : null; \}/);
-  assert.match(w, /function waterSheetOf\(bed, terrain\) \{ return bed\?\.depths \? \{ positions: bed\.sheet, depths: bed\.sheetDepths \} : \{ terrain \}; \}/);   // AUDIT WATER-NEXT H2: the sheet's own depths
+  assert.match(w, /function waterSheetOf\(bed, terrain\) \{ return bed\?\.depths \? \{ positions: bed\.sheet, depths: bed\.sheetDepths, pond: !!bed\.pondFloor \} : \{ terrain \}; \}/);   // AUDIT WATER-NEXT H2: the sheet's own depths
   const e = read('src/scenes/exterior.js');
   assert.match(e, /const townBed = townGrid \? waterBedOf\(townGrid, tilemapBytes, \{ tileDim: tilemapDim, width: loc\.width \* GROUND_TILE_DIM, height: loc\.height \* GROUND_TILE_DIM \}\) : null;/);
   assert.match(e, /renderer\.drawWaterSurface\(townWater, identityMatrix,/);
   assert.match(read('src/tools/waterLab.js'), /renderer\.createWaterSheet\(waterIndices, bed \? \{ positions: bed\.sheet, depths: bed\.sheetDepths \} : \{ terrain \}\)/);
   // the game's ground is the samples', never the drawn grid's
   assert.doesNotMatch(w.slice(w.indexOf('const heightAt = (x, z, terrainOnly = false) => {'), w.indexOf('// BLOOD1 AUDIT 3: WHERE THE GROUND IS DRAWN.')), /positions|_bed/);
+});
+
+test('Skyrim pilot cuts below a level waterline and leaves the original street grid intact', async () => {
+  const { pondTerrain } = await import('../../../src/world/water/pondTerrain.js');
+  const { WATER_LIFT } = await import('../../../src/render/waterSurface.js');
+  const grid = flatGrid(128, 128, 540);
+  const tiles = map(128, (x, z) => x === 70 && z === 68);
+  tiles[66 * 128 + 67] = 22 << 2 | 1;
+  tiles[69 * 128 + 71] = 22 << 2 | 3;
+  const bed = { sheet: grid.positions, sheetDepths: new Float32Array(129 * 129), depths: new Float32Array(129 * 129) };
+  const renderer = { createTerrainSurface: (positions, normals, indices, bankDepth) => ({ positions, normals, indices, bankDepth }) };
+  const build = (px) => pondTerrain(renderer, px, -372, tiles, bed, grid.positions, grid.normals, grid.indices);
+  assert.equal(build(1550).positions, grid.positions);
+  const patch = build(1551);
+  const centre = (68 * 129 + 70) * 3 + 1;
+  const surface = bed.sheet[centre] + WATER_LIFT;
+  let floor = Infinity;
+  for (let i = grid.positions.length + 1; i < patch.positions.length; i += 3) {
+    floor = Math.min(floor, patch.positions[i]);
+    assert.ok(Math.abs(patch.positions[i] + patch.bankDepth[(i - 1) / 3] - 540) < 0.0001);
+  }
+  assert.ok(surface < 539.6 && surface > 539.5);
+  assert.ok(floor < surface - 1.0);
+  assert.equal(grid.positions[centre], 540);
+  assert.equal(patch.bankDepth[grid.positions.length / 3], 0, 'the street at the patch boundary is dry');
+  for (const i of patch.indices) assert.ok(i < patch.positions.length / 3);
+});
+
+test('the surveyed diagonal shore carries continuous water between dry banks', async () => {
+  const { pondTerrain } = await import('../../../src/world/water/pondTerrain.js');
+  const grid = flatGrid(128, 128, 540), tiles = map(128, () => false);
+  const rows = [[89, 90, 10, 52, 10], [88, 196, 85, 85, 90], [10, 84, 16, 1, 86], [10, 88, 87, 87, 91]];
+  rows.forEach((row, z) => tiles.set(row, (66 + z) * 128 + 67));
+  const bed = { sheet: grid.positions, sheetDepths: new Float32Array(129 ** 2), depths: new Float32Array(129 ** 2) };
+  const shore = pondTerrain({ createTerrainSurface: (_pos, _norm, _indices, _depth, decor) => decor },
+    1551, -372, tiles, bed, grid.positions, grid.normals, grid.indices);
+  assert.ok(shore && shore.subMeshes.length >= 3, 'shore rushes and stones share the near terrain lifetime');
+  for (let i = 0; i < shore.positions.length; i += 3) {
+    const [x, y, z] = shore.positions.subarray(i, i + 3);
+    const ground = bed.pondFloor(x, z);
+    assert.ok(ground != null && ground > 539.0, 'the centre and deep channel stay open');
+    assert.ok(y > ground - .55 && y < ground + 1.7, 'the entire shore mesh sits on the surveyed floor');
+  }
+  const floor = (x, z) => bed.pondFloor(x * TILE_UNITS, z * TILE_UNITS);
+  for (let i = 0; i <= 32; i++) {
+    const t = i / 32;
+    assert.ok(floor(68 + t, 67 + t) < 540 - 0.44 - 0.20, 'submerged throughout the channel');
+  }
+  assert.ok(floor(68.95, 67.05) > 540 - 0.44);
+  assert.ok(floor(68.05, 67.95) > 540 - 0.44);
+  assert.equal(floor(50, 50), null);
 });

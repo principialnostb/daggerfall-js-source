@@ -203,8 +203,8 @@
   {
     "name": "R-classic-uncut",
     "file": "src/render/renderer.js",
-    "old": "  dissolveCut();   // SHIP-FADE: a ship sailing into the world or out of it, her share of her fragments (orderedDither.js)\n  vec4 tex = texture(uTex, vUV);\n  // INCIDENT 2026-09-04",
-    "new": "  vec4 tex = texture(uTex, vUV);\n  // INCIDENT 2026-09-04",
+    "old": "  dissolveCut();   // SHIP-FADE: a ship sailing into the world or out of it, her share of her fragments (orderedDither.js)\n  vec4 tex = texture(uTex, vUV);",
+    "new": "  vec4 tex = texture(uTex, vUV);",
     "tests": [
       "test/render/shipfade.test.js"
     ]

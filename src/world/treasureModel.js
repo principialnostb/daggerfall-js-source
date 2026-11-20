@@ -5,7 +5,7 @@ import { SLAB_STONE, slabStonePaint } from './dungeonSlabStone.js';
 import { STAINED_PRESS_IRON, STAINED_TABLE_STONE, stainedTablePaint } from './dungeonTortureTable.js';
 
 export const TREASURE_ART = 38343;
-export const FURNISHING_PAINT = { plank: 110, glass: 111, glassEdge: 112, wicker: 113, bone: 114, dryReeds: 125, greenReeds: 126, rackWood: 127 };
+export const FURNISHING_PAINT = { plank: 110, glass: 111, glassEdge: 112, wicker: 113, bone: 114, dryReeds: 125, greenReeds: 126, rackWood: 127, shoreStone: 128 };
 const LINEN = 0, LEATHER = 1, STEEL = 2, WOOD = 3, GOLD = 4, ROPE = 5, GLASS = 6, CLOTH = 7, RED = 8;
 const DARK_CHEST = 11;
 const palettes = [
@@ -74,6 +74,7 @@ export function treasurePaints() {
   }
   for (const [record, paint] of workshopWoodPaints()) paints[record] = paint;
   paints[SLAB_STONE] = slabStonePaint();
+  paints[FURNISHING_PAINT.shoreStone] = slabStonePaint([58, 56, 48]);
   paints[STAINED_TABLE_STONE] = stainedTablePaint();
   paints[STAINED_PRESS_IRON] = stainedTablePaint(true);
   return paints;

@@ -72,7 +72,7 @@ const cornersOf = (td, x, y) => [td[x + y * TD], td[x + 1 + y * TD], td[x + (y +
 function weights(byte, fx, fy, x, y) {
   const w = [0, 0, 0, 0], g = groundKindsOf(byte);
   if (!g) { const r = byte >> 2; if (r > 3) return null; w[r] = 1; return w; }
-  const s = edgeShare(cornerShare(g.mask, fx, fy), x, y);
+  const s = edgeShare(cornerShare(g.mask, fx, fy), x, y, g.a === WATER);
   w[g.a] += 1 - s; w[g.b] += s;
   return w;
 }
@@ -176,11 +176,14 @@ test('COAST-LOOK the blend is continuous across every seam - a transition and it
   assert.ok(lo >= -WANDER_MAX && hi <= WANDER_MAX, `within the amplitudes (${lo}, ${hi})`);
   assert.ok(hi - lo > WANDER_MAX, `and wandering (${lo}, ${hi})`);
   for (const v of [3.3, 50.7, 101.1]) { assert.equal(groundEdgeWander(0, v), groundEdgeWander(128, v)); assert.equal(groundEdgeWander(v, 0), groundEdgeWander(v, 128)); }
-  // the line wanders: along a straight edge the share at the corners' mid-line is not one number
+  // The feather varies along a straight edge while its midpoint stays fixed.
   const edge = convertTile(marchTile(DIRT, DIRT, WATER, WATER));   // dirt along y = 0, the sea along y = 1
   const shares = new Set();
-  for (let x = 0.5; x < D; x += 1) shares.add(groundEdgeAt(edge, x, 40.5).share.toFixed(3));
-  assert.ok(shares.size > 30, `the shore wanders (${shares.size} shares on its mid-line)`);
+  for (let x = 0.5; x < D; x += 1) {
+    near(groundEdgeAt(edge, x, 40.5).share, 0.5, 1e-12, 'the existing shoreline');
+    shares.add(groundEdgeAt(edge, x, 40.54).share.toFixed(3));
+  }
+  assert.ok(shares.size > 30, `the width varies (${shares.size} shares beside its mid-line)`);
 });
 
 /** The terrain programs' chunk alone, over the ROT and TRANS it reads and ROAD-LOOK's cell fetch. */
@@ -262,7 +265,8 @@ test('COAST-LOOK the silt and the sheet take the ground\'s line where the ground
     if (!m || m === 15 || !groundKindsOf(byte)) continue;
     for (const [fx, fy] of [[0.1, 0.2], [0.5, 0.5], [0.8, 0.35]]) {
       const p = [70 + fx, 20 + fy + (byte >> 3)], w = groundEdgeWander(p[0], p[1]), c = waterCoverage(m, fx, fy);
-      nearAll(bed.bedCover(byte, [fx, fy], p, [fx, fy, byte >> 2], [0.01, 0], [0, 0.01], 0, true), [smooth(0.3, 0.7, c - w), 0], 1e-12, `byte ${byte} blended: the ground's line, no fringe`);
+      const damp = groundKindsOf(byte).b === GRASS ? 0.72 * smooth(0.28, 0.5, c) * (1 - smooth(0.5, 0.7, c)) : 0;
+      nearAll(bed.bedCover(byte, [fx, fy], p, [fx, fy, byte >> 2], [0.01, 0], [0, 0.01], 0, true), [Math.max(smooth(0.3, 0.7, c - 2 * Math.abs(c - 0.5) * w), damp), damp], 1e-12, `byte ${byte} blended: the ground's line and grass-bank dampness`);
       const k = smooth(0.3, 0.7, c), art = k < 1 ? smooth(0.3, 0.7, 0.9) : 0;
       nearAll(bed.bedCover(byte, [fx, fy], p, [fx, fy, byte >> 2], [0.01, 0], [0, 0.01], 0, false), [Math.max(k, art), Math.max(art - k, 0)], 1e-12, `byte ${byte} drawn as its art: its own line and its art's water`);
     }
@@ -272,15 +276,26 @@ test('COAST-LOOK the silt and the sheet take the ground\'s line where the ground
   assert.match(waterBedMix(), /vec2 bedK = bedCover\(data, tileUV, unwrapped, vec3\(tuv, float\(layer\)\), gx, gy, snowC, ge\);/, 'the ground tells the bed which tiles it blended');
   const fs = waterSurfaceFs('');
   const sheet = glslFunctions(fs, { uGroundEdge: 1 });
+  assert.match(fs, /if \(bank && grassyWaterBank\(data\)\) bankReflection = mix\(0\.32, 1\.0, bankDepthScale\);/);
+  assert.match(fs, /F \*= bankReflection;/);
   for (let y = 0.05; y < D; y += 7.1) for (let x = 0.07; x < D; x += 6.3) near(sheet.geWander([x, y]), groundEdgeWander(x, y), 1e-12, `the sheet's wander at (${x}, ${y})`);
   for (let byte = 0; byte < 256; byte++) assert.equal(sheet.geEntry(byte), GROUND_KIND_TABLE[byte], `the sheet's entry ${byte}`);
-  assert.match(fs, /\n {4}edge = smoothstep\(0\.5 - uShoreSoft, 0\.5 \+ uShoreSoft, coverage\(corners, f\) - \(geEntry\(data\) != 0u \? geWander\(unwrapped\) : 0\.0\)\);/, 'the shore on the ground\'s line where the ground blends it');
+  assert.match(fs, /float c = coverage\(corners, f\);\s+bool bank = geEntry\(data\) != 0u;\s+float offset = bank \? shoreBlendOffset\(c, geWander\(unwrapped\)\) : 0\.0;\s+edge = smoothstep\(0\.5 - uShoreSoft, 0\.5 \+ uShoreSoft, c - offset\);/);
+  for (const wind of [-WANDER_MAX, 0, WANDER_MAX]) {
+    for (const c of [0.2, 0.49, 0.5, 0.51, 0.8]) {
+      near(sheet.shoreBlendOffset(c, wind), 2 * Math.abs(c - 0.5) * wind, 1e-12, "shore offset");
+    }
+  }
   // the sheet and the sand on one line: where the ground's share of land is a half, the sheet's water is a half
   const edge = convertTile(marchTile(DIRT, DIRT, WATER, WATER));
   for (let x = 0.5; x < 20; x += 0.77) {
     for (let fy = 0.02; fy < 1; fy += 0.01) {
-      const land = cornerShare(groundKindsOf(edge).mask, x % 1, fy) + groundEdgeWander(x, 50 + fy);
-      const sea = sheet.coverage(WATER_DRAW_MASK_TABLE[edge], [x % 1, fy]) - groundEdgeWander(x, 50 + fy);
+      const wander = groundEdgeWander(x, 50 + fy);
+      const landCoverage = cornerShare(groundKindsOf(edge).mask, x % 1, fy);
+      const water = sheet.coverage(WATER_DRAW_MASK_TABLE[edge], [x % 1, fy]);
+      const land = landCoverage + sheet.shoreBlendOffset(landCoverage, wander);
+      const sea = water - sheet.shoreBlendOffset(water, wander);
+      assert.equal(sea >= 0.5, water >= 0.5, "noise keeps the water on its original side of the bank");
       near(land + sea, 1, 1e-12, 'the sea the land\'s complement');
     }
   }

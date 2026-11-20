@@ -201,8 +201,8 @@
   {
     "name": "BASEHIDE-a-piece-in-the-merge",
     "file": "src/scenes/interiorContext.js",
-    "old": "    if (!baseKey && cpu.normals && cpu.uvs) { staticBuilder.add(",
-    "new": "    if (cpu.normals && cpu.uvs) { staticBuilder.add(",
+    "old": "    if (!baseKey && !isStreetFountain(p.modelIdNum) && cpu.normals && cpu.uvs) { staticBuilder.add(",
+    "new": "    if (!isStreetFountain(p.modelIdNum) && cpu.normals && cpu.uvs) { staticBuilder.add(",
     "tests": [
       "test/server/basehide.test.js"
     ]

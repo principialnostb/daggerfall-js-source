@@ -1,3 +1,4 @@
+import { FOUNTAIN_WATER_GLSL } from './fountainWaterGlsl.js';
 // @ts-check
 // EL1 (2026-09-17, the Enhanced Lighting arc, tier one - FOUNDATIONS).
 // Mac, on the fog Better Ambience brought into the dungeons: "we might
@@ -603,6 +604,7 @@ precision highp float;
 in vec3 vNormal;
 in vec2 vUV;
 in vec3 vWorldPos;
+${FOUNTAIN_WATER_GLSL}
 uniform sampler2D uTex;
 uniform sampler2D uEmissionTex;
 uniform vec3 uLightDir;
@@ -651,6 +653,7 @@ ${RW_MAIN_DERIVS}
   else if (vWorldPos.y > uClipY) discard;
   dissolveCut();   // SHIP-FADE: a ship sailing into the world or out of it, her share of her fragments (orderedDither.js)
   vec4 tex = texture(uTex, vUV);
+  if (uFountainTime != 0.0) tex.rgb = fountainWater(vUV, uCamPos - vWorldPos, tex.rgb);
 ${RW_MAIN_CUTOUT}
   vec3 n = normalize(vNormal);
   // PERF-SUN2 (2026-09-19, Mac: "over 1000 calls and looking up in the sky

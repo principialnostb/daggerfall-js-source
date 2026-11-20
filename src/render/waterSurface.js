@@ -32,7 +32,7 @@
 // pass draws water the player swims). The coverage inside a tile is
 // the bilinear blend of its corners - the diagonal the shore tile's own
 // art follows - feathered by SHORE_SOFTNESS.
-import { WATER_DRAW_MASK_TABLE } from '../world/water/waterCorners.js';
+import { POND_DEPTH_OFFSET, WATER_DRAW_MASK_TABLE } from '../world/water/waterCorners.js';
 import { snowCoreGlsl } from './snowCoverGlsl.js'; // AUDIT PRECIP GROUND-5: the ground's snow, for a puddle's mask under it
 import { PUDDLE_RECORDS } from '../world/puddleMask.js'; // WATER-PUDDLE: the records whose water is their art's   // MAC2: the corner table is a leaf the player's feet share; WATER-DRAW1: the DRAW's half of it - the feet's is the law's own table, and the two are not the same question
 import { WIND_ROW_CALM, WIND_ROW_SPAN } from '../systems/wind/wind.js';
@@ -363,6 +363,7 @@ out vec3 vWorldPos;
 out vec2 vLocalXZ;
 out float vDepth;
 out float vGrow;
+out float vPond;
 ${SWELL_GLSL}
 void main() {
   vec4 world = uModel * vec4(aPos.x, aPos.y + uLift, aPos.z, 1.0);
@@ -380,6 +381,8 @@ void main() {
   vWorldPos = world.xyz;
   vLocalXZ = aPos.xz;
   vDepth = max(abs(aDepth) + lift, 0.0);
+  vPond = float(aDepth < -${POND_DEPTH_OFFSET.toFixed(1)});
+  vDepth -= vPond * ${POND_DEPTH_OFFSET.toFixed(1)};
   vGrow = grow;
   gl_Position = uProj * uView * world;
 }`;
@@ -411,6 +414,7 @@ in vec3 vWorldPos;
 in vec2 vLocalXZ;
 in float vDepth;
 in float vGrow;
+in float vPond;
 uniform sampler2DArray uTileArr;
 uniform usampler2D uTilemap;
 uniform highp ivec3 uEcoOrigin;   // AUDIT PRECIP GROUND-5: the pixel's first world tile on the snow lane (render/snowCoverGlsl.js)
@@ -517,6 +521,7 @@ float vnoise(vec2 p) {
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x), mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y);
 }
+uniform float uPondBlock;
 float lace(vec2 p, float t) {
   vec2 drift = uWindDir * t * 0.35;
   return 0.65 * vnoise(p * 0.9 - drift) + 0.35 * vnoise(p * 2.7 + drift.yx);
@@ -525,6 +530,10 @@ float lace(vec2 p, float t) {
 float eyeDepth(float d) { return uProj[3][2] / ((d * 2.0 - 1.0) + uProj[2][2]); }
 void main() {
   float edge = 1.0;
+  float bankDepthScale = 1.0;
+  float bankReflection = 1.0;
+  vec2 pondOffset = vec2(0.0);
+  float pondFacet = 0.0;
   vec3 body;
   if (uOpen == 1) {
     // the sea's own colour: the climate's water texel, averaged, under the mod's own tint (its Top Color setting)
@@ -534,12 +543,31 @@ void main() {
     // GRAIN1 / GRAIN AUDIT 1: the footprint taken above the discards - a derivative inside non-uniform control flow is
     // undefined in GLSL ES 3.00
     vec2 wgx = dFdx(unwrapped), wgy = dFdy(unwrapped);
+    if (vPond > 0.5 && uPondBlock > 1.0) {
+      // Evaluate the material at the centre of the Objects pixel. Keep the
+      // actual fragment for coverage and for the depth test at banks and posts.
+      vec2 centre = (floor(gl_FragCoord.xy / uPondBlock) + 0.5) * uPondBlock;
+      vec2 delta = centre - gl_FragCoord.xy;
+      pondOffset = uTileSize * (wgx * delta.x + wgy * delta.y);
+    }
     ivec2 cell = clamp(ivec2(floor(unwrapped)), ivec2(0), ivec2(uTileDim - 1));
     uint data = texelFetch(uTilemap, cell, 0).r;
     uint corners = waterCorners(data);
     if (corners == 0u) discard;
     vec2 f = fract(unwrapped);
-    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, coverage(corners, f) - (geEntry(data) != 0u ? geWander(unwrapped) : 0.0));   // COAST-LOOK: a shore the ground blends on the ground's own line (the water the land's complement)
+    float c = coverage(corners, f);
+    bool bank = geEntry(data) != 0u;
+    float offset = bank ? shoreBlendOffset(c, geWander(unwrapped)) : 0.0;
+    edge = smoothstep(0.5 - uShoreSoft, 0.5 + uShoreSoft, c - offset);
+    // Let the exposed silt read through at the bank even when a small pond has no carved bed.
+    if (bank) bankDepthScale = smoothstep(0.5, 0.5 + 2.0 * uShoreSoft, c);
+    // The pilot floor intersects the sheet. Its excavated saddle spans the
+    // two diagonal wet corners that the original tile mask only touches.
+    if (vPond > 0.5 && ((bank && uSceneOn == 1) || data == 196u)) {
+      edge = 1.0;
+      bankDepthScale = 1.0;
+    }
+    if (bank && grassyWaterBank(data)) bankReflection = mix(0.32, 1.0, bankDepthScale);
     // WATER-PUDDLE: a puddle record keeps only the texels its own art paints water (world/puddleMask.js)
     uint rec = data >> 2u;
     if (isPuddleRecord(rec)) {
@@ -559,14 +587,31 @@ void main() {
   // AUDIT WATER-NEXT G7: the open sea from under its own crest is not drawn - the mod's top discards the same
   // (uCamPos.y - vWorldPos.y + 0.02 < 0): a swimmer at the surface under a heaving sheet saw the wave's underside
   if (uOpen == 1 && uCamPos.y - vWorldPos.y + 0.02 < 0.0) discard;
-  vec3 toEye = uCamPos - vWorldPos;
+  vec3 surfacePos = vWorldPos + vec3(pondOffset.x, 0.0, pondOffset.y);
+  vec3 toEye = uCamPos - surfacePos;
   float dist = length(toEye);
   vec3 V = toEye / max(dist, 1e-4);
-  vec3 sw = swellAt(vWorldPos.xz, uTime, uWindDir, uSwell * vGrow);
-  vec2 g = sw.yz + waveGradient(vWorldPos.xz, uTime, dist);
+  vec3 sw = swellAt(surfacePos.xz, uTime, uWindDir, uSwell * vGrow);
+  vec2 g = sw.yz + waveGradient(surfacePos.xz, uTime, dist);
+  if (vPond > 0.5) {
+    vec2 p = vLocalXZ + pondOffset;
+    float reach = 1.0 - smoothstep(18.0, 45.0, dist);
+    vec2 drift = uWindDir * (0.32 * uTime);
+    float a = vnoise(p * vec2(1.4, 4.2) - drift);
+    float b = vnoise(p * vec2(2.8, 1.1) + drift.yx + vec2(7.1, 3.4));
+    vec2 axis = normalize(vec2(0.42, 0.91) + 0.42 * uWindDir);
+    float phase = 8.5 * dot(p, axis) - uTime * (1.35 + 0.55 * uWindStrength);
+    float ripplePatch = vnoise(p * 0.76 + vec2(0.7, -2.3) - drift * 0.23);
+    float face = cos(phase + 3.4 * b + 5.0 * ripplePatch);
+    float crest = face * smoothstep(0.26, 0.73, a) * (0.38 + 0.62 * ripplePatch);
+    // Short sky-facing facets break up the reflection over the deeper bowl.
+    pondFacet = reach * smoothstep(0.74, 0.97, face) * smoothstep(0.38, 0.69, a) * (0.42 + 0.58 * ripplePatch);
+    g += reach * ((0.18 + 0.12 * uWindStrength) * axis * crest + 0.10 * (vec2(a, b) - 0.5));
+    body = mix(vec3(0.18, 0.30, 0.30), body, 0.08);
+  }
   // WATER-NEXT 4: the bodies' rings and wakes - the ripple field's slope, faded at its edge
   if (uRippleOn == 1) {
-    vec2 ruv = (vWorldPos.xz - uRippleRect.xy) / uRippleRect.z;
+    vec2 ruv = (surfacePos.xz - uRippleRect.xy) / uRippleRect.z;
     vec2 inside = smoothstep(vec2(0.0), vec2(0.08), ruv) * smoothstep(vec2(0.0), vec2(0.08), vec2(1.0) - ruv);
     if (inside.x * inside.y > 0.0) {
       float tx = ${(1 / RIPPLE_CELLS).toFixed(6)};
@@ -579,8 +624,20 @@ void main() {
   vec3 n = normalize(vec3(-g.x, 1.0, -g.y));
   float NdV = clamp(dot(n, V), 0.0, 1.0);   // WATER-AUDIT (M1): two near-unit vectors can dot past one; pow of a negative is NaN
   float F = seaFresnel(NdV, uF0);   // AUDIT FAR-SEA1 C12: the open sea's light, one text with the far ring's sea (render/horizonHaze.js)
+  F *= bankReflection;
   vec3 R = reflect(-V, n);
   vec3 skyRefl = seaSkyRefl(R.y, uSkyZenith, uSkyHorizon);
+  if (vPond > 0.5) {
+    // A broad patch of sky stays visible at a grazing angle. Tilted ripple
+    // faces vary its brightness, using the current sky even at dusk.
+    float skyBand = smoothstep(-0.07, 0.41, R.y);
+    vec3 sky = mix(uSkyHorizon, skyRefl, 0.52);
+    skyRefl = mix(vec3(dot(sky, vec3(0.30, 0.59, 0.11))), sky, 0.56)
+      * mix(0.63, 1.0, skyBand);
+    F = max(F, mix(0.14, 0.30, skyBand) * (1.0 - 0.28 * NdV));
+    F = mix(F, 0.74, pondFacet);
+    skyRefl = mix(skyRefl, uSkyHorizon, 0.55 * pondFacet);
+  }
   // SKYRIM-AURORA: the aurora in the water, by the reflected ray (an explicit level: the flow here is not uniform), at the
   // water's Fresnel or AURORA_MIRROR, the more - added as the glints are, below
   vec3 auroraRefl = vec3(0.0);
@@ -609,7 +666,8 @@ void main() {
   lit += body * (iAtt * iAtt * max(dot(n, iL / max(iD, 1e-4)), 0.0)) * uIndirectColor * 0.25;
   // THE PATH through the water
   float slant = max(V.y, 0.12);
-  float bedPath = uOpen == 1 ? 0.0 : (vDepth + 0.02) / slant;   // what the bed under the sheet says
+  float opticalDepth = vDepth * bankDepthScale;
+  float bedPath = uOpen == 1 ? 0.0 : (opticalDepth + 0.02) / slant;   // what the bed under the sheet says
   float path = uOpen == 1 ? ${OPEN_PATH.toFixed(1)} : bedPath;
   vec2 uv0 = gl_FragCoord.xy / uSceneSize;
   // AUDIT WATER-NEXT G1/G3: THE COMPOSITION, PREMULTIPLIED. own is the water's own light at its share of the pixel;
@@ -617,30 +675,41 @@ void main() {
   // with the rest, every pond read paler and foggier than its bank); without one, cover is how much of the frame the
   // blend leaves under the sheet that the water hides. The foam and the glints are added to own at their full
   // strength - divided out of the blend after edge *= a, a glint over shallow water was a twentieth of Full's.
+  // Extra extinction gives the shallow village basin a visible water column.
+  // Both quality paths replace transmitted ground light with the lit body colour.
+  vec3 extinction = uAbsorb;
+  if (vPond > 0.5) extinction += vec3(0.94, 0.80, 0.74);
   vec3 own, under = vec3(0.0), trans = vec3(0.0);
   float cover = 1.0;
   if (uSceneOn == 1) {
     float here = eyeDepth(gl_FragCoord.z);
     float bedD = eyeDepth(textureLod(uSceneDepth, uv0, 0.0).r);   // AUDIT WATER-NEXT G10: after the discards, an explicit level
+    if (vPond > 0.5) {
+      // The surveyed floor meets this sheet. Fade the last few centimetres
+      // against its actual depth instead of the coarse grid's corner estimate.
+      edge *= smoothstep(0.0, 0.045, max(0.0, bedD - here) * slant);
+      bedPath = 0.0;
+    }
     path = max(bedD - here, bedPath);   // the scene's measure, never less than the bed's (a sheet with no bed stands for one)
     // the look pushed by the slope, by more the deeper the water under it, less the farther off
     vec2 push = n.xz * (${REFRACT_STRENGTH.toFixed(4)} * clamp(path, 0.0, ${REFRACT_PATH_MAX.toFixed(1)})) / (1.0 + dist * ${REFRACT_FADE.toFixed(2)});
+    if (vPond > 0.5) push *= 0.35;
     vec2 uv = clamp(uv0 + push, vec2(${REFRACT_EDGE.toFixed(3)}), vec2(${(1 - REFRACT_EDGE).toFixed(3)}));
     float pushedD = eyeDepth(textureLod(uSceneDepth, uv, 0.0).r);
     if (pushedD < here) uv = uv0; else path = max(pushedD - here, bedPath);   // never what stands in front of the water
-    vec3 T = exp(-uAbsorb * path);
+    vec3 T = exp(-extinction * path);
     under = textureLod(uScene, uv, 0.0).rgb;   // AUDIT WATER-NEXT G10: an explicit level
     trans = T * (1.0 - F);
     own = lit * (vec3(1.0) - T) * (1.0 - F) + skyRefl * F;
   } else {
     // the blend draws the ground under the sheet; cover is the share the water hides
-    float t = dot(exp(-uAbsorb * path), vec3(0.3333));
+    float t = dot(exp(-extinction * path), vec3(0.3333));
     cover = 1.0 - t * (1.0 - F);
     own = lit * (1.0 - t) * (1.0 - F) + skyRefl * F;
   }
   // WATER-NEXT 3: THE FOAM - the shore's band (the water's vertical depth here, the swell's crest pushing it up the
   // bank) and, on open water in a strong wind, the steep crests
-  float vdepth = uSceneOn == 1 ? path * slant : (uOpen == 1 ? ${OPEN_PATH.toFixed(1)} : vDepth);
+  float vdepth = uSceneOn == 1 ? path * slant : (uOpen == 1 ? ${OPEN_PATH.toFixed(1)} : opticalDepth);
   // the open sea's sheets are 6.4-unit cells, their edge a staircase over the beach: where a sheet covers no water
   // (the scene's ground at or above it) it is gone, so the shore is where the sea's plane meets the sand
   if (uOpen == 1 && uSceneOn == 1) edge *= smoothstep(0.0, 0.12, vdepth);
@@ -650,6 +719,7 @@ void main() {
   // a lace, never a rim: the noise cuts the band into threads, thicker the shallower the water and the harder the wind
   float l = lace(vWorldPos.xz, uTime);
   float foam = max(shore * shore * smoothstep(0.62 - 0.25 * shore * uWindStrength, 0.82, l), crest * smoothstep(0.6, 0.85, l)) * 0.75 * exp(-dist * 0.004);
+  if (vPond > 0.5) foam *= 0.08;   // sheltered bank, without breaking surf
   vec3 foamLit = vec3(0.92, 0.95, 0.96) * (uAmbient + uSunColor * (uSunScale * shadow * max(n.y, 0.0)) + uMoonColor * (uMoonScale * 0.5));
   float k = foam * 0.9;   // foam is not glass: where it lies it hides what is under it
   own = mix(own, foamLit, k); trans *= 1.0 - k; cover = mix(cover, 1.0, k);

@@ -2,7 +2,7 @@
 // COAST-LOOK (2026-10-28, the owner: "Coastlines arent texture blended properly. They have hard edges" - "Both edges";
 // bible/07-Rendering/Water-Arc.md COAST-LOOK, a departure: Port-Ledger A). A marching-squares transition tile (water-dirt,
 // dirt-grass, grass-stone and the river painter's shore twins) is drawn as its two kinds' base records, the second
-// kind's share the bilinear of its corners moved by a wander and drawn across a soft rim: one line across every seam.
+// kind's share blends its corners across a soft rim. At water edges the wander varies the rim width.
 // The water's sheet and silt take the same line, and Deep Waters' cut follows a wandering line inside the clipped tiles
 // (COAST_CUT). The physics keep DFU's corner table. render/groundEdgeGlsl.js is the GLSL twin, term for term, and
 // test/render/coastlook.test.js holds the two together.
@@ -111,9 +111,16 @@ const smoothstep = (a, b, v) => {
   const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
-/** A corner share moved by the wander at the pixel-local point (x, y) and drawn across the rim: 0 to 1. */
-export function edgeShare(share, x, y) {
-  return smoothstep(0.5 - GROUND_EDGE.soft, 0.5 + GROUND_EDGE.soft, share + groundEdgeWander(x, y));
+// DFO blends the bank around its water threshold. DFU PlayerMotor.GetOnExteriorWaterMethod reads a tile record.
+export function shoreBlendOffset(share, wander) {
+  return 2 * Math.abs(share - 0.5) * wander;
+}
+
+/** A corner share drawn across the rim: 0 to 1. */
+export function edgeShare(share, x, y, waterEdge = false) {
+  const wander = groundEdgeWander(x, y);
+  const offset = waterEdge ? shoreBlendOffset(share, wander) : wander;
+  return smoothstep(0.5 - GROUND_EDGE.soft, 0.5 + GROUND_EDGE.soft, share + offset);
 }
 
 /** The blend of a tile's byte at a pixel-local point: null (its own picture), or `{ a, b, share }`.
@@ -123,7 +130,7 @@ export function groundEdgeAt(byte, x, y) {
   if (!k) return null;
   const fx = x - Math.floor(x),
     fy = y - Math.floor(y);
-  return { a: k.a, b: k.b, share: edgeShare(cornerShare(k.mask, fx, fy), x, y) };
+  return { a: k.a, b: k.b, share: edgeShare(cornerShare(k.mask, fx, fy), x, y, k.a === GROUND_KIND.water) };
 }
 
 /** DEEP WATERS' CUT PER FRAGMENT: the mod discards a clipped tile whole (a staircase). Here a clipped tile's point is cut

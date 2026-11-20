@@ -289,7 +289,7 @@ test('EV7: the world host rides the client and the pinned build contracts stand'
   assert.ok(seam > 0, 'the build is constructed between its door and the restride');
   const bp = door.slice(0, seam) + hostText('src/scenes/pixelBuild.js') + door.slice(seam);
   assert.ok(bp.lastIndexOf('swap.publish(px, py, key, made,') > bp.lastIndexOf('collider.addMesh'), 'publish follows the collider');   // PIN MOVED (IC-SWAP-BEHIND): published through the swap
-  assert.ok(bp.includes('renderer.createTerrainSurface(carved?.positions ?? positions, carved?.normals ?? normals'), 'GL consumes the reply on this thread');   // PIN MOVED (WATER-NEXT 2): the reply's grid, carved under the water for the eye - AUDIT WATER-NEXT P1: carved by the kernel, on the worker
+  assert.ok(bp.includes('pondTerrain(renderer, px, py, tilemapBytes, bed, carved?.positions ?? positions, carved?.normals ?? normals'), 'GL consumes the reply on this thread');   // PIN MOVED (WATER-NEXT 2): the reply's grid, carved under the water for the eye - AUDIT WATER-NEXT P1: carved by the kernel, on the worker
   // AUDIT EV F-SIM1: one build per pixel, ever in flight - the cache
   // answers a finished pixel, the in-flight map answers a flying one
   // with the SAME promise, so a teleport overlapping a pump build (or

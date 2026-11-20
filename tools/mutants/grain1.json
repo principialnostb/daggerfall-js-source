@@ -241,8 +241,8 @@
   {
     "name": "AUDIT-GRAIN-the-water-takes-its-derivatives-after-the-discards",
     "file": "src/render/waterSurface.js",
-    "old": "    vec2 wgx = dFdx(unwrapped), wgy = dFdy(unwrapped);\n    ivec2 cell",
-    "new": "    ivec2 cell",
+    "old": "    vec2 wgx = dFdx(unwrapped), wgy = dFdy(unwrapped);\n    if (vPond > 0.5 && uPondBlock > 1.0) {",
+    "new": "    if (vPond > 0.5 && uPondBlock > 1.0) {",
     "tests": [
       "test/world/terrain/water.test.js",
       "test/render/grain1_terrainmip.test.js"

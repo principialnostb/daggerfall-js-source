@@ -304,8 +304,8 @@
   {
     "name": "HOME-LOOK-the-home-merged",
     "file": "src/scenes/pixelBuild.js",
-    "old": "          if (!entry._home && placed.modelIdNum !== STREET_FOUNTAIN_MODEL && !isCityGate(placed.modelIdNum) && cpu.normals && cpu.uvs) {",
-    "new": "          if (placed.modelIdNum !== STREET_FOUNTAIN_MODEL && !isCityGate(placed.modelIdNum) && cpu.normals && cpu.uvs) {",
+    "old": "          if (!entry._home && !isStreetFountain(placed.modelIdNum) && !isCityGate(placed.modelIdNum) && cpu.normals && cpu.uvs) {",
+    "new": "          if (!isStreetFountain(placed.modelIdNum) && !isCityGate(placed.modelIdNum) && cpu.normals && cpu.uvs) {",
     "tests": [
       "test/net/homelook.test.js"
     ]

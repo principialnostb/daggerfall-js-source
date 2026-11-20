@@ -284,7 +284,7 @@ test('BASE-HIDE by source: the build stands a furnishable room\'s props and flat
   assert.match(c, /const base = opts\.baseEditable \? createBaseRoom\(\{ drawList, batches: \(\) => billboardBatches, lights: \(\) => lights, collider \}\) : null;/);
   // PIN MOVED (BUILT-IN-MODS, FIELD BUGS 2026-10-29e): and a town mod's furniture written as scenery (test/scenes/builtin_mods.test.js)
   assert.match(c, /const baseKey = base && \(p\.objectType === PROP_MODEL_TYPE \|\| \(p\.objectType === 0 && isRoomFurnishing\(p\.modelIdNum\)\)\)\s*\n\s*&& p\.modelIdNum !== LADDER_MODEL_ID && p\.modelIdNum !== MACHINERY_MODEL_ID\s*\n\s*\? decorBaseModelKey\(pi, p\.modelIdNum\) : null;/, 'furniture, not the building\'s workings');
-  assert.match(c, /if \(!baseKey && cpu\.normals && cpu\.uvs\) \{ staticBuilder\.add\(/, 'never the merge');
+  assert.match(c, /if \(!baseKey && !isStreetFountain\(p\.modelIdNum\) && cpu\.normals && cpu\.uvs\) \{ staticBuilder\.add\(/, 'never the merge');
   assert.match(c, /collider\.addMesh\(baseKey \? baseBucketOf\(baseKey\) : 'interior', cpu\.positions, cpu\.indices, matrix\);/, 'its own bucket');
   assert.match(c, /if \(baseKey\) base\.furnish\(baseKey, containers\[had\[0\]\] \?\? shelves\[had\[1\]\] \?\? beds\[had\[2\]\] \?\? null\);/, 'a cupboard, a shelf or a bed');
   assert.match(c, /const batch = renderer\.createBillboardBatch\(flat\.archive, flat\.record, billboardSize\(t, flat\.record\), \[at\]\);/, 'a flat alone in its batch');

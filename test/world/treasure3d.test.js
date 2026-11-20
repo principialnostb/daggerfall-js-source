@@ -209,3 +209,51 @@ test('both waterside flats draw three-dimensional racks with the authored height
   assert.ok(draws[1].mesh.indices.length > draws[0].mesh.indices.length);
   for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
 });
+
+test('water racks fit each post to the active floor and keep the deck when the terrain changes ring', () => {
+  const meshes = [], drops = [], draws = [], samples = [];
+  const renderer = { createMesh: data => (meshes.push(data), data), drawMesh: mesh => draws.push(mesh),
+    destroyMesh: mesh => drops.push(mesh), uploadTexture() {}, releaseTexture() {} };
+  let floor = (x, z) => { samples.push([x, z]); return 9 - (x - 100) * .2 - (z - 50) * .3; };
+  const batch = markPlacedFurnishing({ archive: 212, record: 15, size: { w: 3.15, h: 2.8 }, vao: {},
+    origin: [200, 20, -500] }, [[100, 10, 50]], () => floor);
+  const draw = () => drawPlacedFurnishings(renderer, [batch], acquireTreasureModel, releaseTreasureModel);
+  draw(); draw();
+  assert.equal(samples.length, 6);
+  assert.equal(new Set(samples.map(([x, z]) => x + ',' + z)).size, 6);
+  assert.equal(meshes.length, 1);
+  const [fitted] = meshes;
+  for (const [x, z] of samples.slice()) {
+    const deepest = [];
+    for (let i = 0; i < fitted.positions.length; i += 3) {
+      const [dx, dy, dz] = fitted.positions.subarray(i, i + 3);
+      if (Math.hypot(dx * 3.15 + 100 - x, dz * 3.15 + 50 - z) < .13) deepest.push(10 + dy * 2.8);
+    }
+    const tip = Math.min(...deepest), ground = 9 - (x - 100) * .2 - (z - 50) * .3;
+    assert.ok(tip > ground - .14 && tip < ground - .10);
+  }
+  floor = undefined;
+  draw();
+  assert.deepEqual(drops, [fitted]);
+  const plain = meshes[1];
+  const deck = mesh => Array.from(mesh.positions).filter((_, i, a) => a[i - i % 3 + 1] * 2.8 > 2.5);
+  assert.deepEqual(deck(fitted), deck(plain));
+  assert.equal(draws[2], plain);
+  releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+  assert.deepEqual(drops, meshes);
+});
+
+test('the pond draws its visible racks with opaque objects before the water and queues ordinary flats', async () => {
+  const { Renderer } = await import('../../src/render/renderer.js');
+  const meshes = [], queue = [];
+  const r = { createMesh: data => data, drawMesh: mesh => meshes.push(mesh), uploadTexture() {}, destroyMesh() {}, releaseTexture() {} };
+  const batch = markPlacedFurnishing({ archive: 212, record: 15, size: { w: 3.15, h: 2.8 }, vao: {} },
+    [[0, 1, 0]], () => () => 0);
+  const flat = { vao: {} };
+  Renderer.prototype.queueExteriorFlat.call(r, queue, batch);
+  Renderer.prototype.queueExteriorFlat.call(r, queue, flat);
+  Renderer.prototype.queueExteriorFlat.call(r, queue, batch, true);
+  assert.equal(meshes.length, 1);
+  assert.deepEqual(queue, [flat, batch]);
+  releasePlacedFurnishing(r, batch, releaseTreasureModel);
+});
