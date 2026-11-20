@@ -792,6 +792,12 @@ function saveNews(items) {
   } catch { /* the next launch asks again */ }
 }
 
+function publishReleaseNews(releases) {
+  const items = newsFrom(TEST_UPDATE_BUILD ? testReleases(releases) : releases);
+  saveNews(items);
+  launcherDispatch({ type: 'news', items });
+}
+
 /** The recent releases' patch notes, for the launcher's news panel: kept,
  *  and handed to the launcher; the cached list stays up when GitHub does
  *  not answer. */
@@ -800,10 +806,7 @@ async function fetchNews() {
     const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };
     const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LIST_API, options));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const releases = await res.json();
-    const items = newsFrom(TEST_UPDATE_BUILD ? testReleases(releases) : releases);
-    saveNews(items);
-    launcherDispatch({ type: 'news', items });
+    publishReleaseNews(await res.json());
   } catch { launcherDispatch({ type: 'news-failed' }); }
 }
 
@@ -1126,12 +1129,15 @@ async function fetchLatestRelease() {
     const access = testSession?.signal;
     const res = TEST_RELEASES
       ? await retryGitHub(() => TEST_RELEASES.releases({
-        ...options, signal: access ? AbortSignal.any([access, AbortSignal.timeout(10000)]) : options.signal,
+        ...options, cache: 'no-store',
+        signal: access ? AbortSignal.any([access, AbortSignal.timeout(10000)]) : options.signal,
       }), { signal: access })
       : await net.fetch(RELEASES_LATEST_API, options);
     if (TEST_ACCESS) testReleaseHttp = res.ok ? undefined : res.status;
     if (!res.ok) return null;
     const data = await res.json();
+    access?.throwIfAborted();
+    if (TEST_ACCESS) publishReleaseNews(data);
     const json = TEST_RELEASES ? testRelease(data) : data;
     const tag = typeof json?.tag_name === 'string' ? json.tag_name : null;
     const url = typeof json?.html_url === 'string' && /^https:\/\/github\.com\//.test(json.html_url)
