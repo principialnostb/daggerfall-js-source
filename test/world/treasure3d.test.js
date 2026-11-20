@@ -182,3 +182,30 @@ test('placed book and bottle groups preserve their components and fall back as a
     releasePlacedFurnishing({}, batch, () => assert.fail());
   }
 });
+
+test('both waterside flats draw three-dimensional racks with the authored height and object pixelation', () => {
+  const draws = [];
+  const renderer = {
+    createMesh: data => data,
+    drawMesh: (mesh, pose) => draws.push({ mesh, pose }),
+    destroyMesh() {},
+    uploadTexture() {},
+    releaseTexture() {},
+  };
+  const batches = [[15, 3.15, 2.8], [16, 3.175, 4.225]].map(([record, w, h]) => markPlacedFurnishing({
+    archive: 212, record, vao: {}, size: { w, h }, origin: [10, 0, 2],
+  }, [[2, 0, 3]]));
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel), []);
+  assert.equal(draws.length, 2);
+  for (const [i, { mesh, pose }] of draws.entries()) {
+    assert.equal(mesh.pixelKind, 'objects');
+    assert.equal(mesh.subMeshes.length, 3);
+    assert.ok(mesh.positions.every(Number.isFinite));
+    assert.ok(mesh.aabb.extent[2] * pose[10] > .7);
+    const top = (mesh.aabb.center[1] + mesh.aabb.extent[1]) * pose[5];
+    assert.ok(Math.abs(top - batches[i].size.h) < .04);
+    assert.deepEqual(Array.from(pose.slice(12, 15)), [12, 0, 5]);
+  }
+  assert.ok(draws[1].mesh.indices.length > draws[0].mesh.indices.length);
+  for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+});

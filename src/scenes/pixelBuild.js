@@ -78,6 +78,7 @@ import { seatFlora, standsOnGround, warmFlora } from './floraSeat.js';   // FLOR
 import { isWardenTown } from '../systems/wagon/wagonWarden.js';
 import { isWodShrub, rockSeatDrop, WOD_ROCK_SITES, wodLightPosition, wodLightProperties } from '../world/worldOfDaggerfall/wodLocationObjects.js';
 import { isYardTown } from '../systems/merchantYards.js';
+import { STREET_FOUNTAIN_MODEL } from '../world/streetFountain.js';
 import { keyResolver, StaticBatchBuilder, TOWN_SHADOW_CELL } from '../render/staticBatch.js';
 import { knownCriminal } from '../systems/standing.js';
 import { layoutLocationSteps, RMB_SIDE } from '../world/locationLayout.js';   // IC-STUTTER: a town laid out a block a step; SOLITUDE-RELIEF: a block's side
@@ -643,7 +644,7 @@ export function createPixelBuild(host) {
             pixelHomeKeys.add(homeKey);
           }
           models.push(entry);
-          if (!entry._home && !isCityGate(placed.modelIdNum) && cpu.normals && cpu.uvs) { addStatic(cpu, local, climateFree); entry._batched = true; }   // PERF4: the remap for this model's textures is in the map by now (awaited above); HOME-LOOK: a home stays out
+          if (!entry._home && placed.modelIdNum !== STREET_FOUNTAIN_MODEL && !isCityGate(placed.modelIdNum) && cpu.normals && cpu.uvs) { addStatic(cpu, local, climateFree); entry._batched = true; }   // PERF4: the remap for this model's textures is in the map by now (awaited above); HOME-LOOK: a home stays out
           await breather.breathe();   // PERF7: a warm build gives the frame back every few milliseconds
           // AUDIT 64 F14: a city gate takes a collider bucket of its own
           // (the pixel's shared bucket has no per-mesh removal), keyed

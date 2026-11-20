@@ -4,6 +4,7 @@ import { multiply, trs } from '../world/mat4.js';
 import { sphereInPlanes, spherePlanes } from './bounds.js';
 import { TOWN_CLUTTER, TOWN_CLUTTER_ARCHIVE, TOWN_ITEMS } from '../world/townStandIns.js';
 import { DET_FLAT_STAND_INS } from '../world/detStandIns.js';
+import { isWaterRack } from '../world/waterRack.js';
 
 const placedFurnishings = new WeakMap();
 
@@ -164,7 +165,7 @@ export function placedFurnishingModels(batch) {
   const record = `${archive}:${index}`;
   return {
     spec: placedModels.get(record) ?? furnishings.get(record),
-    lowPoly: placedLowPoly.has(record) ? record : null,
+    lowPoly: placedLowPoly.has(record) || isWaterRack(record) ? record : null,
     alternate: placedAlternates.get(record),
     maxLength: tabletopLengths.get(record) ?? storageLengths.get(record),
     tabletopPixels: tabletopLengths.has(record),

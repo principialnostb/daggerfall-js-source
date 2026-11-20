@@ -5,7 +5,7 @@ import { SLAB_STONE, slabStonePaint } from './dungeonSlabStone.js';
 import { STAINED_PRESS_IRON, STAINED_TABLE_STONE, stainedTablePaint } from './dungeonTortureTable.js';
 
 export const TREASURE_ART = 38343;
-export const FURNISHING_PAINT = { plank: 110, glass: 111, glassEdge: 112, wicker: 113, bone: 114 };
+export const FURNISHING_PAINT = { plank: 110, glass: 111, glassEdge: 112, wicker: 113, bone: 114, dryReeds: 125, greenReeds: 126, rackWood: 127 };
 const LINEN = 0, LEATHER = 1, STEEL = 2, WOOD = 3, GOLD = 4, ROPE = 5, GLASS = 6, CLOTH = 7, RED = 8;
 const DARK_CHEST = 11;
 const palettes = [
@@ -57,13 +57,15 @@ export function treasurePaints() {
     }
     return dfLook({ width: size, height: size, colors }, material + 83);
   });
-  for (const [material, color] of [[110, [91, 65, 43]], [111, [39, 72, 65]], [112, [81, 130, 112]], [113, [113, 87, 51]], [114, [150, 139, 111]], [115, [84, 79, 67]], [116, [111, 101, 79]], [117, [103, 73, 83]], [118, [130, 92, 102]]]) {
+  for (const [material, color] of [[110, [91, 65, 43]], [111, [39, 72, 65]], [112, [81, 130, 112]], [113, [113, 87, 51]], [114, [150, 139, 111]], [115, [84, 79, 67]], [116, [111, 101, 79]], [117, [103, 73, 83]], [118, [130, 92, 102]], [FURNISHING_PAINT.dryReeds, [126, 103, 52]], [FURNISHING_PAINT.greenReeds, [71, 83, 47]], [FURNISHING_PAINT.rackWood, [106, 84, 53]]]) {
     const size = 24;
     const colors = new Uint8ClampedArray(size * size * 4);
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
       const grain = ((Math.floor(x / 4) * 11 + y * 17) % 9 - 4) * .018;
       const shade = material === 110 ? .95 + grain - (y % 7 === 0 ? .21 : 0)
         : material === 113 ? .96 + grain + ((Math.floor(x / 3) + Math.floor(y / 2)) % 2 ? .12 : -.12)
+        : material === FURNISHING_PAINT.rackWood ? .74 + (y / (size - 1)) * .18 + grain
+          + ((x * 17 ^ (y >> 2) * 5) & 7) * .025 - (x % 6 === 0 ? .12 : 0)
         : material >= 115 ? .91 + grain + ((x * 7 + y * 13) % 11) * .012
         : .94 + grain * .4 + (x > 5 && x < 9 ? .12 : 0);
       colors.set([...color.map(channel => channel * shade), 255], (y * size + x) * 4);
