@@ -181,16 +181,17 @@ test('HOME-LOOK the painter, in the yard\'s panel: "Exterior" lists the four par
 
 test('HOME-LOOK the world host by source: a town\'s homes are asked before its buildings are merged, a home stands out of the merge with its own table, drawn (and its shadow) with it; a look landed or changed repaints it where it stands, the older ask never over a newer; a merged home painted later rebuilds its pixel; the painter\'s preview is the owner\'s screen alone (mutants: the home merged; the draw on the pixel\'s table; the rebuild unmarked)', () => {
   const w = hostText('src/scenes/world.js');
+  const build = src('src/scenes/pixelBuild.js');
   // AUDIT: a town heard before is never waited for again (a rebuild stalled a second and a half)
-  assert.match(w, /if \(onlineHomes\.known\(homeTown\)\) onlineHomes\.ensure\(homeTown\)\.catch\(\(\) => \{\}\);\n\s*else \{ try \{ await onlineHomes\.waitFor\(homeTown, HOME_LOOK_BUILD_WAIT_MS\); \}/);
+  assert.match(build, /if \(onlineHomes\.known\(homeTown\)\) onlineHomes\.ensure\(homeTown\)\.catch\(\(\) => \{\}\);\n\s*else \{ try \{ await onlineHomes\.waitFor\(homeTown, HOME_LOOK_BUILD_WAIT_MS\); \}/);
   // AUDIT: only a painted home, or this account's, leaves the merge - and an unpainted one draws with the pixel's table
   // (PIN MOVED, PRECIP4: in the pixel's own season - the snow at its middle on the snow lane)
-  assert.match(w, /if \(homeRow && \(homeLook \|\| homeRow\.mine \|\| homeRow\.keeper\)\) \{[\s\S]{0,300}entry\.texRemap = homeLook \? await homeLookRemap\(gpu\.subMeshes, texRemap, homeLook, pixelSeason, pipeline\) : null;[\s\S]{0,80}\}\n\s*models\.push\(entry\);\n\s*if \(!entry\._home && !isCityGate/, 'a painted home stays out of the merge');
+  assert.match(build, /if \(homeRow && \(homeLook \|\| homeRow\.mine \|\| homeRow\.keeper\)\) \{[\s\S]{0,300}entry\.texRemap = homeLook \? await homeLookRemap\(gpu\.subMeshes, texRemap, homeLook, pixelSeason, pipeline\) : null;[\s\S]{0,80}\}\n\s*models\.push\(entry\);\n\s*if \(!entry\._home && placed\.modelIdNum !== STREET_FOUNTAIN_MODEL && !isCityGate/, 'a painted home stays out of the merge');
   // AUDIT: each pixel from the registry as its build read it, the publish asking for a refresh; a merged home rebuilds
   // its pixel for a look written or its becoming this account's, never for the painter's preview
-  assert.match(w, /homeLookRead = onlineHomes\.version\(\) \* 1024 \+ host\._lookPreviewGen;/);
-  assert.match(w, /_lookV: homeLookRead,/);
-  assert.match(w, /if \(homeTown\) host\._homeLookV = -1;/);
+  assert.match(build, /homeLookRead = onlineHomes\.version\(\) \* 1024 \+ host\._lookPreviewGen;/);
+  assert.match(build, /_lookV: homeLookRead,/);
+  assert.match(build, /if \(homeTown\) host\._homeLookV = -1;/);
   assert.match(w, /if \(!p\.homeTown \|\| p\._lookV === v\) continue;/);
   assert.match(w, /if \(!p\.homeKeys\.has\(bk\) && p\.buildingKeys\.has\(bk\) && \(\(row\?\.look && homeDecorShownHere\(row, p\.homeTown\)\) \|\| row\?\.mine \|\| row\?\.keeper\)\) merged = true;/);   // PIN MOVED: HOME-VOTE - a look counts only where it is shown (never lookOfHome: the preview); PIN MOVED (HOME-MUTE, FIELD BUGS 2026-10-29f): nor where I hid it
   assert.match(w, /if \(!look\) \{ m\.texRemap = null; continue; \}/);
