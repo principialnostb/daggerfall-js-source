@@ -42,7 +42,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   let invite;
   let admin;
   let deviceCode;
-  let online = null;
+  let identityEpoch = 0;
   let publishedAssets = new Map();
   const emcNames = requireFaces ? { base: ASSET_NAME, faces: FACE_ASSET_NAME } : { base: ASSET_NAME };
   const downloadPrefix = 'https://github.com/' + repository + '/releases/download/';
@@ -61,12 +61,20 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   }
 
   async function roster(token) {
-    const data = await json(await gh(rosterEndpoint + '?ref=' + branch, token, { cache: 'no-store' }));
-    const rows = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8'));
+    let rows;
+    let sha;
+    if (token) {
+      const data = await json(await gh(rosterEndpoint + '?ref=' + branch, token, { cache: 'no-store' }));
+      rows = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8'));
+      sha = data.sha;
+    } else {
+      const url = 'https://raw.githubusercontent.com/' + repository + '/' + branch + '/' + rosterPath;
+      rows = await json(await net.fetch(url, { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(12000) }));
+    }
     if (!Array.isArray(rows) || rows.some((row) => !/^[0-9a-f]{64}$/.test(row?.hash) || typeof row.label !== 'string')) {
       throw new Error('Invalid test invitation list');
     }
-    return { rows, sha: data.sha };
+    return { rows, sha };
   }
 
   async function member() {
@@ -75,16 +83,14 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     }
     if (!/^[0-9a-f]{48}$/.test(invite ?? '')) return false;
     const digest = hashCode(invite);
-    online = (await roster()).rows.some((row) => !row.revoked && row.hash === digest);
-    return online;
+    return (await roster()).rows.some((row) => !row.revoked && row.hash === digest);
   }
 
   async function authorizeUpdate() {
     // Recheck for every release lookup so an already open launcher also sees a revocation.
-    online = null;
     const token = adminToken();
     const profile = await adminProfile(token);
-    if (profile) { online = true; return profile; }
+    if (profile) return profile;
     if (!await member()) throw new Error('Activate a test invitation first');
   }
 
@@ -122,7 +128,6 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       content: Buffer.from(JSON.stringify(rows, null, 2) + '\n').toString('base64'),
     }) });
     if (!result.ok) throw new Error('Cannot update invitations. Check write access or reload the list and retry.');
-    online = null;
   }
 
   async function device(route, params) {
@@ -157,8 +162,8 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       || !/^sha256:[0-9a-f]{64}$/.test(asset.digest)) throw new Error('EMC archive unavailable');
     return {
       asset: { size: asset.size, sha256: asset.digest.slice(7) },
-      request: (signal = AbortSignal.timeout(30000)) => fetchAsset('https://api.github.com/repos/' + privateRepo + '/releases/assets/' + asset.id, {
-        headers: { 'User-Agent': 'DFO-13.11', Authorization: 'Bearer ' + token, Accept: 'application/octet-stream' },
+      request: (signal = AbortSignal.timeout(30000), offset = 0) => fetchAsset('https://api.github.com/repos/' + privateRepo + '/releases/assets/' + asset.id, {
+        headers: { 'User-Agent': 'DFO-13.11', Authorization: 'Bearer ' + token, Accept: 'application/octet-stream', ...(offset ? { Range: 'bytes=' + offset + '-' } : {}) },
         redirect: 'manual', signal,
       }),
     };
@@ -169,26 +174,34 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       const token = adminToken();
       if (!await adminProfile(token)) return { error: 'Sign in with GitHub as a developer to install EMC.' };
       const available = await privateEmcAssets(token);
-      let files = 0;
-      for (const [part, name] of Object.entries(emcNames)) {
-        if (emc.readyPart?.(part)) continue;
+      const parts = Object.entries(emcNames).map(([part, name]) => {
         const { asset, request } = emcDownload(available, token, name);
-        const installed = await emc.installFrom(asset, async (signal) => {
-          const download = await request(signal);
+        const open = async (signal, offset) => {
+          const download = await request(signal, offset);
           if (download.status === 404) throw new Error('GitHub request failed (404)');
           if (download.status !== 302) return download;
-          return net.fetch(temporaryUrl(download.headers.get('location')), { redirect: 'error', cache: 'no-store', signal });
-        }, part, access);
-        files += installed.files;
-      }
-      return { files };
+          return net.fetch(temporaryUrl(download.headers.get('location')), { redirect: 'error', cache: 'no-store', signal,
+            ...(offset ? { headers: { Range: 'bytes=' + offset + '-' } } : {}) });
+        };
+        return { part, offer: asset, open };
+      });
+      return await emc.installSet(parts, access);
     } catch (error) { return { error: emcErrorMessage(error) }; }
   }
 
   async function action(name, value, access) {
-    if (name === 'github-login') return action('github-token', await githubCredential());
+    const epoch = identityEpoch;
+    const assertCurrent = () => {
+      if (epoch !== identityEpoch) throw new Error('Sign-in was cancelled');
+    };
+    if (name === 'github-login') {
+      const token = await githubCredential();
+      assertCurrent();
+      return action('github-token', token);
+    }
     if (name === 'github' && clientId) {
       const flow = await device('device/code');
+      assertCurrent();
       if (!flow.device_code || !flow.user_code) throw new Error('GitHub sign-in unavailable');
       deviceCode = flow.device_code;
       await openBrowser('https://github.com/login/device');
@@ -196,6 +209,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     }
     if (name === 'poll' && clientId && deviceCode) {
       const grant = await device('oauth/access_token', { device_code: deviceCode, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' });
+      assertCurrent();
       if (grant.error === 'authorization_pending' || grant.error === 'slow_down') {
         return { pending: true, interval: Math.max(grant.error === 'slow_down' ? 10 : 5, grant.interval ?? 0) };
       }
@@ -208,18 +222,19 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       if (!/^[0-9a-f]{48}$/.test(code)) throw new Error('Invalid invitation');
       const digest = hashCode(code);
       if (!(await roster()).rows.some((row) => !row.revoked && row.hash === digest)) throw new Error('Invitation unavailable');
+      assertCurrent();
       if (safeStorage.isEncryptionAvailable()) {
         fs.mkdirSync(userData, { recursive: true });
         fs.writeFileSync(inviteFile, safeStorage.encryptString(code), { mode: 0o600 });
       }
       invite = code;
-      online = true;
       return { role: 'tester', login: 'Tester' };
     }
     if (name === 'github-token') {
       const token = value?.trim();
       const profile = await adminProfile(token);
       if (!profile) throw new Error('Enter a GitHub credential');
+      assertCurrent();
       admin = token;
       if (safeStorage.isEncryptionAvailable()) {
         fs.mkdirSync(userData, { recursive: true });
@@ -228,7 +243,6 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       return profile;
     }
     if (name === 'profile') {
-      online = null;
       const token = adminToken();
       if (token) return adminProfile(token);
       return await member() ? { role: 'tester', login: 'Tester' } : null;
@@ -236,7 +250,8 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     if (name === 'sign-out') {
       for (const file of [inviteFile, adminFile]) fs.rmSync(file, { force: true });
       invite = admin = null;
-      online = false;
+      identityEpoch++;
+      deviceCode = null;
       return null;
     }
     if (name === 'emc') {

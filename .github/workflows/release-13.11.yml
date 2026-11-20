@@ -100,7 +100,7 @@ jobs:
           PREVIOUS_TAG: ${{ steps.setup.outputs.setup_tag }}
         run: ./tools/verifyTestSetupTls.ps1 -Setup "$env:DFO_TEST_OUTPUT/assets/DFO-Test-Build-Setup.exe" -PreviousTag $env:PREVIOUS_TAG
       - name: Verify automatic shell replacement and restart
-        if: github.ref_name == 'codex/1311-launcher-preview'
+        if: hashFiles('app/release/workflow-13.11/assets/latest.yml') != ''
         shell: pwsh
         run: node tools/verifyTestShellSwap.mjs "$env:DFO_TEST_OUTPUT/assets"
       - name: Save the preview build

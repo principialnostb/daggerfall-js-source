@@ -23,7 +23,7 @@ test('public updates stay available while revocation blocks private access', asy
     userData: root, safeStorage: { isEncryptionAvailable: () => false },
     net: { fetch: async (url, options) => {
       assert.equal(options?.headers?.Authorization, undefined, 'testers make anonymous requests');
-      if (url.includes('/contents/')) return Response.json({ content: Buffer.from(JSON.stringify(rows)).toString('base64') });
+      if (url === 'https://raw.githubusercontent.com/principialnostb/daggerfall-js-source/13.11-build/test-channel/13.11-invites.json') return Response.json(rows);
       if (url.includes('/releases?')) return Response.json([]);
       throw new Error('Unexpected URL');
     } },
@@ -71,6 +71,7 @@ test('a revoked invitation remains in the roster and its original hash is remove
     safeStorage: { isEncryptionAvailable: () => true, encryptString: (value) => Buffer.from(value), decryptString: (value) => value.toString() },
     net: { fetch: async (url, options) => {
       if (url.endsWith('/user')) return Response.json({ id: 1, login: 'owner' });
+      if (url.startsWith('https://raw.githubusercontent.com/')) return Response.json(rows);
       if (url.includes('/contents/') && options.method === 'PUT') {
         rows = JSON.parse(Buffer.from(JSON.parse(options.body).content, 'base64').toString());
         return Response.json({});
@@ -98,7 +99,7 @@ test('developer EMC supports direct and redirected downloads while keeping the c
   const auth = channel.publicTestChannel({
     userData: root, copy: (value) => { copied = JSON.parse(value); },
     safeStorage: { isEncryptionAvailable: () => false },
-    emc: { installFrom: async (info, open) => {
+    emc: { installSet: async ([{ offer: info, open }]) => {
       assert.deepEqual(info, { size: asset.size, sha256: asset.digest.slice(7) });
       assert.equal(await (await open()).text(), 'archive');
       return { files: 1 };
@@ -177,6 +178,64 @@ test('complete EMC offers retain an installed base and mount the independent fac
   await assert.rejects(store.install(compressed, revoked), { name: 'AbortError' });
   await store.install(compressed);
   assert.deepEqual(await store.serve(['test-emc']).json(), names);
+});
+
+test('sign-out invalidates a pending invitation activation', async (t) => {
+  const code = 'b'.repeat(48);
+  let finish;
+  const auth = channel.publicTestChannel({
+    userData: profile(t), safeStorage: { isEncryptionAvailable: () => false },
+    net: { fetch: () => new Promise(resolve => { finish = resolve; }) },
+  });
+  const login = auth.action('invite', code);
+  await auth.action('sign-out');
+  finish(Response.json([{ label: 'Tester', hash: hash(code) }]));
+  await assert.rejects(login, /cancelled/);
+  await assert.rejects(auth.authorizeUpdate(), /Activate/);
+});
+
+test('a replacement EMC pair survives a failed transfer and resumes with a fresh offer', async (t) => {
+  const pack = (paths, value) => {
+    const index = Buffer.from(JSON.stringify(paths.map(path => ({ path, size: 1 }))));
+    const length = Buffer.alloc(4);
+    length.writeUInt32LE(index.length);
+    return Buffer.concat([length, index, Buffer.alloc(paths.length, value)]);
+  };
+  const facePaths = ['head.nif', 'head.dds'].map(p => "Mods/Textures/Westly's Faces Refurbished/Data Files/" + p);
+  const root = profile(t);
+  let base = pack(emcPack.paperdollFiles, 65);
+  let faces = pack(facePaths, 66);
+  let interrupt = false;
+  let baseRequests = 0;
+  let resumed = false;
+  const net = { fetch: async (url, options) => {
+    if (url.includes('part=base')) { baseRequests++; return new Response(base); }
+    if (interrupt) return new Response(faces.subarray(0, 10));
+    if (options.headers?.Range) {
+      resumed = true;
+      assert.equal(options.headers.Range, 'bytes=10-');
+      return new Response(faces.subarray(10), { status: 206, headers: {
+        'Content-Range': 'bytes 10-' + (faces.length - 1) + '/' + faces.length,
+      } });
+    }
+    return new Response(faces);
+  } };
+  const store = () => emcPack.emcStore(root, net, { requireFaces: true });
+  const offer = (v) => JSON.stringify(Object.fromEntries(Object.entries({ base, faces }).map(([part, bytes]) =>
+    [part, { url: temporary + '&part=' + part + '&v=' + v, size: bytes.length, sha256: hash(bytes) }])));
+  await store().install(offer(1));
+  base = pack(emcPack.paperdollFiles, 67);
+  faces = pack(facePaths, 68);
+  interrupt = true;
+  await assert.rejects(store().install(offer(2)), /Incomplete/);
+  assert.equal(await store().serve(['test-emc', '0']).text(), 'A');
+  assert.equal(await store().serve(['test-emc', '2']).text(), 'B');
+  interrupt = false;
+  await store().install(offer(3));
+  assert.equal(baseRequests, 2);
+  assert.equal(resumed, true);
+  assert.equal(await store().serve(['test-emc', '0']).text(), 'C');
+  assert.equal(await store().serve(['test-emc', '2']).text(), 'D');
 });
 
 test('EMC times out before headers and after a stalled body, then allows another attempt', async (t) => {

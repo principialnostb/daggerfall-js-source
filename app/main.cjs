@@ -1442,7 +1442,7 @@ let recheckTimer = null;
 function startRechecks() {
   if (recheckTimer || !updateChecksEnabled()) return;
   recheckTimer = setInterval(async () => {
-    if (!updateChecksEnabled()) return;
+    if (!updateChecksEnabled() || (TEST_ACCESS && (!testSession || Date.now() - lastVerifiedAccess > 45000))) return;
     // DA13: the game's own channel first; the installer's path answers only what it cannot carry
     if (await askGame() !== 'installer') return;
     if (currentUpdateTransport() === 'updater') {
@@ -1868,6 +1868,7 @@ let testPlayGate = TEST_ACCESS ? testAccessGate : null;
 let testPlayCheck;
 let testSession = null;
 let testAccessEpoch = 0;
+let lastVerifiedAccess = 0;
 let changingTestIdentity = false;
 let developerEmcDownload;
 let developerEmcError;
@@ -1910,7 +1911,9 @@ function refreshTestPlay() {
     try {
       const developer = await TEST_ACCESS.authorizeUpdate();
       if (epoch !== testAccessEpoch || changingTestIdentity) return false;
+      lastVerifiedAccess = Date.now();
       if (!testSession) {
+        startRechecks();
         testSession = new AbortController();
         resumeTestUpdate();
       }
@@ -1927,7 +1930,11 @@ function refreshTestPlay() {
     } catch (error) {
       if (epoch !== testAccessEpoch) return false;
       const status = /GitHub request failed \((\d{3})\)/.exec(error.message)?.[1];
-      blockTestAccess(status ? 'Could not verify access (GitHub HTTP ' + status + ').' : undefined);
+      const denied = status === '401' || ['Activate a test invitation first', 'GitHub write access required'].includes(error.message);
+      const message = denied ? testAccessGate.message : 'Access check unavailable' + (status ? ' (HTTP ' + status + ')' : '') + '. Retrying automatically.';
+      if (!denied && testSession && Date.now() - lastVerifiedAccess < 90000) {
+        testPlayGate = { message };
+      } else blockTestAccess(message);
     }
     renderLauncher();
     return !testPlayGate;
@@ -2321,14 +2328,16 @@ ipcMain.handle('launcher:test-access', async (e, action, value) => {
   if (action === 'emc-remove') return removeLauncherEmc();
   const refresh = ['invite', 'github-login', 'sign-out', 'emc'].includes(action);
   if (action === 'github-login' || action === 'sign-out') developerEmcError = null;
-  if (refresh) await testPlayCheck;
-  if (action === 'emc' && !testUpdateReady()) throw new Error('Update required before installing EMC');
   if (action === 'sign-out') {
     changingTestIdentity = true;
     blockTestAccess();
     try { return await TEST_ACCESS.action(action, value); }
     finally { changingTestIdentity = false; }
   }
+  const epoch = testAccessEpoch;
+  if (refresh) await testPlayCheck;
+  if (epoch !== testAccessEpoch) throw new Error('Test access changed. Try again.');
+  if (action === 'emc' && !testUpdateReady()) throw new Error('Update required before installing EMC');
   const access = testSession?.signal;
   if (action === 'emc' && !access) throw new Error('Activate a test invitation first');
   if (action === 'emc' && (emcProgress || developerEmcDownload)) throw new Error('An EMC operation is in progress');

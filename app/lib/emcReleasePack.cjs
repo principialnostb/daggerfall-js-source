@@ -90,7 +90,21 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
   let mounted;
   let installing = false;
 
+  const commitFile = path.join(root, 'emc-commit.json');
+  function finishCommit() {
+    if (!fs.existsSync(commitFile)) return;
+    const parts = JSON.parse(fs.readFileSync(commitFile, 'utf8'));
+    for (const part of parts) {
+      if (!Object.hasOwn(locations, part)) throw new Error('Invalid EMC installation record');
+      const file = locations[part].path;
+      if (fs.existsSync(file + '.next')) fs.renameSync(file + '.next', file);
+      partFiles.delete(part);
+    }
+    fs.unlinkSync(commitFile);
+  }
+
   function inspect(part) {
+    finishCommit();
     const location = locations[part];
     if (!fs.existsSync(location.path)) { partFiles.delete(part); return none; }
     if (!partFiles.has(part)) {
@@ -111,34 +125,67 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
     if (!data?.base && !data?.faces) {
       if (requireFaces) throw new Error('A complete EMC offer is required');
       const offer = downloadOffer(data);
-      return installFrom(offer, (signal) => openUrl(offer.url, signal), 'base', access);
+      return installFrom(offer, (signal, offset) => openUrl(offer.url, signal, offset), 'base', access);
     }
     // Validate the complete offer before installing either component.
     const parts = Object.entries({ base: data.base, faces: data.faces })
       .filter(([, offer]) => offer !== undefined)
       .map(([part, offer]) => [part, downloadOffer(offer)]);
+    if (!data.base || (requireFaces && !data.faces)) throw new Error('A complete EMC offer is required');
+    return installSet(parts.map(([part, offer]) => ({ part, offer, open: (signal, offset) => openUrl(offer.url, signal, offset) })), access);
+  }
+
+  async function installSet(parts, access) {
+    if (installing) throw new Error('An EMC download is in progress');
+    installing = true;
+    try {
+      finishCommit();
+      return await stageSet(parts, access);
+    } finally { installing = false; onProgress(null); }
+  }
+
+  async function matchesOffer(file, offer, signal) {
+    if (!fs.existsSync(file) || fs.statSync(file).size !== offer.size) return false;
+    const hash = createHash('sha256');
+    for await (const chunk of fs.createReadStream(file, { signal })) hash.update(chunk);
+    return hash.digest('hex') === offer.sha256;
+  }
+
+  async function stageSet(parts, access) {
     let files = 0;
-    for (const [part, offer] of parts) {
+    const staged = [];
+    for (const { part, offer, open } of parts) {
       access?.throwIfAborted();
-      if (readyPart(part) && fs.statSync(locations[part].path).size === offer.size) {
-        const installed = createHash('sha256');
-        for await (const chunk of fs.createReadStream(locations[part].path)) installed.update(chunk);
-        if (installed.digest('hex') === offer.sha256) continue;
+      const location = locations[part];
+      if (readyPart(part) && await matchesOffer(location.path, offer, access)) continue;
+      const next = location.path + '.next';
+      if (await matchesOffer(next, offer, access) && location.check(readPack(next))) {
+        staged.push(part);
+        continue;
       }
-      const result = await installFrom(offer, (signal) => openUrl(offer.url, signal), part, access);
+      const result = await transfer(offer, open, part, access);
+      staged.push(part);
       files += result.files;
     }
-    if (!readyPart('base') || (requireFaces && !readyPart('faces'))) throw new Error('A complete EMC offer is required');
+    access?.throwIfAborted();
+    if (staged.length) {
+      fs.writeFileSync(commitFile + '.tmp', JSON.stringify(staged));
+      fs.renameSync(commitFile + '.tmp', commitFile);
+      finishCommit();
+    }
     return { files };
   }
 
-  const openUrl = (url, signal) => net.fetch(url, { redirect: 'error', cache: 'no-store', signal });
+  const openUrl = (url, signal, offset) => net.fetch(url, { redirect: 'error', cache: 'no-store', signal,
+    ...(offset ? { headers: { Range: 'bytes=' + offset + '-' } } : {}) });
 
   async function installFrom(offer, openDownload, part = 'base', access) {
+    return installSet([{ part, offer, open: openDownload }], access);
+  }
+
+  async function transfer(offer, openDownload, part, access) {
     const location = locations[part];
     if (!location) throw new Error('Unknown EMC component');
-    if (installing) throw new Error('An EMC download is in progress');
-    installing = true;
     const temp = location.path + '.download';
     const stop = new AbortController();
     const signal = access ? AbortSignal.any([access, stop.signal]) : stop.signal;
@@ -150,17 +197,34 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
     const report = (stage, received) => onProgress({ part, stage, received, total: offer.size });
     try {
       await fs.promises.mkdir(root, { recursive: true });
-      report('connecting', 0);
+      const key = temp + '.sha256';
+      const matches = fs.existsSync(key) && fs.readFileSync(key, 'utf8') === offer.sha256;
+      let offset = matches && fs.existsSync(temp) ? fs.statSync(temp).size : 0;
+      if (!matches || offset >= offer.size) {
+        await fs.promises.rm(temp, { force: true });
+        fs.writeFileSync(key, offer.sha256);
+        offset = 0;
+      }
+      report('connecting', offset);
       armTimeout();
-      const response = await retryGitHub(() => openDownload(signal), { signal });
+      const response = await retryGitHub(() => openDownload(signal, offset), { signal });
       if (!response.ok || !response.body) {
         await response.body?.cancel().catch(() => {});
         throw new Error('EMC download refused (HTTP ' + response.status + ')');
       }
+      if (response.status === 206 && response.headers.get('content-range') !== 'bytes ' + offset + '-' + (offer.size - 1) + '/' + offer.size) {
+        await response.body.cancel();
+        await fs.promises.rm(temp, { force: true });
+        throw new Error('Invalid EMC download range');
+      }
+      if (response.status !== 206) offset = 0;
       armTimeout();
-      report('downloading', 0);
-      let size = 0;
+      report('downloading', offset);
+      let size = offset;
       const hash = createHash('sha256');
+      if (offset) {
+        for await (const chunk of fs.createReadStream(temp, { signal })) { hash.update(chunk); armTimeout(); }
+      }
       const check = new Transform({ transform(chunk, _encoding, callback) {
         armTimeout();
         size += chunk.length;
@@ -172,23 +236,25 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
         }
         callback(null, chunk);
       } });
-      await pipeline(Readable.fromWeb(response.body), check, fs.createWriteStream(temp, { flags: 'w' }), { signal });
+      await pipeline(Readable.fromWeb(response.body), check, fs.createWriteStream(temp, { flags: offset ? 'a' : 'w' }), { signal });
       clearTimeout(timer);
       report('verifying', size);
-      if (size !== offer.size || hash.digest('hex') !== offer.sha256) throw new Error('EMC checksum failed');
+      if (size !== offer.size) throw new Error('Incomplete EMC transfer');
+      if (hash.digest('hex') !== offer.sha256) {
+        await fs.promises.rm(temp, { force: true });
+        throw new Error('EMC checksum failed');
+      }
       const next = readPack(temp);
       if (!location.check(next)) throw new Error('This EMC package is incomplete. Ask for a new temporary link.');
       signal.throwIfAborted();
-      await fs.promises.rename(temp, location.path);
-      partFiles.set(part, next);
+      await fs.promises.rename(temp, location.path + '.next');
       return { files: next.length };
     } catch (error) {
       if (stop.signal.aborted) throw new Error('EMC transfer timed out');
       throw error;
     } finally {
       clearTimeout(timer);
-      try { await fs.promises.rm(temp, { force: true }); }
-      finally { installing = false; onProgress(null); }
+
     }
   }
 
@@ -196,8 +262,11 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
     if (installing) throw new Error('An EMC operation is in progress');
     installing = true;
     try {
+      finishCommit();
       for (const [part, location] of Object.entries(locations)) {
-        await fs.promises.rm(location.path, { force: true });
+        for (const suffix of ['', '.next', '.download', '.download.sha256']) {
+          await fs.promises.rm(location.path + suffix, { force: true });
+        }
         partFiles.delete(part);
         mounted = null;
       }
@@ -228,7 +297,7 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
   }
 
   return {
-    install, installFrom, remove, serve, readyPart,
+    install, installFrom, installSet, remove, serve, readyPart,
     ready: () => readyPart('base') && (!requireFaces || readyPart('faces')),
   };
 }
