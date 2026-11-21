@@ -3,7 +3,7 @@ name: 13.11 test client
 on:
   push:
     branches: [13.11-build, codex/1311-launcher-preview]
-    paths-ignore: ['test-channel/13.11-invites.json']
+    paths-ignore: ['test-channel/13.11-invites.json', 'test-channel/13.11-releases.json']
 
 permissions:
   contents: write
@@ -131,3 +131,5 @@ jobs:
           gh release upload $tag --repo $env:RELEASE_REPO @files
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           gh release edit $tag --repo $env:RELEASE_REPO --draft=false --latest=false
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tools/publishTestChannel.mjs

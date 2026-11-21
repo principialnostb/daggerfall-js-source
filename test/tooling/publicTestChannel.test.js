@@ -24,7 +24,7 @@ test('public updates stay available while revocation blocks private access', asy
     net: { fetch: async (url, options) => {
       assert.equal(options?.headers?.Authorization, undefined, 'testers make anonymous requests');
       if (url === 'https://raw.githubusercontent.com/principialnostb/daggerfall-js-source/13.11-build/test-channel/13.11-invites.json') return Response.json(rows);
-      if (url.includes('/releases?')) return Response.json([]);
+      if (url === 'https://raw.githubusercontent.com/principialnostb/daggerfall-js-source/13.11-build/test-channel/13.11-releases.json') return Response.json([{ tag_name: 'dfo-1311-v13.11.23', assets: [] }]);
       throw new Error('Unexpected URL');
     } },
   });
@@ -256,4 +256,29 @@ test('EMC times out before headers and after a stalled body, then allows another
   response = () => new Response(null, { status: 403 });
   await assert.rejects(store.install(offer), /HTTP 403/);
   assert.deepEqual(events, ['connecting', 'done']);
+});
+
+test('a rate-limited tester can discover the game, read notes, find setup and fetch its pack', async (t) => {
+  const root = profile(t);
+  const tag = 'dfo-1311-v13.11.23';
+  const repo = 'principialnostb/daggerfall-js-source';
+  const base = 'https://github.com/' + repo + '/releases/download/';
+  const name = 'DFO-Online-game.pack.1';
+  const calls = [];
+  const auth = channel.publicTestChannel({ userData: root, safeStorage: { isEncryptionAvailable: () => false },
+    net: { fetch: async (url, options) => {
+      calls.push(url);
+      if (url.includes('api.github.com')) return new Response(null, {status:403});
+      if (url.endsWith('/13.11-releases.json')) return Response.json([{ tag_name:tag, body:'Patch notes\n<!-- setup-tag: dfo-1311-v13.11.20 -->',
+        assets:[{id:7, name, size:64, browser_download_url:base + tag + '/' + name}] }]);
+      assert.equal(url, base + tag + '/' + name);
+      assert.equal(options.headers.Range, 'bytes=0-15');
+      return new Response(new Uint8Array(16), {status:206});
+    } } });
+  assert.match((await (await auth.releases()).json())[0].body, /Patch notes/);
+  assert.equal(await auth.setupLink(), base + 'dfo-1311-v13.11.20/DFO-13.11-Setup.exe');
+  const response = await auth.asset('https://api.github.com/repos/' + repo + '/releases/assets/7', {headers:{Range:'bytes=0-15'}});
+  assert.equal(response.status, 206);
+  assert.equal(calls.length, 2);
+  await assert.rejects(auth.authorizeUpdate(), /Activate/);
 });

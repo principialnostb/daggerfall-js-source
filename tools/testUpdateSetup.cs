@@ -206,9 +206,13 @@ internal static class TestUpdateSetup
             try
             {
                 status("Preparing the launcher…");
-                var api = "https://api.github.com/repos/principialnostb/daggerfall-js-source/releases";
-                var list = localAssets == null ? ReleaseAssets(api, config[1], null) : null;
-                var installer = Download(api, list, null, config[2], temp.FullName, localAssets);
+                if (!System.Text.RegularExpressions.Regex.IsMatch(config[1], @"^dfo-1311-v13[.]11[.][0-9]+$"))
+                    throw new IOException("Invalid launcher release tag.");
+                var clientName = "DFO-Test-Build-Client.exe";
+                var list = new Dictionary<string, ReleaseAsset>();
+                list.Add(clientName, new ReleaseAsset { browser_download_url =
+                    "https://github.com/principialnostb/daggerfall-js-source/releases/download/" + config[1] + "/" + clientName });
+                var installer = Download("", list, null, config[2], temp.FullName, localAssets);
                 var start = new ProcessStartInfo(installer, "/S") { UseShellExecute = false };
                 start.EnvironmentVariables["DFO_TEST_MASTER_DESTINATION"] = target;
                 using (var proc = Process.Start(start))

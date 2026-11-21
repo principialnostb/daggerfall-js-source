@@ -60,6 +60,29 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     return response.json();
   }
 
+  // Only the publisher calls the releases API. The static index keeps the same
+  // release rows so both game-only and shell updates use their existing checks.
+  const indexUrl = 'https://raw.githubusercontent.com/' + repository + '/' + branch + '/test-channel/13.11-releases.json';
+  let lastIndex;
+  async function releaseIndex(options) {
+    options?.signal?.throwIfAborted();
+    if (lastIndex && Date.now() - lastIndex.time < 15000) return Response.json(lastIndex.rows);
+    try {
+      const response = await net.fetch(indexUrl, { ...options, headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (response.ok) {
+        const rows = await response.json();
+        if (Array.isArray(rows) && testRelease(rows)) {
+          lastIndex = { rows, time: Date.now() };
+          return Response.json(rows);
+        }
+      }
+    } catch (error) {
+      if (options?.signal?.aborted) throw error;
+    }
+    // Retain the previous route if only the static host is unavailable.
+    return net.fetch(api + '?per_page=100', options);
+  }
+
   async function roster(token) {
     let rows;
     let sha;
@@ -310,7 +333,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
   return {
     action, authorizeUpdate, installDeveloperEmc, repository, page: 'https://github.com/' + repository + '/releases',
     async releases(options) {
-      const response = await net.fetch(api + '?per_page=100', options);
+      const response = await releaseIndex(options);
       if (response.ok) {
         const rows = await response.clone().json();
         publishedAssets = new Map(rows.filter((r) => !r.draft && !r.prerelease && /^dfo-1311-v13\.11\.\d+$/.test(r.tag_name))
@@ -327,7 +350,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
       return net.fetch(download, options);
     },
     async setupLink() {
-      const release = testRelease(await json(await net.fetch(api + '?per_page=100', { signal: AbortSignal.timeout(12000) })));
+      const release = testRelease(await json(await releaseIndex({ signal: AbortSignal.timeout(12000) })));
       const direct = release?.assets?.find((file) => file.name === 'DFO-13.11-Setup.exe')?.browser_download_url;
       if (direct) return direct;
       const tag = /<!-- setup-tag: (dfo-1311-v13\.11\.[1-9]\d*) -->/.exec(release?.body ?? '')?.[1];
