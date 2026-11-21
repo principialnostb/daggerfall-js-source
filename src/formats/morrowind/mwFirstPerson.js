@@ -180,6 +180,7 @@ import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipG
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
 import { batchMoves, posePartBatch, nodeAffineAt, nodeClockAt, clockFor } from './mwPartClock.js';   // MW-BOW1: a part's own clock
 import { applyClimbRig } from '../../combat/climbRig.js';   // CLIMB6: the climb's pose on the rig's own bones
+import { garmentSideBatch } from './mwGarmentMaterials.js';
 import { applyMirrorRig, limbSkeleton, offWeaponBoneAddon, WEAPON_BONE_LEFT_SOURCE, mirrorBindSources } from '../../combat/twoHands/mirrorRig.js';   // TWO-HANDS: the second hand - an arm, or the body, in the mirror; the left hand's weapon bone   // MIRROR-BIND: the skins it is mirrored by
 import { normalizeVfsPath } from './mwTexture.js';
 import { OWN_HEADS, ownFacePools } from '../../characters/ownModels/ownHeadModels.js';   // MW-HEADS1: the port's own heads and hairs - a race's pools where it has them
@@ -2523,7 +2524,9 @@ export function bindPartsInto(assembly, parts) {
       for (let batch of bound.skinned) {
         const nameless = !String(batch.name || '').trim();
         if (nameless && tookNameless) continue;
-        if (geomFilter && !shapeMatchesBone(batch.name, geomFilter)) continue;
+        const sideBatch = part.partName && garmentSideBatch(batch, geomFilter, bound.skinned);
+        if (sideBatch) batch = sideBatch;
+        else if (geomFilter && !shapeMatchesBone(batch.name, geomFilter)) continue;
         // The full-body Better Bodies NIF bypasses ordinary per-slot skin rows.
         // Apply the same worn-slot shadows section-by-section before drawing it.
         if (part.slot === 'betterBodies' && Array.isArray(part.showSlots) && !betterBodiesSectionVisible(batch.name, part.showSlots)) continue;
@@ -2727,6 +2730,7 @@ export function bindPartsInto(assembly, parts) {
         }
       }
     }
+    if (part.model) for (let i = piecesBefore; i < pieces.length; i++) pieces[i].model = part.model;
     if (part.morphSlot || fitSources.length) configureEquipmentFit(pieces.slice(piecesBefore), part, fitSources);
     // And a part that contributed nothing AT ALL with geometry in hand
     // (both sides missed, or an empty mesh) is one sentence, not a hole.

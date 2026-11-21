@@ -13,6 +13,7 @@ import { HAIR_SWATCHES, hairColorMips, hairGeometryKey, selectHairBatches } from
 import { activeAppearanceIdentity, appearanceEditorEnabled } from '../characters/activeAppearance.js';
 import { getBodyMorphs, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { setPlayerBusyProbe } from '../characters/playerBuildHold.js';   // LOAD-STALL 3
+import { texturedPartBytes } from '../formats/morrowind/mwGarmentMaterials.js';
 import { modDiagnostics } from '../systems/modDiagnostics.js';   // MOD-DIAG1: trace cloak resolution through the live third-person build
 // MW-D8: THE MORROWIND FIRST-PERSON ARM, IN THE GAME.
 //
@@ -1657,6 +1658,15 @@ async function cachedClipReport(gen, skeletonPath, name, bytesOf, skeleton) {
 // IG2: decoded-texture memo, same generation key - a steel cuirass's
 // texture does not change because a gauntlet did.
 const TEXTURE_CACHE = new Map();
+const reportedMaterials = new Set();
+function noteMaterialIssue(model, slot, file, message) {
+  const key = JSON.stringify([model, slot, file, message]);
+  if (reportedMaterials.has(key)) return;
+  if (reportedMaterials.size >= 1024) reportedMaterials.delete(reportedMaterials.values().next().value);
+  reportedMaterials.add(key);
+  modDiagnostics.record({ level: 'warn', phase: 'material', action: 'character-material-resolution',
+    modId: 'morrowind-textures', resource: file, message, details: { model, slot } });
+}
 /** SHADOW-FANG (AUDIT D2/E5/F5): THE SKINNED COPIES, module-wide - keyed by the decoded image they paint (a
  *  TEXTURE_CACHE entry's, shared by every rig on the page: this body's and every peer's) and by the skin and its use
  *  (characters/werewolfSkin.js skinUseKey), so a rebuild, a peer's wolf and a second viewer's wolf in the same skin
@@ -2946,7 +2956,9 @@ async function buildTpBody({
       // universal weight-transfer source: nearest-surface skin transfer across
       // the whole body can assign cuirass/glove vertices to leg bones.
       partBytes.push({
-        slot: row.hairMode === 'ears' ? 'ears' : row.slot, partName: row.hairMode ? 'hair' : row.partName, hairMode: row.hairMode, bones: row.bones, bytes: nifBytes(arc, path),
+        slot: row.hairMode === 'ears' ? 'ears' : row.slot, partName: row.hairMode ? 'hair' : row.partName, hairMode: row.hairMode, bones: row.bones, model: path,
+        bytes: await texturedPartBytes(path, archives, arc, nifBytes, parseNifOnce, exists, file =>
+          noteMaterialIssue(path, row.slot, file, 'Used a lower-priority model with available textures')),
         // Simply Animated Cloak has a foreign skin-root frame; retarget its unknown
         // cloak bones to the actor's chest (Bip01 Spine2), preserving the intended
         // attachment behavior from before the later coordinate experiments.
@@ -4817,12 +4829,16 @@ export function collectArmTextures(pieces, archives, gen = null) {
     // memo is safe to share across rebuilds.
     if (gen !== null) {
       const memo = TEXTURE_CACHE.get(`${gen}:${file}`);
-      if (memo) { out.set(file, memo); continue; }
+      if (memo) {
+        if (!memo.ok) noteMaterialIssue(piece.model, piece.slot, memo.path, memo.error);
+        out.set(file, memo); continue;
+      }
     }
     const path = correctTexturePath(file, exists);
     const arc = archives.find((a) => a.has(path));
     if (!arc) {
       const entry = { ok: false, path, error: 'not in your archives', image: warningImage() };
+      noteMaterialIssue(piece.model, piece.slot, path, entry.error);
       out.set(file, entry);
       if (gen !== null) TEXTURE_CACHE.set(`${gen}:${file}`, entry);
       continue;
@@ -4838,6 +4854,7 @@ export function collectArmTextures(pieces, archives, gen = null) {
       if (gen !== null) TEXTURE_CACHE.set(`${gen}:${file}`, entry);
     } catch (err) {
       const entry = { ok: false, path, error: err.message, image: warningImage() };
+      noteMaterialIssue(piece.model, piece.slot, path, entry.error);
       out.set(file, entry);
       // AUDIT 68 S08-fparm-gen-cache-leak: a texture whose load FAILED
       // (a lazy archive that never got the bytes) is not the
