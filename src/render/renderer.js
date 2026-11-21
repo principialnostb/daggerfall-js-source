@@ -144,7 +144,7 @@ ${RW_MAIN_DERIVS}
   else if (vWorldPos.y > uClipY) discard;
   dissolveCut();   // SHIP-FADE: a ship sailing into the world or out of it, her share of her fragments (orderedDither.js)
   vec4 tex = texture(uTex, vUV);
-  if (uFountainTime != 0.0) tex.rgb = fountainWater(vUV, uCamPos - vWorldPos, tex.rgb);
+  if (uFountainFlow.x != 0.0) tex.rgb = fountainWater(vUV, uCamPos - vWorldPos, tex.rgb);
   // INCIDENT 2026-09-04: no alpha clip here - DaggerfallDefault.shader is
   // RenderType Opaque with no clip(); the mortar runs of a wall texture
   // are palette index 0 and were being discarded as cutouts.
@@ -1626,7 +1626,7 @@ export const PANEL_CLEAR_RGBA = Object.freeze([49 / 255, 77 / 255, 121 / 255, 5 
 // c2/S6: the automap's water tint is UnderwaterFog's, not the shader's -
 // see AUTOMAP_WATER_COLOR below for the seam DFU reads it across.
 import { WATER_MAP_COLOR } from './underwaterFog.js';
-import { WATER_SURFACE_VS, waterSurfaceFs } from './waterSurface.js';   // WATER1: the enhanced water pass over the terrain grid
+import { WATER_SURFACE_VS, waterSurfaceFs, waterUniforms } from './waterSurface.js';   // WATER1: the enhanced water pass over the terrain grid
 import { WATER_LAYER_UNITS, WATER_SCENE_UNIT, WATER_SCENE_DEPTH_UNIT, NO_BED_DEPTH, WATER_RIPPLE_UNIT, AURORA_SKY_UNIT } from './waterSurface.js';   // FIELD BUGS 2026-09-29 (the sea) #4: WATER1's offset is the sea's surface film's
 import { waterRowsReach, waterReachHolds, waterSheetBox } from './waterSurface.js';   // the part of the frame a list of water rows can read, the only part copied for it
 import { WATER_BED_GLSL, waterBedMix } from './waterBedGlsl.js';   // WATER-NEXT 2: the ground under the water is a bed
@@ -2570,7 +2570,10 @@ export class Renderer {
     this.uLight3Scale = gl.getUniformLocation(this.program, 'uLight3Scale');
     this.uLight3Color = gl.getUniformLocation(this.program, 'uLight3Color');
     this.uTex = gl.getUniformLocation(this.program, 'uTex');
-    this.uFountainTime = gl.getUniformLocation(this.program, 'uFountainTime');
+    this.uFountainFlow = gl.getUniformLocation(this.program, 'uFountainFlow');
+    this.uBasinZenith = gl.getUniformLocation(this.program, 'uBasinZenith');
+    this.uBasinHorizon = gl.getUniformLocation(this.program, 'uBasinHorizon');
+    this.uBasinWind = gl.getUniformLocation(this.program, 'uBasinWind');
     this.uEmissionTex = gl.getUniformLocation(this.program, 'uEmissionTex');
     this.uEmissionColor = gl.getUniformLocation(this.program, 'uEmissionColor');
     this.uPointCount = gl.getUniformLocation(this.program, 'uPointCount');
@@ -6018,6 +6021,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   }
 
   beginFrame(proj, view, lightDir, opts = null) {
+    this._basinWeather = null;
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
     this._afterFlats = null;   // AUDIT RED-MOUNTAIN N2: an armed draw is its frame's
     const s = this.stats;
@@ -6192,6 +6196,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       haze: Float32Array.from(this._haze),   // BANTHA1: the jungle's haze - the panel's own beginFrame clears it
       seaHaze: Float32Array.from(this._seaHaze),   // AUDIT FAR-SEA1 H1: the panel's own beginFrame clears it, and the open sea draws after a decorator's preview
       ambient: this._ambient,
+      basinSky: this._basinSky,
       // AUDIT-AMAP H5: setLighting's fourth argument defaults to null and
       // forwards to setAmbientTrilight, so a restore that forgot the
       // trilight dropped the dungeon's BA1 sky/ground pair on every pass
@@ -6286,7 +6291,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     this._dwFog.set(s.dwFog);   // DW-C
     this._haze.set(s.haze);   // BANTHA1
     this._seaHaze.set(s.seaHaze);   // AUDIT FAR-SEA1 H1
-    this.setLighting(s.ambient, s.sunScale, s.sunColor);
+    this.setLighting(s.ambient, s.sunScale, s.sunColor, null, s.basinSky);
     this.setAmbientTrilight(s.ambientTri);   // AUDIT-AMAP H5
     this._clockLit = s.clockLit;
     this.setMoonlight(s.moonScale ? { scale: s.moonScale, dir: s.moonDir, color: s.moonColor } : null);
@@ -6498,6 +6503,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     const was = this._rwOutside = {
       lane: this._lane, air: this._air, shadows: this._shadows, frameFbo: this._frameFbo, frameTarget: frameTarget(),
       ambient: this._ambient, ambientTri: this._ambientTri, sunScale: this._sunScale, sunColor: this._sunColor, clockLit: this._clockLit,
+      basinSky: this._basinSky,
       moonScale: this._moonScale, moonDir: [...this._moonDir], moonColor: [...this._moonColor],
       fogMode: this._fogMode, fogDensity: this._fogDensity, fogRange: [this._fogRange[0], this._fogRange[1]], fogColor: this._fogColor,
       windowEmission: this._windowEmission, pointLights: this._pointLights, pointCarried: this._pointCarried, pointColor: this._pointColor, pointColors: this._pointColors,
@@ -6578,7 +6584,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       this._air = was.air; this._shadows = was.shadows;
       if (was.lane) { this._lane = was.lane; this._installWorldSet(this._laneSet); }
       this.setFog(FOG_MODE_NAMES[was.fogMode] ?? 'off', was.fogDensity, was.fogRange[0], was.fogRange[1], was.fogColor);
-      this.setLighting(was.ambient, was.sunScale, was.sunColor);
+      this.setLighting(was.ambient, was.sunScale, was.sunColor, null, was.basinSky);
       this.setAmbientTrilight(was.ambientTri);
       this._clockLit = was.clockLit;
       this.setMoonlight(was.moonScale ? { scale: was.moonScale, dir: was.moonDir, color: was.moonColor } : null);
@@ -6863,7 +6869,9 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   }
 
   /** Time-of-day lighting: ambient color, sun scale, sun color. LA-AUDIT C2: kept, not copied (setPointLights'). */
-  setLighting(ambient, sunScale, sunColor, trilight = null) {
+  setLighting(ambient, sunScale, sunColor, trilight = null, basinSky = null) {
+    this._basinSky = basinSky;
+    this._basinWeather = null;
     this._ambient = ambient;
     this._sunScale = sunScale;
     if (sunColor) this._sunColor = sunColor;
@@ -9534,9 +9542,20 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
         gl.drawElements(gl.LINES, range.count, gl.UNSIGNED_INT, range.start * 4);
         this.stats.draws++;   // F50: every gl.draw* site carries its own count
       } else {
-        if (sm.fountainWater) gl.uniform1f(this.uFountainTime, sm.fountainWater * (1 + this._wlNow * .001));
+        if (sm.fountainWater) {
+          const impact = sm.fountainImpact;
+          if (sm.fountainWater > 0) {
+            const sky = this._basinSky;
+            const weather = this._basinWeather ??= waterUniforms({ sky: sky?.waterSky(), wind: sky?.wind() });
+            gl.uniform3fv(this.uBasinZenith, weather.zenith);
+            gl.uniform3fv(this.uBasinHorizon, weather.horizon);
+            gl.uniform3f(this.uBasinWind, weather.windDir[0], weather.windDir[1], weather.windStrength);
+          }
+          gl.uniform4f(this.uFountainFlow, sm.fountainWater * (1 + this._wlNow * .001),
+            impact?.[0] ?? 0, impact?.[1] ?? 0, sm.fountainShelter ?? 0);
+        }
         gl.drawElements(gl.TRIANGLES, sm.primitiveCount * 3, gl.UNSIGNED_INT, sm.startIndex * 4);
-        if (sm.fountainWater) gl.uniform1f(this.uFountainTime, 0);
+        if (sm.fountainWater) gl.uniform4f(this.uFountainFlow, 0, 0, 0, 0);
         this.stats.draws++;
       }
     }

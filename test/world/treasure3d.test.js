@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getPref, setPref } from '../../src/systems/uiPrefs.js';
+import { isDrySourceFlat, isWaterSourceFlat } from '../../src/systems/survival/items.js';
 import { RANDOM_TREASURE_ICONS } from '../../src/systems/loot/lootDataTables.js';
 import { dungeonRemainsKind, dungeonRemainsVariant } from '../../src/world/dungeonRemainsModel.js';
 import { footprintBlockPixels } from '../../src/render/charPixelLayer.js';
 import { buildTreasureModel, hasTreasureModel, selectTreasureAppearance } from '../../src/world/treasureModel.js';
 import { acquireTreasureModel, drawTreasurePiles, markDungeonProp, markTreasurePile, releaseTreasureModel, releaseTreasurePile } from '../../src/render/treasurePiles.js';
-import { drawPlacedFurnishings, markPlacedFurnishing, placedFurnishingModels, releasePlacedFurnishing } from '../../src/render/furnishingMorrowind.js';
+import { drawPlacedFurnishings, markPlacedFurnishing, placedFurnishingModels, placedWaterSourceGrass, releasePlacedFurnishing } from '../../src/render/furnishingMorrowind.js';
 
 test('dungeon treasure rolls stay in the approved set and preserve approved appearances', () => {
   const approved = [0, 20, 22, 24, 25, 30, 37, 43, 45, 46, 47];
@@ -208,6 +209,90 @@ test('both waterside flats draw three-dimensional racks with the authored height
   }
   assert.ok(draws[1].mesh.indices.length > draws[0].mesh.indices.length);
   for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+});
+
+test('the courtyard fountain animates its two streams and keeps its original placement', () => {
+  const draws = [], destroyed = [], paints = new Set();
+  const renderer = {
+    createMesh: data => data,
+    drawMesh: (mesh, pose) => draws.push({ mesh, pose }),
+    destroyMesh: mesh => destroyed.push(mesh),
+    uploadTexture: (archive, record) => paints.add(archive + ':' + record),
+    releaseTexture: (archive, record) => paints.delete(archive + ':' + record),
+  };
+  const batches = [2, 4].map(record => markPlacedFurnishing({
+    archive: 212, record, vao: {}, size: { w: 1.95, h: 1.6 }, origin: [10, 2, -4],
+  }, [[3, .25, 8]]));
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel), [batches[1]]);
+  assert.equal(draws.length, 1);
+  const [{ mesh, pose }] = draws;
+  assert.equal(mesh.pixelKind, 'objects');
+  assert.deepEqual(Array.from(pose.slice(12, 15)), [13, 2.25, 4]);
+  const ys = mesh.positions.filter((_, i) => i % 3 === 1);
+  assert.equal(Math.min(...ys), 0);
+  assert.equal(Math.max(...ys), 1);
+  assert.ok(mesh.normals.every((n, i) => i % 3 !== 0 || Math.hypot(n, mesh.normals[i + 1], mesh.normals[i + 2]) > .99));
+  assert.deepEqual(mesh.subMeshes.map(slot => slot.fountainWater ?? 0).sort(), [-1, 0, 0, 0, 1]);
+  const water = mesh.subMeshes.filter(slot => slot.fountainWater);
+  assert.deepEqual(water[0].fountainImpact, water[1].fountainImpact);
+  assert.ok(Math.hypot(...water[0].fountainImpact) > .6 && Math.hypot(...water[0].fountainImpact) < .7);
+  assert.equal(new Set(mesh.subMeshes.filter(slot => !slot.fountainWater).map(slot => slot.textureRecord)).size, 1);
+  assert.ok(mesh.subMeshes.every(slot => paints.has(slot.textureArchive + ':' + slot.textureRecord)));
+  for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+  assert.deepEqual(destroyed, [mesh]);
+  assert.equal(paints.size, 0);
+});
+
+test('remaining water-source flats keep their interaction and draw the fitted 3D props', () => {
+  const draws = [], destroyed = [];
+  const renderer = {
+    createMesh: data => data,
+    drawMesh: (mesh, pose) => draws.push({ mesh, pose }),
+    destroyMesh: mesh => destroyed.push(mesh),
+    uploadTexture() {}, releaseTexture() {},
+  };
+  const sizes = [[0, 79, 107], [3, 78, 64], [8, 26, 51], [9, 26, 51]];
+  const batches = sizes.map(([record, w, h]) => markPlacedFurnishing({
+    archive: 212, record, vao: {}, size: { w: w / 40, h: h / 40 }, origin: [20, 4, -10],
+  }, [[2, .5, 7]]));
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel), []);
+  assert.equal(draws.length, 4);
+  assert.deepEqual(sizes.map(([record]) => isWaterSourceFlat(212, record)), [true, false, true, true]);
+  assert.deepEqual(sizes.map(([record]) => isDrySourceFlat(212, record)), [false, true, false, false]);
+  for (let i = 0; i < draws.length; i++) {
+    const { mesh, pose } = draws[i], { w, h } = batches[i].size;
+    assert.deepEqual(Array.from(pose.slice(12, 15)), [22, 4.5, -3]);
+    assert.ok(Math.abs(pose[0] - w) < 1e-6 && Math.abs(pose[5] - h) < 1e-6);
+    assert.equal(mesh.pixelKind, 'objects');
+    assert.ok(mesh.positions.every(Number.isFinite));
+    const ys = mesh.positions.filter((_, n) => n % 3 === 1);
+    assert.equal(Math.min(...ys), 0);
+    assert.equal(Math.max(...ys), 1);
+  }
+  const [well, dry, copper, iron] = draws.map(({ mesh }) => mesh);
+  assert.ok(well.subMeshes.length >= 5);
+  const pool = well.subMeshes.find(slot => slot.fountainWater === 1);
+  assert.equal(pool.fountainShelter, .72);
+  const rimUV = well.uvs.slice(pool.startIndex * 2 + 2, pool.startIndex * 2 + 4);
+  assert.ok(Math.abs(Math.hypot(...rimUV) - 1) < 1e-6);
+  assert.equal(dry.subMeshes.some(slot => slot.fountainWater || slot.textureRecord === 132), false);
+  assert.deepEqual(copper.positions, iron.positions);
+  assert.notDeepEqual(copper.subMeshes.map(slot => slot.textureRecord), iron.subMeshes.map(slot => slot.textureRecord));
+  for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+  assert.equal(destroyed.length, 4);
+});
+
+test('grass stays out of water bowls including the space needed for leaning blades', () => {
+  const make = record => markPlacedFurnishing({
+    archive: 212, record, size: { w: 2, h: 2 }, origin: [90, 0, 90],
+  }, [[8, 0, 10]]);
+  const well = placedWaterSourceGrass([make(0)]);
+  assert.equal(well(8, 10), true);
+  assert.equal(well(9.15, 10), true);
+  assert.equal(well(10.5, 10), true);
+  assert.equal(well(11, 10), false);
+  assert.equal(placedWaterSourceGrass([make(3)])(9.4, 10), true);
+  assert.equal(placedWaterSourceGrass([make(8)]), null);
 });
 
 test('water racks fit each post to the active floor and keep the deck when the terrain changes ring', () => {

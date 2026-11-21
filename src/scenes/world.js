@@ -31626,7 +31626,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     const frameLighting = () => {   // PERF-V8
     renderer.setLighting(
       canopyLight(etherLight(sdBrassLight(sunbabyLight(dreadLight(withMoonAmbient(exteriorAmbient(minute, getFloat('Enhancements', 'NightAmbientLightScale', 0, 1), wxNow.sun), moonNow), skyDreadW), sunbabyW, sunbabyFace.evil), sdAirW), etherAirW), jungle?.canopy), sunScale(minute) * wxNow.sun * flash * sky.sunFactor() * (1 - DREAD_KEY_DIM * skyDreadW) * canopyKey(jungle?.canopy),   // VALENWOOD-CANOPY: under a closed canopy the ambient dimmed and greened, the key taken   // EVENT1: the land under the dread's light; SUNBABY1: lifted toward noon's under the sun baby (SUNBABY2: reddened under its wrath)   // ES1d: the cloud in front of the sun takes the KEY light (never the ambient - the sky still lights the ground); WX2: the scale is the front's
-      canopyLight(etherLight(sdBrassLight(sunbabyKey(dreadLight(SUN_RIG_COLOR, skyDreadW), sunbabyW, sunbabyFace.evil), sdAirW), etherAirW, ETHER_KEY_TINT), jungle?.canopy, 0));   // VALENWOOD-CANOPY: the key leaned green through the leaves (its strength is the scale's)   // SUNBABY2: the key reddened under the wrath; SD19: brass near a Hollow
+      canopyLight(etherLight(sdBrassLight(sunbabyKey(dreadLight(SUN_RIG_COLOR, skyDreadW), sunbabyW, sunbabyFace.evil), sdAirW), etherAirW, ETHER_KEY_TINT), jungle?.canopy, 0), null, sky);   // VALENWOOD-CANOPY: the key leaned green through the leaves (its strength is the scale's)   // SUNBABY2: the key reddened under the wrath; SD19: brass near a Hollow
     };
     frameLighting();
     // DW-C: the distance fog's own "under" (UnderwaterDistanceFog.TryGetUnderwaterPresentation) - the surfaces'
@@ -32575,7 +32575,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
       const _bare = riteHost?.clearing() ?? starfall?.clearing() ?? passSeason?.clearing() ?? null;   // AUDIT WB12d (G2): the faithful's burned earth, this frame; STAR4: or a star's crater (a star never falls beside the gate)
       const keep = (x, z, floor = false) => {   // BANTHA2: `floor` the jungle floor's keep - its records (grass and dirt), and the meadow kept out of every point it claims
         const hit = pieceAt(x, z);
-        if (!hit) return null;
+        if (!hit || hit.p.waterSourceGrass?.(x - hit.t[0], z - hit.t[2])) return null;
         const { p, t, grass } = hit;
         const lx = x - t[0]; const lz = z - t[2];
         const tx = Math.floor(lx / 6.4); const tz = Math.floor(lz / 6.4);

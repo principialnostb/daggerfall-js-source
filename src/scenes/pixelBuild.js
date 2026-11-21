@@ -3,7 +3,7 @@
 // settled names by value at construction, every live one (a `let` someone writes, a `const` made below) read at its
 // use as `host.<name>` - as the code read them where it was.
 import { streetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
-import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
+import { markPlacedFurnishing, placedWaterSourceGrass } from '../render/furnishingMorrowind.js';
 import { ANIMAL_SOUND_BY_RECORD, ANIMALS_ARCHIVE } from '../systems/soundClips.js';
 import { applyClimate, getNatureArchive, getTerrainGroundArchive, INTERIOR_SEASON, SEASON, winterSetSnowless } from '../world/climateSwaps.js';
 import { SEA_LEVEL_M } from '../systems/weather/airTemperature.js';   // PRECIP4: heights above the sea, the snow's
@@ -1528,6 +1528,7 @@ export function createPixelBuild(host) {
       // its groups stood and the cover it keeps (the jungle's, the scaled flats'), its trees, its roads and its middle's
       // ground; `_skinGen` counts its re-skins (a yard stands its pieces again in the new season - scenes/homeYards.js)
       _skin: snowSeen ? { log: flatLog, blocks: skinBlocks, statics: remapAsked(texRemap) ? statics : null, batches: groupBatches, forest: groupForest, cover: coverItems.slice(groupCover), trees: pixelTrees, vergeNet, groundMid, usesSeason: models.length > 0 || dfLocation != null, climate, coverT } : null,
+      waterSourceGrass: labGrass ? placedWaterSourceGrass(batches) : null,
       _skinGen: 0,
       townClimate: townClimateBase,   // DECOR-OUTDOOR: the climate its town's buildings wear - a yard's pieces wear it too (scenes/homeYards.js)
       paths,   // GRASS-PATH1: which tiles the road painter wrote; null on a pixel built before the network arrived

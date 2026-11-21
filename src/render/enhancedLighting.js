@@ -654,7 +654,7 @@ ${RW_MAIN_DERIVS}
   else if (vWorldPos.y > uClipY) discard;
   dissolveCut();   // SHIP-FADE: a ship sailing into the world or out of it, her share of her fragments (orderedDither.js)
   vec4 tex = texture(uTex, vUV);
-  if (uFountainTime != 0.0) tex.rgb = fountainWater(vUV, uCamPos - vWorldPos, tex.rgb);
+  if (uFountainFlow.x != 0.0) tex.rgb = fountainWater(vUV, uCamPos - vWorldPos, tex.rgb);
 ${RW_MAIN_CUTOUT}
   vec3 n = normalize(vNormal);
   // PERF-SUN2 (2026-09-19, Mac: "over 1000 calls and looking up in the sky

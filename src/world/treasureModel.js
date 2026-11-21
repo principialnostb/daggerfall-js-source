@@ -1,5 +1,6 @@
 import { MeshBench, box, prism } from './ships/galleonMesh.js';
 import { dfLook } from './dfLook.js';
+import { placedWaterSourcePaints } from './placedWaterSources.js';
 import { WORKSHOP_WOOD, workshopWoodPaints } from './dungeonWorkshopWood.js';
 import { SLAB_STONE, slabStonePaint } from './dungeonSlabStone.js';
 import { STAINED_PRESS_IRON, STAINED_TABLE_STONE, stainedTablePaint } from './dungeonTortureTable.js';
@@ -77,6 +78,7 @@ export function treasurePaints() {
   paints[FURNISHING_PAINT.shoreStone] = slabStonePaint([58, 56, 48]);
   paints[STAINED_TABLE_STONE] = stainedTablePaint();
   paints[STAINED_PRESS_IRON] = stainedTablePaint(true);
+  for (const [record, paint] of placedWaterSourcePaints()) paints[record] = paint;
   return paints;
 }
 

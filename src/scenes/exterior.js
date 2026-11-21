@@ -5838,7 +5838,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     renderer.setMoonlight(moonNow);
     renderer.setLighting(
       withMoonAmbient(exteriorAmbient(minute, getFloat('Enhancements', 'NightAmbientLightScale', 0, 1), wxNow.sun), moonNow), sunScale(minute) * wxNow.sun * flash * sky.sunFactor(),   // ES1d: the cloud in front of the sun takes the KEY light (never the ambient - the sky still lights the ground); WX2: the scale is the front's
-      new Float32Array(SUN_RIG_COLOR));
+      new Float32Array(SUN_RIG_COLOR), null, sky);
     // R12: the player-following indirect point light (SunlightRig) -
     // intensity x the daylight curve, weather-dimmed with the rig,
     // off at night; positioned at the player (the eye here - the

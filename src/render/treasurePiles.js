@@ -1,6 +1,7 @@
 import { buildTreasureModel, hasTreasureModel, treasurePaints, treasurePixelProfile, TREASURE_ART } from '../world/treasureModel.js';
 import { buildDungeonChain, dungeonChainKind, isDungeonChainKind } from '../world/dungeonChainModel.js';
 import { buildWaterRack, isWaterRack } from '../world/waterRack.js';
+import { buildPlacedWaterSource, isPlacedWaterSource } from '../world/placedWaterSources.js';
 import { buildDungeonColumn, dungeonColumnKind, isDungeonColumnKind } from '../world/dungeonColumnModel.js';
 import { buildBrokenDungeonCage } from '../world/dungeonCageModel.js';
 import { buildDungeonSarcophagus, CLOSED_SARCOPHAGUS_SHELL, isVioletSarcophagusShell, VIOLET_SARCOPHAGUS_REMAINS } from '../world/dungeonSarcophagus.js';
@@ -73,6 +74,7 @@ export function acquireTreasureModel(renderer, record, remains = null, authored 
       : isVioletSarcophagusShell(record) ? buildDungeonSarcophagus(TREASURE_ART, record)
       : record === 'coffin-shell' ? buildDungeonSarcophagus(TREASURE_ART)
       : isWaterRack(record) ? buildWaterRack(TREASURE_ART, record)
+      : isPlacedWaterSource(record) ? buildPlacedWaterSource(TREASURE_ART, record)
       : isDungeonFurnishing(record) ? buildDungeonFurnishing(TREASURE_ART, record)
       : isDungeonCaveProp(record) ? buildDungeonCaveProp(TREASURE_ART, record)
       : typeof record === 'string' ? buildDungeonRemains(TREASURE_ART, record, remains.parts) : buildTreasureModel(record));

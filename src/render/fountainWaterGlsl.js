@@ -1,23 +1,45 @@
-// Coordinates are local to each basin, including the small upper dishes.
+import { SEA_LOOK_GLSL } from './horizonHaze.js';
+import { POND_SURFACE_GLSL } from './pondSurfaceGlsl.js';
+
 export const FOUNTAIN_WATER_GLSL = `
-uniform float uFountainTime;
+uniform vec4 uFountainFlow;
+uniform vec3 uBasinZenith;
+uniform vec3 uBasinHorizon;
+uniform vec3 uBasinWind;
+${SEA_LOOK_GLSL}
+${POND_SURFACE_GLSL}
+
 vec3 fountainWater(vec2 p, vec3 eye, vec3 bed) {
-  if (uFountainTime < 0.0) {
-    float streak = sin(p.y * 33.0 + uFountainTime * 8.0 + p.x * 1.6);
-    return mix(vec3(0.40, 0.59, 0.61), vec3(0.72, 0.82, 0.82), streak * 0.5 + 0.5);
+  float time = uFountainFlow.x;
+  vec2 impact = uFountainFlow.yz;
+  float shelter = uFountainFlow.w;
+  if (time < 0.0) {
+    float strand = sin(floor(p.y * 19.0) * 1.2 + time * 5.0 + p.x * 0.7);
+    return mix(vec3(0.26, 0.38, 0.37), vec3(0.55, 0.66, 0.64), 0.43 + strand * 0.15);
   }
-  float t = uFountainTime;
-  float radius = length(p);
-  float crossWave = sin(p.x * 19.0 + p.y * 11.0 + t * 1.4);
-  float drift = sin(p.y * 24.0 - p.x * 9.0 - t * 1.1);
-  float fine = sin(p.x * 37.0 - p.y * 63.0 + t * 1.7 + 1.5 * drift);
-  float ripple = sin(radius * 49.0 - t * 3.6 + 0.8 * crossWave + 0.45 * fine);
-  float crest = smoothstep(0.77, 1.0, ripple) * smoothstep(0.0, 0.95, crossWave + drift * 0.65 + fine * 0.7);
-  float grazing = 1.0 - clamp(abs(eye.y) / max(length(eye), 0.001), 0.0, 1.0);
-  float shallow = smoothstep(0.55, 0.96, radius);
-  vec3 base = mix(vec3(0.19, 0.34, 0.37), vec3(0.34, 0.47, 0.47), shallow);
-  base += (dot(bed, vec3(0.30, 0.59, 0.11)) - 0.45) * (0.06 + 0.12 * shallow);
-  base += vec3(0.022, 0.031, 0.034) * (0.6 * drift + 0.6 * fine + ripple);
-  return mix(base, vec3(0.64, 0.76, 0.77), grazing * grazing * 0.36 + crest * 0.30);
+  vec2 footprint = fwidth(p);
+  float detail = 1.0 - smoothstep(0.022, 0.11, max(footprint.x, footprint.y));
+  float shore = smoothstep(0.54, 1.0, length(p));
+  vec3 waves = pondRipples(p * 2.35, time, uBasinWind.xy,
+    uBasinWind.z * (1.0 - shelter), detail * (1.0 - shelter * 0.67));
+  vec3 view = eye / max(length(eye), 1e-4);
+  vec3 normal = normalize(vec3(-waves.x, 1.0, -waves.y));
+  float ndv = clamp(dot(normal, view), 0.0, 1.0);
+  vec4 reflection = pondReflection(reflect(-view, normal), ndv,
+    uBasinZenith, uBasinHorizon, seaFresnel(ndv, 0.02), waves.z);
+  // Small bowls use a radial depth tint and leave their stone in the opaque pass.
+  vec3 body = mix(vec3(0.105, 0.22, 0.22), vec3(0.24, 0.36, 0.33), shore * 0.79);
+  body += (dot(bed, vec3(0.30, 0.59, 0.11)) - 0.27) * (0.07 + shore * 0.15);
+  vec3 water = mix(body, reflection.rgb, reflection.a * (1.0 - shelter * 0.72));
+  if (dot(impact, impact) > 0.0) {
+    vec2 texel = (floor(p * 54.0) + 0.5) / 54.0;
+    float dist = min(length(texel - impact), length(texel + impact));
+    float ring = sin(dist * 82.0 - time * 4.6);
+    float crest = smoothstep(0.57, 0.96, ring) * (1.0 - smoothstep(0.025, 0.14, dist));
+    float foam = step(0.40, sin(texel.x * 726.0 + texel.y * 394.0 + time * 4.1))
+      * (1.0 - smoothstep(0.008, 0.049, dist));
+    water = mix(water, vec3(0.59, 0.67, 0.64), (crest * 0.31 + foam * 0.26) * detail);
+  }
+  return water;
 }
 `;

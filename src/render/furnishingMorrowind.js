@@ -5,6 +5,10 @@ import { sphereInPlanes, spherePlanes } from './bounds.js';
 import { TOWN_CLUTTER, TOWN_CLUTTER_ARCHIVE, TOWN_ITEMS } from '../world/townStandIns.js';
 import { DET_FLAT_STAND_INS } from '../world/detStandIns.js';
 import { isWaterRack, rackFootHeights } from '../world/waterRack.js';
+import { isPlacedWaterSource, WELL_RIM_RADIUS } from '../world/placedWaterSources.js';
+import { MEADOW_REACH, MEADOW_WIND_REACH } from './grassMeadow.js';
+import { heightFloor, heightSpan } from './labGrass.js';
+import { LAB_WIND_RATE, WIND_SLIDER_MAX } from '../systems/wind/windDrive.js';
 
 const placedFurnishings = new WeakMap();
 
@@ -165,7 +169,7 @@ export function placedFurnishingModels(batch) {
   const record = `${archive}:${index}`;
   return {
     spec: placedModels.get(record) ?? furnishings.get(record),
-    lowPoly: placedLowPoly.has(record) || isWaterRack(record) ? record : null,
+    lowPoly: placedLowPoly.has(record) || isWaterRack(record) || isPlacedWaterSource(record) ? record : null,
     alternate: placedAlternates.get(record),
     maxLength: tabletopLengths.get(record) ?? storageLengths.get(record),
     tabletopPixels: tabletopLengths.has(record),
@@ -199,6 +203,22 @@ export function markPlacedFurnishing(batch, centers, readPondFloor = null) {
     });
   }
   return batch;
+}
+
+const GRASS_SWAY_REACH = (heightFloor() + heightSpan()) * (MEADOW_REACH + MEADOW_WIND_REACH * LAB_WIND_RATE * WIND_SLIDER_MAX);
+
+// Take the same authored centres and width as the drawn replacement.
+export function placedWaterSourceGrass(batches) {
+  const bowls = [];
+  for (const batch of batches) {
+    const entry = placedFurnishings.get(batch);
+    const rim = entry?.lowPoly === '212:0' ? WELL_RIM_RADIUS
+      : entry?.lowPoly === '212:2' || entry?.lowPoly === '212:3' ? .5 : 0;
+    if (!rim) continue;
+    const radius = rim * batch.size.w * entry.fit + GRASS_SWAY_REACH;
+    for (const { x, z } of entry.placements) bowls.push({ x, z, radius2: radius * radius });
+  }
+  return bowls.length ? (x, z) => bowls.some(bowl => (x - bowl.x) ** 2 + (z - bowl.z) ** 2 <= bowl.radius2) : null;
 }
 
 export function markDroppedTorchModel(batch, item) {

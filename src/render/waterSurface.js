@@ -33,6 +33,7 @@
 // the bilinear blend of its corners - the diagonal the shore tile's own
 // art follows - feathered by SHORE_SOFTNESS.
 import { POND_DEPTH_OFFSET, WATER_DRAW_MASK_TABLE } from '../world/water/waterCorners.js';
+import { POND_SURFACE_GLSL } from './pondSurfaceGlsl.js';
 import { snowCoreGlsl } from './snowCoverGlsl.js'; // AUDIT PRECIP GROUND-5: the ground's snow, for a puddle's mask under it
 import { PUDDLE_RECORDS } from '../world/puddleMask.js'; // WATER-PUDDLE: the records whose water is their art's   // MAC2: the corner table is a leaf the player's feet share; WATER-DRAW1: the DRAW's half of it - the feet's is the law's own table, and the two are not the same question
 import { WIND_ROW_CALM, WIND_ROW_SPAN } from '../systems/wind/wind.js';
@@ -515,12 +516,7 @@ vec2 waveGradient(vec2 p, float t, float dist) {
   return g;
 }
 // WATER-NEXT 3: the foam's lace - a value noise, two octaves
-float hash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-float vnoise(vec2 p) {
-  vec2 i = floor(p), f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x), mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y);
-}
+${POND_SURFACE_GLSL}
 uniform float uPondBlock;
 float lace(vec2 p, float t) {
   vec2 drift = uWindDir * t * 0.35;
@@ -596,17 +592,9 @@ void main() {
   if (vPond > 0.5) {
     vec2 p = vLocalXZ + pondOffset;
     float reach = 1.0 - smoothstep(18.0, 45.0, dist);
-    vec2 drift = uWindDir * (0.32 * uTime);
-    float a = vnoise(p * vec2(1.4, 4.2) - drift);
-    float b = vnoise(p * vec2(2.8, 1.1) + drift.yx + vec2(7.1, 3.4));
-    vec2 axis = normalize(vec2(0.42, 0.91) + 0.42 * uWindDir);
-    float phase = 8.5 * dot(p, axis) - uTime * (1.35 + 0.55 * uWindStrength);
-    float ripplePatch = vnoise(p * 0.76 + vec2(0.7, -2.3) - drift * 0.23);
-    float face = cos(phase + 3.4 * b + 5.0 * ripplePatch);
-    float crest = face * smoothstep(0.26, 0.73, a) * (0.38 + 0.62 * ripplePatch);
-    // Short sky-facing facets break up the reflection over the deeper bowl.
-    pondFacet = reach * smoothstep(0.74, 0.97, face) * smoothstep(0.38, 0.69, a) * (0.42 + 0.58 * ripplePatch);
-    g += reach * ((0.18 + 0.12 * uWindStrength) * axis * crest + 0.10 * (vec2(a, b) - 0.5));
+    vec3 ripples = pondRipples(p, uTime, uWindDir, uWindStrength, reach);
+    g += ripples.xy;
+    pondFacet = ripples.z;
     body = mix(vec3(0.18, 0.30, 0.30), body, 0.08);
   }
   // WATER-NEXT 4: the bodies' rings and wakes - the ripple field's slope, faded at its edge
@@ -628,15 +616,9 @@ void main() {
   vec3 R = reflect(-V, n);
   vec3 skyRefl = seaSkyRefl(R.y, uSkyZenith, uSkyHorizon);
   if (vPond > 0.5) {
-    // A broad patch of sky stays visible at a grazing angle. Tilted ripple
-    // faces vary its brightness, using the current sky even at dusk.
-    float skyBand = smoothstep(-0.07, 0.41, R.y);
-    vec3 sky = mix(uSkyHorizon, skyRefl, 0.52);
-    skyRefl = mix(vec3(dot(sky, vec3(0.30, 0.59, 0.11))), sky, 0.56)
-      * mix(0.63, 1.0, skyBand);
-    F = max(F, mix(0.14, 0.30, skyBand) * (1.0 - 0.28 * NdV));
-    F = mix(F, 0.74, pondFacet);
-    skyRefl = mix(skyRefl, uSkyHorizon, 0.55 * pondFacet);
+    vec4 reflection = pondReflection(R, NdV, uSkyZenith, uSkyHorizon, F, pondFacet);
+    skyRefl = reflection.rgb;
+    F = reflection.a;
   }
   // SKYRIM-AURORA: the aurora in the water, by the reflected ray (an explicit level: the flow here is not uniform), at the
   // water's Fresnel or AURORA_MIRROR, the more - added as the glints are, below
