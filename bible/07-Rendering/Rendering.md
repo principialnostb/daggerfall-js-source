@@ -78,6 +78,10 @@ Both terrain programs (classic and lane) are built from shared GLSL chunks, each
 - **Filtering.** The ground's tile array is mipped on both lanes, as DFU mips terrain. **Ground sharpness**
   (`groundSharpness`): Off (point over the chain), Default (4x anisotropy), Maximum.
 
+### Small forms in exterior terrain
+
+`src/world/terrain/groundRelief.js` shapes selected near-ground tiles from their grass, dirt, shore and rock corners. World-coordinate patches leave open ground between groups. Meadow hummocks have broad backs. Transition shelves turn their sharper sides towards bare soil or rock, with the exposed face taking that climate's ground art. The path mask leaves painted routes clear. The additions share the terrain draw, sun and seasonal cover. Walk heights use the original triangles. The streamed world and fixed exterior use the same rule. `?groundrelief=off` shows the underlying surface.
+
 ### Wind, grass and the sky
 
 - **Wind** (`src/systems/wind/wind.js`, `windDrive.js`) is its own model in game minutes: a calm a day, a front at each

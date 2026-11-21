@@ -25,6 +25,7 @@ import { generateSamples, ghostSampler, HEIGHTMAP_DIMENSION } from './terrainSam
 import { CAPITAL_SEA_FLAT, capitalSeaGround } from './capitalSea.js';   // RUMARE-WATER: a capital at the sea, its water the sea's
 import { reliefFlat, capitalReliefGround } from './capitalRelief.js';   // SOLITUDE-RELIEF: a capital on a relief of its own
 import { buildTerrainGrid, convertTilemap } from './terrainSurface.js';
+import { restorePondCrossings } from '../water/pondCrossings.js';
 import { assignTiles, blendLocationTerrain, calcAvgMaxHeight, generateTileData, townGroundMask, unstampOffShape, townRoadRing } from './terrainTiles.js';
 import { townGroundMaskBefore } from './townBlendBefore.js';   // FB1028 YARDS Y2: the yards' ground as #1184 drew it
 import { layoutNature, layoutLandProps } from './terrainNature.js';
@@ -121,7 +122,7 @@ export const meetsOf = (meets, landforms) => (meets?.length ? meets.map((m) => (
  *  ACROSS-EDGE the meets they took, which its ghost rows take too - one place, so no grid job leaves them behind. */
 export const gridGround = (p) => ({ px: p.px, py: p.py, samples: p.samples, meets: p.meets ?? null });
 
-export function generatePixelTerrain({ woods, px, py, stride = 1, tilemap, locationRect = null, hasLocation = false, climateType, roads = null, sites = null, beyond = null, climates = null, wod = null, forests = null, landform = false, ecotone = null, bed = false, flattenAt = null, jungle = null, lands = null, about = null }) {
+export function generatePixelTerrain({ woods, px, py, stride = 1, tilemap, pondsOn = true, locationRect = null, hasLocation = false, climateType, roads = null, sites = null, beyond = null, climates = null, wod = null, forests = null, landform = false, ecotone = null, bed = false, flattenAt = null, jungle = null, lands = null, about = null }) {
   // LANDFORM1-3: built from the network THIS kernel holds - the one the painter below paints - so the cut and the paint
   // are the same roads; restrideGrid's ghost rows take the same landforms, so the edge normals read the shaped ground.
   // LANDFORM4: and the sites this kernel holds (landforms.js landformSites, the client's to hand both threads); LANDFORM6:
@@ -173,6 +174,7 @@ export function generatePixelTerrain({ woods, px, py, stride = 1, tilemap, locat
   // road tile lands over a known ground type and the marching squares
   // blend around it. `roads` is null in a solo build with no network
   // loaded and the pipeline is then byte-for-byte what it was.
+  const pondStamp = pondsOn && bed && hasLocation ? tilemap.slice() : null;
   const tileData = generateTileData(classic ?? samples, px, py);
   // GRASS-PATH1: the painter's own record of which tiles it wrote, so
   // the grass placer can keep off a path it cannot name by record.
@@ -245,6 +247,7 @@ export function generatePixelTerrain({ woods, px, py, stride = 1, tilemap, locat
   const wodResult = wod && wod.picks.length ? applyPicks(samples, wod.picks, hasLocation ? avg : 0) : null;
   if (classic && wodResult) applyPicks(classic, wod.picks);   // AUDIT LANDFORMS II H2: DFU's nature reads the ground a site levelled (above) - so the beach it asks is DFU's own samples levelled by the same picks
   const tilemapBytes = convertTilemap(tilemap);
+  restorePondCrossings(pondStamp, tilemap, tilemapBytes, paths, yardPaths, samples);
   // PERF-EXT26: the one grid law, the restride's too; AUDIT WATER-NEXT P1: and the bed under its water, carved here
   const grid = restrideGrid({ woods, px, py, stride, samples, landforms, bed: bed ? tilemapBytes : null, meets: meetsOf(meets, landforms) });
   // FOREST1's places - the location (hidden or not, as the caller says) and every World of Daggerfall SITE (the loader's

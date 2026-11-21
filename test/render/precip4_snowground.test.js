@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { glslFunctions } from '../glsl.mjs';
 import { snowCoverGlsl, snowCoreGlsl, snowCoverAt, SNOW_GROUND, TWIN_LAYERS, SNOW_LINES_UNIT, SNOW_TILE_ROW0, SNOW_TILE_M } from '../../src/render/snowCoverGlsl.js';
 import { SNOW_VS, snowTerrainFs } from '../../src/render/snowfallGlsl.js';
+import { groundFinishGlsl } from '../../src/render/groundFinishGlsl.js';
 import { ecotoneGlsl } from '../../src/render/ecotoneGlsl.js';
 import { coverAtHeight, SNOWPACK, latticeKey } from '../../src/systems/weather/snowpack.js';
 import { createSnowCoverHost, SNOW_COVER, twinKey, twinLayers, flatDraw } from '../../src/scenes/snowCoverHost.js';
@@ -173,7 +174,11 @@ test('PRECIP4 BOTH TERRAIN PROGRAMS: the border\'s weights once, the snow\'s cov
     // steep face over the cap's line is rock (render/snowCapGlsl.js); the cover is still read once, after the border
     // PIN MOVED (COAST-LOOK, render/groundEdgeGlsl.js): the border's share is a transition's two kinds' or the tile's, and
     // the snow's winter twin by the same - each kind's record at its share
-    assert.match(fs, /\n {2}vec4 ew = ecoWeights\(vLocalXZ\);[^\n]*\n {2}if \(ge\) tex = mix\(ecotone\([^\n]*\n {2}tex = roadEdge\([^\n]*\n {2}if \(!ge\) tex = ecotone\(tex, ew, vec3\(tuv, float\(layer\)\), gx, gy\);[^\n]*\n {2}float snowC = snowCover\(vLocalXZ, vWorldPos\.y, gx, gy\);[^\n]*\n {2}snowC = snowFace\(tex, snowC, vLocalXZ, vWorldPos\.y, normalize\(vNormal\), tuv, gx, gy\);[^\n]*\n {2}tex = ge \? mix\(snowGround\(tex, ew, snowC, vec3\(tileUV, float\(geA\)\), dux, duy\), snowGround\(tex, ew, snowC, vec3\(tileUV, float\(geB\)\), dux, duy\), geS\) : snowGround\(tex, ew, snowC, vec3\(tuv, float\(layer\)\), gx, gy\);\n/, `${name}: after the border`);
+    // Compare the same layer sequence in the source template and its expanded lighting lane.
+    const finish = name === 'classic' ? '${groundFinishGlsl}' : groundFinishGlsl;
+    assert.ok(fs.includes('\n' + finish + '\n  float snowC = snowCover('), 'earth finish under the snow');
+    const layers = fs.replace('\n' + finish, '');
+    assert.match(layers, /\n {2}vec4 ew = ecoWeights\(vLocalXZ\);[^\n]*\n {2}if \(ge\) tex = mix\(ecotone\([^\n]*\n {2}tex = roadEdge\([^\n]*\n {2}if \(!ge\) tex = ecotone\(tex, ew, vec3\(tuv, float\(layer\)\), gx, gy\);[^\n]*\n {2}float snowC = snowCover\(vLocalXZ, vWorldPos\.y, gx, gy\);[^\n]*\n {2}snowC = snowFace\(tex, snowC, vLocalXZ, vWorldPos\.y, normalize\(vNormal\), tuv, gx, gy\);[^\n]*\n {2}tex = ge \? mix\(snowGround\(tex, ew, snowC, vec3\(tileUV, float\(geA\)\), dux, duy\), snowGround\(tex, ew, snowC, vec3\(tileUV, float\(geB\)\), dux, duy\), geS\) : snowGround\(tex, ew, snowC, vec3\(tuv, float\(layer\)\), gx, gy\);\n/, `${name}: after the border`);
     const bed = Math.max(fs.indexOf('vec2 bedK = bedCover(data, tileUV, unwrapped, vec3(tuv, float(layer)), gx, gy, snowC, ge);'), fs.indexOf('${waterBedMix()}'));   // the lane's text evaluated, the classic's its source (PIN MOVED, COAST-LOOK: the bed's call)
     assert.ok(bed > 0 && fs.indexOf('tex = ge ? mix(snowGround(') < bed, `${name}: before the bed, which reads its cover`);
   }

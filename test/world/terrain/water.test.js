@@ -162,7 +162,7 @@ test('WATER1: the shader - the terrain\'s own grid lifted, the corner lookup by 
   assert.match(fs, /float edge = 1\.0;/, 'PIN MOVED (WATER-NEXT 2): the open sea\'s edge is the whole sheet');
   const shore = fs.slice(fs.indexOf('float c = coverage(corners, f);'));
   assert.match(shore, /edge = smoothstep\(0\.5 - uShoreSoft, 0\.5 \+ uShoreSoft, c - offset\);/);
-  assert.match(shore, /if \(vPond > 0\.5 && \(\(bank && uSceneOn == 1\) \|\| data == 196u\)\) \{\s+edge = 1\.0;\s+bankDepthScale = 1\.0;\s+\}/);
+  assert.match(shore, /if \(vPond > 0\.5 && \(bank \|\| data == 196u\)\) \{\s+edge = 1\.0;\s+bankDepthScale = 1\.0;\s+\}/);
   assert.match(shore, /if \(isPuddleRecord\(rec\)\)[\s\S]+edge \*= smoothstep\(0\.3, 0\.7, pa\);\s+\}\s+if \(edge <= 0\.002\) discard;/);
   assert.match(fs, /float diff = max\(dot\(n, uLightDir\), 0\.0\) \* shadow;/, 'the ground\'s sun term, shadowed by the deck');
   // PIN MOVED (WATER-NEXT 2): the body is the water's colour, lit by TERRAIN_FS's terms (the sun's softened - light

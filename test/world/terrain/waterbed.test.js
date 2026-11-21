@@ -118,8 +118,8 @@ test('WATER-NEXT 2 the hosts: the world carves at the build and at a restride an
   assert.match(e, /const townBed = townGrid \? waterBedOf\(townGrid, tilemapBytes, \{ tileDim: tilemapDim, width: loc\.width \* GROUND_TILE_DIM, height: loc\.height \* GROUND_TILE_DIM \}\) : null;/);
   assert.match(e, /renderer\.drawWaterSurface\(townWater, identityMatrix,/);
   assert.match(read('src/tools/waterLab.js'), /renderer\.createWaterSheet\(waterIndices, bed \? \{ positions: bed\.sheet, depths: bed\.sheetDepths \} : \{ terrain \}\)/);
-  // the game's ground is the samples', never the drawn grid's
-  assert.doesNotMatch(w.slice(w.indexOf('const heightAt = (x, z, terrainOnly = false) => {'), w.indexOf('// BLOOD1 AUDIT 3: WHERE THE GROUND IS DRAWN.')), /positions|_bed/);
+  // Only the surveyed pond offers a playable floor. Ordinary visual beds stay out of collision.
+  assert.doesNotMatch(w.slice(w.indexOf('const heightAt = (x, z, terrainOnly = false) => {'), w.indexOf('// BLOOD1 AUDIT 3: WHERE THE GROUND IS DRAWN.')), /positions|_bed\?\.depths/);
 });
 
 test('Skyrim pilot cuts below a level waterline and leaves the original street grid intact', async () => {
@@ -139,6 +139,7 @@ test('Skyrim pilot cuts below a level waterline and leaves the original street g
   let floor = Infinity;
   for (let i = grid.positions.length + 1; i < patch.positions.length; i += 3) {
     floor = Math.min(floor, patch.positions[i]);
+    assert.ok(patch.positions[i] <= 540, 'no vertex rises over the original street');
     assert.ok(Math.abs(patch.positions[i] + patch.bankDepth[(i - 1) / 3] - 540) < 0.0001);
   }
   assert.ok(surface < 539.6 && surface > 539.5);
@@ -171,4 +172,81 @@ test('the surveyed diagonal shore carries continuous water between dry banks', a
   assert.ok(floor(68.95, 67.05) > 540 - 0.44);
   assert.ok(floor(68.05, 67.95) > 540 - 0.44);
   assert.equal(floor(50, 50), null);
+  const { pondColumnAt } = await import('../../../src/world/water/pondTerrain.js');
+  const { exteriorSurfaces, ON_EXTERIOR_WATER: W } = await import('../../../src/player/exteriorSurface.js');
+  const { ringLifts, standsOnGround } = await import('../../../src/scenes/floraSeat.js');
+  const { walkGroundAt } = await import('../../../src/world/terrain/terrainSurface.js');
+  const samples = new Float32Array(129 ** 2);
+  const locate = (lx, lz) => ({ entry: { _bed: bed }, lx, lz, baseY: -525 });
+  const { Collider } = await import('../../../src/player/collider.js');
+  const collider = new Collider((x, z) => bed.pondFloor(x, z) - 525);
+  const walker = [68.5 * TILE_UNITS, bed.pondWaterY - 525, 67.5 * TILE_UNITS];
+  const wader = walker.slice();
+  collider.waterWalkFloor = feet => feet === walker ? pondColumnAt(locate, feet).waterY : undefined;
+  collider.move(walker, 0, -.1, 0);
+  collider.move(wader, 0, -1, 0);
+  assert.ok(Math.abs(walker[1] - (bed.pondWaterY - 525)) < .001);
+  assert.ok(Math.abs(wader[1] - collider.restFloor(wader[0], wader[2])) < .001);
+  const { visiblePondScenery } = await import('../../../src/world/water/pondTerrain.js');
+  const roots = [[435.2, 540, 422.4], [422.4, 540, 428.8], [454.4, 540, 435.2]];
+  for (const season of [506, 507]) {
+    assert.deepEqual(visiblePondScenery(season, 26, roots, bed, tiles), roots.slice(0, 2));
+    assert.deepEqual(visiblePondScenery(season, 26, roots, null, tiles), roots.slice(0, 2));
+  }
+  assert.equal(visiblePondScenery(212, 15, roots, bed, tiles), roots, 'authored reed racks can stand in water');
+  const { PlayerMotor, swimSpeed } = await import('../../../src/player/motor.js');
+  const { bindPondMovement } = await import('../../../src/world/water/pondTerrain.js');
+  // Move a real motor over a flat transect, through dry, shallow and waist-deep water.
+  const move = (depth, waterWalking = false) => {
+    const col = new Collider(() => 0);
+    const m = new PlayerMotor(col);
+    const at = { entry: { _bed: { pondFloor: () => 0, pondWaterY: depth } }, baseY: 0, lx: 0, lz: 0 };
+    bindPondMovement(col, m, () => at);
+    m.waterWalking = waterWalking; m.spawn(0, waterWalking ? Math.max(0, depth) : 0, 0);
+    const input = { forward: 1, strafe: 0, run: false };
+    m.update(1 / 60, input, 0);
+    const start = m.pos[2];
+    for (let i = 0; i < 60; i++) m.update(1 / 60, input, 0);
+    return m.pos[2] - start;
+  };
+  const dry = move(-.2), shallow = move(.5), deep = move(1.1);
+  assert.ok(Math.abs(deep - swimSpeed(dry, 30)) < .02, 'actual travel over one second at waist depth');
+  assert.ok(Math.abs(shallow - (dry + deep) / 2) < .02);
+  assert.ok(Math.abs(move(1.1, true) - dry) < .02);
+  const states = [], section = [];
+  for (let i = 0; i <= 40; i++) {
+    const x = (68.95 - i * .0225) * TILE_UNITS, z = (67.05 + i * .0225) * TILE_UNITS;
+    const y = bed.pondFloor(x, z), feet = [x, y - 525, z];
+    const pond = pondColumnAt(locate, feet);
+    const surface = (probe, column = pond) => exteriorSurfaces({ tileIndex: 49, probe, pond: column }).water;
+    states.push(surface({ hit: true, terrain: true }));
+    assert.equal(states.at(-1), y < bed.pondWaterY ? W.WaterWalking : W.None);
+    assert.equal(surface({ hit: true, terrain: false, staticGeometry: true }), W.None);
+    assert.equal(surface({ hit: true, terrain: true }, { ...pond, feetY: pond.waterY + .20 }), W.None);
+    standsOnGround(feet);
+    const lifts = ringLifts(samples, [feet], 1, bed.depths, bed.pondFloor);
+    assert.ok(Math.abs(lifts[0] + walkGroundAt(samples, x, z) - y) < .0001);
+    section.push(y);
+  }
+  assert.deepEqual(states.filter((v, i) => v !== states[i - 1]), [W.None, W.WaterWalking, W.None]);
+  const bottom = section.indexOf(Math.min(...section));
+  assert.equal(section[0], 540);
+  assert.equal(section.at(-1), 540);
+  for (let i = 1; i < section.length; i++) {
+    const change = section[i] - section[i - 1];
+    assert.ok(i <= bottom ? change <= .0001 : change >= -.0001, 'one descent and ascent across the channel');
+  }
+});
+
+test('the material fades across a dry approach without moving any vertex', async () => {
+  const { bankFinishWeights } = await import('../../../src/world/terrain/earthBank.js');
+  const width = 35, height = 89, step = .32;
+  const depths = Float32Array.from({ length: width * height }, (_, i) =>
+    Math.max(0, .44 - ((i % width) - 17) * step * .18));
+  const original = depths.slice(), middle = 45 * width;
+  const finish = bankFinishWeights(depths, width, height, step, .44);
+  assert.deepEqual(depths, original);
+  assert.equal(finish[middle + 19], 1);
+  assert.ok(finish[middle + 29] > 0 && finish[middle + 29] < .8);
+  assert.equal(finish[middle + width - 1], 0);
 });

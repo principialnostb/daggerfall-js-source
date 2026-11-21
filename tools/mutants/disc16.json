@@ -2,8 +2,8 @@
   {
     "name": "DISC16-A-the-point-floor",
     "file": "src/player/collider.js",
-    "old": "    const floor = this.restFloor(feet[0], feet[2]);",
-    "new": "    const floor = this.heightAt(feet[0], feet[2]);",
+    "old": "    const floor = Math.max(this.restFloor(feet[0], feet[2]), this.waterWalkFloor?.(feet) ?? -Infinity);",
+    "new": "    const floor = Math.max(this.heightAt(feet[0], feet[2]), this.waterWalkFloor?.(feet) ?? -Infinity);",
     "tests": [
       "test/combat/disc16.test.js",
       "test/player/mac3_downhill.test.js"

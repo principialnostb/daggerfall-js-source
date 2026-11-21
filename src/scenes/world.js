@@ -74,7 +74,7 @@ import { hasPortFor, hasPort, setSeatHarbours, PORT_LOCATION_IDS } from '../syst
 import { WoodsFile, MAP_WIDTH, MAP_HEIGHT } from '../formats/woodsFile.js';
 import { buildTerrainIndices, isOutdoorWaterTile, TERRAIN_TILE_DIM, surfaceHeightAt, surfaceNormalAt, terrainSampleHeightAt, walkGroundAt } from '../world/terrain/terrainSurface.js';   // GRASS-LIT2: the ground's normal under a blade; SNOWFALL1: and a pixel's that keeps none; FLORA-GROUND: the ground's one law
 import { waterUniforms, buildWaterIndices, waterSwitchOn } from '../render/waterSurface.js';   // WATER1: the enhanced water surface over the pixel's own grid; WATER-AUDIT: its own index set
-import { pondTerrain } from '../world/water/pondTerrain.js';
+import { bindPondMovement, pondColumnAt, pondTerrain } from '../world/water/pondTerrain.js';
 import { bedFields, sheetDepthsOf } from '../world/water/waterBed.js';   // WATER-NEXT 2: the bed under the water, carved for the eye alone (AUDIT WATER-NEXT H1: the cap's re-carve asks its depths)
 import { createRipples, createRippleStir, RIPPLE_SPAN, RIPPLE_CELLS, BOAT_STIR, BOAT_WAKE_SPEED } from '../world/water/waterRipples.js';   // WATER-NEXT 4: the rings and wakes
 import { waterCorners, WATER_DRAW_MASK_TABLE } from '../world/water/waterCorners.js';   // GRASS-WET1: the one table that says which of a tile's corners stand in water - the DRAW's, because a blade in a puddle is a picture, not a physics
@@ -1263,7 +1263,7 @@ import { createMapPlaces } from './mapPlacesHost.js';   // HOST-SPLIT
 import { createCsaMap } from './csaMapHost.js';   // HOST-SPLIT
 import { createSnowGround } from './snowGround.js';   // HOST-SPLIT
 import { createLandformSites } from './landformSitesHost.js';   // BAY-LEFT-GROUND (D1): the landforms' sites past the Bay
-import { createGroundFrame } from './groundFrameHost.js';   // HOST-SPLIT
+import { createGroundFrame, locateGround } from './groundFrameHost.js';   // HOST-SPLIT
 import { createHarbourHost } from './harbourHost.js';   // HOST-SPLIT
 import { createPoiEditorMount } from './poiEditorMount.js';   // HOST-SPLIT
 import { createTravelFareDeps } from './travelFareHost.js';   // HOST-SPLIT
@@ -4371,7 +4371,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
       const lz = z - t[2];
       if (lx < 0 || lz < 0 || lx >= TERRAIN_SIZE || lz >= TERRAIN_SIZE) return -Infinity;
       if (p.deepWaters) { const f = deepWaters.floorLocalY(p, lx, lz); if (f != null) return terrainOnly ? -Infinity : f + t[1]; }   // DW-B: a carved cell's ground is the seafloor
-      return walkGroundAt(p.samples, lx, lz) + t[1];   // FLORA-GROUND: the ground's one law - the drawn ground, the flora's ground (terrainSurface.js walkGroundAt)
+      return (p._bed?.pondFloor?.(lx, lz) ?? walkGroundAt(p.samples, lx, lz)) + t[1];   // FLORA-GROUND: the ground's one law - the drawn ground, the flora's ground (terrainSurface.js walkGroundAt)
     }
     return -Infinity;
   };
@@ -4382,18 +4382,14 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   // FLORA-GROUND: `heightAt` above walks the same triangles at the near
   // grid's stride (walkGroundAt) - it was a bilinear patch over them,
   // and the woods stood on that patch, up to 46 cm over the drawn ground.
-  const _stT = [0, 0, 0];
+  const groundTranslation = [0, 0, 0];
+  const dwLocate = (x, z) => locateGround(state, built, x, z, groundTranslation);
   const surfaceAt = (x, z) => {
-    const c = state.compensation;
-    const px = state.mapOrigin.x + Math.floor((x - c[0]) / TERRAIN_SIZE);
-    const py = state.mapOrigin.y - Math.floor((z - c[2]) / TERRAIN_SIZE);
-    const p = built.get(`${px},${py}`);
-    if (!p) return -Infinity;
-    const t = state.pixelTranslation(p.px, p.py, _stT);
-    const lx = x - t[0], lz = z - t[2];
-    if (lx < 0 || lz < 0 || lx >= TERRAIN_SIZE || lz >= TERRAIN_SIZE) return -Infinity;
-    if (p.deepWaters) { const f = deepWaters.floorLocalY(p, lx, lz); if (f != null) return f + t[1]; }   // DW-B: the floor is drawn there
-    return surfaceHeightAt(p.samples, lx, lz, p._stride ?? 1) + t[1];
+    const at = dwLocate(x, z);
+    if (!at) return -Infinity;
+    const { entry: p, lx, lz, baseY } = at;
+    if (p.deepWaters) { const f = deepWaters.floorLocalY(p, lx, lz); if (f != null) return f + baseY; }
+    return (p._bed?.pondFloor?.(lx, lz) ?? surfaceHeightAt(p.samples, lx, lz, p._stride ?? 1)) + baseY;
   };
   const collider = new Collider(heightAt, surfaceAt);
   collider.cover = createCoverIndex();   // TACT1: the streamed world's trees, rocks and props are cover, with the switch on
@@ -4960,14 +4956,14 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     const halo = stride === 1 ? p._bed.halo : null;   // AUDIT WATER-NEXT F2: the seams' tiles the build read
     const fields = bedFields(bedBytesOf(p), { stride, halo });   // BANK-FLUSH: the ground's carve (`_bed.depths`) and the sheet's depths, one chamfer
     const g = 128 / stride + 1, same = (a, b) => a === b || (a && b && a.length === b.length && a.every((d, i) => d === b[i]));
-    if (same(fields?.carve ?? null, p._bed.depths) && same(fields ? sheetDepthsOf(fields.depths, g, g) : null, p._bed.sheetDepths)) return;
-    const grid = { positions: p._bed.sheet, normals: p._bed.normals };
+    if ((p._dwBytes || !p._bed.pondDeferred) && same(fields?.carve ?? null, p._bed.depths) && same(fields ? sheetDepthsOf(fields.depths, g, g) : null, p._bed.sheetDepths)) return;
+    const grid = { positions: p._bed.originalSheet ?? p._bed.sheet, normals: p._bed.normals };
     const bed = fields ? gridBed(grid, bedBytesOf(p), stride, halo) : null;
     renderer.destroyMesh(p.terrain);
-    p.terrain = renderer.createTerrainSurface(bed?.positions ?? grid.positions, bed?.normals ?? grid.normals,
-      stride === 1 ? TERRAIN_INDICES : TERRAIN_INDICES_LOD);
-    p._bed = { sheet: grid.positions, normals: grid.normals, depths: bed?.depths ?? null, sheetDepths: bed?.sheetDepths ?? null, halo };   // the grid kept: a cap lifted carves it back
-    seatFlora(p, renderer);   // FLORA-GROUND, THE RINGS: its plants on the ground as carved now (scenes/floraSeat.js)
+    p._bed = { sheet: grid.positions, normals: grid.normals, depths: bed?.depths ?? null, sheetDepths: bed?.sheetDepths ?? null, halo, pondDeferred: !!p._dwBytes };
+    p.terrain = pondTerrain(renderer, p.px, p.py, bedBytesOf(p), p._bed, bed?.positions ?? grid.positions, bed?.normals ?? grid.normals,
+      stride === 1 ? TERRAIN_INDICES : TERRAIN_INDICES_LOD, p.paths, p.pondsOn && !p._dwBytes, p.buildingAt, p.houseBank);
+    seatFlora(p, renderer);
   }
   /** WATER-NEXT 2: a pixel's bed as the host keeps it - the grid AS IT STOOD (the water's sheet, and its normals for a
    *  re-carve) and the depths; the carved ground is uploaded and let go. null where no vertex is under water. */
@@ -5165,19 +5161,6 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   let _dwNowMs = 0;
   let _dwSurfaceTex = null;
   if (deepWaters) dwTexture(SURFACE_TEXTURE.archive, SURFACE_TEXTURE.record).then((t) => { _dwSurfaceTex = t; });
-  // DW-D: the swimmer. `dwLocate` is heightAt's own arithmetic answering the pixel and its local point.
-  const _dwLocT = [0, 0, 0];
-  function dwLocate(x, z) {
-    const c = state.compensation;
-    const px = state.mapOrigin.x + Math.floor((x - c[0]) / TERRAIN_SIZE);
-    const py = state.mapOrigin.y - Math.floor((z - c[2]) / TERRAIN_SIZE);
-    const p = built.get(`${px},${py}`);
-    if (!p) return null;
-    const t = state.pixelTranslation(p.px, p.py, _dwLocT);
-    const lx = x - t[0], lz = z - t[2];
-    if (lx < 0 || lz < 0 || lx >= TERRAIN_SIZE || lz >= TERRAIN_SIZE) return null;
-    return { entry: p, lx, lz, baseY: t[1] };
-  }
   let _dwSettingsGen = -1, _dwSettings = null;
   const dwSettings = () => {
     const g = modSettingsGeneration();
@@ -5648,8 +5631,9 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     renderer.destroyMesh(p.terrain);
     const bed = waterOn ? hostBed(grid, grid.bed) : null;   // WATER-NEXT 2: the bed at the new ring class - AUDIT WATER-NEXT P1/H1: the kernel's, by the TileMap the water draws from
     p._bed = bed;
+    if (bed && p._dwBytes) bed.pondDeferred = true;
     p.terrain = pondTerrain(renderer, p.px, p.py, bedBytesOf(p), bed, grid.bed?.positions ?? grid.positions, grid.bed?.normals ?? grid.normals,
-      stride === 1 ? TERRAIN_INDICES : TERRAIN_INDICES_LOD);
+      stride === 1 ? TERRAIN_INDICES : TERRAIN_INDICES_LOD, p.paths, p.pondsOn && !p._dwBytes, p.buildingAt, p.houseBank);
     const waterIndices = waterOn ? buildWaterIndices(p._dwBytes ?? p.tilemapBytes, stride) : null;   // DW-F: the cap's TileMap, where it patched one
     p.water = waterIndices ? renderer.createWaterSheet(waterIndices, waterSheetOf(bed, p.terrain)) : null;
     p._stride = stride;
@@ -5997,6 +5981,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const walkMode = params.has('play') || (!params.has('fly') && !shotMode);
   const startKey = `${startPixel.x},${startPixel.y}`;
   const player = new PlayerMotor(collider, motorStats(playerEntity), { jumpBoost: () => jumpSpeedMultiplier(playerEntity), enhancedJumping: () => isEnhancedJumping(playerEntity), carriedWeight: () => carriedWeight(playerEntity), travelling: () => travellingOutdoors(), climbing: climbingDeps(playerEntity, (l) => townTalk?.say(l)), parkour: parkourDeps(playerEntity, (l) => townTalk?.say(l), { hold: () => !!gatherHost && (gatherHost.acting() || !!gatherHost.target) }) });   // CLIMB-NODE: a node under the look, or an act, holds the free climb's walk-in start (the street's, the dungeon's and a building's - one motor); CLIMB-TRAVEL: no climb of either lane while a journey or the keys' travel runs (the thunk runs in the frame, after wildTravelling is declared)   // AcrobatMotor skill jump (P14) + M3 climbing; motorStats = the LIVE entity (PlayerSpeedChanger reads LiveSpeed/Running/Swimming every step)
+  bindPondMovement(collider, player, dwLocate);
   // AUDIT 21 (hosts lane, F3): onLevelUp. Without it advancement.js takes its
   // HEADLESS arm - `spendPoolLowest`, which dumps every point into your LOWEST
   // stats with no message and no choice. Cross a level threshold walking a
@@ -12683,15 +12668,17 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     const cy = player.pos[1] + player.height / 2;   // transform.position on a CharacterController
     const rayDistance = rayDistanceFor(isOnFoot(player.transportMode));
     const _ground = playerGroundSample();
+    const pond = pondColumnAt(dwLocate, player.pos);
     const _down = collider.raycastHit([player.pos[0], cy, player.pos[2]], _SURFACE_DOWN, rayDistance * 2);
     const surf = exteriorSurfaces({
       inside: false,
+      pond,
       rawTile: _ground?.tile ?? null,
       feet: _ground?.feet ?? null,   // MAC2: the player swims where the surface is drawn under the feet
       waterWalking: !!player.waterWalking,   // PlayerEntity.IsWaterWalking (:590)
       probe: downProbe({
         centreY: cy,
-        terrainY: heightAt(player.pos[0], player.pos[2], true),   // DW-D: GetOnExteriorGroundMethod wants a DaggerfallTerrain - never the carved sea's floor (and the mod gates the terrain collider off over it)
+        terrainY: pond && player.waterWalking ? Math.max(pond.floorY, pond.waterY) : heightAt(player.pos[0], player.pos[2], true),   // DW-D: GetOnExteriorGroundMethod wants a DaggerfallTerrain - never the carved sea's floor (and the mod gates the terrain collider off over it)
         meshDist: _down.dist,
         rayDistance,
       }),
@@ -32639,7 +32626,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         // The grass only stands on the stride-1 ring, so its drawn ground
         // is the ground's one law (FLORA-GROUND: the walker's and every
         // plant's, terrainSurface.js walkGroundAt).
-        const h = walkGroundAt(p.samples, lx, lz);
+        const h = p._bed?.pondFloor?.(lx, lz) ?? walkGroundAt(p.samples, lx, lz);
         if (h <= sea) return null;
         if (snowCover.on && snowCover.buries(p, lx, lz, h + t[1])) return null;   // PRECIP4: no blade through the snow the ground shows there (AUDIT PRECIP HOST-9: at the blade's own height)
         return h + t[1];

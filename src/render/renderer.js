@@ -1,3 +1,6 @@
+import { groundRelief } from '../world/terrain/groundRelief.js';
+import { pondSoilLayer, MAX_GROUND_LAYERS } from './pondSoilTexture.js';
+import { groundFinishGlsl } from './groundFinishGlsl.js';
 import { FOUNTAIN_WATER_GLSL } from './fountainWaterGlsl.js';
 // @ts-check
 import { rememberCampfireBatch, releaseCampfireBatch, drawCampfireBillboards } from './campfireBillboards.js';
@@ -997,8 +1000,11 @@ void main() {
 const TERRAIN_VS = `#version 300 es
 layout(location=0) in vec3 aPos;
 layout(location=1) in vec3 aNormal;
-layout(location=2) in float aBankDepth;
+layout(location=2) in vec2 aBank;
 out float vBankDepth;
+out float vBankFinish;
+layout(location=3) in vec3 aEarthFinish;
+out vec3 vEarthFinish;
 uniform mat4 uProj;
 uniform mat4 uView;
 uniform mat4 uModel;
@@ -1006,7 +1012,9 @@ out vec3 vNormal;
 out vec3 vWorldPos;
 out vec2 vLocalXZ;
 void main() {
-  vBankDepth = aBankDepth;
+  vBankDepth = aBank.x;
+  vBankFinish = aBank.y;
+  vEarthFinish = aEarthFinish;
   vNormal = mat3(uModel) * aNormal;
   vec4 world = uModel * vec4(aPos, 1.0);
   vWorldPos = world.xyz;
@@ -1031,6 +1039,7 @@ precision highp sampler2DArray;
 in vec3 vNormal;
 in vec3 vWorldPos;
 in vec2 vLocalXZ;
+in vec3 vEarthFinish;
 uniform sampler2DArray uTileArr;
 uniform usampler2D uTilemap;
 uniform float uTileSize; // world units per tile (6.4)
@@ -1110,6 +1119,7 @@ void main() {
   if (ge) tex = mix(ecotone(geBase(geA, tileUV, dux, duy), ew, vec3(tileUV, float(geA)), dux, duy), ecotone(geBase(geB, tileUV, dux, duy), ew, vec3(tileUV, float(geB)), dux, duy), geS);
   tex = roadEdge(tex, data, unwrapped, gx, gy, t);   // ROAD-LOOK: a road's edge blended into its ground (render/roadEdgeGlsl.js)
   if (!ge) tex = ecotone(tex, ew, vec3(tuv, float(layer)), gx, gy);   // ECOTONE1: a border's ground, its neighbours' share
+${groundFinishGlsl}
   float snowC = snowCover(vLocalXZ, vWorldPos.y, gx, gy);   // PRECIP4: the snow the ground keeps (the bed below reads it too)
   snowC = snowFace(tex, snowC, vLocalXZ, vWorldPos.y, normalize(vNormal), tuv, gx, gy);   // PEAKS1: a steep face over the cap's line is bare rock (render/snowCapGlsl.js)
   tex = ge ? mix(snowGround(tex, ew, snowC, vec3(tileUV, float(geA)), dux, duy), snowGround(tex, ew, snowC, vec3(tileUV, float(geB)), dux, duy), geS) : snowGround(tex, ew, snowC, vec3(tuv, float(layer)), gx, gy);
@@ -7635,9 +7645,13 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   }
 
   /** Create one pixel's terrain surface (positions + normals grid). */
-  createTerrainSurface(positions, normals, indices, bankDepth = null, shore = null) {
+  createTerrainSurface(positions, normals, indices, bankDepth = null, shore = null, land = null, bankFinish = null) {
     const gl = this.gl;
-    const indexSet = this._terrainIndices(indices);
+    const bankStart = bankFinish ? positions.length / 3 - bankFinish.length : 0;
+    const relief = land && pageParam('groundrelief') !== 'off' ? groundRelief(positions, normals, indices, bankDepth, land) : null;
+    if (relief) ({ positions, normals, indices, bankDepth } = relief);
+    const ownIndices = relief || bankFinish;
+    const indexSet = ownIndices ? { buffer: gl.createBuffer(), count: indices.length } : this._terrainIndices(indices);
     const vao = gl.createVertexArray();
     this._bindVao(vao);
     const buffers = [];
@@ -7652,8 +7666,23 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     };
     buf(positions, 0);
     buf(normals, 1);
-    if (bankDepth) buf(bankDepth, 2, 1);
+    if (bankFinish && bankDepth) {
+      // The pond grid follows the base grid. Relief may have appended more
+      // vertices after it. Both neighbours have zero shore-detail weight.
+      const bank = new Float32Array(bankDepth.length * 2);
+      for (let i = 0; i < bankFinish.length; i++) {
+        const vertex = bankStart + i;
+        bank[2 * vertex] = bankDepth[vertex];
+        bank[2 * vertex + 1] = bankFinish[i];
+      }
+      buf(bank, 2, 2);
+    } else if (bankDepth) buf(bankDepth, 2, 1);
+    if (relief) buf(relief.finish, 3, 3);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexSet.buffer);
+    if (ownIndices) {
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+      buffers.push(indexSet.buffer);
+    }
     this._bindVao(null);
     const surface = { vao, buffers, indexCount: indexSet.count, bounds: boundsOf(positions) };
     if (shore) surface.pondShore = acquireTreasureModel(this, surface, null, shore);
@@ -7874,11 +7903,15 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
     const w = layers[0].width;
     const h = layers[0].height;
-    gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, w, h, layers.length, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    // A converted tile byte addresses 64 records. Even a full summer/winter
+    // pair leaves room for one material layer beyond every addressable record.
+    const addSoil = layers.length <= MAX_GROUND_LAYERS;
+    gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, w, h, layers.length + Number(addSoil), 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     for (let i = 0; i < layers.length; i++) {
       gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, i, w, h, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(layers[i].colors.buffer, layers[i].colors.byteOffset, w * h * 4));
       if ((i + 1) % TILE_LAYERS_A_STEP === 0 && i + 1 < layers.length) { yield; gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex); }
     }
+    if (addSoil) gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, layers.length, w, h, 1, gl.RGBA, gl.UNSIGNED_BYTE, pondSoilLayer(w, h));
     if (this.tileArrays.has(archive)) { gl.deleteTexture(tex); return this.tileArrays.get(archive); }   // another upload of the key finished first (a caller that did not wait on this one)
     // GRAIN1 (2026-09-19, Mac: "distance terrian has a weird grain look"):
     // THE MIPMAP, AND WHY THE MAGNIFIER DOES NOT MOVE.
@@ -8930,7 +8963,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   // Opaque timbers belong in the colour and depth the water will refract.
   // Ordinary flats, disabled replacements and shadow-only batches keep their queue.
   queueExteriorFlat(queue, batch, shadowOnly = false) {
-    if (batch.pondRack && !shadowOnly) {
+    if (!shadowOnly && batch.pondRack && batch.pondRack()) {
       const left = drawPlacedFurnishings(this, [batch], acquireTreasureModel, releaseTreasureModel);
       if (!left.length) return;
     }

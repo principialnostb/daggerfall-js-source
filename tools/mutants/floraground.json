@@ -11,7 +11,7 @@
   {
     "name": "FLORA-GROUND-the-walk-floor-bilinear-again",
     "file": "src/scenes/world.js",
-    "old": "return walkGroundAt(p.samples, lx, lz) + t[1];",
+    "old": "return (p._bed?.pondFloor?.(lx, lz) ?? walkGroundAt(p.samples, lx, lz)) + t[1];",
     "new": "const fx = lx / heightCell, fz = lz / heightCell, ix = Math.min(HEIGHTMAP_DIMENSION - 2, Math.floor(fx)), iz = Math.min(HEIGHTMAP_DIMENSION - 2, Math.floor(fz)), sx = fx - ix, sz = fz - iz, at = (a, b) => p.samples[a * HEIGHTMAP_DIMENSION + b] * worldHeight; return at(ix, iz) * (1 - sx) * (1 - sz) + at(ix + 1, iz) * sx * (1 - sz) + at(ix, iz + 1) * (1 - sx) * sz + at(ix + 1, iz + 1) * sx * sz + t[1];",
     "tests": [
       "test/world/terrain/floraground.test.js"
@@ -21,7 +21,7 @@
   {
     "name": "FLORA-GROUND-the-grass-off-the-law",
     "file": "src/scenes/world.js",
-    "old": "const h = walkGroundAt(p.samples, lx, lz);",
+    "old": "const h = p._bed?.pondFloor?.(lx, lz) ?? walkGroundAt(p.samples, lx, lz);",
     "new": "const h = surfaceHeightAt(p.samples, lx, lz, p._stride ?? 1);",
     "tests": [
       "test/world/terrain/floraground.test.js",
@@ -333,8 +333,8 @@
   {
     "name": "FLORA-GROUND-RINGS-the-mark-unread",
     "file": "src/scenes/floraSeat.js",
-    "old": "    if (c[ON_GROUND] !== true) continue;\n    const d = liftAt(samples, c[0], c[2], stride, carve);",
-    "new": "    const d = liftAt(samples, c[0], c[2], stride, carve);",
+    "old": "    if (c[ON_GROUND] !== true) continue;\n    const d = liftAt(samples, c[0], c[2], stride, carve, pondFloor);",
+    "new": "    const d = liftAt(samples, c[0], c[2], stride, carve, pondFloor);",
     "tests": [
       "test/world/terrain/floraground_rings.test.js"
     ]
@@ -342,8 +342,8 @@
   {
     "name": "FLORA-GROUND-RINGS-the-lift-reversed",
     "file": "src/scenes/floraSeat.js",
-    "old": "  drawnGroundAt(samples, x, z, stride, carve) - walkGroundAt(samples, x, z);",
-    "new": "  walkGroundAt(samples, x, z) - drawnGroundAt(samples, x, z, stride, carve);",
+    "old": "  (pondFloor?.(x, z) ?? drawnGroundAt(samples, x, z, stride, carve)) - walkGroundAt(samples, x, z);",
+    "new": "  walkGroundAt(samples, x, z) - (pondFloor?.(x, z) ?? drawnGroundAt(samples, x, z, stride, carve));",
     "tests": [
       "test/world/terrain/floraground_rings.test.js"
     ]
@@ -351,8 +351,8 @@
   {
     "name": "FLORA-GROUND-RINGS-the-near-rings-bed-ignored",
     "file": "src/scenes/floraSeat.js",
-    "old": "export function ringLifts(samples, centers, stride, carve) {\n  if (stride === 1 && !carve) return null;",
-    "new": "export function ringLifts(samples, centers, stride, carve) {\n  if (stride === 1) return null;",
+    "old": "export function ringLifts(samples, centers, stride, carve, pondFloor = null) {\n  if (stride === 1 && !carve) return null;",
+    "new": "export function ringLifts(samples, centers, stride, carve, pondFloor = null) {\n  if (stride === 1) return null;",
     "tests": [
       "test/world/terrain/floraground_rings.test.js"
     ]
@@ -424,8 +424,8 @@
   {
     "name": "FLORA-GROUND-RINGS-the-graht-set-unlifted",
     "file": "src/scenes/floraSeat.js",
-    "old": "    set.lift = liftsFor(set, stride, carve, () => packedLifts(p.samples, set.trees, GRAHT_TREE_FLOATS, stride, carve));",
-    "new": "    set.lift =\n      null && liftsFor(set, stride, carve, () => packedLifts(p.samples, set.trees, GRAHT_TREE_FLOATS, stride, carve));",
+    "old": "    set.lift = liftsFor(set, stride, carve, () => packedLifts(p.samples, set.trees, GRAHT_TREE_FLOATS, stride, carve, p._bed?.pondFloor));",
+    "new": "    set.lift =\n      null && liftsFor(set, stride, carve, () => packedLifts(p.samples, set.trees, GRAHT_TREE_FLOATS, stride, carve, p._bed?.pondFloor));",
     "tests": [
       "test/world/terrain/floraground_rings.test.js"
     ]
@@ -451,7 +451,7 @@
   {
     "name": "FLORA-GROUND-RINGS-the-re-carve-unseated",
     "file": "src/scenes/world.js",
-    "old": "    seatFlora(p, renderer);   // FLORA-GROUND, THE RINGS: its plants on the ground as carved now (scenes/floraSeat.js)\n",
+    "old": "    seatFlora(p, renderer);\n",
     "new": "",
     "tests": [
       "test/world/terrain/floraground_rings.test.js"

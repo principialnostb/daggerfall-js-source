@@ -176,7 +176,10 @@ export function placedFurnishingModels(batch) {
 export function markPlacedFurnishing(batch, centers, readPondFloor = null) {
   const { spec, lowPoly, alternate, maxLength, tabletopPixels, assembly } = placedFurnishingModels(batch);
   if (spec || lowPoly || assembly) {
-    if (readPondFloor && isWaterRack(lowPoly)) batch.pondRack = true;
+    if (readPondFloor && isWaterRack(lowPoly)) batch.pondRack = () => {
+      const floor = readPondFloor();
+      return floor && centers.some(([x, , z]) => floor(x, z) != null);
+    };
     const authoredLength = Math.max(batch.size.w, batch.size.h);
     const length = Math.min(authoredLength, maxLength ?? Infinity);
     const fit = maxLength && authoredLength > maxLength ? maxLength / authoredLength : 1;

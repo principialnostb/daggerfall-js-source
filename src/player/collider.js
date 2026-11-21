@@ -705,6 +705,10 @@ export class Collider {
    *  walkGroundAt, the ground's one law) - it was a bilinear read of the
    *  heightmap, up to 46 cm off the drawn ground on the landforms. */
   constructor(heightAt = () => -Infinity, surfaceAt = null) {
+    /** @type {((feet: number[]) => number | undefined) | null} A sheet supporting this particular water walker. */
+    this.waterWalkFloor = null;
+    /** @type {((feet: ArrayLike<number>) => number) | null} Metres of water above grounded feet. */
+    this.wadingDepth = null;
     this.heightAt = heightAt;
     this.surfaceAt = typeof surfaceAt === 'function' ? surfaceAt : null;
     this._buckets = new Map(); // key -> {tris, grid: Map, t: () => [x,y,z], r: (() => number[]|null)|null, min: [x,y,z], max: [x,y,z]}   // AUDIT NAME1 F2: the bounds are the ray's broad phase
@@ -2458,7 +2462,7 @@ export class Collider {
     // 1,792 HP down one Menevia track at x100). An ordinary step's
     // reach is STEP_OFFSET as it was (a Speed-50 horse runs 0.18 m a
     // step: 0.49 m).
-    const floor = this.restFloor(feet[0], feet[2]);
+    const floor = Math.max(this.restFloor(feet[0], feet[2]), this.waterWalkFloor?.(feet) ?? -Infinity);
     const floorReach = Math.max(STEP_OFFSET, Math.hypot(feet[0] - beforeX, feet[2] - beforeZ) * TAN_SLOPE_LIMIT);
     if (snap && dy <= 0 && !out.grounded && feet[1] > floor && feet[1] - floor <= floorReach) {
       // ...but never against the step-up LADDER above: a capsule lifted

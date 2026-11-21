@@ -76,7 +76,7 @@ test('DISC16-A: the rest is the floor\'s own - the snap onto it and the clamp un
   assert.equal(edge.restFloor(0.1, 2), 1, 'no ground to the west: the ground beneath the centre');
   assert.ok(edge.restFloor(3, 2) > 1, 'inside the pixel, the capsule\'s rest');
   const src = rd('src/player/collider.js');
-  assert.match(src, /const floor = this\.restFloor\(feet\[0\], feet\[2\]\);/, 'the snap and the clamp read the rest');
+  assert.match(src, /const floor = Math\.max\(this\.restFloor\(feet\[0\], feet\[2\]\), this\.waterWalkFloor\?\.\(feet\) \?\? -Infinity\);/, 'the snap and the clamp read the rest');
   assert.equal((src.match(/this\.heightAt\(feet\[0\], feet\[2\]\)/g) || []).length, 0, 'and nothing in move() reads the point floor');
 });
 

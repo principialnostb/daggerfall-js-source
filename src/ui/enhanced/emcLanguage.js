@@ -1,6 +1,8 @@
 import { getPref, setPref } from '../../systems/uiPrefs.js';
 
 const EN = new Map([
+  ["Живые пруды", "Living Ponds"],
+  ["Пруды получают объёмное дно, пологие берега и прибрежную растительность. У домов берег повторяет контур стен.", "Ponds have sculpted beds, sloping banks and shoreline plants. Near houses, the bank follows the walls."],
   ["Локальный адрес", "Local address"],
   ["Активные профили", "Active profiles"],
   ["Проверяем локальный сервер…", "Checking local server…"],

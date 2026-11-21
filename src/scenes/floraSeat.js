@@ -34,32 +34,33 @@ export const standsOnGround = (c) => {
 
 /** What the ground a pixel draws (`stride`, `carve`) stands over the walk ground at (x, z), m - 0 in the near ring
  *  with no bed under it. */
-const liftAt = (samples, x, z, stride, carve) =>
-  drawnGroundAt(samples, x, z, stride, carve) - walkGroundAt(samples, x, z);
+const liftAt = (samples, x, z, stride, carve, pondFloor) =>
+  (pondFloor?.(x, z) ?? drawnGroundAt(samples, x, z, stride, carve)) - walkGroundAt(samples, x, z);
 
 /**
  * Each ground-stood centre's lift at a ring, null where every one is 0 (the near ring, no bed under its plants).
  * @param {Float32Array} samples @param {number[][]} centers @param {number} stride @param {?ArrayLike<number>} carve
+ * @param {Function|null} [pondFloor] exact triangles of a surveyed pond
  * @returns {Float32Array|null}
  */
-export function ringLifts(samples, centers, stride, carve) {
+export function ringLifts(samples, centers, stride, carve, pondFloor = null) {
   if (stride === 1 && !carve) return null;
   let lift = null;
   for (let i = 0; i < centers.length; i++) {
     const c = centers[i];
     if (c[ON_GROUND] !== true) continue;
-    const d = liftAt(samples, c[0], c[2], stride, carve);
+    const d = liftAt(samples, c[0], c[2], stride, carve, pondFloor);
     if (d !== 0) (lift ??= new Float32Array(centers.length))[i] = d;
   }
   return lift;
 }
 
 /** The same for a packed set (`step` floats a tree, x at 0 and z at 2 - the graht-oaks', every one on the ground). */
-function packedLifts(samples, packed, step, stride, carve) {
+function packedLifts(samples, packed, step, stride, carve, pondFloor = null) {
   if (stride === 1 && !carve) return null;
   let lift = null;
   for (let i = 0, k = 0; i < packed.length; i += step, k++) {
-    const d = liftAt(samples, packed[i], packed[i + 2], stride, carve);
+    const d = liftAt(samples, packed[i], packed[i + 2], stride, carve, pondFloor);
     if (d !== 0) (lift ??= new Float32Array(packed.length / step))[k] = d;
   }
   return lift;
@@ -118,7 +119,7 @@ export function seatFlora(p, renderer) {
     carve = p._bed?.depths ?? null;
   for (const g of p.forest?.groups?.values() ?? []) {
     if (!g.batch) continue;
-    const lift = liftsFor(g, stride, carve, () => ringLifts(p.samples, g.centers, stride, carve));
+    const lift = liftsFor(g, stride, carve, () => ringLifts(p.samples, g.centers, stride, carve, p._bed?.pondFloor));
     if (lift === (g.lift ?? null)) continue; // drawn on this ground already - the walk ground then and now, or this ring's
     g.lift = lift;
     const drawn = g.centers.map((c, i) => drawnCentre(g, c, i, FELLED.has(c)));
@@ -132,10 +133,10 @@ export function seatFlora(p, renderer) {
   }
   const set = p.grahtOaks;
   if (set)
-    set.lift = liftsFor(set, stride, carve, () => packedLifts(p.samples, set.trees, GRAHT_TREE_FLOATS, stride, carve));
+    set.lift = liftsFor(set, stride, carve, () => packedLifts(p.samples, set.trees, GRAHT_TREE_FLOATS, stride, carve, p._bed?.pondFloor));
   const lands = p.landProps; // TESA-LANDS: the landmarks by the same law (landPropsHost.js frames each at its lift)
   if (lands)
     lands.lift = liftsFor(lands, stride, carve, () =>
-      packedLifts(p.samples, lands.props, LAND_PROP_FLOATS, stride, carve),
+      packedLifts(p.samples, lands.props, LAND_PROP_FLOATS, stride, carve, p._bed?.pondFloor),
     );
 }

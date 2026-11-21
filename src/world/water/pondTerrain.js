@@ -1,32 +1,99 @@
-// Local visual pilot for the linked pools at the surveyed Skyrim settlement.
-// Coordinates below are terrain tiles within its 128-tile map pixel.
 import { POND_DEPTH_OFFSET, WATER_DRAW_MASK_TABLE, waterCoverage } from './waterCorners.js';
+import { PUDDLE_RECORDS } from '../puddleMask.js';
+import { bankFinishWeights } from '../terrain/earthBank.js';
 import { pondShoreMesh } from './pondShore.js';
+import { roadEdgeNoise } from '../road/roadEdge.js';
 import { TILE_UNITS } from './waterBed.js';
 import { WATER_LIFT } from '../../render/waterSurface.js';
+import { MAX_TERRAIN_HEIGHT, STREAMING_TERRAIN_SCALE } from '../terrain/terrainSampler.js';
 
-const SIDE = 128, GRID = SIDE + 1;
-const WEST = 66, EAST = 73, SOUTH = 65, NORTH = 71;
-const SUB = 8, WIDTH = (EAST - WEST) * SUB + 1, HEIGHT = (NORTH - SOUTH) * SUB + 1;
+import { clearPondBank, pondSites, POND_SIDE as SIDE } from './pondSites.js';
+
+const GRID = SIDE + 1;
+const SUB = 20;
 const WATERLINE = 0.44;
-let pilotIndices;
 
-export const isSurveyedPondPixel = (px, py) => px === 1551 && py === -372;
+
+// DFU RMBLayout.AddNatureFlats draws every authored placement. The woodland-hills
+// ground sprout and its winter picture are dry-land scenery. Keep their original placements.
+export function visiblePondScenery(archive, record, centers, bed, bytes) {
+  if ((archive !== 506 && archive !== 507) || record !== 26) return centers;
+  return centers.filter(([x, , z]) => {
+    const floor = bed?.pondFloor?.(x, z);
+    if (floor != null) return floor >= (bed.pondWaterAt?.(x, z) ?? bed.pondWaterY);
+    const u = x / TILE_UNITS, v = z / TILE_UNITS, ix = Math.floor(u), iz = Math.floor(v);
+    if (ix < 0 || iz < 0 || ix >= SIDE || iz >= SIDE) return true;
+    const tile = bytes[iz * SIDE + ix];
+    // Painted puddles have an alpha cutout within the tile and can carry dry ground.
+    return PUDDLE_RECORDS.includes(tile >> 2) || waterCoverage(WATER_DRAW_MASK_TABLE[tile], u - ix, v - iz) < .5;
+  });
+}
+
+// Shared by placement and render groups, including a far tile promoted later.
+export function pondColumnReader(g) {
+  let sites;
+  return (x, z) => {
+    const tx0 = Math.floor(x / TILE_UNITS), tz0 = Math.floor(z / TILE_UNITS);
+    if (tx0 < 0 || tz0 < 0 || tx0 >= SIDE || tz0 >= SIDE || !WATER_DRAW_MASK_TABLE[g.tilemapBytes[tz0 * SIDE + tx0]]) return null;
+    const floor = g.bed?.pondFloor?.(x, z);
+    if (floor != null) {
+      return { floor, grade: g.bed.pondWaterAt(x, z) + WATERLINE, water: g.bed.pondWaterAt(x, z), pilot: !!g.bed.pondPilotAt?.(x, z) };
+    }
+    if (g.bed?.pondFloor || !g.samples || g.clipped) return null;
+    // A flat batch survives ring promotion. Resolve its basin even if the far
+    // grid was built first, using the original near-ring elevation samples.
+    const heightAt = (tx, tz) => Math.fround(g.samples[tx * GRID + tz] * MAX_TERRAIN_HEIGHT * STREAMING_TERRAIN_SCALE);
+    sites ??= pondSites(g.px, g.py, g.tilemapBytes, null, null, SIDE, null, heightAt);
+    const u = x / TILE_UNITS, v = z / TILE_UNITS, tx = Math.floor(u), tz = Math.floor(v);
+    const site = sites.find(s => tx >= s.west && tx < s.east && tz >= s.south && tz < s.north);
+    if (!site) return null;
+    const ix = Math.floor(u * SUB), iz = Math.floor(v * SUB), fx = u * SUB - ix, fz = v * SUB - iz;
+    const d = (i, j) => fittedDepth(site, g.tilemapBytes, (ix + i) / SUB, (iz + j) / SUB, g.houseBank);
+    const depth = d(0, 0) * (1 - Math.max(fx, fz)) + d(1, 1) * Math.min(fx, fz)
+      + (fx > fz ? d(1, 0) * (fx - fz) : d(0, 1) * (fz - fx));
+    return { floor: site.level - depth, grade: site.level, water: site.level - WATERLINE, pilot: site.pilot };
+  };
+}
+
+export function pondSubmergedAt(g, read = pondColumnReader(g)) {
+  return (x, y, z, keepPilotDeck = false) => {
+    const p = read(x, z);
+    return !!p && !(keepPilotDeck && p.pilot) && p.floor < p.water && y <= p.water + .9;
+  };
+}
+
+// These authored town flats are a fountain, hanging sign and direction post. Drop
+// submerged ground placements before either their picture or their solid is built.
+export function pondClutterGroups(g) {
+  const submerged = pondSubmergedAt(g);
+  let groups = g.groups;
+  for (const key of ['212_3', '212_4', '212_6', '212_14', '212_15', '212_16', '510_8', '511_8']) {
+    const centers = g.groups.get(key);
+    if (!centers) continue;
+    const deck = key === '212_14' || key === '212_15' || key === '212_16';
+    const shown = centers.filter(([x, y, z]) => !submerged(x, y, z, deck));
+    if (shown.length === centers.length) continue;
+    if (groups === g.groups) groups = new Map(groups);
+    if (shown.length) groups.set(key, shown);
+    else groups.delete(key);
+  }
+  return groups;
+}
 
 // The record between the pools has opposite wet corners. Cut a winding thalweg
 // between them, tapering back into the surveyed corner depths at each end.
-function channelDepth(x, z) {
-  const along = ((x - 68) + (z - 67)) * 0.5;
+function channelDepth(u, v) {
+  const along = (u + v) * 0.5;
   if (along <= 0 || along >= 1) return 0;
   const taper = Math.sin(Math.PI * along);
-  const across = ((x - 68) - (z - 67)) / Math.SQRT2 - 0.10 * taper;
+  const across = (u - v) / Math.SQRT2 - 0.10 * taper;
   const radius = (across < 0 ? 0.40 : 0.47) * Math.sqrt(taper);
   const section = Math.max(0, 1 - (across / radius) ** 2);
   return 1.12 * section ** 2 * Math.min(1, taper * 3);
 }
 
 // Sample the two rendered triangles, including their diagonal, in pixel-local metres.
-function floorSampler(heights) {
+function floorSampler(heights, { west: WEST, south: SOUTH, width: WIDTH, height: HEIGHT }) {
   return (x, z) => {
     const gx = (x / TILE_UNITS - WEST) * SUB, gz = (z / TILE_UNITS - SOUTH) * SUB;
     if (gx < 0 || gz < 0 || gx >= WIDTH - 1 || gz >= HEIGHT - 1) return null;
@@ -37,73 +104,134 @@ function floorSampler(heights) {
   };
 }
 
-function patchIndices(gridIndices) {
-  if (pilotIndices) return pilotIndices;
-  const kept = [];
-  for (let z = 0; z < SIDE; z++) for (let x = 0; x < SIDE; x++) {
-    if (x >= WEST && x < EAST && z >= SOUTH && z < NORTH) continue;
-    const offset = (z * SIDE + x) * 6;
-    for (let k = 0; k < 6; k++) kept.push(gridIndices[offset + k]);
+function patchIndices(indices, sites, count) {
+  const replaced = new Uint8Array(SIDE * SIDE);
+  let length = indices.length;
+  for (const { west, east, south, north, width, height } of sites) {
+    for (let z = south; z < north; z++) replaced.fill(1, z * SIDE + west, z * SIDE + east);
+    length += 6 * ((width - 1) * (height - 1) - (east - west) * (north - south));
   }
-  for (let z = 0; z < HEIGHT - 1; z++) for (let x = 0; x < WIDTH - 1; x++) {
-    const a = GRID * GRID + z * WIDTH + x;
-    kept.push(a, a + WIDTH, a + WIDTH + 1, a, a + WIDTH + 1, a + 1);
+  const out = new Uint32Array(length);
+  let k = 0, start = 0;
+  for (let i = 0; i <= replaced.length; i++) {
+    if (i < replaced.length && !replaced[i]) continue;
+    if (i > start) {
+      out.set(indices.subarray(start * 6, i * 6), k);
+      k += (i - start) * 6;
+    }
+    start = i + 1;
   }
-  pilotIndices = Uint32Array.from(kept);
-  return pilotIndices;
+  let base = count;
+  for (const { width, height } of sites) {
+    for (let z = 0; z < height - 1; z++) for (let x = 0; x < width - 1; x++) {
+      const a = base + z * width + x;
+      out[k++] = a;
+      out[k++] = a + width;
+      out[k++] = a + width + 1;
+      out[k++] = a;
+      out[k++] = a + width + 1;
+      out[k++] = a + 1;
+    }
+    base += width * height;
+  }
+  return out;
 }
 
-export function pondTerrain(renderer, px, py, bytes, bed, positions, normals, indices) {
-  if (!isSurveyedPondPixel(px, py) || !bed || positions.length !== GRID * GRID * 3)
-    return renderer.createTerrainSurface(positions, normals, indices);
+// The streamed world translates both heights together when its origin moves.
+export function pondColumnAt(locate, feet) {
+  const at = locate(feet[0], feet[2]);
+  const bed = at?.entry._bed;
+  const floor = bed?.pondFloor?.(at.lx, at.lz);
+  if (floor == null) return null;
+  return { floorY: floor + at.baseY, waterY: (bed.pondWaterAt?.(at.lx, at.lz) ?? bed.pondWaterY) + at.baseY, feetY: feet[1] };
+}
 
-  // An altered settlement layout or a slope needs its own survey.
-  if ((bytes[68 * SIDE + 70] >> 2) !== 0 || bytes[66 * SIDE + 67] !== (22 << 2 | 1)
-    || bytes[69 * SIDE + 71] !== (22 << 2 | 3)) return renderer.createTerrainSurface(positions, normals, indices);
-  const level = bed.sheet[(SOUTH * GRID + WEST) * 3 + 1];
-  for (let z = SOUTH; z <= NORTH; z++) for (let x = WEST; x <= EAST; x++) {
-    if (Math.abs(bed.sheet[(z * GRID + x) * 3 + 1] - level) > 0.001)
-      return renderer.createTerrainSurface(positions, normals, indices);
-  }
-
-  const pos = new Float32Array(positions.length + WIDTH * HEIGHT * 3);
-  const norm = new Float32Array(pos.length);
-  const bankDepth = new Float32Array(pos.length / 3);
-  pos.set(positions);
-  norm.set(normals);
-  const heights = new Float32Array(WIDTH * HEIGHT);
-  const hasChannel = bytes[67 * SIDE + 68] === 196;
-  const cornerDepth = (x, z) => {
-    const tx = Math.floor(x), tz = Math.floor(z);
-    const mask = WATER_DRAW_MASK_TABLE[bytes[tz * SIDE + tx]];
-    const coverage = waterCoverage(mask, x - tx, z - tz);
-    // Slightly different slopes on opposing banks expose irregular strips of silt.
-    const bank = Math.sin(2.4 * (x - WEST) + 1.6 * (z - SOUTH));
-    const basin = 1.55 * coverage ** (1.8 + 0.38 * bank);
-    return hasChannel ? Math.max(basin, channelDepth(x, z)) : basin;
+// DFU PlayerMotor.UpdateSpeed slows swimmers. Here a standing body can also ford a cut bed.
+export function bindPondMovement(collider, player, locate) {
+  collider.waterWalkFloor = feet => feet === player.pos && player.waterWalking ? pondColumnAt(locate, feet)?.waterY : undefined;
+  collider.wadingDepth = feet => {
+    const p = pondColumnAt(locate, feet);
+    return p ? Math.max(0, p.waterY - Math.max(p.floorY, p.feetY)) : 0;
   };
+}
+
+function basinDepthAt(site, bytes, x, z) {
+  const tx = Math.min(site.east - 1, Math.floor(x)), tz = Math.min(site.north - 1, Math.floor(z));
+  const mask = WATER_DRAW_MASK_TABLE[bytes[tz * SIDE + tx]];
+  const coverage = waterCoverage(mask, x - tx, z - tz);
+  // The dry approach stays at street grade. Small lateral bites of erosion widen the cut
+  // within the transition. Its single descending face joins the bowl at a flat tangent.
+  const erosion = coverage > 0 && coverage < 1 ? .035 * roadEdgeNoise(x * TILE_UNITS, z * TILE_UNITS, 32, 911) : 0;
+  const t = Math.max(0, Math.min(1, (coverage + erosion - .27) / .68));
+  const basin = 1.55 * t * t * (3 - 2 * t);
+  const saddle = mask === 9 || mask === 6;
+  if (!saddle || (site.pilot && (tx !== 68 || tz !== 67 || bytes[tz * SIDE + tx] !== 196))) return basin;
+  return Math.max(basin, channelDepth(mask === 9 ? x - tx : 1 - (x - tx), z - tz));
+}
+
+function fittedDepth(site, bytes, x, z, houseBank) {
+  const raw = basinDepthAt(site, bytes, x, z);
+  return houseBank?.depth(x * TILE_UNITS, z * TILE_UNITS, site.level, raw) ?? raw;
+}
+
+function buildBasin(site, bytes, bed, pos, norm, bankDepth, bankFinish, offset, gridVertices, houseBank) {
+  const { west: WEST, south: SOUTH, east: EAST, north: NORTH, width: WIDTH, height: HEIGHT, level } = site;
+  const heights = new Float32Array(WIDTH * HEIGHT);
+  const depths = bankDepth.subarray(offset, offset + heights.length);
+  for (let iz = 0; iz < HEIGHT; iz++) for (let ix = 0; ix < WIDTH; ix++) {
+    depths[iz * WIDTH + ix] = fittedDepth(site, bytes, WEST + ix / SUB, SOUTH + iz / SUB, houseBank);
+  }
+  bankFinish.set(bankFinishWeights(depths, WIDTH, HEIGHT, TILE_UNITS / SUB, WATERLINE), offset - gridVertices);
   for (let iz = 0; iz < HEIGHT; iz++) for (let ix = 0; ix < WIDTH; ix++) {
     const x = WEST + ix / SUB, z = SOUTH + iz / SUB;
-    const i = positions.length + (iz * WIDTH + ix) * 3;
-    bankDepth[i / 3] = cornerDepth(x, z);
-    pos.set([x * TILE_UNITS, level - bankDepth[i / 3], z * TILE_UNITS], i);
-    heights[iz * WIDTH + ix] = pos[i + 1];
-    const dx = cornerDepth(x + 1 / SUB, z) - cornerDepth(x - 1 / SUB, z);
-    const dz = cornerDepth(x, z + 1 / SUB) - cornerDepth(x, z - 1 / SUB);
+    const k = iz * WIDTH + ix, i = (offset + k) * 3;
+    pos.set([x * TILE_UNITS, level - depths[k], z * TILE_UNITS], i);
+    heights[k] = pos[i + 1];
+    const tile = bytes[Math.min(NORTH - 1, Math.floor(z)) * SIDE + Math.min(EAST - 1, Math.floor(x))];
+    if (!WATER_DRAW_MASK_TABLE[tile] && tile >> 2 !== 2 && !clearPondBank(site, x, z, .05)) bankFinish[offset - gridVertices + k] = 0;
+    const dx = depths[k + (ix < WIDTH - 1 ? 1 : 0)] - depths[k - (ix > 0 ? 1 : 0)];
+    const dz = depths[k + (iz < HEIGHT - 1 ? WIDTH : 0)] - depths[k - (iz > 0 ? WIDTH : 0)];
     const dy = 2 * TILE_UNITS / SUB, len = Math.hypot(dx, dy, dz);
     norm.set([dx / len, dy / len, dz / len], i);
   }
-  // The sheet uses the original indexed lattice. A separate copy keeps gameplay
-  // heights and the worker's grid intact. Suppress ocean heave in the small basin.
-  bed.pondFloor = floorSampler(heights);
-  bed.sheet = bed.sheet.slice();
-  bed.sheetDepths = bed.sheetDepths.slice();
-  bed.depths = bed.depths.slice(); // the snow and flora sample the coarse drawn floor
   for (let z = SOUTH; z <= NORTH; z++) for (let x = WEST; x <= EAST; x++) {
+    if (!site.pilot && (x === WEST || x === EAST || z === SOUTH || z === NORTH)) continue;
     const i = z * GRID + x;
-    bed.depths[i] = cornerDepth(x, z);
+    bed.depths[i] = depths[(z - SOUTH) * SUB * WIDTH + (x - WEST) * SUB];
     bed.sheet[i * 3 + 1] = level - WATERLINE - WATER_LIFT;
     bed.sheetDepths[i] = -POND_DEPTH_OFFSET - Math.max(0.015, bed.depths[i] - WATERLINE);
   }
-  return renderer.createTerrainSurface(pos, norm, patchIndices(indices), bankDepth, pondShoreMesh(bed.pondFloor, level - WATERLINE));
+  return floorSampler(heights, site);
+}
+
+export function pondTerrain(renderer, px, py, bytes, bed, positions, normals, indices, paths = null, allowPonds = true, buildingAt = null, houseBank = null) {
+  const gridVertices = GRID * GRID;
+  const land = positions.length === gridVertices * 3 ? { width: SIDE, height: SIDE, tileDim: SIDE, bytes, paths, originX: px * SIDE, originZ: -py * SIDE } : null;
+  const sites = land && bed?.depths && allowPonds ? pondSites(px, py, bytes, bed.sheet, paths, SIDE, buildingAt) : [];
+  if (!sites.length) return renderer.createTerrainSurface(positions, normals, indices, null, null, land);
+  let vertices = gridVertices;
+  const patches = sites.map(site => {
+    const width = (site.east - site.west) * SUB + 1, height = (site.north - site.south) * SUB + 1;
+    const offset = vertices;
+    vertices += width * height;
+    return { ...site, width, height, offset };
+  });
+  const pos = new Float32Array(vertices * 3), norm = new Float32Array(pos.length);
+  const bankDepth = new Float32Array(vertices), finish = new Float32Array(vertices - gridVertices);
+  pos.set(positions);
+  norm.set(normals);
+  bed.originalSheet = bed.sheet;
+  bed.sheet = bed.sheet.slice();
+  bed.sheetDepths = bed.sheetDepths.slice();
+  bed.depths = bed.depths.slice();
+  const basins = patches.map(site => ({
+    ...site, waterY: site.level - WATERLINE,
+    floor: buildBasin(site, bytes, bed, pos, norm, bankDepth, finish, site.offset, gridVertices, houseBank),
+  }));
+  const at = (x, z) => basins.find(b => x >= b.west * TILE_UNITS && x < b.east * TILE_UNITS && z >= b.south * TILE_UNITS && z < b.north * TILE_UNITS);
+  bed.pondFloor = (x, z) => at(x, z)?.floor(x, z) ?? null;
+  bed.pondPilotAt = (x, z) => !!at(x, z)?.pilot;
+  bed.pondWaterAt = (x, z) => at(x, z)?.waterY;
+  if (basins.length === 1) bed.pondWaterY = basins[0].waterY;
+  return renderer.createTerrainSurface(pos, norm, patchIndices(indices, patches, gridVertices), bankDepth, pondShoreMesh(basins, bytes, px, py), land, finish);
 }

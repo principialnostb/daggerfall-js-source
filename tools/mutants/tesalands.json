@@ -1067,7 +1067,7 @@
   {
     "name": "TL-landmarks-unseated",
     "file": "src/scenes/floraSeat.js",
-    "old": "  if (lands)\n    lands.lift = liftsFor(lands, stride, carve, () =>\n      packedLifts(p.samples, lands.props, LAND_PROP_FLOATS, stride, carve),\n    );",
+    "old": "  if (lands)\n    lands.lift = liftsFor(lands, stride, carve, () =>\n      packedLifts(p.samples, lands.props, LAND_PROP_FLOATS, stride, carve, p._bed?.pondFloor),\n    );",
     "new": "  if (lands) lands.lift = null;",
     "tests": [
       "test/world/tesalands_props.test.js"

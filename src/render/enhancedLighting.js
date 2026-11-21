@@ -1,3 +1,4 @@
+import { groundFinishGlsl } from './groundFinishGlsl.js';
 import { FOUNTAIN_WATER_GLSL } from './fountainWaterGlsl.js';
 // @ts-check
 // EL1 (2026-09-17, the Enhanced Lighting arc, tier one - FOUNDATIONS).
@@ -1043,6 +1044,7 @@ precision highp sampler2DArray;
 in vec3 vNormal;
 in vec3 vWorldPos;
 in vec2 vLocalXZ;
+in vec3 vEarthFinish;
 uniform sampler2DArray uTileArr;
 uniform usampler2D uTilemap;
 uniform float uTileSize;
@@ -1125,6 +1127,7 @@ void main() {
   if (ge) tex = mix(ecotone(geBase(geA, tileUV, dux, duy), ew, vec3(tileUV, float(geA)), dux, duy), ecotone(geBase(geB, tileUV, dux, duy), ew, vec3(tileUV, float(geB)), dux, duy), geS);
   tex = roadEdge(tex, data, unwrapped, gx, gy, t);   // ROAD-LOOK: a road's edge blended into its ground, its neighbour decoded as its own
   if (!ge) tex = ecotone(tex, ew, vec3(tuv, float(layer)), gx, gy);   // ECOTONE1: a border's ground, its neighbours' share
+${groundFinishGlsl}
   float snowC = snowCover(vLocalXZ, vWorldPos.y, gx, gy);   // PRECIP4: the snow the ground keeps (the bed below reads it too)
   snowC = snowFace(tex, snowC, vLocalXZ, vWorldPos.y, normalize(vNormal), tuv, gx, gy);   // PEAKS1: a steep face over the cap's line is bare rock (render/snowCapGlsl.js)
   tex = ge ? mix(snowGround(tex, ew, snowC, vec3(tileUV, float(geA)), dux, duy), snowGround(tex, ew, snowC, vec3(tileUV, float(geB)), dux, duy), geS) : snowGround(tex, ew, snowC, vec3(tuv, float(layer)), gx, gy);

@@ -38,8 +38,8 @@
   {
     "name": "GRAIN1-the-chain-is-built-before-the-layers-are-uploaded-so-the-distance-goes-to-an-empty-texture",
     "file": "src/render/renderer.js",
-    "old": "    gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, w, h, layers.length, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);",
-    "new": "    gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, w, h, layers.length, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);\n    gl.generateMipmap(gl.TEXTURE_2D_ARRAY);",
+    "old": "    gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, w, h, layers.length + Number(addSoil), 0, gl.RGBA, gl.UNSIGNED_BYTE, null);",
+    "new": "    gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, w, h, layers.length + Number(addSoil), 0, gl.RGBA, gl.UNSIGNED_BYTE, null);\n    gl.generateMipmap(gl.TEXTURE_2D_ARRAY);",
     "tests": [
       "test/render/grain1_terrainmip.test.js"
     ]

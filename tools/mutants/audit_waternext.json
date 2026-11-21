@@ -65,7 +65,7 @@
   {
     "name": "AUDIT-WATER-NEXT-H1-recarve-from-the-carved-ground",
     "file": "src/scenes/world.js",
-    "old": "    const grid = { positions: p._bed.sheet, normals: p._bed.normals };",
+    "old": "    const grid = { positions: p._bed.originalSheet ?? p._bed.sheet, normals: p._bed.normals };",
     "new": "    const grid = { positions: p.terrain.positions, normals: p._bed.normals };",
     "tests": [
       "test/world/terrain/audit_waternext.test.js"

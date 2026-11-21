@@ -32,7 +32,17 @@ import { inBay } from '../world/tamriel/tamrielFrame.js';
 /** The map pixel under a scene point of the stream's frame (`state`: its origin and its compensation). */
 export function framePixelAt(state, x, z) {
   const c = state.compensation;
-  return [state.mapOrigin.x + Math.floor((x - c[0]) / TERRAIN_SIZE), state.mapOrigin.y - Math.floor((z - c[2]) / TERRAIN_SIZE)];
+  return [state.mapOrigin.x + Math.floor((x - c[0]) / TERRAIN_SIZE), state.mapOrigin.y - Math.floor((z - c[2]) / TERRAIN_SIZE)];}
+
+// Query the streamed mesh in its own frame, including after an origin shift.
+export function locateGround(state, built, x, z, translation) {
+  const [px, py] = framePixelAt(state, x, z);
+  const entry = built.get(`${px},${py}`);
+  if (!entry) return null;
+  const t = state.pixelTranslation(px, py, translation);
+  const lx = x - t[0], lz = z - t[2];
+  if (lx < 0 || lz < 0 || lx >= TERRAIN_SIZE || lz >= TERRAIN_SIZE) return null;
+  return { entry, lx, lz, baseY: t[1] };
 }
 
 /**

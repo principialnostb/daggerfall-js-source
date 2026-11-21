@@ -578,7 +578,7 @@ test('JUNGLE-ROADSIDE the build stands each pair whole, a tree\'s half at its ow
   assert.match(text('src/render/nodeGlint.js'), /sendCut\(b\.lptProto \? \(frames\.find\(\(f\) => f\?\.cut && lptCuts\(f\.cut, b\.lptProto\)\) \?\? null\) : null\);/, 'and the glint');
 
   const pb = text('src/scenes/pixelBuild.js');
-  assert.match(pb, /const pairs = keptPairs\(roadside, \(x, z\) => !pointNearGate\(gateClear, px, py, x, z, WOD_FLAT_GATE_CLEAR_M\) && !insideRocks\(pixelRocks, x, z\)\);/, 'kept by the gate\'s clearing and the rocks, as every flat');
+  assert.match(pb, /const pairs = keptPairs\(roadside, \(x, z\) => !submergedRoot\(x, walkGroundAt\(samples, x, z\), z\) && !pointNearGate\(gateClear, px, py, x, z, WOD_FLAT_GATE_CLEAR_M\) && !insideRocks\(pixelRocks, x, z\)\);/, 'kept by the gate\'s clearing and the rocks, as every flat');
   const fallback = pb.slice(pb.indexOf('    if (!jungleOk) {\n      for (const t of pairs.flatMap('), pb.indexOf('    // WOD4: THE CAMP AT PRIVATEER\'S HOLD'));
   assert.match(fallback, /addFlat\(archive, t\.record, t\.x, walkGroundAt\(samples, t\.x, t\.z\), t\.z, \{ wild: JUNGLE_ARCHIVE \}\);/, 'the door unloaded, its Tree records at their own ground');   // PIN MOVED (FLORA-GROUND): the ground's one law, walkGroundAt
   assert.doesNotMatch(fallback, /pixelTrees|tree:/, 'never Logging\'s, whatever the door (AUDIT JUNGLE-ROADSIDE GAME-2)');

@@ -1020,22 +1020,20 @@ export async function bootExterior(canvas, renderer, params, status) {
   let _townOnWater = false;   // the player's feet in the town's water this frame (the footsteps' own answer)
   const townGrid = waterOn ? flatGrid(loc.width * GROUND_TILE_DIM, loc.height * GROUND_TILE_DIM, GROUND_OFFSET * 0.025, RMB_SIDE / GROUND_TILE_DIM) : null;
   const townBed = townGrid ? waterBedOf(townGrid, tilemapBytes, { tileDim: tilemapDim, width: loc.width * GROUND_TILE_DIM, height: loc.height * GROUND_TILE_DIM }) : null;
-  const groundSurface = townGrid ? renderer.createTerrainSurface((townBed?.ground ?? townGrid).positions, (townBed?.ground ?? townGrid).normals, townGrid.indices) : (() => {
-    const gy = GROUND_OFFSET * 0.025;
-    const gw = loc.width * RMB_SIDE;
-    const gh = loc.height * RMB_SIDE;
-    const positions = new Float32Array([0, gy, 0, gw, gy, 0, 0, gy, gh, gw, gy, gh]);
-    const normals = new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]);
-    const indices = new Uint32Array([0, 2, 3, 0, 3, 1]);
-    return renderer.createTerrainSurface(positions, normals, indices);
-  })();
+  const snowOrigin = getLocationTerrainTileOrigin(dfLocation);
+  const townSurfaceGrid = townGrid ?? flatGrid(loc.width * GROUND_TILE_DIM, loc.height * GROUND_TILE_DIM, GROUND_OFFSET * .025, RMB_SIDE / GROUND_TILE_DIM);
+  const townSurfaceGround = townBed?.ground ?? townSurfaceGrid;
+  const groundSurface = renderer.createTerrainSurface(townSurfaceGround.positions, townSurfaceGround.normals, townSurfaceGrid.indices, null, null, {
+    bytes: tilemapBytes, tileDim: tilemapDim, width: loc.width * GROUND_TILE_DIM, height: loc.height * GROUND_TILE_DIM,
+    originX: _locPixel.x * 128 + snowOrigin.x, originZ: -_locPixel.y * 128 + snowOrigin.y,
+  });
   const identityMatrix = trs(0, 0, 0, 0, 0, 0);
   // SNOWFALL1 (world.js's twin note): THE TOWN'S SNOW - its one tile is its map pixel's 128 x 128, the town's tiles
   // laid where the streamed world lays them (TerrainHelper.GetLocationTerrainTileOrigin) and nothing past them (this
   // host draws no ground there: bare), on the flat ground DFU lays and the bed WATER-NEXT carves under its water. No
   // floating origin; no road but the town's own paving (authored ground, never Basic Roads'); its one location the
   // settlement.
-  const snowOrigin = getLocationTerrainTileOrigin(dfLocation), snowTileUnits = RMB_SIDE / GROUND_TILE_DIM;   // TILE_WORLD's law (below)
+  const snowTileUnits = RMB_SIDE / GROUND_TILE_DIM;   // TILE_WORLD's law (below)
   const snowW = loc.width * GROUND_TILE_DIM, snowH = loc.height * GROUND_TILE_DIM;
   const snowTileMap = new Uint8Array(128 * 128);
   for (let ty = 0; ty < snowH; ty++) for (let tx = 0; tx < snowW; tx++) snowTileMap[(snowOrigin.y + ty) * 128 + snowOrigin.x + tx] = tilemapBytes[tx + ty * tilemapDim];

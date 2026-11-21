@@ -190,7 +190,17 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
     );
     page.append(props);
   } else {
-    page.append(textureIntro(),...textureNodes());
+    const pond = node('section', 'card');
+    const enabled = getPref('enhancedPonds') !== false;
+    const toggle = button(enabled ? 'Отключить' : 'Включить', () => {
+      setPref('enhancedPonds', !enabled);
+      render();
+    });
+    toggle.setAttribute('aria-pressed', String(enabled));
+    pond.append(node('h3', null, 'Живые пруды'), node('p', 'meta', 'Автор: BLOODBATH'),
+      node('p', 'meta', 'Пруды получают объёмное дно, пологие берега и прибрежную растительность. У домов берег повторяет контур стен.'),
+      toggle, node('p', 'meta', 'Включение и отключение применяется после перезапуска игры.'));
+    page.append(textureIntro(), pond, ...textureNodes());
   }
   return page;
 }

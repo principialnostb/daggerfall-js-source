@@ -125,9 +125,9 @@ test('AUDIT WATER-NEXT H1: Deep Waters\' cap carves the bed - a tile it repaints
   assert.match(w, /function bedBytesOf\(p\) \{ return p\._dwBytes \?\? p\.tilemapBytes; \}/);
   const recarve = w.slice(w.indexOf('  function dwRecarve(p) {'), w.indexOf('  function hostBed(grid, bed)'));
   assert.match(recarve, /const fields = bedFields\(bedBytesOf\(p\), \{ stride, halo \}\);/);   // PIN MOVED (BANK-FLUSH): the carve and the sheet's depths, one chamfer
-  assert.match(recarve, /const grid = \{ positions: p\._bed\.sheet, normals: p\._bed\.normals \};/, 'from the grid as it stood');
-  assert.match(recarve, /renderer\.destroyMesh\(p\.terrain\);\n\s*p\.terrain = renderer\.createTerrainSurface\(bed\?\.positions \?\? grid\.positions, bed\?\.normals \?\? grid\.normals,/);
-  assert.match(recarve, /p\._bed = \{ sheet: grid\.positions, normals: grid\.normals, depths: bed\?\.depths \?\? null, sheetDepths: bed\?\.sheetDepths \?\? null, halo \};/, 'the grid kept, so a lifted cap carves it back');
+  assert.match(recarve, /const grid = \{ positions: p\._bed\.originalSheet \?\? p\._bed\.sheet, normals: p\._bed\.normals \};/, 'rebuild from the pristine grid, including under a pond');
+  assert.match(recarve, /p\.terrain = pondTerrain\(renderer, p\.px, p\.py, bedBytesOf\(p\), p\._bed, bed\?\.positions \?\? grid\.positions, bed\?\.normals \?\? grid\.normals,/);
+  assert.match(recarve, /p\._bed = \{ sheet: grid\.positions, normals: grid\.normals, depths: bed\?\.depths \?\? null, sheetDepths: bed\?\.sheetDepths \?\? null, halo, pondDeferred: !!p\._dwBytes \};/, 'a lifted coastal cap rebuilds from the original sheet');
   assert.match(w, /const bed = waterOn \? hostBed\(grid, grid\.bed\) : null;/, 'the restride keeps the kernel\'s bed - no carved copy held on the host');
 });
 
@@ -212,7 +212,7 @@ test('AUDIT WATER-NEXT H2: the sheet\'s own depths - a vertex the carve reaches 
   assert.match(WATER_SURFACE_VS, /vDepth = max\(abs\(aDepth\) \+ lift, 0\.0\);/);
   assert.match(rd('src/render/renderer.js'), /gl\.vertexAttrib1f\(1, -NO_BED_DEPTH\);/, 'a sheet with no bed at all: the same constant');
   const w = hostText('src/scenes/world.js');
-  assert.match(w, /function waterSheetOf\(bed, terrain\) \{ return bed\?\.depths \? \{ positions: bed\.sheet, depths: bed\.sheetDepths \} : \{ terrain \}; \}/);
+  assert.match(w, /function waterSheetOf\(bed, terrain\) \{ return bed\?\.depths \? \{ positions: bed\.sheet, depths: bed\.sheetDepths, pond: !!bed\.pondFloor \} : \{ terrain \}; \}/);
   assert.match(rd('src/scenes/exterior.js'), /\{ positions: townBed\.sheet, depths: townBed\.sheetDepths \}/);
 });
 

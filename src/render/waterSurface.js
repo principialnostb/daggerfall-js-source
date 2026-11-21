@@ -563,7 +563,7 @@ void main() {
     if (bank) bankDepthScale = smoothstep(0.5, 0.5 + 2.0 * uShoreSoft, c);
     // The pilot floor intersects the sheet. Its excavated saddle spans the
     // two diagonal wet corners that the original tile mask only touches.
-    if (vPond > 0.5 && ((bank && uSceneOn == 1) || data == 196u)) {
+    if (vPond > 0.5 && (bank || data == 196u)) {
       edge = 1.0;
       bankDepthScale = 1.0;
     }

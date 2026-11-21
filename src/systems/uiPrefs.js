@@ -210,6 +210,7 @@ export const PREF_DEFAULTS = Object.freeze({
   // MW-TP-ONLY: keep Morrowind's NIF body in third person while the first-person view uses the classic arm/sprite path.
   morrowindThirdPersonOnly: false,
   enhancedCampfire: true,
+  enhancedPonds: true,
   enhancedTreasurePiles: true,
   enhancedGroundLoot: true,
   enhancedDungeonProps: true,

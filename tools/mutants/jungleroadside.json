@@ -705,7 +705,7 @@
   {
     "name": "JUNGLE-ROADSIDE-the-build-keeping-a-lone-tree",
     "file": "src/scenes/pixelBuild.js",
-    "old": "const pairs = keptPairs(roadside, (x, z) => !pointNearGate(gateClear, px, py, x, z, WOD_FLAT_GATE_CLEAR_M) && !insideRocks(pixelRocks, x, z));",
+    "old": "const pairs = keptPairs(roadside, (x, z) => !submergedRoot(x, walkGroundAt(samples, x, z), z) && !pointNearGate(gateClear, px, py, x, z, WOD_FLAT_GATE_CLEAR_M) && !insideRocks(pixelRocks, x, z));",
     "new": "const pairs = roadside;",
     "tests": [
       "test/world/jungleroadside.test.js"

@@ -10,6 +10,7 @@
 // and cooled to silt. A puddle record keeps its art (WATER-PUDDLE: its water is its picture's).
 // Both terrain programs take this text: renderer.js TERRAIN_FS and the lane's EL_TERRAIN_FS (enhancedLighting.js).
 // ═══════════════════════════════════════════════════════════════════
+import { bankFinishMix } from './pondBankMaterial.js';
 import { PUDDLE_RECORDS } from '../world/puddleMask.js';
 
 /** The silt: the dirt record's colour times this, under the water. */
@@ -23,6 +24,7 @@ export const WET_MUD_SHARE = 0.8;
 
 export const WATER_BED_GLSL = `
 in float vBankDepth;
+in float vBankFinish;
 uniform float uWaterBed;       // WATER-NEXT 2: 1 where the enhanced water lies over this ground
 uniform uvec4 uBedMask[8];     // the draw's water corners, packed as the water's own uWaterMask
 // SHORE-SILT: tl/gx/gy the ground's own texel of this tile (its layer, turned) - a shore's art paints its water past
@@ -64,9 +66,4 @@ export const waterBedMix = (decode = (s) => s) =>
     silt = mix(silt, vec3(dot(silt, vec3(0.299, 0.587, 0.114))) * ${WET_MUD.toFixed(2)}, ${WET_MUD_SHARE.toFixed(2)} * bedK.y);   // SHORE-SILT: the fringe past the sheet is wet mud - darker, greyer
     tex = mix(tex, silt, bedK.x);
   }
-  if (vBankDepth > 0.0) {
-    vec3 soil = ${decode(`textureGrad(uTileArr, vec3(tuv, 1.0), gx, gy).rgb`)};
-    float wet = smoothstep(0.06, 0.44, vBankDepth);
-    soil *= mix(vec3(0.76, 0.68, 0.54), vec3(0.45, 0.43, 0.38), wet);
-    tex = mix(tex, soil, smoothstep(0.10, 0.30, vBankDepth) * (1.0 - snowC * (1.0 - wet)));
-  }`;
+  ${bankFinishMix(decode)}`;

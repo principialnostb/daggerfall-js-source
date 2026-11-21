@@ -3384,6 +3384,10 @@ export class PlayerMotor {
     // while DFU's own gate, the host flag, stays true, and a proxy on
     // `sunk` would walk the swimmer at the full ground speed.
     if (this.isPlayerSwimming && !this.waterWalking) speed = swimSpeed(speed, this.stats.swimming ?? 0);
+    else if (this.grounded && !this.waterWalking && !this.levitating && this.transportMode === TRANSPORT_MODES.Foot && this.collider.wadingDepth) {
+      const depth = this.collider.wadingDepth(this.pos);
+      if (depth > 0) speed += Math.min(1, depth) * (swimSpeed(speed, this.stats.swimming ?? 0) - speed);
+    }
     if (this._rattleLeft > 0) speed *= this._rattleShare;   // TELL6e: a slam, a ring or a leap that landed rattles the walk
     this.speed = speed;   // UpdateSpeed writes the field the getter reads
     this._trackHalfSpeed(input, speed);

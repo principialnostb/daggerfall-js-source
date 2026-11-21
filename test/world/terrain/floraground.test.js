@@ -95,8 +95,8 @@ test('FLORA-GROUND the ground\'s one law is the drawn ground: walkGroundAt is th
   assert.ok(apart > n / 20, `the field tells the two apart: the bilinear patch over the drawn ground by 5 cm at ${apart} of ${n} points`);
   assert.equal(walkGroundAt(hm, 3 * CELL, 7 * CELL), surfaceHeightAt(hm, 3 * CELL, 7 * CELL, 1));
   const W = hostText('src/scenes/world.js');
-  assert.match(W, /return walkGroundAt\(p\.samples, lx, lz\) \+ t\[1\];/, 'the walk floor');
-  assert.match(W, /const h = walkGroundAt\(p\.samples, lx, lz\);/, 'the grass');
+  assert.match(W, /return \(p\._bed\?\.pondFloor\?\.\(lx, lz\) \?\? walkGroundAt\(p\.samples, lx, lz\)\) \+ t\[1\];/, 'the walk floor');
+  assert.match(W, /const h = p\._bed\?\.pondFloor\?\.\(lx, lz\) \?\? walkGroundAt\(p\.samples, lx, lz\);/, 'the grass');
   assert.doesNotMatch(W, /at\(ix, iz\) \* \(1 - sx\) \* \(1 - sz\)/, 'the bilinear walk floor gone, not merely unused');
 });
 
