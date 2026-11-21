@@ -131,6 +131,14 @@ const mul4 = (a, b, out) => {   // column-major a*b
 };
 const _pv = new Float32Array(16);
 
+import {knownPixelBlendState,knownPixelCullState} from './pixelBlendState.js';
+function readPixelBlendState(gl) {
+  const known = knownPixelBlendState(gl);
+  if (known) return known;
+  return { enabled: gl.isEnabled(gl.BLEND), depthMask: gl.getParameter(gl.DEPTH_WRITEMASK),
+    factors: [gl.BLEND_SRC_RGB, gl.BLEND_DST_RGB, gl.BLEND_SRC_ALPHA, gl.BLEND_DST_ALPHA].map(key => gl.getParameter(key)) };
+}
+
 // Keep large close-up props from gaining detail just because they cover more of the screen.
 export function footprintBlockPixels(height, rows, fraction, referenceFraction, maxScale = 1.65) {
   const scale = Math.min(maxScale, Math.max(1, Math.sqrt(fraction / referenceFraction)));
@@ -144,16 +152,26 @@ export function footprintBlockPixels(height, rows, fraction, referenceFraction, 
  * Optional opacity applies only to pixel write-back: translucent callers draw opaque into the isolated target;
  * their HD/one-pixel fallback belongs to the caller. Character callers keep the default one.
  */
-export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null, viewport = null, alphaState = null) {
+export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null, target = null) {
+  // HD and an already active sprite target use the original meshes at any
+  // viewport size. Querying GL here can stall the main thread every frame.
+  if (!(rows > 0) || renderer._spriteDepth > 0) {
+    for (const d of draws) draw(d);
+    return;
+  }
+  if (Array.isArray(target) || ArrayBuffer.isView(target)) target = {viewport:target};
   const gl = renderer.gl;
-  const vp = /** @type {Int32Array} */ (viewport ?? gl.getParameter(gl.VIEWPORT));
+  // The exterior body pass publishes its actual world destination. Independent
+  // views keep their own target, including a nested inventory/studio picture.
+  if (!target && !renderer._panelSaved && !renderer._studioDepth) target = renderer._worldFixtureDestination;
+  const vp = /** @type {Int32Array} */ (target?.viewport ?? gl.getParameter(gl.VIEWPORT));
   const footprint = footprintProfile && corners
     ? screenRect(corners, mul4(renderer._proj, renderer._view, _pv), vp[2], vp[3], 0)
     : null;
   const px = footprint
     ? footprintBlockPixels(vp[3], rows, footprint[2] * footprint[3] / (vp[2] * vp[3]), footprintProfile.area, footprintProfile.maxScale)
     : blockPixels(vp[3], rows);
-  if (px <= 1 || renderer._spriteDepth > 0) {
+  if (px <= 1) {
     for (const d of draws) draw(d);
     return;
   }
@@ -163,7 +181,8 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null, d
   const [rx, ry, rw, rh] = rect ?? [0, 0, vw, vh];
   const L = layerOf(renderer);
   const lw = Math.ceil(vw / px), lh = Math.ceil(vh / px), sub = pixSub(px);
-  const fboWas = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  const fboWas = target?.framebuffer !== undefined ? target.framebuffer : gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  if (target) target.framebuffer = fboWas; // null is a real destination (the canvas)
   sizeLayer(gl, L, lw * sub, lh * sub);
   gl.bindFramebuffer(gl.FRAMEBUFFER, L.fbo);
   // The low target is lw*px wide, a little past the viewport: the clip space is squeezed to it, so each sub*sub texels
@@ -205,21 +224,19 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null, d
   gl.uniform1i(L.uSub, sub);
   gl.uniform1f(L.uOpacity, opacity);
   // The renderer's front face is CW for its life (renderer.js frontFace) - this triangle would be culled as a back.
-  const culled = gl.isEnabled(gl.CULL_FACE);
+  const culled = knownPixelCullState(gl) ?? gl.isEnabled(gl.CULL_FACE);
   gl.disable(gl.CULL_FACE);
   // Translucent shells render opaque into the isolated colour/depth target, then blend once per block.
   // Keep their nearest depth for occlusion, while leaving the world's depth untouched.
   const alpha = opacity < 1;
-  const previous = alpha ? alphaState?.previous ?? {
-    blend: gl.isEnabled(gl.BLEND),
-    depthMask: gl.getParameter(gl.DEPTH_WRITEMASK),
-    factors: [gl.BLEND_SRC_RGB, gl.BLEND_DST_RGB, gl.BLEND_SRC_ALPHA, gl.BLEND_DST_ALPHA].map(k => gl.getParameter(k)),
-  } : null;
-  if (alphaState && previous) alphaState.previous = previous;
+  // Every shell restores the state it borrowed. Its neighbours can reuse that
+  // snapshot until a regular translucent mesh (e.g. lantern glass) owns it.
+  const saved = alpha ? (target?.blendState ?? readPixelBlendState(gl)) : null;
+  if (saved && target) target.blendState = saved;
   if (alpha) { gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
   try { gl.drawArrays(gl.TRIANGLES, 0, 3); }
   finally {
-    if (previous) { gl.depthMask(previous.depthMask); gl.blendFuncSeparate(...previous.factors); if (!previous.blend) gl.disable(gl.BLEND); }
+    if (saved) { gl.depthMask(saved.depthMask); gl.blendFuncSeparate(...saved.factors); if (!saved.enabled) gl.disable(gl.BLEND); }
   }
   if (culled) gl.enable(gl.CULL_FACE);
   gl.disable(gl.SCISSOR_TEST);

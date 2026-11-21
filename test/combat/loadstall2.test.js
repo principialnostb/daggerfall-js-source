@@ -55,12 +55,26 @@ test('LOAD-STALL 2: armShapeKey tells arms apart by their pieces and not by thei
   assert.notEqual(armShapeKey(moved), k, 'another mesh of the same size is another arm');
 });
 
+test('replacing the rig between slices stops posing and discards the partial bounds', async () => {
+  const times = [0, 1, 2], arm = { bounds: null }, posed = [];
+  let current = true;
+  const union = await clipUnionBoundsSliced(arm, t => {
+    posed.push(t);
+    arm.bounds = { minX: t, maxX: t, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  }, times, { budgetMs: 0, yieldNow: async () => { current = false; }, current: () => current });
+  assert.deepEqual(posed, [0]);
+  assert.equal(union, null);
+});
+
 test('LOAD-STALL 2: the build remembers the union by its arm, owes a new one to the frames on a shadow, and the rig lands it only on the arm it measured (mutants: the memo unread; the sweep inside the build; a late reach over a swapped hand; the preview swept)', () => {
   assert.match(fpArm, /let union = reachKey \? REACH_CACHE\.get\(reachKey\) \?\? null : null;/);
   assert.match(fpArm, /if \(gen === null\) union = await clipUnionBoundsSliced\(arm, poseAt, sweep\);/);
   assert.match(fpArm, /const shadow = sweepShadowOf\(arm\);/);
-  assert.match(fpArm, /if \(r == null \|\| built !== res \|\| res\.arm\.pieces !== piecesAt\) return;/);
-  assert.match(fpArm, /if \(held && held\.built === res\) held\.reach0 = r;/);
+  const scheduler = readFileSync('src/combat/weapon/reachSweeps.js', 'utf8');
+  assert.ok(fpArm.includes('sweeps.schedule(res, () => built, () => held)'));
+  assert.ok(scheduler.includes('currentBuild() === res && res.arm.pieces === piecesAt'));
+  assert.ok(scheduler.includes('if (r == null || !current()) return;'));
+  assert.ok(scheduler.includes('if (held && held.built === res) held.reach0 = r;'));
   const preview = fpArm.slice(fpArm.indexOf('async createAppearancePreviewRig('), fpArm.indexOf('const builtPreview = await previewRig.build(opts);'));
   assert.match(preview, /reachSweep: false/);
   for (const memo of ['REACH_CACHE', 'ESM_MERGE_CACHE']) {

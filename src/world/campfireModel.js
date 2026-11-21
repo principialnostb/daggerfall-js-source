@@ -132,13 +132,16 @@ export function campfireFlameState(frame = 0) {
 /** Exposed faces of a sampled fire volume. No camera basis, cards or inner cube faces. */
 export function buildCampfireFlame(frame = 0, layer = 'core') {
   frame = ((Math.floor(frame) % CAMPFIRE_FRAMES) + CAMPFIRE_FRAMES) % CAMPFIRE_FRAMES;
-  const b = new MeshBench(CAMPFIRE_ARCHIVE), cells = new Map(), step = CAMPFIRE_PIXEL;
+  const b = new MeshBench(CAMPFIRE_ARCHIVE), step = CAMPFIRE_PIXEL;
   const phase = frame * TAU / CAMPFIRE_FRAMES, fragments = campfireFlameState(frame);
   const threshold = layer === 'core' ? .16 : layer === 'middle' ? .02 : -.18;
-  const key = (x,y,z) => `${x},${y},${z}`;
-  for (let iy = 0; iy < 38; iy++) for (let ix = -10; ix <= 10; ix++) for (let iz = -10; iz <= 10; iz++) {
-    const x = ix * step, y = .2 + iy * step, z = iz * step;
-    let material = -1, depth = -1;
+  // A one-cell empty border also covers the six neighbour reads at the edges.
+  const stride = 23, plane = stride * stride;
+  const cells = new Uint8Array(40 * plane);
+  const depths = new Float64Array(plane);
+  for (let iy = 0; iy < 38; iy++) {
+    const y = .2 + iy * step, base = (iy+1)*plane;
+    depths.fill(-1);
     for (let k = 0; k < 4; k++) {
       const a = k * 2.4, h = (k === 0 ? .85 : .43 + (k % 3) * .08) * (1 + .08 * Math.sin(phase*2 + k));
       const t = (y - .18) / h;
@@ -146,28 +149,45 @@ export function buildCampfireFlame(frame = 0, layer = 'core') {
       const cx = (k ? Math.cos(a)*.15 : -.12*Math.sin(phase)*t*t) + Math.sin(phase+t*5+k)*.065*t;
       const cz = (k ? Math.sin(a)*.13 : .10*Math.cos(phase)*t*t) + Math.cos(phase*3+t*4+k)*.055*t;
       const radius = (k ? .20 : .28) * Math.pow(1-t,.70) * (1 + .13*Math.sin(t*11-phase*2+k));
-      const d = 1 - Math.hypot(x - cx,z - cz) / radius;
-      if (d <= threshold || d < depth) continue;
-      depth = d;
-      // Bright broad foot, yellow middle, orange tips; large coherent colour patches.
-      const hotHeight = .49-.40*Math.abs(x+.04)-.40*Math.abs(z)+.07*Math.sin(phase+x*11+z*7);
-      const hotPatch = y>.24 && y<hotHeight && noise(Math.floor(x/.10),Math.floor(z/.10),2)>.32;
-      material = layer === 'core' ? (hotPatch ? 7 : t < .70 ? 6 : 5) : layer === 'middle' ? (t < .55 ? 6 : 5) : (t < .66 ? 5 : 8);
+      const reach = radius*(1-threshold);
+      const x0 = Math.max(-10, Math.floor((cx-reach)/step)), x1 = Math.min(10, Math.ceil((cx+reach)/step));
+      const z0 = Math.max(-10, Math.floor((cz-reach)/step)), z1 = Math.min(10, Math.ceil((cz+reach)/step));
+      for (let ix=x0; ix<=x1; ix++) for (let iz=z0; iz<=z1; iz++) {
+        const x=ix*step, z=iz*step, pos=(ix+11)*stride+iz+11;
+        const d = 1 - Math.hypot(x - cx,z - cz) / radius;
+        if (d <= threshold || d < depths[pos]) continue;
+        depths[pos] = d;
+        let material;
+        if (layer === 'core') {
+          const hotHeight = .49-.40*Math.abs(x+.04)-.40*Math.abs(z)+.07*Math.sin(phase+x*11+z*7);
+          const hotPatch = y>.24 && y<hotHeight && noise(Math.floor(x/.10),Math.floor(z/.10),2)>.32;
+          material = hotPatch ? 7 : t < .70 ? 6 : 5;
+        } else {
+          material = layer === 'middle' ? (t < .55 ? 6 : 5) : (t < .66 ? 5 : 8);
+        }
+        cells[base+pos] = material;
+      }
     }
     for (const f of fragments) {
       if (!f.active) continue;
       const t = (y - f.center[1]) / (f.radius * 1.8);
       if (Math.abs(t) > 1) continue;
       const cx = f.center[0] + Math.sin(t * 2) * .065, cz = f.center[2] + t * .035;
-      if (Math.hypot(x-cx,z-cz) < f.radius * Math.sqrt(1-t*t) * (1 - t * .4) * (1-threshold)) material = f.age < .3 ? 6 : f.age < .65 ? 5 : 8;
+      const reach = f.radius * Math.sqrt(1-t*t) * (1 - t * .4) * (1-threshold);
+      for (let ix=Math.max(-10,Math.floor((cx-reach)/step)); ix<=Math.min(10,Math.ceil((cx+reach)/step)); ix++) {
+        for (let iz=Math.max(-10,Math.floor((cz-reach)/step)); iz<=Math.min(10,Math.ceil((cz+reach)/step)); iz++) {
+          if (Math.hypot(ix*step-cx,iz*step-cz) < reach) cells[base+(ix+11)*stride+iz+11] = f.age < .3 ? 6 : f.age < .65 ? 5 : 8;
+        }
+      }
     }
-    if (material >= 0) cells.set(key(ix,iy,iz), {ix,iy,iz,x,y,z,material});
   }
-  const neighbours = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
-  for (const c of cells.values()) {
+  const neighbours = [stride,-stride,plane,-plane,1,-1];
+  for (let iy=0; iy<38; iy++) for (let ix=-10; ix<=10; ix++) for (let iz=-10; iz<=10; iz++) {
+    const pos=(iy+1)*plane+(ix+11)*stride+iz+11;
+    if (!cells[pos]) continue;
     const skip = [];
-    neighbours.forEach(([dx,dy,dz], i) => { if (cells.has(key(c.ix+dx,c.iy+dy,c.iz+dz))) skip.push(i); });
-    if (skip.length < 6) box(b,c.material,[c.x,c.y,c.z],[step/2,step/2,step/2],{skip,tile:[.55,.55]});
+    for (let side=0; side<6; side++) if (cells[pos+neighbours[side]]) skip.push(side);
+    if (skip.length < 6) box(b,cells[pos],[ix*step,.2+iy*step,iz*step],[step/2,step/2,step/2],{skip,tile:[.55,.55]});
   }
   // Sparks stay much smaller than the detached flames and disappear independently.
   for (let k = 0; layer === 'core' && k < 3; k++) {

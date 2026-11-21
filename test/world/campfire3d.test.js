@@ -4,6 +4,39 @@ import assert from 'node:assert/strict';
 import { buildCampfireBody, buildCampfireFlame, campfirePaint, campfireFlameState, CAMPFIRE_FRAMES } from '../../src/world/campfireModel.js';
 import { createCampfireVisual, campfireMatrix, campfirePulse, drawCampWorldFx } from '../../src/scenes/campfireVisual.js';
 
+test('background flame geometry uses transferable buffers and preserves frames drawn before it arrives', async t => {
+  const oldWorker = globalThis.Worker, oldSelf = globalThis.self;
+  t.after(() => {
+    if (oldWorker === undefined) delete globalThis.Worker; else globalThis.Worker = oldWorker;
+    if (oldSelf === undefined) delete globalThis.self; else globalThis.self = oldSelf;
+  });
+  let client, closed = false, messages = 0, starts = 0;
+  globalThis.Worker = class {
+    constructor() { client = this; }
+    postMessage() { starts++; }
+  };
+  globalThis.self = {
+    postMessage(value, buffers) {
+      const data = structuredClone(value,{transfer:buffers});
+      assert.equal(value.mesh.positions.byteLength,0);
+      client.onmessage({data});
+      messages++;
+    },
+    close() { closed = true; }
+  };
+  const {prepareCampfireFlames,campfireLayerGeometry} = await import('../../src/world/campfireFlameCache.js?worker-test');
+  await import('../../src/world/campfireFlameWorker.js');
+  prepareCampfireFlames();
+  prepareCampfireFlames();
+  const visible = campfireLayerGeometry(0,'core');
+  globalThis.self.onmessage();
+  assert.equal(starts,1);
+  assert.equal(messages,48);
+  assert.ok(closed);
+  assert.equal(campfireLayerGeometry(0,'core'),visible);
+  assert.deepEqual(campfireLayerGeometry(15,'outer'),buildCampfireFlame(15,'outer'));
+});
+
 test('campfire meshes are finite, outward-normal unit faces with valid indices and grounded bounds', () => {
   const body = buildCampfireBody();
   for (const m of [body, ...Array.from({ length: CAMPFIRE_FRAMES }, (_, i) => buildCampfireFlame(i))]) {
@@ -30,15 +63,19 @@ test('two camp pools share GPU resources, a cold fire draws only its body, the l
   };
   const a = createCampfireVisual(r), b = createCampfireVisual(r), c = { rec: { pos: [1200, 3, -200], yaw: 0 } };
   a.draw(c, true, 0); b.draw(c, false, 0);
-  assert.equal(meshes.length, 49); assert.equal(pictures.length, 10); assert.equal(draws.length, 5);
+  assert.equal(meshes.length, 4); assert.equal(pictures.length, 10); assert.equal(draws.length, 5);
   assert.deepEqual(Array.from(draws[0][1].slice(12, 15)), c.rec.pos);
   assert.equal(draws[1][3].noShadow, true);
   a.destroy(); assert.equal(freed.length, 0);
   assert.equal(draws[2][3].translucent,.47); assert.equal(draws[3][3].translucent,.26);
   assert.ok(draws[4][0].subMeshes.some(s=>s.textureRecord===9));
-  b.destroy(); assert.equal(freed.length, 49); assert.equal(released.length, 10); assert.equal(emission.length, 5);
-  b.destroy(); assert.equal(freed.length, 49);
-  a.draw(c, false, 1); assert.equal(meshes.length, 98); a.destroy();
+  b.draw(c, true, 0);
+  assert.equal(meshes.length, 4);
+  b.draw(c, true, .25);
+  assert.equal(meshes.length, 7);
+  b.destroy(); assert.deepEqual(freed, meshes); assert.equal(released.length, 10); assert.equal(emission.length, 5);
+  b.destroy(); assert.equal(freed.length, 7);
+  a.draw(c, false, 1); assert.equal(meshes.length, 8); a.destroy();
 });
 
 test('detached fire rises, shrinks, cools out and loops; fire geometry has top-facing surfaces', () => {

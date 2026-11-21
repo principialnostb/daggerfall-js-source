@@ -1205,6 +1205,7 @@ export class ShadowPass {
     // the pool: records are minted once and reused by index
     /** @type {Array<{kind:number, mesh:any, matrix:Float32Array, texRemap:any, surface:any, arrayTex:any, tilemapTex:any, tileSize:number, batches:any, flatWind:Float32Array, windfall:Float32Array, wfSway:Float32Array|null, wfAxis:Float32Array|null, right:Float32Array, up:Float32Array, bounded:boolean, sphere:Float32Array, subSpheres:Float32Array, cellSpheres:Float32Array, dynamic:boolean, cut:number, body:boolean, anchored:boolean, look:number, matrixBits:Int32Array|null}>} */
     this.records = [];
+    this._posedCasters = [];
     this.count = 0;
     this.recording = true;
     this.sunVP = SHADOW_CASCADES.map(() => new Float32Array(16));
@@ -1770,6 +1771,7 @@ export class ShadowPass {
       r.bounded = !!mesh.bounds;
       if (r.bounded) transformSphere(matrix, mesh.bounds, r.sphere);
     }
+    if (!body && !sphere && mesh.posedShadowBox) this._posedCasters.push(r);
     let h = Math.imul(shId(mesh) ^ 0x2f0b3e5d, 0x9e3779b1) ^ (mesh._poseGen | 0);
     const mb = r.matrixBits;
     for (let i = 0; i < 16; i++) h = (Math.imul(h ^ mb[i], 0x85ebca6b) + i) | 0;
@@ -1865,9 +1867,27 @@ export class ShadowPass {
     }
     r.dynamic = anyDyn;   // the record carries a dynamic batch (the replay reads each batch's own word)
   }
+  // The colour pass recorded the placement. Depth rendering uses the latest
+  // uploaded palette, which can advance again before beginFrame replays it.
+  _refreshPosedCasters() {
+    for (const r of this._posedCasters) {
+      const b = r.mesh.posedShadowBox;
+      if (!b) { r.bounded = false; continue; }
+      const s = r.sphere;
+      const hx = (b.maxX-b.minX)/2, hy = (b.maxY-b.minY)/2, hz = (b.maxZ-b.minZ)/2;
+      s[0] = b.minX+hx; s[1] = b.minY+hy; s[2] = b.minZ+hz;
+      s[3] = Math.hypot(hx,hy,hz);
+      transformSphere(r.matrix,s,s);
+      // Cover Float32 rounding of the world-space centre and skin transforms.
+      s[3] += 1e-5 * (1 + s[3] + Math.max(Math.abs(s[0]),Math.abs(s[1]),Math.abs(s[2])));
+      r.bounded = Number.isFinite(s[3]) && hx >= 0 && hy >= 0 && hz >= 0;
+    }
+  }
+
   discard() {
     for (let i = 0; i < this.count; i++) { const r = this.records[i]; r.mesh = null; r.surface = null; r.batches = null; r.texRemap = null; }
     this.count = 0;
+    this._posedCasters.length = 0;
     this._selfCard = null;
     // AUDIT 637 B4: and the lanterns' candidate lists, as far as they were ever filled - a list holds batches, and one
     // kept past the frame kept a destroyed batch's placement grid (or a dungeon's, into the daylight) with it
@@ -1878,6 +1898,7 @@ export class ShadowPass {
 
   render(f) {
     const gl = this.gl;
+    this._refreshPosedCasters();
     this.stats.records = this.count; this.stats.sunDraws = 0; this.stats.pointDraws = 0; this.stats.culled = 0;
     SHADOW_TUNING.steady = SHADOW_TUNING.override ?? !!getPref('steadyShadows');
     SHADOW_TUNING.debug = SHADOW_TUNING.debugForce ?? !!getPref('shadowDebug');   // FLICKER-FIX: the Shadow debug log chip (debugForce: the console's)

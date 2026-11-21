@@ -108,7 +108,9 @@ test('MWNPC2d every body pass of the hosts the game boots opens a batch around i
   const world = rd('src/scenes/world.js');
   const modes = rd('src/scenes/worldModes.js');
   const between = (src, from, to) => { const a = src.indexOf(from); return a >= 0 ? src.slice(a, src.indexOf(to, a)) : ''; };
-  const ext = between(world, 'renderer.beginCharacterSpriteBatch?.();', '} finally { renderer.flushCharacterSpriteBatch?.(); }');
+  const ext = between(world, 'renderer.withWorldBodyBatch(() => {', '    });');
+  const draw = between(rd('src/render/renderer.js'), '  withWorldBodyBatch(draw) {', '  withWorldFixtureDestination(draw) {');
+  assert.ok(draw.includes('this.beginCharacterSpriteBatch();') && draw.includes('try { return draw(); }') && draw.includes('finally { this.flushCharacterSpriteBatch(); }'));
   assert.ok(ext.includes('mwViewDrawBody(canvas,') && ext.includes('drawPeerBodies(proj, view, mwv.eye'), 'the street: the player and the others in one batch, flushed whatever throws');
   const opens = modes.split('renderer.beginCharacterSpriteBatch?.();').slice(1);
   assert.equal(opens.length, 2, 'the dungeon and the building');

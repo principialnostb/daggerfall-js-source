@@ -56,6 +56,7 @@ import { modDiagnostics } from '../systems/modDiagnostics.js';   // MOD-DIAG1: t
 // looks level because ITS pitch is an animation channel, where this one
 // takes the player's pitch through the neck the reference rotates.
 
+import { createReachSweeps } from './weapon/reachSweeps.js';
 import { lookAt, multiply, ortho, perspective, transformPoint, trs, wrapAngle } from '../world/mat4.js';
 import { ClimbPose, POSE } from '../player/climb/climbPose.js';   // CLIMB6: the climb's limbs, in the world; TWO-HANDS: its limb law (LIMB_TAU) eases the mirror's compositions
 import { runWeightStep, runPhaseFollow, pumpTarget3D, RUN_3D, mirrorStrike, guardStep, GUARD, pairSpreadAngle, PAIR_SPREAD, easeTo } from './twoHands/handsLaw.js';   // TWO-HANDS: the run's pump, the sprite lane's stroke on the 3D body; a mirrored blow's way across the screen; the guard's weight; TWO-HANDS SPREAD: the pair's arms turned out
@@ -4661,8 +4662,8 @@ export async function buildFpArm({
       else {
         const shadow = sweepShadowOf(arm);
         const shadowAt = (t) => poseAssembly(shadow, { tracks, sampleTrack, time: t, accumRoot });
-        sweepLater = async () => {
-          const u = await clipUnionBoundsSliced(shadow, shadowAt, sweep);
+        sweepLater = async current => {
+          const u = await clipUnionBoundsSliced(shadow, shadowAt, sweep, { current });
           if (u) rememberReach(reachKey, u);
           return u;
         };
@@ -4755,7 +4756,7 @@ export async function buildFpArm({
       cameraRef,
       reach,
       // LOAD-STALL 2: the sweep still owed this arm - the reach it lands on, or null (createFpArm's build runs it)
-      sweepLater: sweepLater ? async () => { const u = await sweepLater(); return u ? armReach(eye, u) : null; } : null,
+      sweepLater: sweepLater ? async current => { const u = await sweepLater(current); return u ? armReach(eye, u) : null; } : null,
       idleReach,
       skeletonPath,
       settingsSkeleton,
@@ -5151,6 +5152,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let pendingBuild = null;       // AUDIT MW-TORCH F6: the BUILD that arrived mid-build - an identity (a load over a load) is not dropped
   let buildingOpts = null;       // MW-EARLY: the opts of the build in flight - whom it is building for, before anything stands
   let buildGen = 0;              // AUDIT MW-TORCH F7: bumped by unload(); a build that lands after it is discarded, never installed over the unload
+  const sweeps = createReachSweeps();
   let mesh = null;
   let packed = null;
   let reason = 'not built';
@@ -5924,6 +5926,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       writeSkinPalette(thirdSkin, t.arm);
       renderer.updateSkinPalette(thirdMesh, thirdSkin.palette);
+      // This box encloses all pieces in the uploaded pose, including carried
+      // equipment. A shadow replay may see a later upload than the colour draw.
+      thirdMesh.posedShadowBox = t.arm.cpuSkinned === false ? t.arm.bounds : null;
       foldRangeBoxes(thirdMesh.ranges);   // PR-BOW1: off the palette's boxes (rule 42), or the CPU fold when it ran
       return thirdMesh;
     }
@@ -7335,14 +7340,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         buildDeps = (opts && opts.deps) || null;
         // LOAD-STALL 2: the sweep the build owes, beside the frames; it lands on this rig alone, and only while the arm
         // it measured still stands (a hand swapped since reset the reach itself), through the held sheet's floor
-        if (res && res.ok && typeof res.sweepLater === 'function') {
-          const piecesAt = res.arm.pieces;
-          res.sweepLater().then((r) => {
-            if (r == null || built !== res || res.arm.pieces !== piecesAt) return;
-            if (held && held.built === res) held.reach0 = r;
-            else res.reach = r;
-          }, () => { /* the idle's reach stands */ });
-        }
+        sweeps.schedule(res, () => built, () => held);
         idleState = null; actionState = null; idleGroup = null; weaponGroup = null; weaponClock = { group: null, value: 0 };   // MW-BOW1: no group, no state
         movementState = null; movementGroup = null; movementSource = null; movementBase = null;
         jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
@@ -9837,6 +9835,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         weapon: built && built.ok ? built.weapon : null,
         // MW-FP-DIAG: distinguish a genuinely late NIF/texture swap from the animation's attach key.
         weaponSwapBusy: !!busy,
+        ...sweeps.status,
         weaponSwapQueued: !!pendingWeapon,
         weaponFailed: built && built.weaponFailed ? String(built.weaponFailed) : null,
         weaponVisible: !!weaponShown,

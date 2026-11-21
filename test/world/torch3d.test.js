@@ -7,28 +7,9 @@ import { Collider } from '../../src/player/collider.js';
 import { findTorchMount, fixtureCeilingGap, mountTorchBatch, torchMountAt, TORCH_COLLAR_Y } from '../../src/world/torchMount.js';
 import { drawCampfireBillboards, rememberCampfireBatch, releaseCampfireBatch } from '../../src/render/campfireBillboards.js';
 import {createTorchVisual} from '../../src/scenes/torchVisual.js';
-import { countMorrowindArchives } from '../../src/scenes/dataSource.js';
+import { attachFixtureArchive } from '../fixtures/mw/attach.mjs';
 
-test.before(async () => {
-  const previous = globalThis.indexedDB;
-  const request = result => {
-    const req = { result };
-    queueMicrotask(() => req.onsuccess?.());
-    return req;
-  };
-  globalThis.indexedDB = {
-    open: () => request({
-      transaction: () => ({
-        objectStore: () => ({ getAllKeys: () => request(['Morrowind.bsa']) }),
-      }),
-    }),
-  };
-  try { assert.equal(await countMorrowindArchives(), 1); }
-  finally {
-    if (previous) globalThis.indexedDB = previous;
-    else delete globalThis.indexedDB;
-  }
-});
+test.before(attachFixtureArchive);
 test('only the five flame torches become solid fixtures',()=>{
  assert.deepEqual(Array.from({length:30},(_,r)=>r).filter(r=>torchKind(210,r)),[6,16,17,18,20]);
  assert.equal(torchKind(211,6),null);

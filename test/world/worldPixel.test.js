@@ -4,9 +4,10 @@ import {worldPixelRows,classicPixelKind,WORLD_PIXEL_KEYS} from '../../src/system
 import {setPref,resetPrefs} from '../../src/systems/uiPrefs.js';
 import {FEATURES,checkFeature} from '../../src/systems/features.js';
 import {CHAR_PIXEL_TIERS} from '../../src/systems/charPixel.js';
-import {pixelWorldDraw,pixelWorldMesh,worldPixelActive} from '../../src/render/worldPixelLayer.js';
+import {pixelWorldDraw,pixelWorldMesh,worldPixelActive,withFixturePixelTarget} from '../../src/render/worldPixelLayer.js';
 import {identity} from '../../src/world/mat4.js';
 import {drawCampPixelFlame,drawCampPixelFlameShells} from '../../src/scenes/campfirePixelFlame.js';
+import {Renderer} from '../../src/render/renderer.js';
 
 test('objects use shared tiers and saved environment preferences are ignored',()=>{
  resetPrefs();
@@ -66,6 +67,29 @@ test('an object enters the shared pass once and restores projection and recursio
  assert.equal(bindings.get(23),'snow-mask','target allocation must preserve world data units');
  assert.equal(draws,1);assert.equal(written.length,1);assert.equal(r._proj,P);assert.equal(worldPixelActive(r),false);
 });
+
+test('fixtures share one viewport and destination, scoped to each batch even after a failure',()=>{
+ const {r}=passRenderer(),queries=[],restored=[];
+ let viewport=[7,11,1440,1080],framebuffer=null;
+ r.gl.getParameter=key=>{
+  queries.push(key);
+  return key==='VIEWPORT'?viewport:framebuffer;
+ };
+ r.gl.bindFramebuffer=(_,value)=>{framebuffer=value;};
+ r.gl.viewport=(...values)=>{viewport=values;restored.push(values);};
+ const draw=()=>pixelWorldDraw(r,'objects',{},identity(),()=>{});
+ const pair=()=>{draw();draw();};
+ assert.throws(()=>withFixturePixelTarget(r,()=>{pair();throw Error('end batch');}),/end batch/);
+ assert.deepEqual(queries,['VIEWPORT','FRAMEBUFFER_BINDING']);
+ assert.equal(framebuffer,null);
+ assert.deepEqual(restored.at(-1),[7,11,1440,1080]);
+ viewport=[3,5,1920,1200];
+ const panel={};framebuffer=panel;queries.length=0;
+ withFixturePixelTarget(r,pair);
+ assert.deepEqual(queries,['VIEWPORT','FRAMEBUFFER_BINDING']);
+ assert.deepEqual(restored.at(-1),[3,5,1920,1200]);
+ assert.equal(framebuffer,panel);
+});
 test('pixelated flame shells blend once, keep world depth untouched and restore GL state',()=>{
  resetPrefs();
  const {r,state,samples}=passRenderer(),seen=[],mesh={pixelKind:'effect'},m=identity();
@@ -100,6 +124,39 @@ test('paired pixelated shells read the incoming blend state once and restore it 
  assert.equal(state.depthMask,false);
  assert.equal(r.gl.isEnabled(r.gl.BLEND),true);
  assert.deepEqual(factors,original);
+});
+
+test('flame shells reuse the actual blend state until glass or a nested fixture changes it',()=>{
+ const {r,state}=passRenderer(),gl=r.gl;
+ const blendKeys=[gl.BLEND_SRC_RGB,gl.BLEND_DST_RGB,gl.BLEND_SRC_ALPHA,gl.BLEND_DST_ALPHA];
+ const straight=[gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA];
+ const custom=[gl.ONE,gl.ZERO,gl.ZERO,gl.ONE];
+ let factors=custom,reads=0;
+ const parameter=gl.getParameter;
+ gl.getParameter=k=>{
+  const i=blendKeys.indexOf(k);
+  if(i>=0){reads++;return factors[i];}
+  return parameter(k);
+ };
+ gl.blendFuncSeparate=(...v)=>{factors=v;};
+ r._drawMeshBundle=()=>{};
+ r.drawMesh=()=>{};
+ gl.enable(gl.BLEND);gl.depthMask(false);
+ const shell=()=>drawCampPixelFlame(r,{pixelKind:'effect'},identity(),.47);
+ const pane=()=>Renderer.prototype._drawTranslucent.call(r,{},identity(),null,.42);
+ withFixturePixelTarget(r,()=>{
+  shell();shell();
+  assert.equal(reads,4);
+  assert.deepEqual(factors,custom);assert.equal(state.depthMask,false);assert.equal(gl.isEnabled(gl.BLEND),true);
+  pane();shell();shell();
+  assert.equal(reads,4); // The pane publishes the straight-alpha state it installed.
+  assert.deepEqual(factors,straight);assert.equal(state.depthMask,true);assert.equal(gl.isEnabled(gl.BLEND),false);
+  withFixturePixelTarget(r,()=>{gl.blendFuncSeparate(...custom);shell();});
+  shell();
+  assert.equal(reads,12);assert.deepEqual(factors,custom);
+ });
+ shell();
+ assert.equal(reads,16);
 });
 test('HD flame preserves the direct translucent draw and core remains shadowless',()=>{
  resetPrefs();setPref(WORLD_PIXEL_KEYS.objects,0);

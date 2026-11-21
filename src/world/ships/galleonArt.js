@@ -42,7 +42,8 @@ import { dfLook, lookSeed } from '../dfLook.js';
 import { keptStandIn } from './standInsKept.js';   // FIRST-VISIT: the painted pictures kept across launches
 
 /** The galleon's pseudo-archive: past the gate's 38101, the court's 38111 and the spoils' 38121. */
-export const GALLEON_ARCHIVE = 38131;
+import { GALLEON_ARCHIVE } from './galleonMesh.js';
+export { GALLEON_ARCHIVE };
 /** Every picture's size, square (GALLEON-2, Mac: "textures should be 64x64"). */
 export const GALLEON_TEX_SIZE = 64;
 /** The records, by what wears them. A livery's slices top down (`BANDS`): hullSide0 her rail's, hullSide3 her keel's. */

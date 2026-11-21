@@ -1,6 +1,7 @@
 import { morrowindWorldVisualEnabled } from '../systems/dungeonDecor.js';
 // Shared camp presentation; the pool owns its lease, the renderer owns the cache.
-import { CAMPFIRE_ARCHIVE, CAMPFIRE_FRAMES, CAMPFIRE_SCALE, campfirePaint, buildCampfireBody, buildCampfireFlame } from '../world/campfireModel.js';
+import { CAMPFIRE_ARCHIVE, CAMPFIRE_FRAMES, CAMPFIRE_SCALE, campfirePaint, buildCampfireBody } from '../world/campfireModel.js';
+import { campfireLayerGeometry, prepareCampfireFlames } from '../world/campfireFlameCache.js';
 import { trs, multiply } from '../world/mat4.js';
 import { transformedAabb } from '../render/frustum.js';
 import { DECOR_DRAW } from './decor/decorRoom.js';
@@ -34,15 +35,22 @@ function acquire(r) {
     // A material view shares the body's VAO/buffers; only the owning body is freed.
     const coldBody = {...body,subMeshes:body.subMeshes.map(s=>({...s,textureRecord:s.textureRecord===4?9:s.textureRecord}))};
     meshes.push(body);
-    for (let i = 0; i < CAMPFIRE_FRAMES; i++) {
-      const f = ['core','middle','outer'].map(layer=>{const mesh=r.createMesh(buildCampfireFlame(i,layer));mesh.pixelKind='effect';return mesh;});
-      frames.push(f); meshes.push(...f);
-    }
     cache = { users: 0, cpu, body, coldBody, frames, meshes };
     caches.set(r, cache);
   }
   cache.users++;
   return cache;
+}
+
+function flameLayer(renderer, cache, frame, layer) {
+  const layers = cache.frames[frame] ??= {};
+  if (!layers[layer]) {
+    const mesh = renderer.createMesh(campfireLayerGeometry(frame, layer));
+    mesh.pixelKind = 'effect';
+    cache.meshes.push(mesh);
+    layers[layer] = mesh;
+  }
+  return layers[layer];
 }
 
 /** Deck scale belongs to the boat, never to the metre-sized camp. */
@@ -90,11 +98,11 @@ export function createCampfireVisual(renderer, ground = null) {
       const body=stage==='glow'?null:bodyOf(c,time);
       const visible = stage === 'glow' ? (!cull || cull(box)===DECOR_DRAW) : drawCampPixelBody(renderer, cull, box, lit ? body.hot : body.cold, m);
       if (lit && visible) {
+        prepareCampfireFlames();
         const phase = Math.abs(Math.floor((c.rec.pos[0] + c.rec.pos[2]) * 11));
         const frame = (Math.floor(time*12 + .45*Math.sin(time*1.7)) + phase) % CAMPFIRE_FRAMES;
-        const [core,middle,outer] = cache.frames[frame];
-        if(stage!=='glow') drawCampPixelFlame(renderer,core,m);
-        if(stage!=='body') drawCampPixelFlameShells(renderer,middle,outer,m);
+        if(stage!=='glow') drawCampPixelFlame(renderer,flameLayer(renderer,cache,frame,'core'),m);
+        if(stage!=='body') drawCampPixelFlameShells(renderer,flameLayer(renderer,cache,frame,'middle'),flameLayer(renderer,cache,frame,'outer'),m);
       }
     },
     destroy() {

@@ -20,10 +20,10 @@ test('ground fitting follows a rotated slope without tilting the flame or resamp
  let samples=0;const made=[],freed=[],draws=[];
  const r={createMesh:m=>{made.push(m);return m;},destroyMesh:m=>freed.push(m),uploadTexture(){},drawMesh:(...args)=>draws.push(args)};
  const v=createCampfireVisual(r,()=>{samples++;return h;}),c={rec:{pos:[0,0,0]}};
- v.draw(c,true,0);v.draw(c,true,.5);assert.equal(samples,1);assert.equal(made.length,50);
+ v.draw(c,true,0);v.draw(c,true,.5);assert.equal(samples,1);assert.equal(made.length,8);
  assert.equal(draws[1][1][1],0);assert.equal(draws[1][1][6],0);
  v.release(c);assert.equal(freed.length,1);v.draw(c,false,1);assert.equal(samples,2);
- v.destroy();assert.equal(freed.length,51);
+ v.destroy();assert.equal(freed.length,9);assert.deepEqual(new Set(freed),new Set(made));
 });
 
 test('placement rejects voids and abrupt ledges before a camp item is spent',()=>{

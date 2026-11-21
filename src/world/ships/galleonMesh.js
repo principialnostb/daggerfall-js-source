@@ -12,7 +12,7 @@
 //
 // Flat-shaded unless a face is given its corners' own normals: Mac's ship is low-polygon and faceted, and so is
 // Daggerfall's world. Not a DFU member. Ledger A (GALLEON).
-import { GALLEON_ARCHIVE } from './galleonArt.js';
+export const GALLEON_ARCHIVE = 38131;
 
 /** @typedef {[number, number, number]} V3 */
 export const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];

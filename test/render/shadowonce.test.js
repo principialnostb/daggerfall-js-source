@@ -225,3 +225,27 @@ test('pickShadowCasters answers the walk it replaces to the entry - the nearest 
   }
   assert.deepEqual(pickShadowCasters(new Float32Array([0, 0, 0, 10]), [0, 0, 0], 0), [], 'no slots: no casters');
 });
+
+test('an unbounded rig follows the uploaded pose at shadow replay, including a change after recording', () => {
+  const {sp} = stand({sun:true});
+  const mesh = {posedShadowBox:{minX:0,minY:0,minZ:0,maxX:1,maxY:1,maxZ:1}};
+  sp.recordCharacter(mesh,I);
+  const r = sp.records[0];
+  mesh.posedShadowBox = {minX:-4,minY:2,minZ:2,maxX:2,maxY:8,maxZ:4};
+  sp._refreshPosedCasters();
+  assert.equal(r.bounded,true);
+  assert.deepEqual([...r.sphere.slice(0,3)],[-1,5,3]);
+  assert.ok(r.sphere[3] >= Math.sqrt(19) && r.sphere[3] < 4.36);
+  mesh.posedShadowBox = null;
+  sp._refreshPosedCasters();
+  assert.equal(r.bounded,false);
+  sp.discard();
+  assert.equal(sp._posedCasters.length,0);
+});
+
+test('a caster with an explicit world sphere keeps the caller’s bound', () => {
+  const {sp} = stand({sun:true});
+  sp.recordCharacter({posedShadowBox:{}}, I, [2,3,4,5]);
+  sp._refreshPosedCasters();
+  assert.deepEqual([...sp.records[0].sphere], [2,3,4,5]);
+});

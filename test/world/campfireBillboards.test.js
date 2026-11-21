@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { releaseCampfireBatch, drawCampfireBillboards } from '../../src/render/campfireBillboards.js';
 import { getPref, setPref } from '../../src/systems/uiPrefs.js';
 import { Renderer } from '../../src/render/renderer.js';
+import { attachFixtureArchive } from '../fixtures/mw/attach.mjs';
+
+test.before(attachFixtureArchive);
 
 test('layout campfires share the 3D visual, track origins and movement, and release their lease', () => {
   const previous = getPref('enhancedCampfire');
@@ -36,9 +39,9 @@ test('layout campfires share the 3D visual, track origins and movement, and rele
     Renderer.prototype.destroyBillboardBatch.call(renderer, fire);
     assert.equal(freed.length, 0);
     Renderer.prototype.destroyBatch.call(renderer, second);
-    assert.equal(freed.length, 49);
+    assert.equal(freed.length, 13);
     releaseCampfireBatch(second);
-    assert.equal(freed.length, 49);
+    assert.equal(freed.length, 13);
   } finally {
     releaseCampfireBatch(fire); releaseCampfireBatch(second);
     setPref('enhancedCampfire', previous);

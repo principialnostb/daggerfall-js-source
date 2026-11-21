@@ -3,6 +3,8 @@ import { streetLanternCenter, streetLanternYaw } from '../world/streetLanternPla
 // @ts-check
 import { canDrawCampfire, createCampfireVisual } from '../scenes/campfireVisual.js';
 import { FIRE_FLAT } from '../systems/survival/camp.js';
+import { prepareCampfireFlames } from '../world/campfireFlameCache.js';
+import { morrowindWorldVisualEnabled } from '../systems/dungeonDecor.js';
 
 import { multiply } from '../world/mat4.js';
 import { sphereInPlanes, spherePlanes } from './bounds.js';
@@ -10,12 +12,15 @@ import { fixtureRecord } from '../world/lightFixtureModel.js';
 import { fixtureCeilingGap, torchMountAt } from '../world/torchMount.js';
 import { isWallTorch, torchKind } from '../world/torchModel.js';
 import { createTorchVisual } from '../scenes/torchVisual.js';
+import { withFixturePixelTarget } from './worldPixelLayer.js';
 
 const entries = new WeakMap();
 
 // Keep the billboard as the light/interaction owner and classic fallback.
 export function rememberCampfireBatch(batch, centers) {
-  if ((batch.archive === FIRE_FLAT.archive && batch.record === FIRE_FLAT.record) || torchKind(batch.archive, batch.record) || fixtureRecord(batch.archive, batch.record) !== null) {
+  const fire = batch.archive === FIRE_FLAT.archive && batch.record === FIRE_FLAT.record;
+  if (fire && centers.length && morrowindWorldVisualEnabled('enhancedCampfire')) prepareCampfireFlames();
+  if (fire || torchKind(batch.archive, batch.record) || fixtureRecord(batch.archive, batch.record) !== null) {
     const previous = entries.get(batch);
     entries.set(batch, { centers: centers.map(p => streetLanternCenter(p, [...p])), visual: previous?.visual ?? null });
   }
@@ -28,8 +33,8 @@ export function releaseCampfireBatch(batch) {
 }
 
 export function drawCampfireBillboards(renderer, batches, time = performance.now() / 1000) {
-  if (!canDrawCampfire(renderer)) return batches;
-  return withFixtureDepth(renderer, () => drawFixtures(renderer, batches, time));
+  if (!canDrawCampfire(renderer) || !batches.length) return batches;
+  return withFixturePixelTarget(renderer, () => withFixtureDepth(renderer, () => drawFixtures(renderer, batches, time)));
 }
 
 function drawFixtures(renderer, batches, time) {

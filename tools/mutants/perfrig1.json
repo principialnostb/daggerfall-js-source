@@ -150,8 +150,8 @@
   {
     "name": "PERF-ZONE2-bodies-mark-after-its-subject",
     "file": "src/scenes/world.js",
-    "old": "    meterFor(renderer.gl)?.markCpu('bodies');   // PERF-ZONE2: the Morrowind bodies - the player's, every peer's - the wagon and the camps, which the renderer's own 'world' mark used to swallow\n    if (deepWaters) { _dwNowMs = now; beginDeepWatersFrame(minute); }   // DW-C: the look and the distance fog - a frame's, so after the clear of both\n    renderer.beginCharacterSpriteBatch?.();",
-    "new": "    if (deepWaters) { _dwNowMs = now; beginDeepWatersFrame(minute); }   // DW-C: the look and the distance fog - a frame's, so after the clear of both\n    renderer.beginCharacterSpriteBatch?.();\n    meterFor(renderer.gl)?.markCpu('bodies');",
+    "old": "    meterFor(renderer.gl)?.markCpu('bodies');   // PERF-ZONE2: the Morrowind bodies - the player's, every peer's - the wagon and the camps, which the renderer's own 'world' mark used to swallow\n    if (deepWaters) { _dwNowMs = now; beginDeepWatersFrame(minute); }",
+    "new": "    if (deepWaters) { _dwNowMs = now; beginDeepWatersFrame(minute); }\n    meterFor(renderer.gl)?.markCpu('bodies');",
     "tests": [
       "test/formats/morrowind/perfrig1.test.js"
     ]

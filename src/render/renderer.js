@@ -19,6 +19,7 @@ import {pixelWorldMesh} from './worldPixelLayer.js';
 import { worldPixelRows } from '../systems/worldPixel.js';
 import { billboardPixelShader, npcBillboardArchives } from './npcPixel.js';
 import { blockPixels, charPixelRows } from './charPixelLayer.js';
+import {observePixelBlendState} from './pixelBlendState.js';
 import { CLOUD_SHADOW_GLSL, cloudFarOf } from './cloudShadow.js';   // EE5 / VC4: the cloud shadow's reader - VC6c's one home, shared with the air pass's shafts; OW-HORIZON: and the ground past its square
 import { BAYER_GLSL, DISSOLVE_GLSL } from './orderedDither.js';   // SHIP-FADE: the mesh shader's dissolve over the port's one bayer4
 import { pixelFadeShare } from './pixelFade.js';   // MID-RING: a just-built pixel's tint, eased out (a leaf)
@@ -1758,6 +1759,11 @@ export class Renderer {
   /** @type {Array<any>|null} */ _bbOpaque = null;
   /** _warnMissingMesh's one-warning-per-shape memory */
   /** @type {Set<string>|null} */ _missingMeshes = null;
+  /** Destination and blend state borrowed by the current synchronous fixture pass. */
+  /** @type {{viewport?: ArrayLike<number>, framebuffer?: WebGLFramebuffer|null,
+   * blendState?: {enabled:boolean, depthMask:boolean, factors:number[]}|null,
+   * paneState?: {enabled:boolean, depthMask:boolean, factors:number[]}}|null} */
+  _fixturePixelTarget = null;
 
   constructor(canvas) {
     this.canvas = canvas;
@@ -1768,6 +1774,7 @@ export class Renderer {
     if (!gl) throw new Error('WebGL2 required');
     this.gl = gl;
     this._textureLimit = 0;   // MAX_TEXTURE_SIZE, read on the first upload (textureLimit)
+    observePixelBlendState(gl);
     this._shadowCacheWanted = true;   // SC1: the static shadow cache's door (setShadowCache - the lane's install reads the page's, shadowPass.js shadowCacheOn); CACHE-COPY: on, as SC1 built it
 
     // EL1: THE WORLD PROGRAM SET - mesh, character, billboard, terrain -
@@ -2249,6 +2256,26 @@ export class Renderer {
     const gl = this.gl, p = this._worldViewportPx;
     if (p) gl.viewport(p[0], p[1], p[2], p[3]);
     else gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+  }
+
+  // Only the exterior host's main scene draw opts in. A panel, a reflection
+  // or an independent render target must read its own destination.
+  withWorldBodyBatch(draw) {
+    return this.withWorldFixtureDestination(() => {
+      this.beginCharacterSpriteBatch();
+      try { return draw(); }
+      finally { this.flushCharacterSpriteBatch(); }
+    });
+  }
+
+  withWorldFixtureDestination(draw) {
+    const previous = this._worldFixtureDestination;
+    this._worldFixtureDestination = {
+      viewport: this._worldViewportPx ?? [0, 0, this.canvas.width, this.canvas.height],
+      framebuffer: this._frameFbo ?? null
+    };
+    try { return draw(); }
+    finally { this._worldFixtureDestination = previous; }
   }
 
   /**
@@ -9389,6 +9416,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    *  so no draw after it inherits any of it. */
   _drawTranslucent(mesh, modelMatrix, texRemap, alpha) {
     const gl = this.gl;
+    // The pane establishes its own blend factors and leaves them installed.
+    if (this._fixturePixelTarget) this._fixturePixelTarget.blendState = null;
     this._use(this.program);
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -9401,6 +9430,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       gl.uniform1f(this.uMeshAlpha, 0);
       gl.depthMask(true);
       gl.disable(gl.BLEND);
+      const target = this._fixturePixelTarget;
+      if (target?.paneState) target.blendState = target.paneState;
     }
   }
 

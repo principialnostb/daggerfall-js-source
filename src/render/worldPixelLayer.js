@@ -6,11 +6,31 @@ import {transformPoint} from '../world/mat4.js';
 const active=new WeakSet();
 export const worldPixelActive=r=>active.has(r);
 
+// Fixture meshes share one destination. Each pixel write-back restores it before
+// the next mesh. Limit its lifetime to this synchronous batch (panels, shadows
+// and resizes can all select a different target on the very same frame).
+export function withFixturePixelTarget(renderer, draw) {
+ const previous = renderer._fixturePixelTarget;
+ const destination = !previous && renderer._worldFixtureDestination;
+ const gl = renderer.gl;
+ renderer._fixturePixelTarget = {
+  ...(destination || {}),
+  paneState: gl && {enabled:false, depthMask:true, factors:[gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA]}
+ };
+ try { return draw(); }
+ finally {
+  // A nested batch may have drawn a translucent pane with different blend factors.
+  if (previous) previous.blendState = null;
+  renderer._fixturePixelTarget = previous;
+ }
+}
+
 export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null){
  if(active.has(r)||!r.gl||r._spriteDepth>0||r._panelSaved)return false;
  const rows=worldPixelRows(kind)/(mesh?.pixelBlockScale??1);
  if(!rows)return false;
- const vp=r.gl.getParameter(r.gl.VIEWPORT);
+ const target=r._fixturePixelTarget ?? alphaState ?? {};
+ const vp=target.viewport ??= r.gl.getParameter(r.gl.VIEWPORT);
  if(blockPixels(vp[3],rows)<=1&&!mesh?.pixelFootprint)return false;
  const b=mesh?.bounds;
  const footprint=mesh?.pixelFootprint;
@@ -30,7 +50,7 @@ export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null){
    r._use(r.program);r.gl.uniformMatrix4fv(r.uProj,false,r._proj);
    r._tFrameStamp=-1;
    draw();
-  },opacity,footprint,vp,alphaState);
+  },opacity,footprint,target);
  }finally{
   active.delete(r);r._tFrameStamp=-1;r._forgetTextureShadows?.();
   r._use(r.program);r.gl.uniformMatrix4fv(r.uProj,false,projection);

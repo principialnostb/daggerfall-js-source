@@ -4099,7 +4099,7 @@ const macrotask = () => new Promise((resolve) => {
   if (typeof globalThis.MessageChannel === 'function') { const ch = new globalThis.MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); resolve(); }; ch.port2.postMessage(0); }
   else setTimeout(resolve, 0);
 });
-export async function clipUnionBoundsSliced(assembly, poseAt, times, { budgetMs = 6, yieldNow = macrotask, now = () => performance.now() } = {}) {
+export async function clipUnionBoundsSliced(assembly, poseAt, times, { budgetMs = 6, yieldNow = macrotask, now = () => performance.now(), current = () => true } = {}) {
   let acc = null;
   let mark = now();
   for (const t of times ?? []) {
@@ -4111,7 +4111,11 @@ export async function clipUnionBoundsSliced(assembly, poseAt, times, { budgetMs 
         maxX: Math.max(acc.maxX, b.maxX), maxY: Math.max(acc.maxY, b.maxY), maxZ: Math.max(acc.maxZ, b.maxZ),
       } : { ...b };
     }
-    if (now() - mark >= budgetMs) { await yieldNow(); mark = now(); }
+    if (now() - mark >= budgetMs) {
+      await yieldNow();
+      if (!current()) return null; // The owner replaced this rig during the yield. Never cache a partial union.
+      mark = now();
+    }
   }
   return acc;
 }
