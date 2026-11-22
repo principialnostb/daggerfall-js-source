@@ -1,3 +1,4 @@
+import { dampPostPaint, DAMP_POST_WOOD } from './shorePost.js';
 import { MeshBench, box, prism } from './ships/galleonMesh.js';
 import { dfLook } from './dfLook.js';
 import { placedWaterSourcePaints } from './placedWaterSources.js';
@@ -79,6 +80,7 @@ export function treasurePaints() {
   paints[STAINED_TABLE_STONE] = stainedTablePaint();
   paints[STAINED_PRESS_IRON] = stainedTablePaint(true);
   for (const [record, paint] of placedWaterSourcePaints()) paints[record] = paint;
+  paints[DAMP_POST_WOOD] = dampPostPaint(paints[WORKSHOP_WOOD.beam]);
   return paints;
 }
 

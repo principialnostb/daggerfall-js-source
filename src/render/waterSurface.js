@@ -530,6 +530,7 @@ void main() {
   float bankReflection = 1.0;
   vec2 pondOffset = vec2(0.0);
   float pondFacet = 0.0;
+  bool grassPuddle = false;
   vec3 body;
   if (uOpen == 1) {
     // the sea's own colour: the climate's water texel, averaged, under the mod's own tint (its Top Color setting)
@@ -566,6 +567,7 @@ void main() {
     if (bank && grassyWaterBank(data)) bankReflection = mix(0.32, 1.0, bankDepthScale);
     // WATER-PUDDLE: a puddle record keeps only the texels its own art paints water (world/puddleMask.js)
     uint rec = data >> 2u;
+    grassPuddle = rec == 23u;
     if (isPuddleRecord(rec)) {
       int turn = int(data & 3u);
       vec2 puv = PUDDLE_ROT[turn] * f + PUDDLE_TRANS[turn];
@@ -589,7 +591,7 @@ void main() {
   vec3 V = toEye / max(dist, 1e-4);
   vec3 sw = swellAt(surfacePos.xz, uTime, uWindDir, uSwell * vGrow);
   vec2 g = sw.yz + waveGradient(surfacePos.xz, uTime, dist);
-  if (vPond > 0.5) {
+  if (vPond > 0.5 || grassPuddle) {
     vec2 p = vLocalXZ + pondOffset;
     float reach = 1.0 - smoothstep(18.0, 45.0, dist);
     vec3 ripples = pondRipples(p, uTime, uWindDir, uWindStrength, reach);
@@ -615,7 +617,7 @@ void main() {
   F *= bankReflection;
   vec3 R = reflect(-V, n);
   vec3 skyRefl = seaSkyRefl(R.y, uSkyZenith, uSkyHorizon);
-  if (vPond > 0.5) {
+  if (vPond > 0.5 || grassPuddle) {
     vec4 reflection = pondReflection(R, NdV, uSkyZenith, uSkyHorizon, F, pondFacet);
     skyRefl = reflection.rgb;
     F = reflection.a;
@@ -649,6 +651,7 @@ void main() {
   // THE PATH through the water
   float slant = max(V.y, 0.12);
   float opticalDepth = vDepth * bankDepthScale;
+  if (grassPuddle) opticalDepth = min(opticalDepth, 0.08);
   float bedPath = uOpen == 1 ? 0.0 : (opticalDepth + 0.02) / slant;   // what the bed under the sheet says
   float path = uOpen == 1 ? ${OPEN_PATH.toFixed(1)} : bedPath;
   vec2 uv0 = gl_FragCoord.xy / uSceneSize;
@@ -701,7 +704,7 @@ void main() {
   // a lace, never a rim: the noise cuts the band into threads, thicker the shallower the water and the harder the wind
   float l = lace(vWorldPos.xz, uTime);
   float foam = max(shore * shore * smoothstep(0.62 - 0.25 * shore * uWindStrength, 0.82, l), crest * smoothstep(0.6, 0.85, l)) * 0.75 * exp(-dist * 0.004);
-  if (vPond > 0.5) foam *= 0.08;   // sheltered bank, without breaking surf
+  if (vPond > 0.5 || grassPuddle) foam *= 0.08;   // sheltered bank, without breaking surf
   vec3 foamLit = vec3(0.92, 0.95, 0.96) * (uAmbient + uSunColor * (uSunScale * shadow * max(n.y, 0.0)) + uMoonColor * (uMoonScale * 0.5));
   float k = foam * 0.9;   // foam is not glass: where it lies it hides what is under it
   own = mix(own, foamLit, k); trans *= 1.0 - k; cover = mix(cover, 1.0, k);

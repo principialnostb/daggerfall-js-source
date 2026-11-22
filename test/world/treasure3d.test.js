@@ -342,3 +342,31 @@ test('the pond draws its visible racks with opaque objects before the water and 
   assert.deepEqual(queue, [flat, batch]);
   releasePlacedFurnishing(r, batch, releaseTreasureModel);
 });
+
+test('shore posts keep the same timber width despite the wider wet sprite and reach the pond bed', () => {
+  const draws = [];
+  const renderer = {
+    createMesh: data => data, drawMesh: (mesh, pose) => draws.push({ mesh, pose }),
+    destroyMesh() {}, uploadTexture() {}, releaseTexture() {},
+  };
+  const batches = [13, 14].map((record, i) => markPlacedFurnishing({
+    archive: 212, record, size: { w: [16 / 40, 28 / 40][i], h: 97 / 40 }, vao: {},
+  }, [[4, 0, 6]], () => (_x, _z) => i ? -.5 : null));
+  assert.equal(batches[0].pondRack(), false);
+  assert.equal(batches[1].pondRack(), true);
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel, releaseTreasureModel), []);
+  assert.equal(draws.length, 2);
+  assert.ok(draws[1].mesh.positions.length > draws[0].mesh.positions.length);
+  const widthAtBase = ({ mesh, pose }) => {
+    const xs = mesh.positions.filter((_, n) => n % 3 === 0 && Math.abs(mesh.positions[n + 1] - .075) < 1e-6);
+    return (Math.max(...xs) - Math.min(...xs)) * pose[0];
+  };
+  assert.ok(Math.abs(widthAtBase(draws[0]) - widthAtBase(draws[1])) < 1e-6);
+  for (const [i, { mesh, pose }] of draws.entries()) {
+    const ys = mesh.positions.filter((_, n) => n % 3 === 1);
+    assert.ok(Math.abs(Math.min(...ys) * pose[5] - (i ? -.62 : 0)) < 1e-6);
+    assert.equal(Math.max(...ys), 1);
+    assert.equal(mesh.pixelKind, 'objects');
+  }
+  for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+});

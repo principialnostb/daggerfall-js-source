@@ -506,6 +506,17 @@ export function hillMesh(shape, surface) {
  *  pipeline asks before any other: scenes/dataPipeline.js buildGpuMesh) - or null: not a hill, or not drawn as ours. */
 export const drawnHillStandIn = (id) => (RMBRP_HILLS[id] ? customModelFor(id) : null);
 
+// DFU RMBLayout.AddNatureFlats keeps the data position. A fitted town using
+// replacement boulders hides a tree whose root is buried by the drawn stone.
+export function blockRockSeat(models, meshOf) {
+  return blockHillSeat(models, id => RMBRP_ROCKS[id] ? meshOf(id) : null);
+}
+
+export function rootInsideBoulder(rocks, x, y, z) {
+  const top = rocks?.topAt(x, z);
+  return top != null && top > y + 0.08;
+}
+
 /**
  * TREES-SEATED: THE TOP OF THE HILLS ONE BLOCK STANDS, AS DRAWN. Each hill stand-in among the block's models
  * (layoutRmbBlock's, in the block's frame), its mesh's triangles laid by its own matrix; `topAt(x, z)` answers the

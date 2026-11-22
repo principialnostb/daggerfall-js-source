@@ -1,3 +1,5 @@
+import { runSegment } from '../urban/townFabricModel.js';
+import { NAV_CELLS_PER_BLOCK } from '../city/cityNavigation.js';
 import { TILE_UNITS } from './waterBed.js';
 import { POND_SIDE } from './pondSites.js';
 import { WATER_DRAW_MASK_TABLE } from './waterCorners.js';
@@ -9,6 +11,28 @@ const shoulder = .48; // covers even the diagonal of a detail-grid cell
 // where it would expose an actual ground-storey face of that placed model.
 export class PondHouseBank {
   byTile = new Map();
+
+  // ARCH3D's three rail variants run along local Z. A mirrored or rotated
+  // placement takes both ends of its contact line with it.
+  addFencePiece(bounds, matrix, box, grade, bytes, read) {
+    const x = (bounds[0] + bounds[3]) * .5, y = bounds[1];
+    const end = z => [matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12],
+      matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14]];
+    const side = [...end(bounds[2]), ...end(bounds[5]), box[1], box[4]];
+    this.add({ sides: [side] }, box, grade, bytes, read);
+  }
+
+  addFences(plan, origin, blockLift, bytes, read) {
+    if (!plan) return;
+    for (const edge of plan.fences) {
+      const { a, b } = runSegment([edge], plan.W);
+      const x = edge.inner % plan.W, z = Math.floor(edge.inner / plan.W);
+      const grade = origin[1] + blockLift(Math.floor(x / NAV_CELLS_PER_BLOCK), Math.floor(z / NAV_CELLS_PER_BLOCK));
+      const ax = origin[0] + a[0], az = origin[2] + a[1], bx = origin[0] + b[0], bz = origin[2] + b[1];
+      this.add({ sides: [[ax, az, bx, bz, grade, grade + 1]] },
+        [Math.min(ax, bx), grade, Math.min(az, bz), Math.max(ax, bx), grade + 1, Math.max(az, bz)], grade, bytes, read);
+    }
+  }
 
   add(ground, box, grade, bytes, read) {
     let wet = false;

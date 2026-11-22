@@ -7752,7 +7752,9 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    *  the water quads (`indices`). Without a bed (`positions` null: no vertex of the grid is under water - a one-tile
    *  stream) it rides the terrain's own position buffer and attribute 1 is the constant NO_BED_DEPTH: the water lies
    *  on the ground as WATER1's did, shallow. destroyWaterSurface frees what it owns. */
-  createWaterSheet(indices, { terrain = null, positions = null, depths = null, pond = false } = {}) {
+  createWaterSheet(indices, { terrain = null, positions = null, depths = null, pond = false, splitSheet = null } = {}) {
+    const split = splitSheet?.(indices);
+    if (split) ({ indices, positions, depths } = split);
     const gl = this.gl;
     const vao = gl.createVertexArray();
     this._bindVao(vao);

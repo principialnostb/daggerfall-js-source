@@ -10,7 +10,7 @@ import { SEA_LEVEL_M } from '../systems/weather/airTemperature.js';   // PRECIP4
 import { ARENA_BLOCK } from '../world/arena/arenaCity.js';
 import { armFlatAnim, FlatAnimator } from '../render/flatAnimation.js';
 import { billboardSize, BLOCK_FLATS_OFFSET_Y, centredBase, collectBlockFlats, isNatureArchive, NATURE_FLATS_Y } from '../world/rmbFlats.js';
-import { blockHillPatch, blockHillSeat, seatNatureFlat } from '../world/townStandIns.js';
+import { blockHillPatch, blockHillSeat, blockRockSeat, rootInsideBoulder, seatNatureFlat } from '../world/townStandIns.js';
 import { blockSolids } from '../world/flatFields.js';
 import { BODY } from '../world/windmillMesh.js';
 import { boxNearGate, gateSiteTest, pointNearGate, WOD_FLAT_GATE_CLEAR_M } from '../world/gate/gateClearance.js';
@@ -551,6 +551,7 @@ export function createPixelBuild(host) {
       if (portTown) portSites = places.ports;
       const tilePos = getLocationTerrainTileOrigin(dfLocation);
       const locLocal = [tilePos.x * tileSide, avg * worldHeight + 2.0 * 0.025, tilePos.y * tileSide];
+      if (fabric) houseBank?.addFences(fabric.plan, locLocal, (x, z) => capitalBlockLift(dfLocation, x, z), tilemapBytes, readRawPond);
       witchFloor = locLocal[1] + BLOCK_FLATS_OFFSET_Y * GLOBAL_SCALE;   // WITCH1: as the block's own flats stand
       // T3d: EVERY location pixel keeps its origin (the population
       // gate below no longer owns it) - the Where-is directory
@@ -633,6 +634,9 @@ export function createPixelBuild(host) {
           if (climateFree) entry.texRemap = NO_CLIMATE_REMAP;   // ARENA1: drawn by its own table (an empty one - never the pixel's)
           // HOME-LOOK / HOME-YARD
           const homeKey = Number.isSafeInteger(placed.recordIndex) ? makeBuildingKey(b.x, b.y, placed.recordIndex) : null;
+          if (houseBank && placed.modelIdNum >= 41206 && placed.modelIdNum <= 41208) {
+            houseBank.addFencePiece(archAabb(placed.modelIdNum, cpu.positions), local, box, blockY, tilemapBytes, readRawPond);
+          }
           if (homeKey != null) {
             pixelBuildingKeys.add(homeKey);
             // its own place (rmbLayout.js recordAt) and the box round its models: its yard's frame and footprint
@@ -740,6 +744,7 @@ export function createPixelBuild(host) {
         }
         const hillSeat = blockHillSeat(b.layout.models);   // TREES-SEATED: the block's hills as the port draws them, null for none of ours. No RMB ground plane on terrain (addGroundPlane = false).
         // FIELD BUGS 2026-10-13e HILL-SEAT: the pads under what the author stood on those hills (laid into the seat, so the trees below stand on them too) - merged with the pixel's statics and solid in its bucket, both freed with the pixel (destroyPixel)
+        const rocks = blockRockSeat(b.layout.models, id => cpuModels.get(id));
         const hillPatch = blockHillPatch(hillSeat, b.layout.models, (m) => (m.enhancedOnly && !isEnhanced() ? null : cpuModels.get(m.modelIdNum)));
         if (hillPatch) { addStatic(hillPatch, originMatrix, false); collider.addMesh(key, hillPatch.positions, hillPatch.indices, originMatrix, onFloatingFrame(host.state, ((o) => () => host.state.pixelTranslation(px, py, o))([0, 0, 0]))); unionBox(transformedAabb(localAabb(hillPatch.positions), originMatrix)); }
         // FIELD BUGS 2026-10-04d CROPS: a crop field's batch reads the climate (the second desert's plant is its own) and
@@ -813,7 +818,7 @@ export function createPixelBuild(host) {
           const fy = hillY !== null ? blockY + seatNatureFlat(hillSeat, flat.x, flat.z, hillY) : flat.archive === natureArchive ? locLocal[1] + flat.y + off : blockY + flat.y + lift;
           const base = flat.archive === natureArchive ? climate.natureArchive : flat.archive;
           const tree = isTreeRecord(base, flat.record) || ([505, 507, 509, 511].includes(base) && isTreeRecord(base - 1, flat.record));
-          if (tree && submergedRoot(fx, fy, fz)) continue;
+          if (tree && (submergedRoot(fx, fy, fz) || rootInsideBoulder(rocks, flat.x, fy - blockY, flat.z))) continue;
           addFlat(flat.archive, flat.record, fx, fy, fz, { block, n, fixture: flat });
           // FLORA-GROUND, THE RINGS (scenes/floraSeat.js): a nature flat stood on the ground - the climate's, the plane's
           // band under it; a hill block's where no mound raised it - is drawn on the ground its pixel draws at every ring

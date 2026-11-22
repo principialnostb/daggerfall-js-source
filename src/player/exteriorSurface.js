@@ -311,14 +311,14 @@ export function exteriorSurfaces({
   waterWalking = false,
   probe = null,
   feet = null,
-  pond = null,
+  pond = null, paintedWet = null,
 } = {}) {
   const idx = tileIndex == null ? playerTileMapIndex(rawTile) : tileIndex;
   const onGround = onExteriorGroundMethod({ inside, probe });
   return {
     // DFU PlayerMotor.GetOnExteriorWaterMethod reads the tile. The shallow surveyed pond
     // is fordable to its centre, and has a walkable bed and an actual waterline.
-    water: pond ? (onGround && pond.floorY < pond.waterY && pond.feetY <= pond.waterY + .015
+    water: paintedWet != null ? (onGround && paintedWet ? ON_EXTERIOR_WATER.WaterWalking : ON_EXTERIOR_WATER.None) : pond ? (onGround && pond.floorY < pond.waterY && pond.feetY <= pond.waterY + .015
       ? ON_EXTERIOR_WATER.WaterWalking : ON_EXTERIOR_WATER.None)
       : exteriorWaterMethod({ onGround, tileIndex: idx, waterWalking, coverage: feetWaterCoverage(rawTile, feet) }),
     path: exteriorPathMethod({ onGround, tileIndex: idx }),

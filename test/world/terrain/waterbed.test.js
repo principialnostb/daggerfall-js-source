@@ -113,7 +113,7 @@ test('WATER-NEXT 2 the hosts: the world carves at the build and at a restride an
   assert.match(w, /p\.water = idx \? renderer\.createWaterSheet\(idx, waterSheetOf\(p\._bed, p\.terrain\)\) : null;/, 'the cap\'s re-index');
   assert.match(w, /_bed: bed,/);
   assert.match(w, /function hostBed\(grid, bed\) \{ return bed \? \{ sheet: grid\.positions, normals: grid\.normals, depths: bed\.depths, sheetDepths: bed\.sheetDepths, halo: bed\.halo \?\? null \} : null; \}/);
-  assert.match(w, /function waterSheetOf\(bed, terrain\) \{ return bed\?\.depths \? \{ positions: bed\.sheet, depths: bed\.sheetDepths, pond: !!bed\.pondFloor \} : \{ terrain \}; \}/);   // AUDIT WATER-NEXT H2: the sheet's own depths
+  assert.match(w, /function waterSheetOf\(bed, terrain\) \{ return bed\?\.depths \? \{ positions: bed\.sheet, depths: bed\.sheetDepths, pond: !!bed\.pondFloor, splitSheet: bed\.splitSheet \} : \{ terrain \}; \}/);   // AUDIT WATER-NEXT H2: the sheet's own depths
   const e = read('src/scenes/exterior.js');
   assert.match(e, /const townBed = townGrid \? waterBedOf\(townGrid, tilemapBytes, \{ tileDim: tilemapDim, width: loc\.width \* GROUND_TILE_DIM, height: loc\.height \* GROUND_TILE_DIM \}\) : null;/);
   assert.match(e, /renderer\.drawWaterSurface\(townWater, identityMatrix,/);

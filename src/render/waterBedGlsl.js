@@ -66,4 +66,12 @@ export const waterBedMix = (decode = (s) => s) =>
     silt = mix(silt, vec3(dot(silt, vec3(0.299, 0.587, 0.114))) * ${WET_MUD.toFixed(2)}, ${WET_MUD_SHARE.toFixed(2)} * bedK.y);   // SHORE-SILT: the fringe past the sheet is wet mud - darker, greyer
     tex = mix(tex, silt, bedK.x);
   }
+  // Use the water mask for the grass puddle's silt and the local sod outside it.
+  if (uWaterBed > 0.5 && (data >> 2u) == 23u) {
+    float water = textureGrad(uTileArr, vec3(tuv, 23.0), gx, gy).a;
+    vec3 sod = ${decode('textureGrad(uTileArr, vec3(tileUV, 2.0), dux, duy).rgb')};
+    vec3 loam = ${decode('textureGrad(uTileArr, vec3(tileUV, 1.0), dux, duy).rgb')};
+    vec3 bottom = mix(sod, loam, 0.65) * vec3(0.82, 0.86, 0.78);
+    tex = mix(tex, mix(sod, bottom, smoothstep(0.08, 0.7, water)), 1.0 - snowC);
+  }
   ${bankFinishMix(decode)}`;

@@ -74,7 +74,7 @@ import { hasPortFor, hasPort, setSeatHarbours, PORT_LOCATION_IDS } from '../syst
 import { WoodsFile, MAP_WIDTH, MAP_HEIGHT } from '../formats/woodsFile.js';
 import { buildTerrainIndices, isOutdoorWaterTile, TERRAIN_TILE_DIM, surfaceHeightAt, surfaceNormalAt, terrainSampleHeightAt, walkGroundAt } from '../world/terrain/terrainSurface.js';   // GRASS-LIT2: the ground's normal under a blade; SNOWFALL1: and a pixel's that keeps none; FLORA-GROUND: the ground's one law
 import { waterUniforms, buildWaterIndices, waterSwitchOn } from '../render/waterSurface.js';   // WATER1: the enhanced water surface over the pixel's own grid; WATER-AUDIT: its own index set
-import { bindPondMovement, pondColumnAt, pondTerrain } from '../world/water/pondTerrain.js';
+import { bindPondMovement, pondColumnAt, pondPuddleContact, pondTerrain } from '../world/water/pondTerrain.js';
 import { bedFields, sheetDepthsOf } from '../world/water/waterBed.js';   // WATER-NEXT 2: the bed under the water, carved for the eye alone (AUDIT WATER-NEXT H1: the cap's re-carve asks its depths)
 import { createRipples, createRippleStir, RIPPLE_SPAN, RIPPLE_CELLS, BOAT_STIR, BOAT_WAKE_SPEED } from '../world/water/waterRipples.js';   // WATER-NEXT 4: the rings and wakes
 import { waterCorners, WATER_DRAW_MASK_TABLE } from '../world/water/waterCorners.js';   // GRASS-WET1: the one table that says which of a tile's corners stand in water - the DRAW's, because a blade in a puddle is a picture, not a physics
@@ -4982,7 +4982,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   }
   /** WATER-NEXT 2: a water sheet's source - the bed's grid and depths, or (no vertex under water) the terrain's own
    *  positions with no bed (renderer.createWaterSheet). */
-  function waterSheetOf(bed, terrain) { return bed?.depths ? { positions: bed.sheet, depths: bed.sheetDepths, pond: !!bed.pondFloor } : { terrain }; }   // AUDIT WATER-NEXT H2: the sheet's own depths
+  function waterSheetOf(bed, terrain) { return bed?.depths ? { positions: bed.sheet, depths: bed.sheetDepths, pond: !!bed.pondFloor, splitSheet: bed.splitSheet } : { terrain }; }   // AUDIT WATER-NEXT H2: the sheet's own depths
   // DW-C: THE CLIP'S CULL - a quad, and at a far stride a skirt segment, whose every tile the cap clipped leaves the
   // ground's index set: the mod's discard exactly while a tile is a quad (stride 1). FAR-CLIP1: at EV4's far stride a
   // quad is sixteen tiles and a part-clipped one stands - its clipped tiles are the clip program's to discard
@@ -12672,7 +12672,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     const _down = collider.raycastHit([player.pos[0], cy, player.pos[2]], _SURFACE_DOWN, rayDistance * 2);
     const surf = exteriorSurfaces({
       inside: false,
-      pond,
+      pond, paintedWet: pondPuddleContact(_ground, dwLocate, player.pos, groundPuddles, borderGround),
       rawTile: _ground?.tile ?? null,
       feet: _ground?.feet ?? null,   // MAC2: the player swims where the surface is drawn under the feet
       waterWalking: !!player.waterWalking,   // PlayerEntity.IsWaterWalking (:590)

@@ -237,7 +237,7 @@ export function* markPuddleWaterSteps(layers, tolerance = WATER_COLOUR_TOLERANCE
   const out = layers.slice();
   for (const rec of PUDDLE_RECORDS) {
     const layer = layers[rec];
-    if (!layer) continue;
+    if (!layer || (rec === 23 && layers[2])) continue;
     const b = bytesOf(layer).slice();
     const wet = new Uint8Array(layer.width * layer.height);
     for (let i = 0; i < wet.length; i++) wet[i] = isWater(b[i * 4], b[i * 4 + 1], b[i * 4 + 2]) ? 1 : 0;
@@ -246,7 +246,7 @@ export function* markPuddleWaterSteps(layers, tolerance = WATER_COLOUR_TOLERANCE
     out[rec] = { ...layer, colors: b };
     yield;
   }
-  return yield* markShoreWaterSteps(out); // SHORE-SILT: and each shore's painted water, by its own rule (markShoreWater)
+  return yield* markShoreWaterSteps(out, !!layers[2]); // SHORE-SILT: and each shore's painted water, by its own rule (markShoreWater)
 }
 
 /** SHORE-SILT: how much rarer on the dry tiles than on the wet ones a colour must be to be the water's - twenty times. */
@@ -293,13 +293,15 @@ export function markShoreWater(layers) {
   return stepsDone(markShoreWaterSteps(layers));
 }
 /** OW-HITCH: markShoreWater a record at a time. */
-export function* markShoreWaterSteps(layers) {
+export function* markShoreWaterSteps(layers, grassPuddle = false) {
   if (!layers?.[0]) return layers;
   const water = yield* shoreWaterColoursSteps(layers);
   const out = layers.slice();
   let lastKey = -1,
     lastWet = 0; // OW-HITCH: a texel the colour of the last is its answer - a tile paints in runs
-  for (const rec of SHORE_RECORDS) {
+  // In the Morrowind grass puddle, the colour tolerance includes dry sod.
+  // Use the archive's dry-ground comparison for this record as well.
+  for (const rec of grassPuddle ? [...SHORE_RECORDS, 23] : SHORE_RECORDS) {
     const layer = layers[rec];
     if (!layer) continue;
     const b = new Uint8Array(bytesOf(layer)); // a copy: a record's color32 may be another reader's too

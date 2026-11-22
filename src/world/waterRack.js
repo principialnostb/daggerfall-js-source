@@ -1,11 +1,14 @@
 import { MeshBench, prism } from './ships/galleonMesh.js';
 import { FURNISHING_PAINT } from './treasureModel.js';
+import { WORKSHOP_WOOD } from './dungeonWorkshopWood.js';
+import { buildShorePost, isShorePost, shorePostFoot, DAMP_POST_WOOD } from './shorePost.js';
 
 const FRAMES = new Map([['212:15', 2.8], ['212:16', 4.225]]);
-const WOOD = FURNISHING_PAINT.rackWood;
+const WOOD = WORKSHOP_WOOD.beam;
 const STRAW = FURNISHING_PAINT.dryReeds;
 const REEDS = FURNISHING_PAINT.greenReeds;
 export const isWaterRack = id => FRAMES.has(id);
+export const isFittedPondProp = id => isWaterRack(id) || isShorePost(id);
 
 // A two-sided, tapered blade bends once before the tip. The shared kit
 // keeps the silhouette readable from both the bank and the water.
@@ -52,6 +55,7 @@ const frameWidth = id => id === '212:16' ? 3.175 : 3.15;
 
 // Convert the visible terrain under each foot back into the frame's authored metres.
 export function rackFootHeights(id, placement, width, height, floor) {
+  if (isShorePost(id)) return shorePostFoot(placement, height, floor);
   const scale = width / frameWidth(id);
   const feet = [];
   for (const side of [-1, 1]) for (const x of rails) {
@@ -63,6 +67,7 @@ export function rackFootHeights(id, placement, width, height, floor) {
 }
 
 export function buildWaterRack(archive, id, feet = null) {
+  if (isShorePost(id)) return buildShorePost(archive, id, feet?.[0] ?? 0, { timber: WORKSHOP_WOOD.beam, damp: DAMP_POST_WOOD, green: REEDS });
   const mesh = new MeshBench(archive);
   // X/Z use billboard width and Y uses billboard height in the placed-prop pass.
   const width = frameWidth(id);

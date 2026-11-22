@@ -132,8 +132,15 @@ test('WATER-PUDDLE: on the player\'s own art - the desert\'s puddle is a pool, n
     const layers = []; for (let r = 0; r < t.recordCount; r++) layers.push(t.getColor32(t.getDFBitmap(r, 0), 0));
     const l = markPuddleWater(layers)[rec]; let n = 0;
     for (let i = 3; i < l.colors.length; i += 4) if (l.colors[i] === 255) n++;
+    if (arch === 102 && rec === 23) {
+      for (let k = 0; k < 64; k++) for (const i of [k, 4032 + k, 64 * k, 64 * k + 63]) {
+        assert.equal(l.colors[i * 4 + 3], 0, 'dry grass at the edge of the Deshaan puddle');
+      }
+    }
     return n / 4096;
   };
+  const deshaan = cover(102, 23);
+  assert.ok(deshaan > .4 && deshaan < .65);
   const d8 = cover(2, 8);
   assert.ok(d8 > 0.1 && d8 < 0.4, `the desert puddle is a pool (${d8})`);
   assert.equal(cover(2, 9), 0, 'the desert\'s record 9 is sand');

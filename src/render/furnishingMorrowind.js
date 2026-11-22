@@ -4,7 +4,7 @@ import { multiply, trs } from '../world/mat4.js';
 import { sphereInPlanes, spherePlanes } from './bounds.js';
 import { TOWN_CLUTTER, TOWN_CLUTTER_ARCHIVE, TOWN_ITEMS } from '../world/townStandIns.js';
 import { DET_FLAT_STAND_INS } from '../world/detStandIns.js';
-import { isWaterRack, rackFootHeights } from '../world/waterRack.js';
+import { isFittedPondProp, rackFootHeights } from '../world/waterRack.js';
 import { isPlacedWaterSource, WELL_RIM_RADIUS } from '../world/placedWaterSources.js';
 import { MEADOW_REACH, MEADOW_WIND_REACH } from './grassMeadow.js';
 import { heightFloor, heightSpan } from './labGrass.js';
@@ -169,7 +169,7 @@ export function placedFurnishingModels(batch) {
   const record = `${archive}:${index}`;
   return {
     spec: placedModels.get(record) ?? furnishings.get(record),
-    lowPoly: placedLowPoly.has(record) || isWaterRack(record) || isPlacedWaterSource(record) ? record : null,
+    lowPoly: placedLowPoly.has(record) || isFittedPondProp(record) || isPlacedWaterSource(record) ? record : null,
     alternate: placedAlternates.get(record),
     maxLength: tabletopLengths.get(record) ?? storageLengths.get(record),
     tabletopPixels: tabletopLengths.has(record),
@@ -180,7 +180,7 @@ export function placedFurnishingModels(batch) {
 export function markPlacedFurnishing(batch, centers, readPondFloor = null) {
   const { spec, lowPoly, alternate, maxLength, tabletopPixels, assembly } = placedFurnishingModels(batch);
   if (spec || lowPoly || assembly) {
-    if (readPondFloor && isWaterRack(lowPoly)) batch.pondRack = () => {
+    if (readPondFloor && isFittedPondProp(lowPoly)) batch.pondRack = () => {
       const floor = readPondFloor();
       return floor && centers.some(([x, , z]) => floor(x, z) != null);
     };
@@ -197,7 +197,7 @@ export function markPlacedFurnishing(batch, centers, readPondFloor = null) {
       spec: placedModels.get(record) ?? furnishings.get(record), length, dx, dz, yaw, tabletopPixels: true,
     }));
     placedFurnishings.set(batch, {
-      readPondFloor: isWaterRack(lowPoly) ? readPondFloor : null,
+      readPondFloor: isFittedPondProp(lowPoly) ? readPondFloor : null,
       spec, lowPoly, placements, length, fit, tabletopPixels, assemblyParts, stack: assembly?.stack,
       alternate: placements.some(p => p.alternate) ? { spec: [alternate, false], length, tabletopPixels } : null,
     });
