@@ -1,4 +1,3 @@
-import { orientStreetFlats } from './streetLanternPlacement.js';
 // RMB flat (billboard) collection: misc block flats, exterior subrecord
 // flats, and ground scenery. 1:1 with Daggerfall Unity's RMBLayout
 // AddMiscBlockFlats / AddExteriorBlockFlats / AddNatureFlats and
@@ -417,5 +416,5 @@ export function collectBlockFlats(dfBlock, natureArchive, { climateIndex = null,
     }
   }
 
-  return orientStreetFlats(dfBlock, flats);
+  return flats;
 }

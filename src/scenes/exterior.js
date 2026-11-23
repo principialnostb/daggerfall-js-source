@@ -1,4 +1,5 @@
-import { streetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
+import { markStreetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
+import { layoutTownFlats, layoutTownLights } from '../world/townLanternLayout.js';
 import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
 // Exterior location scene: a full location assembled on the block grid.
 // World-Arc milestone 2: assemble and render a full exterior location from
@@ -849,7 +850,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     // FIELD BUGS 2026-10-04d CROPS: a crop field's batch reads the location's climate and keeps a metre off the block's
     // solids - the models this host drew and collided just above (IsOverlapping)
     const fieldSolids = blockSolids(b.layout.models, (m) => (m.enhancedOnly && !isEnhanced()) || !gpuMeshes.get(m.modelIdNum) ? null : cpuModels.get(m.modelIdNum));
-    const blockFlats = collectBlockFlats(b.dfBlock, natureArchive, { climateIndex: locClimateIndex, solid: fieldSolids }), hillSeat = blockHillSeat(b.layout.models);   // TREES-SEATED: the block's hills as the port draws them, null for none of ours
+    const blockFlats = layoutTownFlats(b.dfBlock, collectBlockFlats(b.dfBlock, natureArchive, { climateIndex: locClimateIndex, solid: fieldSolids }), fieldSolids), hillSeat = blockHillSeat(b.layout.models);   // TREES-SEATED: the block's hills as the port draws them, null for none of ours
     // FIELD BUGS 2026-10-13e HILL-SEAT: the pads under what the author stood on those hills (laid into the seat, so the trees below stand on them too) - drawn and solid for the scene's life, as every model of this host's one location is (it never unloads it; the pipeline pins the fixed city for good)
     const hillPatch = blockHillPatch(hillSeat, b.layout.models, (m) => ((m.enhancedOnly && !isEnhanced()) || !gpuMeshes.get(m.modelIdNum) ? null : cpuModels.get(m.modelIdNum)));
     if (hillPatch) { drawList.push({ mesh: renderer.createMesh(hillPatch), matrix: originMatrix, order: -2, box: transformedAabb(localAabb(hillPatch.positions), originMatrix) }); collider.addMesh('world', hillPatch.positions, hillPatch.indices, originMatrix); colliderTris += hillPatch.indices.length / 3; }
@@ -866,7 +867,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       // the WHOLE list: DFU still hands an editor flat with a non-zero
       // FactionID its StaticNPC/QuestMachine hookup - only the renderer
       // is off.
-      if (flat.editor) continue;
+      if (flat.editor || flat.hiddenStreetLantern) continue;
       // MWNPC8c: a PERSON stands ALONE - a batch of their own, minted with their identity in the NPC pass below - so their
       // Morrowind body can take their place; every other flat groups as it did (AUDIT TACT B3: and a person is no cover,
       // their batch making none)
@@ -876,7 +877,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       else if (!_people.has(flat)) {
         const key = drawnFlat(flat.archive, flat.record).join('_');   // NUDE-FLATS: base-anchored, so the stand-in stands where the figure did
         if (!flatGroups.has(key)) flatGroups.set(key, []);
-        flatGroups.get(key).push(streetLanternCenter(flat, [flat.x + b.originX, hillSeat && isNatureArchive(flat.archive) ? seatNatureFlat(hillSeat, flat.x, flat.z, NATURE_FLATS_Y) : flat.y, flat.z + b.originZ]));   // TREES-SEATED: on the plane or a drawn mound (this host's ground is the plane)
+        flatGroups.get(key).push(markStreetLanternCenter(flat.archive, flat.record, [flat.x + b.originX, hillSeat && isNatureArchive(flat.archive) ? seatNatureFlat(hillSeat, flat.x, flat.z, NATURE_FLATS_Y) : flat.y, flat.z + b.originZ], flat.yaw));   // TREES-SEATED: on the plane or a drawn mound (this host's ground is the plane)
       }
       // A4: every archive-201 town animal is an audio source
       // (AddAnimalAudioSource on RMB flats, verbatim).
@@ -902,7 +903,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     // walker crosses it (the streaming host's townWalkShut; this bench stands no terrain mask)
     cityNav.setBlockData(b.x, b.y, wallLaidBytes(dfLocation, b.x, b.y, b.dfBlock.rmbBlock.fldHeader.autoMapData),
       (tx, ty) => srcTiles[tx][ty].textureRecord, { enhancedWater: waterSwitchOn() });
-    for (const light of collectCityLights(b.dfBlock, lightSize)) {
+    for (const light of layoutTownLights(blockFlats, collectCityLights(b.dfBlock, lightSize))) {
       const l = { x: light.x + b.originX, y: light.y, z: light.z + b.originZ };
       cityLights.push(placeStreetLight(light, l));
       // HEARTH1: the town's braziers and fire bowls, split off the same

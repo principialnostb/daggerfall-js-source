@@ -2,7 +2,8 @@
 // The host constructs it where the code stood. What it reads of the host's scope comes through `host`: the
 // settled names by value at construction, every live one (a `let` someone writes, a `const` made below) read at its
 // use as `host.<name>` - as the code read them where it was.
-import { streetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
+import { markStreetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
+import { layoutTownFlats, layoutTownLights, townLanternRoadSurface } from '../world/townLanternLayout.js';
 import { markPlacedFurnishing, placedWaterSourceGrass } from '../render/furnishingMorrowind.js';
 import { ANIMAL_SOUND_BY_RECORD, ANIMALS_ARCHIVE } from '../systems/soundClips.js';
 import { applyClimate, getNatureArchive, getTerrainGroundArchive, INTERIOR_SEASON, SEASON, winterSetSnowless } from '../world/climateSwaps.js';
@@ -478,7 +479,7 @@ export function createPixelBuild(host) {
     const lightSize = (record) =>
       billboardSize(light210, record);
     const addFlat = (archive, record, x, y, z, skin = null) => {
-      const c = streetLanternCenter(skin?.fixture, [x, y, z]);
+      const c = [x, y, z];
       flatLog.push({ archive, record, c, ...skin });
       if (skin?.wild != null) standsOnGround(c);   // FLORA-GROUND, THE RINGS: the wild's flats stand on the ground by its law - the kernel's woods and scatter, the roadside pairs' fallback
     };
@@ -551,6 +552,7 @@ export function createPixelBuild(host) {
       if (portTown) portSites = places.ports;
       const tilePos = getLocationTerrainTileOrigin(dfLocation);
       const locLocal = [tilePos.x * tileSide, avg * worldHeight + 2.0 * 0.025, tilePos.y * tileSide];
+      const lanternRoad = townLanternRoadSurface(tilemapBytes, paths);
       if (fabric) houseBank?.addFences(fabric.plan, locLocal, (x, z) => capitalBlockLift(dfLocation, x, z), tilemapBytes, readRawPond);
       witchFloor = locLocal[1] + BLOCK_FLATS_OFFSET_Y * GLOBAL_SCALE;   // WITCH1: as the block's own flats stand
       // T3d: EVERY location pixel keeps its origin (the population
@@ -750,7 +752,9 @@ export function createPixelBuild(host) {
         // FIELD BUGS 2026-10-04d CROPS: a crop field's batch reads the climate (the second desert's plant is its own) and
         // keeps a metre off the block's solids - the models this build drew and collided just above (IsOverlapping)
         const flatOpts = { climateIndex: maps.getClimateIndex(px, py), solid: blockSolids(b.layout.models, (m) => (m.enhancedOnly && !isEnhanced() ? null : cpuModels.get(m.modelIdNum))) };
-        const blockFlats = collectBlockFlats(b.dfBlock, natureArchive, flatOpts);
+        const blockFlats = layoutTownFlats(b.dfBlock, collectBlockFlats(b.dfBlock, natureArchive, flatOpts), flatOpts.solid, fabric, b.originX, b.originZ,
+          (x, y, z) => submergedRoot(locLocal[0] + b.originX + x, blockY + y, locLocal[2] + b.originZ + z),
+          (x, z) => lanternRoad(locLocal[0] + b.originX + x, locLocal[2] + b.originZ + z));
         const block = skinBlocks.push({ dfBlock: b.dfBlock, opts: flatOpts }) - 1;   // AUDIT PRECIP HOST-7: read again in a season (the same flats, in the same order)
         // AUDIT 26 (F019): ...and the same flats' STATIC NPCs
         // (RMBLayout.cs:366-378 / :442-454 - the non-zero FactionID
@@ -798,7 +802,7 @@ export function createPixelBuild(host) {
           // stays in `blockFlats` - the start markers
           // (locationStartMarkers), quest markers and action chains all
           // read it - it simply never reaches a batch.
-          if (flat.editor) continue;
+          if (flat.editor || flat.hiddenStreetLantern) continue;
           const fx = locLocal[0] + b.originX + flat.x, fz = locLocal[2] + b.originZ + flat.z;
           // STAND-FLAT / STAND-HORSE (bible/04-Characters/Morrowind-NPCs.md section 28): a town horse and a person no
           // StaticNPC holds (a flat of a person's archive with no faction) stand in batches of their own
@@ -819,12 +823,12 @@ export function createPixelBuild(host) {
           const base = flat.archive === natureArchive ? climate.natureArchive : flat.archive;
           const tree = isTreeRecord(base, flat.record) || ([505, 507, 509, 511].includes(base) && isTreeRecord(base - 1, flat.record));
           if (tree && (submergedRoot(fx, fy, fz) || rootInsideBoulder(rocks, flat.x, fy - blockY, flat.z))) continue;
-          addFlat(flat.archive, flat.record, fx, fy, fz, { block, n, fixture: flat });
+          addFlat(flat.archive, flat.record, fx, fy, fz, { block, n, yaw: flat.yaw });
           // FLORA-GROUND, THE RINGS (scenes/floraSeat.js): a nature flat stood on the ground - the climate's, the plane's
           // band under it; a hill block's where no mound raised it - is drawn on the ground its pixel draws at every ring
           if (hillY !== null ? seatNatureFlat(hillSeat, flat.x, flat.z, hillY) === hillY : flat.archive === natureArchive) standsOnGround(flatLog[flatLog.length - 1].c);
         }
-        for (const light of collectCityLights(b.dfBlock, lightSize)) {
+        for (const light of layoutTownLights(blockFlats, collectCityLights(b.dfBlock, lightSize))) {
           const lp = [
             locLocal[0] + b.originX + light.x,
             blockY + light.y,
@@ -1855,7 +1859,7 @@ export function createPixelBuild(host) {
  * where the figure did), its centres the flats' own in the log's order; `pics[j]` flat j's picture now. Answers the groups,
  * the wild flats' marks (`${group}#${i}`, LPT1 - DFU's terrain variety is theirs, a location's flat takes none) and each
  * flat's place, [group, index].
- * @param {Array<{ c: number[], wild?: number }>} log @param {Array<number[]>} pics
+ * @param {Array<{ c: number[], wild?: number, block?: number, yaw?: number }>} log @param {Array<number[]>} pics
  */
 export function groupFlats(log, pics) {
   const groups = new Map(), wild = new Set(), places = new Array(log.length);
@@ -1866,7 +1870,8 @@ export function groupFlats(log, pics) {
     if (!g) groups.set(k, (g = []));
     places[j] = [k, g.length];
     if (log[j].wild != null) wild.add(`${k}#${g.length}`);
-    g.push(log[j].c);
+    const { c, block, yaw } = log[j];
+    g.push(block != null ? markStreetLanternCenter(archive, record, c, yaw) : c);
   }
   return { groups, wild, places };
 }

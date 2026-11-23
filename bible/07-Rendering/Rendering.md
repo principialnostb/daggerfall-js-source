@@ -254,19 +254,28 @@ for adding distinct lamp variants later.
 The classic street lantern replaces archive 210 records 14, 15, 28 and 29 through
 `src/world/classicStreetLantern.js` `createClassicStreetLantern`. It retains the
 authored flat height and ground position. Record 21 remains a candle stand.
-The owner's reference defines the square post, stepped pedestal, projecting
-arm and six-sided amber lantern. There is no candle or flame inside. Its
-three textures and mesh are shared and released by the last fixture owner.
+The square post and stepped pedestal carry two opposing arms with six-sided amber
+lanterns on town streets. There is no candle or flame inside. The single-arm
+fixture uses the same mesh buffers and textures, released by the last fixture owner.
 This departs from DFU `DaggerfallBillboard.SetMaterial` and `Update`: a fixed
 solid mesh replaces the camera-facing quad. `src/world/streetLanternPlacement.js`
-faces the arm toward the nearest road tile in its block, with a fixed fallback
-where the block has no road. The housing centre, transformed by the same yaw
-and authored height, supplies the point light and volumetric glow position.
-The streamed world's street-surface lift applies to the light as to the post.
-Classic sprite mode retains DFU's original light position. Night timing stays
-with the city-light system, across all provinces.
+places a point light in each housing using the post’s position, angle and height.
+`src/world/townLanternLayout.js` `layoutTownFlats` uses the authored town-block
+positions as anchors. It omits elevated posts and looks for dry verges along
+the town’s built streets, paved tiles and connected dirt lanes. In the streamed
+world the finished terrain and path mask keep the post’s foot beyond the dirt
+shoulder, including blended dirt and grass. It uses verges
+clear of buildings and other posts in the block. The crossbar runs across the
+road. A clear off-road anchor can stand when there is no suitable verge nearby.
+DFU `RMBLayout.AddLight` places one light above each authored flat. The street-surface lift applies to both lights as to the post. Each
+light has its own identity and uses the city-light budget, night schedule and
+range. The two lights share the post's flicker. Classic sprite mode retains
+DFU's original single light position.
 The shared fixture path serves `src/scenes/exterior.js`, `src/scenes/world.js`,
-`src/scenes/worldModes.js` and `src/scenes/dungeonContext.js` without host changes.
+`src/scenes/worldModes.js` and `src/scenes/dungeonContext.js`. The fixed and
+streamed town builds mark their double-arm fixtures, including those in the
+first town block (index zero). Interiors, dungeons and
+other fixture placements use the single-arm mesh view.
 `tools/blender/classicStreetLantern.py` reproduces the mesh, packed runtime data,
 editable Blender scene and GLB exports. The winter GLB includes separate snow;
 the runtime asset is bare. `test/world/classicStreetLantern.test.js` checks the

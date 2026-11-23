@@ -152,8 +152,8 @@
   {
     "name": "CROPS-16-exterior-host-no-climate",
     "file": "src/scenes/exterior.js",
-    "old": "const blockFlats = collectBlockFlats(b.dfBlock, natureArchive, { climateIndex: locClimateIndex, solid: fieldSolids })",
-    "new": "const blockFlats = collectBlockFlats(b.dfBlock, natureArchive, { climateIndex: null, solid: fieldSolids })",
+    "old": "const blockFlats = layoutTownFlats(b.dfBlock, collectBlockFlats(b.dfBlock, natureArchive, { climateIndex: locClimateIndex, solid: fieldSolids })",
+    "new": "const blockFlats = layoutTownFlats(b.dfBlock, collectBlockFlats(b.dfBlock, natureArchive, { climateIndex: null, solid: fieldSolids })",
     "tests": [
       "test/world/fb1004d_crops.test.js"
     ],

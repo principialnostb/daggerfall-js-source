@@ -27,8 +27,10 @@ export function createClassicStreetLantern(renderer) {
     subMeshes,
   });
   mesh.pixelKind = 'objects';
+  // The single-arm fixture shares the vertex and index buffers with the street post.
+  const single = { ...mesh, subMeshes: mesh.subMeshes.map((part, i) => ({ ...part, primitiveCount: packed.singleCounts[i] / 3 })) };
   return {
-    mesh, flames: [],
+    mesh, single, flames: [],
     destroy() {
       renderer.destroyMesh?.(mesh);
       for (const record of MATERIALS) renderer.releaseTexture?.(TORCH_ARCHIVE, record);

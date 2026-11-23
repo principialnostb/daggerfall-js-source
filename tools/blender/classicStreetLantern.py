@@ -1,7 +1,7 @@
 """Author a reference-matched classic street lantern; run with Blender -b -P."""
 import bpy, math, random, json, struct, base64, sys
 from pathlib import Path
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 OUT = Path(sys.argv[sys.argv.index('--')+1]) if '--' in sys.argv else Path.cwd()/'scratch'/'classic-lantern'
 OUT.mkdir(parents=True, exist_ok=True)
@@ -98,6 +98,7 @@ band(1.30,.16,.21)
 band(2.70)
 band(3.24,.16,.13)
 band(3.72,.205,.20)
+arm_start=len(objects)
 box('Horizontal projecting arm',(.43,0,3.73),(.98,.15,.15),bevel=.018)
 for x in [.72,.90]:
     box('Arm collar',(x,0,3.73),(.16,.195,.18),bevel=.015)
@@ -106,6 +107,7 @@ for x in [.26,.47]:
     bolt(x,-.081,3.73,.014)
 bar('Diagonal forged support',(.06,0,3.27),(.50,0,3.65),.041,.068,1)
 bar('Brace short seat',(.04,0,3.26),(.04,0,3.44),.046,.080)
+arm=objects[arm_start:]
 cone('Finial lower socket',3.93,.089,.075,.13,sides=4).rotation_euler[2]=math.pi/4
 cone('Finial diamond bottom',4.025,.04,.105,.09,sides=4).rotation_euler[2]=math.pi/4
 cone('Finial diamond top',4.12,.105,.037,.10,sides=4).rotation_euler[2]=math.pi/4
@@ -113,6 +115,7 @@ cone('Spear lower shoulders',4.21,.07,.045,.09,sides=4).rotation_euler[2]=math.p
 cone('Spear point',4.335,.045,0,.16,sides=4).rotation_euler[2]=math.pi/4
 
 cx=.735
+housing_start=len(objects)
 box('Suspension strap',(cx,0,3.60),(.049,.064,.15),bevel=.008)
 ring('Single hanging iron ring',(cx,0,3.50),.073,.015)
 box('Lantern ring eye',(cx,0,3.405),(.045,.052,.08),bevel=.009)
@@ -139,8 +142,17 @@ for i in range(6):
     finish(o,o.name,2)
     uv=o.data.uv_layers.active.data
     for j,coord in enumerate([(0,0),(1,0),(1,1),(0,1)]): uv[j].uv=coord
+housing=objects[housing_start:]
 for x in [-.29,0,.29]: bolt(x,-.335,.065,.022)
 for x in [-.17,.17]: bolt(x,-.225,.535,.018)
+bpy.context.view_layer.update()
+single_count=len(objects)
+opposite=Matrix.Diagonal((-1,-1,1,1))
+for obj in arm+housing:
+    other=obj.copy()
+    bpy.context.collection.objects.link(other)
+    other.matrix_world=opposite@obj.matrix_world
+    objects.append(other)
 
 # A separate snow collection is retained in the editable model and winter GLB.
 bare=list(objects)
@@ -157,25 +169,28 @@ def snowcap(name,x,y,z,w,d):
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
     o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);finish(o,name,3)
 snowcap('Snow on projecting arm',.44,0,3.817,1.01,.20)
+snowcap('Snow on opposite arm',-.44,0,3.817,1.01,.20)
 for z,w,d in [(.13,.80,.67),(.60,.49,.43),(1.15,.27,.27),(2.78,.21,.21),(3.83,.21,.21)]: snowcap('Settled collar snow',0,0,z,w,d)
 snow=list(set(objects)-set(bare))
 
 def pack_mesh():
-    positions=[]; normals=[]; uvs=[]; groups=[[] for _ in range(4)]
-    for obj in bare:
+    positions=[]; normals=[]; uvs=[]; groups=[[] for _ in range(4)]; single_counts=[0]*4
+    for number,obj in enumerate(bare):
         mesh=obj.data; mesh.calc_loop_triangles(); matrix=obj.matrix_world
         normal_matrix=matrix.to_3x3().inverted().transposed()
         for tri in mesh.loop_triangles:
+            if number<single_count: single_counts[tri.material_index]+=3
             for li in tri.loops:
                 loop=mesh.loops[li]; p=matrix@mesh.vertices[loop.vertex_index].co; n=(normal_matrix@tri.normal).normalized()
                 groups[tri.material_index].append(len(positions)//3)
                 positions.extend([p.x/4.415,p.z/4.415,-p.y/4.415]); normals.extend([n.x,n.z,-n.y])
                 uvs.extend(mesh.uv_layers.active.data[li].uv)
     def enc(code,values): return base64.b64encode(struct.pack('<'+code*len(values),*values)).decode()
-    result=dict(positions=enc('f',positions),normals=enc('f',normals),uvs=enc('f',uvs),indices=enc('I',sum(groups,[])),counts=[len(g) for g in groups],textures=texture_bytes,textureSize=128)
-    (OUT/'classicStreetLantern.json').write_text(json.dumps(result,separators=(',',':'))+'\n')
+    result=dict(positions=enc('f',positions),normals=enc('f',normals),uvs=enc('f',uvs),indices=enc('I',sum(groups,[])),counts=[len(g) for g in groups],singleCounts=single_counts,textures=texture_bytes,textureSize=128)
+    (OUT/'classicStreetLantern.json').write_text(json.dumps(result,separators=(',',':'))+'\n',newline='\n')
     print('CLASSIC_LANTERN_TRIANGLES',len(positions)//9)
 bpy.context.view_layer.update(); pack_mesh()
+if '--packed-only' in sys.argv: sys.exit(0)
 def export(name,selection):
     bpy.ops.object.select_all(action='DESELECT')
     for obj in selection: obj.select_set(True)
@@ -190,7 +205,7 @@ mat=bpy.data.materials.new('Studio grey');mat.diffuse_color=(.24,.25,.28,1);floo
 def aim(obj,at):obj.rotation_euler=(Vector(at)-obj.location).to_track_quat('-Z','Y').to_euler()
 for loc,power,size in [((1,-4,7),1800,5),((-4,-1,3),1100,4),((2,3,6),2200,3)]:
     bpy.ops.object.light_add(type='AREA',location=loc);o=bpy.context.object;o.data.energy=power;o.data.shape='DISK';o.data.size=size;aim(o,(0,0,2))
-bpy.ops.object.camera_add(location=(6,-13,6.1));camera=bpy.context.object;aim(camera,(.30,0,2.22));camera.data.type='ORTHO';camera.data.ortho_scale=5.0
+bpy.ops.object.camera_add(location=(6,-13,6.1));camera=bpy.context.object;aim(camera,(0,0,2.22));camera.data.type='ORTHO';camera.data.ortho_scale=5.0
 scene=bpy.context.scene;scene.camera=camera;scene.render.engine='CYCLES';scene.cycles.samples=32
 scene.world.color=(.3,.3,.3);scene.view_settings.view_transform='AgX'
 scene.render.resolution_x=900;scene.render.resolution_y=1100;scene.render.resolution_percentage=100

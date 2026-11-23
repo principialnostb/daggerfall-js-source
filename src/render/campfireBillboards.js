@@ -1,5 +1,5 @@
 import { withFixtureDepth } from './fixtureDepth.js';
-import { streetLanternCenter, streetLanternYaw } from '../world/streetLanternPlacement.js';
+import { streetLanternYaw, usesClassicStreetLantern } from '../world/streetLanternPlacement.js';
 // @ts-check
 import { canDrawCampfire, createCampfireVisual } from '../scenes/campfireVisual.js';
 import { FIRE_FLAT } from '../systems/survival/camp.js';
@@ -22,7 +22,8 @@ export function rememberCampfireBatch(batch, centers) {
   if (fire && centers.length && morrowindWorldVisualEnabled('enhancedCampfire')) prepareCampfireFlames();
   if (fire || torchKind(batch.archive, batch.record) || fixtureRecord(batch.archive, batch.record) !== null) {
     const previous = entries.get(batch);
-    entries.set(batch, { centers: centers.map(p => streetLanternCenter(p, [...p])), visual: previous?.visual ?? null });
+    const streetYaw = batch.archive === 210 && usesClassicStreetLantern(batch.record) ? centers.map(streetLanternYaw) : null;
+    entries.set(batch, { centers: centers.map(p => [...p]), streetYaw, visual: previous?.visual ?? null });
   }
   return batch;
 }
@@ -67,7 +68,7 @@ function drawFixtures(renderer, batches, time) {
         if (!sphereInPlanes(fixturePlanes, x, y + height / 2, z, radius)) continue;
       }
       entry.visual ??= kind !== null ? createTorchVisual(renderer, kind) : createCampfireVisual(renderer);
-      if (kind !== null) entry.visual.draw(pos, height, time, mount, origin, gap, streetLanternYaw(entry.centers[n]));
+      if (kind !== null) entry.visual.draw(pos, height, time, mount, origin, gap, entry.streetYaw?.[n] != null, entry.streetYaw?.[n]);
       else entry.visual.draw({ rec: { pos, yaw: 0 } }, true, time);
     }
   }

@@ -28,6 +28,9 @@ test('Blender mesh has finite indexed geometry, normalized height and no flame',
   assert.ok(Math.abs(Math.min(...ys)) < .001);
   assert.ok(Math.abs(Math.max(...ys) - 1) < .001);
   assert.equal(m.subMeshes.reduce((n, p) => n + p.primitiveCount * 3, 0), m.indices.length);
+  const pane = m.subMeshes[2];
+  const xs = [...m.indices.slice(pane.startIndex)].map(index => m.positions[3 * index]);
+  assert.deepEqual([xs.filter(x => x > 0).length, xs.filter(x => x < 0).length], [36, 36]);
   assert.ok(m.indices.length / 3 < 12000);
   assert.ok(r.uploads.every(([, , p]) => p.colors.length === p.width * p.height * 4));
   fixture.destroy();
@@ -38,10 +41,12 @@ test('Blender mesh has finite indexed geometry, normalized height and no flame',
 
 test('game fixture pool shares street mesh and frees it after the last owner', () => {
   const r = renderer(), a = createTorchVisual(r, 14), b = createTorchVisual(r, 29);
-  a.draw([0, 0, 0], 4.415, 0); b.draw([3, 0, 0], 4.415, 0);
+  a.draw([0, 0, 0], 4.415, 0, null, undefined, 0, true);
+  b.draw([3, 0, 0], 4.415, 0);
   assert.equal(r.draws.length, 2);
   const mesh = r.draws[0][0];
-  assert.equal(mesh, r.draws[1][0]);
+  assert.equal(mesh.indices, r.draws[1][0].indices);
+  assert.equal(r.draws[1][0].subMeshes[2].primitiveCount * 2, mesh.subMeshes[2].primitiveCount);
   assert.equal(r.uploads.filter(([, record]) => record === 40).length, 1);
   a.destroy(); assert.ok(!r.freed.includes(mesh));
   b.destroy(); assert.equal(r.freed.filter(m => m === mesh).length, 1);

@@ -1,4 +1,4 @@
-import { orientStreetLights, streetLightPosition } from '../streetLanternPlacement.js';
+import { streetHousingLights } from '../streetLanternPlacement.js';
 import { morrowindWorldVisualEnabled } from '../../systems/dungeonDecor.js';
 // City light collection: one point light per archive-210 flat. 1:1 with
 // Daggerfall Unity's RMBLayout AddLights/AddLight and the exterior-subrecord
@@ -110,12 +110,18 @@ export function fillLanternPool(pixels, translate, pool, ranges, animRanges, ext
     ranges = rangesFor(ranges, n + p.lights.length + m);
     const slot0 = lanternSlot(p.px, p.py);
     for (let j = 0; j < p.lights.length + m; j++) {
-      const l = streetLightPosition(j < p.lights.length ? p.lights[j] : more[j - p.lights.length], street3d);
-      const e = pool[n] ?? (pool[n] = { x: 0, y: 0, z: 0 });
-      e.x = l[0] + t[0]; e.y = l[1] + t[1]; e.z = l[2] + t[2];
-      adoptLight(e, l);   // LIGHT-ID: the entry is this lantern's this frame - the pool reshuffles when a pixel streams out
-      ranges[n] = animRanges[(slot0 + j) % animRanges.length];
-      n++;
+      const source = j < p.lights.length ? p.lights[j] : more[j - p.lights.length];
+      const pair = street3d ? streetHousingLights(source) : null;
+      const count = pair?.length ?? 1;
+      ranges = rangesFor(ranges, n + count);
+      for (let side = 0; side < count; side++) {
+        const l = pair?.[side] ?? source;
+        const e = pool[n] ?? (pool[n] = { x: 0, y: 0, z: 0 });
+        e.x = l[0] + t[0]; e.y = l[1] + t[1]; e.z = l[2] + t[2];
+        adoptLight(e, l);   // LIGHT-ID: the entry is this lantern's this frame - the pool reshuffles when a pixel streams out
+        ranges[n] = animRanges[(slot0 + j) % animRanges.length];
+        n++;
+      }
     }
   }
   return { n, ranges };
@@ -180,7 +186,7 @@ export function collectCityLights(dfBlock, getScaledSize) {
     }
   }
 
-  return orientStreetLights(dfBlock, lights);
+  return lights;
 }
 
 /**
@@ -204,6 +210,7 @@ export function collectCityLights(dfBlock, getScaledSize) {
  *  buffer across the frame's re-uploads. */
 const _selD = [];
 const _selIdx = [];
+const _selSide = [];
 
 /** A10: `xzRange` is DungeonLightHandler's cut, handed in by the
  *  callers that have one (the dungeon hosts). It is a RANGE, not a
@@ -225,24 +232,28 @@ export function nearestLights(lights, pos, max = 16, range = CITY_LIGHT_RANGE, c
   const len = n < 0 ? lights.length : Math.min(n, lights.length);
   let count = 0;
   for (let i = 0; i < len; i++) {
-    const l = streetLightPosition(lights[i], street3d);
-    const dx = l.x - pos[0];
-    const dy = l.y - pos[1];
-    const dz = l.z - pos[2];
-    // The XZ block-range gate, BEFORE the nearest-N admission: DFU
-    // compares XZ only ("dungeon blocks have no defined vertical
-    // height", :62) and disables on strictly greater, so a light
-    // exactly at the range stays lit.
-    if (xz2 && dx * dx + dz * dz > xz2) continue;
-    const d = dx * dx + dy * dy + dz * dz;
-    if (count >= max && d >= _selD[count - 1]) continue;   // not admitted; ties keep the earlier light
-    let j = count < max ? count++ : count - 1;
-    while (j > 0 && _selD[j - 1] > d) { _selD[j] = _selD[j - 1]; _selIdx[j] = _selIdx[j - 1]; j--; }
-    _selD[j] = d; _selIdx[j] = i;
+    const source = lights[i];
+    const pair = street3d ? streetHousingLights(source) : null;
+    for (let side = 0; side < (pair?.length ?? 1); side++) {
+      const l = pair?.[side] ?? source;
+      const dx = l.x - pos[0];
+      const dy = l.y - pos[1];
+      const dz = l.z - pos[2];
+      // DFU's dungeon XZ gate runs before nearest-N admission.
+      if (xz2 && dx * dx + dz * dz > xz2) continue;
+      const d = dx * dx + dy * dy + dz * dz;
+      if (count >= max && d >= _selD[count - 1]) continue;   // ties keep the earlier light
+      let j = count < max ? count++ : count - 1;
+      while (j > 0 && _selD[j - 1] > d) {
+        _selD[j] = _selD[j - 1]; _selIdx[j] = _selIdx[j - 1]; _selSide[j] = _selSide[j - 1]; j--;
+      }
+      _selD[j] = d; _selIdx[j] = i; _selSide[j] = side;
+    }
   }
   const out = lightList(count);   // LIGHT-ID: each light's identity rides the list
   for (let i = 0; i < count; i++) {
-    const l = streetLightPosition(lights[_selIdx[i]], street3d);
+    const source = lights[_selIdx[i]];
+    const l = (street3d ? streetHousingLights(source)?.[_selSide[i]] : null) ?? source;
     // AUDIT PERF-LIGHTS F2 (pre-existing, found by this audit): a
     // per-light range array SHORTER than the light list gives `undefined`
     // here, which lands in a Float32Array as NaN - and a NaN far plane

@@ -43,7 +43,7 @@ function getFixture(renderer, cache, record) {
 // and spend the remaining authored height on suspension.
 const PENDANT_MODEL_HEIGHT = 1.05;
 
-function drawFixture(renderer, cache, fixture, pos, height, frame, ceilingGap, yaw) {
+function drawFixture(renderer, cache, fixture, pos, height, frame, ceilingGap, street, yaw) {
   if (fixture.drawSuspension) {
     const extra = ceilingGap + height - PENDANT_MODEL_HEIGHT;
     if (extra < 0) pos = [pos[0], pos[1] + extra, pos[2]];
@@ -51,7 +51,7 @@ function drawFixture(renderer, cache, fixture, pos, height, frame, ceilingGap, y
     height = PENDANT_MODEL_HEIGHT;
   }
   const model = trs(...pos, 0, yaw, 0, height, height, height);
-  renderer.drawMesh(fixture.mesh, model, null, { noShadow: true });
+  renderer.drawMesh(street ? fixture.mesh : fixture.single ?? fixture.mesh, model, null, { noShadow: true });
   if (fixture.drawSuspension) {
     fixture.drawSuspension(pos, height, ceilingGap);
   } else if (ceilingGap > .005) {
@@ -99,12 +99,12 @@ export function createTorchVisual(r, kind) {
   cache.users++;
   let dead=false;
   return {
-    draw(pos, height, time, mount = null, origin = [0, 0, 0], ceilingGap = 0, yaw = 0) {
+    draw(pos, height, time, mount = null, origin = [0, 0, 0], ceilingGap = 0, street = false, yaw = 0) {
       const h = height || 1;
       const phase = Math.abs(Math.floor((pos[0] + pos[2]) * 11));
       const frame = ((Math.floor(time * 12) + phase) % CAMPFIRE_FRAMES + CAMPFIRE_FRAMES) % CAMPFIRE_FRAMES;
       if (fixture) {
-        drawFixture(r, cache, fixture, pos, h, frame, ceilingGap, yaw);
+        drawFixture(r, cache, fixture, pos, h, frame, ceilingGap, street, yaw);
         return;
       }
       if (mount) {
