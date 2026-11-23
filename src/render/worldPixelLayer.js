@@ -1,3 +1,4 @@
+import { pixelViewport } from './pixelViewport.js';
 import { fixtureHidden } from './fixtureDepth.js';
 // Object meshes use the corrected character colour/depth pass once each.
 import {drawPixelatedCharacters,boxCorners,blockPixels} from './charPixelLayer.js';
@@ -30,7 +31,7 @@ export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null){
  const rows=worldPixelRows(kind)/(mesh?.pixelBlockScale??1);
  if(!rows)return false;
  const target=r._fixturePixelTarget ?? alphaState ?? {};
- const vp=target.viewport ??= r.gl.getParameter(r.gl.VIEWPORT);
+ const vp=target.viewport ??= pixelViewport(r.gl);
  if(blockPixels(vp[3],rows)<=1&&!mesh?.pixelFootprint)return false;
  const b=mesh?.bounds;
  const footprint=mesh?.pixelFootprint;

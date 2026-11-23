@@ -1,3 +1,4 @@
+import { pixelViewport } from './pixelViewport.js';
 import { modGroupReady } from '../systems/enhancedModResources.js';
 // @ts-check
 // CHAR-PIX1 (2026-10-27, the owner: "в оригинале моделька персонажа немного пикселизируется как и у нпс ... сделай эту
@@ -164,7 +165,7 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null, d
   // The exterior body pass publishes its actual world destination. Independent
   // views keep their own target, including a nested inventory/studio picture.
   if (!target && !renderer._panelSaved && !renderer._studioDepth) target = renderer._worldFixtureDestination;
-  const vp = /** @type {Int32Array} */ (target?.viewport ?? gl.getParameter(gl.VIEWPORT));
+  const vp = /** @type {Int32Array} */ (target?.viewport ?? pixelViewport(gl));
   const footprint = footprintProfile && corners
     ? screenRect(corners, mul4(renderer._proj, renderer._view, _pv), vp[2], vp[3], 0)
     : null;

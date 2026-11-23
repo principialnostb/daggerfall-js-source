@@ -86,3 +86,5 @@ still animation clip is posed once and a rope's bones are read off the frame's o
 - `test/systems/comeSailAway/perfsails3.test.js`, `test/systems/comeSailAway/perfsails4.test.js` - ships in port
 - `test/net/gate/fb1013e_aoeperf.test.js` - the boss's telegraphs
 - `tools/peerLab.mjs` - a crowd of peers, measured
+
+The object, body and billboard pixel passes share the WebGL viewport reader in `src/render/pixelViewport.js`. The character pass reads it at `charPixelLayer.js:"target?.viewport ?? pixelViewport(gl)"`. It remembers the rectangles the driver returned for recent viewport commands on that context. An unknown rectangle is queried, and a restored context starts fresh. For a desktop comparison, load the installed game bundle and installed EMC archives, match the map pixel, pose and canvas, and collect stationary and turning samples after streaming settles. A source run with the desktop-medium preset still uses the development asset loader.

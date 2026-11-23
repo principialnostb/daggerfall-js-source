@@ -1,3 +1,4 @@
+import { pixelViewport } from './pixelViewport.js';
 import { groundRelief } from '../world/terrain/groundRelief.js';
 import { pondSoilLayer, MAX_GROUND_LAYERS } from './pondSoilTexture.js';
 import { groundFinishGlsl } from './groundFinishGlsl.js';
@@ -9182,7 +9183,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // sign of `w`, compared by value like the rest.
     let lastW = NaN, lastH = NaN, lastOx = NaN, lastOy = NaN, lastOz = NaN;
     const npcRows = this._spriteDepth > 0 || this._panelSaved ? 0 : charPixelRows('npc');
-    const block = npcRows > 0 ? blockPixels(gl.getParameter(gl.VIEWPORT)[3], npcRows) : 1;
+    const block = npcRows > 0 ? blockPixels(pixelViewport(gl)[3], npcRows) : 1;
     const npcArchives = block > 1 ? npcBillboardArchives() : null;
     let lastPixelBlock = NaN;
     const drawOne = (b) => {
