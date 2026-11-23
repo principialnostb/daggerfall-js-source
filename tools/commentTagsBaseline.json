@@ -866,7 +866,7 @@
  "src/render/farFlora.js": 9,
  "src/render/farLandmarks.js": 2,
  "src/render/farRing.js": 177,
- "src/render/farTrees.js": 31,
+ "src/render/farTrees.js": 30,
  "src/render/flatAnimation.js": 3,
  "src/render/foeTelegraph.js": 27,
  "src/render/fogGlsl.js": 5,

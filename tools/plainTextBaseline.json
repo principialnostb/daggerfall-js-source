@@ -516,7 +516,7 @@
   "src/formats/morrowind/mwDdsFile.js": 8,
   "src/formats/morrowind/mwEsmFile.js": 10,
   "src/formats/morrowind/mwFaceMatch.js": 34,
-  "src/formats/morrowind/mwFirstPerson.js": 600,
+  "src/formats/morrowind/mwFirstPerson.js": 596,
   "src/formats/morrowind/mwGpuSkin.js": 60,
   "src/formats/morrowind/mwItemMap.js": 45,
   "src/formats/morrowind/mwKeys.js": 20,
