@@ -1,3 +1,4 @@
+import { modDiagnostics } from './modDiagnostics.js';
 import { appStorage } from './appStorage.js';
 import { MOD_PACKS, packForPath } from './enhancedModCatalog.js';
 const DB = 'dfo-enhanced-resources-v1';
@@ -41,11 +42,18 @@ export function initEnhancedModResources() {
     if (globalThis.daggerShell?.testEmc) {
       try {
         const manifest = await fetch('dagger://game/test-emc', { cache: 'no-store' });
-        if (manifest.ok) {
+        if (!manifest.ok) throw new Error('EMC manifest HTTP ' + manifest.status);
+        {
           const payload = await manifest.json();
-          payload.forEach((name, index) => desktopPack.set(name, 'dagger://game/test-emc/' + index));
+          if (!Array.isArray(payload) || payload.some(name => typeof name !== 'string' || !name.startsWith('Mods/'))) throw new Error('Invalid EMC resource list');
+          const stablePaths = manifest.headers?.get('X-DFO-EMC-Paths') === '1';
+          payload.forEach((name, index) => {
+            const key = stablePaths ? 'file/' + name.split('/').map(encodeURIComponent).join('/') : index;
+            desktopPack.set(name, 'dagger://game/test-emc/' + key);
+          });
+          modDiagnostics.record({ level: payload.length ? 'info' : 'warn', phase: 'emc', action: 'emc-mounted', details: { files: payload.length, stablePaths } });
         }
-      } catch { /* Desktop resources are optional. */ }
+      } catch (error) { modDiagnostics.record({ level: 'error', phase: 'emc', action: 'emc-mount-failed', message: String(error) }); }
     }
     if (!globalThis.indexedDB) return;
     database=await new Promise((resolve,reject)=>{
@@ -94,7 +102,7 @@ export function modResourceGlob(patterns, original) {
     }
   }
   const result={...original};
-  for(const [path,url] of [...desktopPack, ...urls]){
+  for(const [path,url] of [...urls, ...desktopPack]){
     const full=prefix+path;
     if(matchers.some(re=>re.test(full))){
       for(const key of Object.keys(result))if(key.toLowerCase()===full.toLowerCase())delete result[key];

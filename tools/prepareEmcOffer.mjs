@@ -3,6 +3,7 @@ import { brotliCompressSync, constants } from 'node:zlib';
 import { createReadStream, createWriteStream, closeSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
 import pack from '../app/lib/emcReleasePack.cjs';
 import { packForPath } from '../src/systems/enhancedModCatalog.js';
@@ -21,6 +22,30 @@ function scan(parent) {
   }
 }
 scan('Mods');
+// Compare the approved staging tree to the working client's character assets.
+// A publisher must resolve a missing or stale staged file before issuing the offer.
+const reference = fileURLToPath(new URL('../', import.meta.url));
+const characterRoots = facesOnly ? ["Mods/Textures/Westly's Faces Refurbished/Data Files"] : [
+  'Mods/Bodies/Better Bodies/Nude/Data Files', 'Mods/Bodies/Better Bodies/Underwear/Data Files',
+  'Mods/Textures/Better Morrowind Armor/Data Files', 'Mods/Textures/Better Morrowind Armor/Complete Armor Joints/Data Files',
+  'Mods/Textures/Better Clothes Retextured', 'Mods/Textures/Intelligent Textures/00 Core/textures',
+  "Mods/Textures/Vurt's Better Clothes Retexture/textures", "Mods/Textures/Westly's Fine Clothiers of Tamriel",
+];
+const staged = new Set(names);
+function verifyCharacterDirectory(parent) {
+  for (const entry of readdirSync(join(reference, parent), { withFileTypes: true })) {
+    const file = parent + '/' + entry.name;
+    if (entry.isDirectory()) {
+      if (entry.name.toLowerCase() !== 'icons') verifyCharacterDirectory(file);
+    } else if (entry.isFile() && /\.(nif|dds|tga)$/i.test(file)) {
+      if (!staged.has(file)) throw new Error('Missing character resource in approved EMC stage: ' + file);
+      if (resolve(root) !== resolve(reference) && !readFileSync(join(root, file)).equals(readFileSync(join(reference, file)))) {
+        throw new Error('Character resource differs from working client: ' + file);
+      }
+    }
+  }
+}
+for (const directory of characterRoots) verifyCharacterDirectory(directory);
 const validate = facesOnly ? hasFaces : hasPaperdoll;
 if (!validate(names.map((path) => ({ path })))) throw new Error('EMC source files are incomplete');
 names.sort((a, b) => a.localeCompare(b));

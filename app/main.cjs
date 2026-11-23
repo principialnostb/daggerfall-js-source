@@ -2472,6 +2472,9 @@ const diagnosticModFile = (value) => {
     .replace(/[^a-zA-Z0-9._ -]/g, '_').trim().slice(0, 120);
   return (name || 'unknown-mod') + '.ndjson';
 };
+const diagnosticProfile = require('node:crypto').createHash('sha256')
+  .update(require('node:os').hostname() + '\0' + app.getPath('userData')).digest('hex').slice(0, 16);
+const diagnosticRun = require('node:crypto').randomUUID();
 let diagnosticWriteQueue = Promise.resolve();
 ipcMain.on('dagger:diagnostic', (e, raw) => {
   if (!gameWindow || gameWindow.isDestroyed() || e.sender !== gameWindow.webContents) return;
@@ -2479,6 +2482,8 @@ ipcMain.on('dagger:diagnostic', (e, raw) => {
   try {
     const details = raw.details && typeof raw.details === 'object' && !Array.isArray(raw.details) ? raw.details : {};
     const record = {
+      launcherVersion: app.getVersion(),
+      gameVersion: gameStore?.version?.() ?? null,
       timestamp: /^\d{4}-\d\d-\d\dT/.test(raw.timestamp ?? '') ? diagnosticText(raw.timestamp, 40) : new Date().toISOString(),
       sessionId: diagnosticText(raw.sessionId, 100),
       sequence: Number.isSafeInteger(raw.sequence) && raw.sequence >= 0 ? raw.sequence : 0,
@@ -2492,7 +2497,7 @@ ipcMain.on('dagger:diagnostic', (e, raw) => {
     };
     if (Buffer.byteLength(JSON.stringify(record), 'utf8') > 16000) record.details = { note: 'details omitted: record exceeded 16 KB' };
     const line = JSON.stringify(record) + '\n';
-    const root = path.join(app.getPath('userData'), 'Diagnostics');
+    const root = path.join(app.isPackaged ? path.dirname(process.execPath) : app.getAppPath(), 'Diagnostics', diagnosticProfile, diagnosticRun);
     const modPath = path.join(root, 'mods', diagnosticModFile(record.modId));
     diagnosticWriteQueue = diagnosticWriteQueue.then(async () => {
       await fs.promises.mkdir(path.dirname(modPath), { recursive: true });

@@ -284,12 +284,12 @@ function emcStore(root, net, { requireFaces = false, onProgress = () => {}, idle
         const file = locations[part].path;
         for (const entry of files) sources.set(entry.path.toLowerCase(), { entry, file });
       }
-      mounted = { base, faces, entries: [...sources.values()] };
+      mounted = { base, faces, sources, entries: [...sources.values()] };
     }
     const { entries } = mounted;
-    if (parts.length === 1) return Response.json(entries.map(({ entry }) => entry.path), { headers: deny });
+    if (parts.length === 1) return Response.json(entries.map(({ entry }) => entry.path), { headers: { ...deny, 'X-DFO-EMC-Paths': '1' } });
     const id = parts[1];
-    const row = parts.length === 2 && /^\d{1,6}$/.test(id) ? entries[Number(id)] : null;
+    const row = id === 'file' ? mounted.sources.get(parts.slice(2).join('/').toLowerCase()) : parts.length === 2 && /^\d{1,6}$/.test(id) ? entries[Number(id)] : null;
     if (!row) return new Response(null, { status: 404, headers: deny });
     const { entry, file } = row;
     const stream = fs.createReadStream(file, { start: entry.offset, end: entry.offset + (entry.stored ?? entry.size) - 1 });

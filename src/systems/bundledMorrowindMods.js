@@ -326,11 +326,20 @@ const sourceModOf = (sourcePath) => {
   const folderIndex = parts.findIndex((part) => /^(Bodies|Textures)$/i.test(part));
   return folderIndex >= 0 ? parts[folderIndex + 1] : 'bundled-morrowind-assets';
 };
+const reportedSources = new Set();
 const fetchBytes = async (url) => {
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Bundled Morrowind asset returned ' + response.status + ': ' + url);
-    return new Uint8Array(await response.arrayBuffer());
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!bytes.length) throw new Error('Empty Morrowind resource');
+    const source = resourceCatalog().sourcePathByUrl.get(url);
+    if (source && !reportedSources.has(source)) {
+      reportedSources.add(source);
+      modDiagnostics.record({ phase: 'asset-fetch', action: 'asset-loaded', modId: sourceModOf(source), resource: source,
+        details: { bytes: bytes.length, provider: String(url).startsWith('dagger://game/test-emc/') ? 'desktop-emc' : String(url).startsWith('blob:') ? 'imported' : 'bundled' } });
+    }
+    return bytes;
   } catch (error) {
     const sourcePath = resourceCatalog().sourcePathByUrl.get(url) ?? String(url ?? '');
     modDiagnostics.record({ level: 'error', phase: 'asset-fetch', action: 'asset-fetch-failed', modId: sourceModOf(sourcePath), resource: sourcePath,
