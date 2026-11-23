@@ -538,7 +538,10 @@ export class FarTreesBand {
         missing.forEach(([x, y], k) => {
           const t = trees[k] ?? new Float32Array(0),
             own = new Set();
-          for (let i = 3; i < t.length; i += 4) own.add(bandTreeArt(archives[k], t[i]).join(',')); // TESA-LANDS: each tree's own picture, of whatever archive
+          // Forest cells repeat the same few pictures across thousands of instances.
+          const codes = new Set();
+          for (let i = 3; i < t.length; i += 4) codes.add(t[i]);
+          for (const code of codes) own.add(bandTreeArt(archives[k], code).join(','));
           this.kept.set(`${x},${y}`, { px: x, py: y, archive: archives[k], trees: t, arts: [...own] });
         });
         this._forget();
