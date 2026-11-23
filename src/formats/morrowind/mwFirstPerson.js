@@ -4025,6 +4025,26 @@ export async function clipReport({ kfBytes, skeleton = null, group = 'Idle', cli
  *  time the arm moves, which cancels out exactly the motion this stage
  *  exists to show - the arm would appear to hold still while its numbers
  *  changed underneath. Sample, union, fix the mapper once. */
+/** Each animation channel holds its endpoint outside its keys. Reach needs the
+ * union of positions, so identical sample times and identical endpoint poses
+ * contribute once. This is for the unmodified track sampler on the sweep shadow. */
+export function distinctReachTimes(tracks, times) {
+  let first = Infinity, last = -Infinity;
+  for (const track of tracks.values()) {
+    const groups = [track.rotationKeys, track.translations?.keys, track.scales?.keys];
+    for (const axis of track.xyzRotations ?? []) groups.push(axis?.keys);
+    for (const keys of groups) {
+      if (!keys || keys.length < 2) continue;
+      first = Math.min(first, keys[0].time);
+      last = Math.max(last, keys[keys.length - 1].time);
+    }
+  }
+  if (!times.length) return [];
+  if (first > last) return [times[0]];
+  if (!Number.isFinite(first) || !Number.isFinite(last)) return [...new Set(times)];
+  return [...new Set(times.map(t => Math.max(first, Math.min(last, t))))];
+}
+
 /** PX27: the sample times to measure an arm's REACH over - every clip
  *  every source carries, not the idle alone. A clip is a start/stop
  *  pair in a source's text keys; each is sampled at a fixed count, so

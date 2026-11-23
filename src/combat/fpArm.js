@@ -40,7 +40,7 @@ import { normalizeBsaPath } from '../formats/morrowind/mwBsaFile.js';
 import { parseNif } from '../formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../formats/morrowind/mwNifMesh.js';
 import {
-  assembleFirstPersonArm, poseAssembly, armPieceRows, clipReport, clipUnionBounds, clipUnionBoundsSliced, sweepShadowOf, clipSweepTimes, bindPartsInto,
+  assembleFirstPersonArm, poseAssembly, armPieceRows, clipReport, clipUnionBounds, clipUnionBoundsSliced, sweepShadowOf, clipSweepTimes, distinctReachTimes, bindPartsInto,
   armReport, armMeshPaths, bodyParts,
   weaponRecords, dfWeaponToMw, dfWeaponShape, pickWeaponRecord, weaponAttachBone, MW_WEAPON_TYPE,
   ammoTypeFor, arrowAttachBone, ARROW_FALLBACK_NODE, reloadsItself, shootsRatherThanSwings,
@@ -3827,6 +3827,7 @@ export async function buildFpArm({
   hipLight = false,   // HT-WAIST: a lit lantern hung at the waist at the build (the third-person body's alone)
   werewolf = false,   // WEREWOLF1: the transformed werewolf - Bloodmoon's wolf, in both views
   skin = null,   // SHADOW-FANG (AUDIT D2): the wolf's skin (characters/werewolfSkin.js), painted in the build - a person wears none
+  firstPersonLens = true,
   reachSweep = true,   // MWNPC3: PX27's every-clip reach sweep - the first-person far plane's; false for a rig that never draws first person
   creature = null,   // MWNPC9: a CREA id, or the match's candidates in order - a creature's body instead (buildCreatureBody)
   vampire = false,   // MWNPC14: a vampire's face - the race's vampire head
@@ -4616,7 +4617,8 @@ export async function buildFpArm({
         const shadow = sweepShadowOf(arm);
         const shadowAt = (t) => poseAssembly(shadow, { tracks, sampleTrack, time: t, accumRoot });
         sweepLater = async current => {
-          const u = await clipUnionBoundsSliced(shadow, shadowAt, sweep, { current });
+          const samples = distinctReachTimes(tracks, sweep);
+          const u = await clipUnionBoundsSliced(shadow, shadowAt, samples, { current });
           if (u) rememberReach(reachKey, u);
           return u;
         };
@@ -4650,9 +4652,10 @@ export async function buildFpArm({
     // which is the pose it was tuned against and the one the arm holds
     // closest to the eye.
     const eye = firstPersonEye(arm.mats, cameraRef);
-    const idleReach = armReach(eye, clipUnionBounds(arm, poseAt, idleTimes));
+    // Population bodies use the world camera. Only a first-person lens consumes this 25-pose union.
+    const idleReach = armReach(eye, firstPersonLens ? clipUnionBounds(arm, poseAt, idleTimes) : arm.bounds);
     const reach = union ? armReach(eye, union) : idleReach;   // MWNPC3: no sweep, the idle's (LOAD-STALL 2: or not yet)
-    poseAt(c.startTime);
+    if (firstPersonLens) poseAt(c.startTime);
     if (weaponInfo) weaponInfo.side = weaponRestSide(arm, weaponInfo.bone);
     if (arrowInfo) arrowInfo.side = weaponRestSide(arm, arrowInfo.bone);
 

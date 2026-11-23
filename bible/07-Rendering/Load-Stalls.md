@@ -62,6 +62,8 @@ Not measured in the real game: the owner's data is not in this browser. The cons
 
 ## 3. Phase 2 - the sweep (LOAD-STALL 2)
 
+Population rigs draw through the world camera. Their build uses the starting pose for its unused first-person reach. The player still measures the near plane across all 25 idle poses. For the deferred far plane, every animation channel holds its first and last keys outside its range. Duplicate times and held endpoint poses contribute once to the union. The geometry, materials, lighting and animation shown to either camera use the same render path.
+
 The owner after phase 1: "основные баги пофикшены ... но все еще огромные задержки перед манипуляциями с внешностью
 текстурами и предметами". Measured, not guessed: `node tools/mwBuildProbe.mjs` builds the player's body in Node on the
 real data - the retail `.bsa`/`.esm` off `MORROWIND_DATA` (default the owner's Steam install), the mods' packs through

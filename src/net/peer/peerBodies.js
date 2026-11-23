@@ -1423,7 +1423,7 @@ export class PeerBodies {
     try {
       const opts = this._buildOpts(look, b.wolf ? { ...shown, wb: 1 } : null, glyphs);
       b.weapon = opts.weapon ?? null;
-      res = await b.rig.build(opts);
+      res = await b.rig.build({ ...opts, firstPersonLens: false });
     } catch (e) {
       res = null;
       reason = `threw: ${e?.message ?? e}`;
