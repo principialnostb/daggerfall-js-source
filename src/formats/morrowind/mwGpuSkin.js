@@ -65,7 +65,7 @@
 
 import { skinPost, affineMulInto } from './mwSkin.js';
 import { hangAffine } from './mwFirstPerson.js';
-import { poseLabOn, fitOver } from './mwPoseLab.js'; // POSE-LAB: the Animation Lab's seam, off in the game
+import { poseLabOn, fitOver } from './mwPoseLab.js'; // The Animation Lab's seam, off in the game
 import { SKIN_PAL_ROW } from '../../render/skinPalette.js'; // the palette's shape, one home
 
 export { SKIN_PAL_ROW };
@@ -190,7 +190,7 @@ export function skinLayout(pieces) {
           grow(b, x, y, z);
         }
       }
-      // MW-SMOOTH: the authored normals, when the piece poses them (packFpArm reads `p.normals` beside its positions)
+      // The authored normals, when the piece poses them (packFpArm reads `p.normals` beside its positions)
       const nrm =
         p.normals && p.normals.length === pos.length && batch.normals && batch.normals.length === pos.length
           ? batch.normals

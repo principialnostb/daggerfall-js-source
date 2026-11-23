@@ -66,8 +66,8 @@
   {
     "name": "MWNPCMERGE-moved-row-always",
     "file": "src/formats/morrowind/mwGpuSkin.js",
-    "old": "    if (r.kind !== 'rigid' || !syncRigidRow(r)) continue;",
-    "new": "    if (r.kind !== 'rigid') continue;\n    syncRigidRow(r);",
+    "old": "      changed = syncRigidRow(r);",
+    "new": "      syncRigidRow(r); changed = true;",
     "tests": [
       "test/formats/morrowind/mwnpc_mainmerge.test.js"
     ]
@@ -201,8 +201,8 @@
   {
     "name": "MWNPCMERGE-row-off-settings",
     "file": "src/ui/settings/settingsMap.js",
-    "old": "      'feat:mw-npc-bodies',\n      'feat:mw-billboard-look',",
-    "new": "      'feat:mw-billboard-look',",
+    "old": "    sec('morrowind-display', 'Отображение Morrowind', ['feat:mw-npc-bodies', 'feat:mw-billboard-look']),",
+    "new": "    sec('morrowind-display', 'Отображение Morrowind', ['feat:mw-billboard-look']),",
     "tests": [
       "test/formats/morrowind/mwnpc_mainmerge.test.js"
     ]

@@ -318,8 +318,8 @@
   {
     "name": "AUDIT-UI-A3-a-repaint-on-every-resize",
     "file": "src/ui/enhanced/enhancedInventory.js",
-    "old": "if (sig !== fitSig) { fitSig = sig; rowSizes.clear(); if (host) render(); }",
-    "new": "if (sig !== fitSig || true) { fitSig = sig; rowSizes.clear(); if (host) render(); }",
+    "old": "  resizeHandler = () => { const sig = packFitSig(); if (sig !== fitSig) { appearanceCard = null; fitSig = sig; rowSizes.clear(); if (host) render(); } else syncLists({ remeasure: true }); };   // AUDIT TRADE-VIRT: a new fit's rows measured afresh",
+    "new": "  resizeHandler = () => { const sig = packFitSig(); if (true) { appearanceCard = null; fitSig = sig; rowSizes.clear(); if (host) render(); } else syncLists({ remeasure: true }); };   // AUDIT TRADE-VIRT: a new fit's rows measured afresh",
     "tests": [
       "test/ui/enhanced/ui1_slots.test.js"
     ]

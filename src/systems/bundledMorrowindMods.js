@@ -1,20 +1,8 @@
 import { modResourceAllowed, modResourceSignature } from './enhancedModResources.js';
 import { modResourceGlob } from './enhancedModResources.js';
-// Bundled Morrowind replacement assets for packs under Mods/Textures and
-// Mods/Bodies. Archive keys match the game-relative paths stored in NIF files.
-//
-// Priority inside this archive (later packages win exact-path collisions):
-//   Better Bodies Nude textures (required fallback for the existing BB body)
-//   Intelligent Textures 00 Core (base game texture refresh; no atlas files)
-//   Vurt's Better Clothes Retexture (broad fallback override)
-//   Better Clothes Retextured (targeted non-pants texture overrides only)
-//   Better Morrowind Armor (base Data Files + Complete Armor Joints patch)
-//   Westly's Fine Clothiers of Tamriel (clothing meshes/textures + plugin)
-//   Westly's Faces Refurbished (head/hair meshes and textures)
-//
-// High Resolution Better Body Female Textures is included as a texture-only
-// layer; its alternate NIFs never replace the project's corrected UV geometry.
-
+// NIFs use game-relative archive keys. Later packs override earlier entries at the same path.
+// Better Bodies supplies the fallback skin. Clothing, armour and face packs retain their catalogue order.
+// High-resolution female textures use the corrected body mesh and UVs.
 import { makeVendoredArchive } from './urlArchive.js';
 import { modSetting } from './modSettings.js';
 import { getBodyHairEnabled, getUnderwearEnabled } from '../characters/bodyMorphs.js';

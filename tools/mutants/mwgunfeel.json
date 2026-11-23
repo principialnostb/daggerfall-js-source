@@ -38,8 +38,8 @@
   {
     "name": "MW-GUN-FEEL-the-pose-dropped-at-the-draw",
     "file": "src/combat/fpArm.js",
-    "old": "      const view = gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens;",
-    "new": "      const view = gunFeel ? lens : lens;",
+    "old": "      const view = fpInertia.view(gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens, MW_UNITS_PER_METER);   // FP-INERTIA over the kick",
+    "new": "      const view = fpInertia.view(gunFeel ? lens : lens, MW_UNITS_PER_METER);   // FP-INERTIA over the kick",
     "tests": [
       "test/combat/mwgunfeel.test.js"
     ]
@@ -47,8 +47,8 @@
   {
     "name": "MW-GUN-FEEL-laid-behind-the-lens",
     "file": "src/combat/fpArm.js",
-    "old": "      const view = gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens;",
-    "new": "      const view = gunFeel ? multiply(lens, armKickMatrix(gunFeel, MW_UNITS_PER_METER), new Float32Array(16)) : lens;",
+    "old": "      const view = fpInertia.view(gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens, MW_UNITS_PER_METER);   // FP-INERTIA over the kick",
+    "new": "      const view = fpInertia.view(gunFeel ? multiply(lens, armKickMatrix(gunFeel, MW_UNITS_PER_METER), new Float32Array(16)) : lens, MW_UNITS_PER_METER);   // FP-INERTIA over the kick",
     "tests": [
       "test/combat/mwgunfeel.test.js"
     ]

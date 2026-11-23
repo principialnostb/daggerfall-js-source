@@ -1,5 +1,5 @@
 // @ts-check
-// POSE-LAB (LAB2, bible/05-Combat/Proving-Ground.md): the one seam the Animation Lab edits a body through. A tool sets
+// The one seam the Animation Lab edits a body through. A tool sets
 // globalThis.__mwPoseAssemblyEdit; the game never does, so a player's pose costs one typeof and nothing else. The tool
 // may turn a bone in `pose` and give a piece a `labFit` - an affine in the rig's space laid over where the piece stands.
 

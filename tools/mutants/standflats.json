@@ -74,11 +74,12 @@
   {
     "name": "STAND-HORSE-bind-unflushed",
     "file": "src/world/standingHorses.js",
-    "old": "        if (open) renderer?.flushCharacterSpriteBatch?.();",
-    "new": "        /* unflushed */",
+    "old": "      if (!rig) return 0;\n      let drawn = 0;",
+    "new": "      if (!rig) return 0;\n      renderer?.beginCharacterSpriteBatch?.();\n      let drawn = 0;",
     "tests": [
       "test/world/standflats.test.js"
-    ]
+    ],
+    "note": "A world-space horse drawn into the fixed-size sprite target is compressed near the camera."
   },
   {
     "name": "STAND-HORSE-yard-needs-art",

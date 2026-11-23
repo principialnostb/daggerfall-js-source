@@ -14,7 +14,7 @@
 import { dyeToken } from '../../characters/dyes.js';   // DW3
 import { inventoryItemImage, inventoryItemModel } from '../../systems/item/itemTemplates.js';
 import { paperDollDisplayIdentity } from '../paperDoll.js';
-import { requestModelIcon } from '../modelIcon.js';   // DISC24-B: the Small Cart's picture is its wagon
+import { requestModelIcon } from '../modelIcon.js';   // The Small Cart's picture is its wagon
 import { drawText, measureText } from '../text.js';
 import { loadImg, drawImgCrop, drawRect } from '../native/nativePanel.js';
 import { audio } from '../../systems/audio.js';

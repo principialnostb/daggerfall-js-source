@@ -38,8 +38,8 @@
   {
     "name": "AUDIT-BODY-MOTION-nan-frame-kept",
     "file": "src/characters/bodyMotion/gait.js",
-    "old": "  if (!finite(dt) || dt < 0) dt = 0; // AUDIT BODY-MOTION GAIT-16: a NaN frame is no frame - it poisoned the state for good",
-    "new": "  if (dt < 0) dt = 0; // AUDIT BODY-MOTION GAIT-16: a NaN frame is no frame - it poisoned the state for good",
+    "old": "  if (!finite(dt) || dt < 0) dt = 0; // A NaN frame is no frame - it poisoned the state for good",
+    "new": "  if (dt < 0) dt = 0; // A NaN frame is no frame - it poisoned the state for good",
     "tests": [
       "test/characters/bodyMotion/bodymotion_audit.test.js"
     ]
@@ -231,8 +231,8 @@
   {
     "name": "AUDIT-BODY-MOTION-card-stale",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "        last = null;\n      } // AUDIT BODY-MOTION RIG-9: the card says off once the body is the clip's",
-    "new": "      } // AUDIT BODY-MOTION RIG-9: the card says off once the body is the clip's",
+    "old": "last = null;\n      }",
+    "new": "      }",
     "tests": [
       "test/characters/bodyMotion/bodymotion_audit.test.js"
     ]
@@ -267,7 +267,7 @@
   {
     "name": "AUDIT-BODY-MOTION-two-sneak-low",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(52, -2, 11, 52, 0.1, { blade: dir(-0.26, 0.95, 0.17), edge: dir(-0.21, 0.12, -0.97) }),",
+    "old": "      R: row(51, 2, 7, 22, 0.1, { blade: dir(-0.34, 0.94, 0.09), edge: dir(-0.1, 0.06, -0.99) }),",
     "new": "      R: row(34, 8, 50, 30, 0.1, { blade: dir(-0.25, 0.88, -0.4), edge: dir(0, 0.35, -1) }),",
     "tests": [
       "test/characters/bodyMotion/bodymotion_audit.test.js"
@@ -276,7 +276,7 @@
   {
     "name": "AUDIT-BODY-MOTION-run-supinated",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
+    "old": "      R: row(-6, 21, 30, -4, 0.15, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
     "new": "      R: row(2, 25, 24, -12, 0.35, { blade: dir(0.32, -0.42, -0.85), edge: dir(0, 0.6, -1) }),",
     "tests": [
       "test/characters/bodyMotion/bodymotion_audit.test.js"
@@ -409,12 +409,12 @@
     ]
   },
   {
-    "name": "AUDIT-BODY-MOTION-twist-unbound",
+    "name": "NATIVE-STRIKE-release-reenters-the-carry",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "export const BLOW_TRUNK = Object.freeze({ steer: 0.6, twist: 50 });",
-    "new": "export const BLOW_TRUNK = Object.freeze({ steer: 0, twist: 180 });",
+    "old": "const entry = activeBlow ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;",
+    "new": "const entry = activeBlow && input.blow.section !== 'release' ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;",
     "tests": [
-      "test/characters/bodyMotion/bodymotion_audit.test.js"
+      "test/characters/bodyMotion/nativeClipPose.test.js"
     ]
   },
   {

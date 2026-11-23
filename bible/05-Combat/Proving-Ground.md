@@ -88,10 +88,13 @@ the owner's local installs. The existing ground profile and `fork-seed.json` are
 `tools/provingGround/lab/server.mjs` mounts this route only for that command. Nothing is added to production routes.
 The panel and `tools/provingGround/lab/client.mjs` share a serialized, bounded JSON command API. Agents can request
 `suite`, `load <scenario.json>`, `advance <frames>`, `run`, `mark <note>`, `export` and `batch <count>` (default three).
+
 `LAB_URL` selects another local port; `--out <file>` writes a CLI result locally. Local `ARENA2/` and `Morrowind models/`
 are detected when the environment paths are unset, before falling back to the Steam paths. A cold lab boot allows
 ten minutes for the world's first pixel; `/__lab/boot` and `/__lab/boot-image` expose its loading state and picture.
-The known initial story notice is acknowledged before controls are handed to the lab. The old kit's missing pool
+The known initial story notice is acknowledged before controls are handed to the lab.
+
+The old kit's missing pool
 lookup is restored through `exteriorFoeProbe.js`: a weak reference registered by the existing pool constructor.
 `world.js` and `exterior.js` share that constructor; neither host grows. `worldModes.js` and `dungeonContext.js` are
 FLAGGED for this tool: LAB1 drives the exterior pool only, not indoor or dungeon foes.

@@ -1,5 +1,5 @@
 // @ts-check
-// SERIES-FLOW (combat/blowFlow.js): IS THE PLAYER STILL ATTACKING? A series is one picture - the attack button held, or
+// IS THE PLAYER STILL ATTACKING? A series is one picture - the attack button held, or
 // pressed again and again in whatever rhythm - and the arm reads it to carry its blows into each other rather than
 // stopping in the window between them. And A PRESS IS NEVER LOST: one the machine or the arm could not take (a blow
 // still in the hands) is buffered for SERIES.buffer seconds and taken the frame it can be - tapping fast through a
@@ -12,7 +12,7 @@ export function createAttackSeries() {
   let prevHeld = false;
   let sinceRise = Infinity;
   let buffered = 0;
-  let heldFor = 0;   // SERIES-OWN-PRESS: how long the button has been down
+  let heldFor = 0;   // How long the button has been down
   return {
     /** One frame of the button (`held`); answers whether it was pressed this frame. */
     step(dt, held) {
@@ -24,9 +24,7 @@ export function createAttackSeries() {
       buffered = rise ? SERIES.buffer : Math.max(0, buffered - d);
       return rise;
     },
-    /** The series goes on: the button held past a click, or pressed again within SERIES.intent - a press the blow it
-     *  began has spent is not one (SERIES-OWN-PRESS, the owner's game 2026-11-04: every lone click was a series, and its
-     *  follow-through drifted at a series' pace). */
+    /** A held or renewed press queues the next blow. Consume the press that started the current one. */
     wanted: (flow = false) => (flow ? prevHeld : heldFor >= SERIES.held) || sinceRise < SERIES.intent,   // BLOW-STYLE 'Прежний': any press
     /** A press is waiting to be taken. */
     buffered: () => buffered > 0,

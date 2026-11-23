@@ -19,6 +19,7 @@
 //   2. THE TOKEN LEDGER. Every token in DFU's TEXT.RSC either has a row
 //      in the ONE macro table, or is named below with who consumes it -
 //      so a record whose token nothing answers is a decision, not a leak.
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
@@ -44,7 +45,7 @@ function census() {
     return statSync(p).isDirectory() ? walk(p) : p.endsWith('.js') ? [p] : [];
   });
   const out = [];
-  for (const f of walk(new URL('src', ROOT).pathname)) {
+  for (const f of walk(fileURLToPath(new URL('src', ROOT)))) {
     const rel = f.slice(f.indexOf('/src/') + 1);
     if (rel === 'src/formats/textRsc.js') continue;   // the parser itself
     const lines = readFileSync(f, 'utf8').split('\n');

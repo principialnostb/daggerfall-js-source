@@ -22,7 +22,7 @@ export function betterBodiesFirstPersonHandAssetPaths({ race = 'Nord', female = 
   });
 }
 
-// NUDITY-SYNC: one runtime texture name per skin variant, the same length as bb_skin<sex>_<race> so the NIF's own
+// One runtime texture name per skin variant, the same length as bb_skin<sex>_<race> so the NIF's own
 // texture string is rewritten in place (fpArm's rewriteBetterBodiesTextureStem refuses a length change)
 const VARIANT_PREFIX = Object.freeze({ underwear: 'bu', nude: 'bn', 'hd-underwear': 'hu', 'hd-nude': 'hn', 'hd-body-hair': 'hh' });
 export function betterBodiesTextureStem({ genderKey = 'm', raceKey = 'no', variant = 'underwear' } = {}) {
@@ -31,7 +31,7 @@ export function betterBodiesTextureStem({ genderKey = 'm', raceKey = 'no', varia
 
 /** Normalize the existing first-person hand selector without coupling it to the third-person body-pack toggle. */
 export function firstPersonHandsSource(value) {
-  // BETTER-HANDS: two choices now - the standard arms, or Better Bodies' arm with Better Hands' hands (combat/fpArm.js);
+  // Two choices now - the standard arms, or Better Bodies' arm with Better Hands' hands (combat/fpArm.js);
   // a setting saved as the retired "Better Bodies" (2) takes the latter, its own arm and texture
   if (Number(value) === 1 || Number(value) === 2) return 'better-hands';
   return 'vanilla';

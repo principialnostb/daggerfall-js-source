@@ -1,4 +1,4 @@
-// LOAD-STALL 2 (bible/07-Rendering/Load-Stalls.md section 3): the reach sweep - measured by tools/mwBuildProbe.mjs as
+// The reach sweep - measured by tools/mwBuildProbe.mjs as
 // 74% of an equip's build, 500 ms on retail and ~3 s with Better Bodies and Better Hands, held on the frame's thread -
 // remembered by the arm it measured, swept in slices, and owed by a new arm to the frames rather than to the build.
 import { test } from 'node:test';

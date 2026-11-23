@@ -1011,8 +1011,8 @@
   {
     "name": "GF2-PEERACTS-the-crouch-lost",
     "file": "src/net/peer/peerBodies.js",
-    "old": "c.sneaking = peerKneeling(shown);",
-    "new": "c.sneaking = false;",
+    "old": "  c.sneaking = shown.mcr === 1 || peerKneeling(shown); // PEER-ACTS: kneeling at an act (a herb, the Basket's search, the knife at a body) - the rig's crouched idle, Morrowind's own (it has no kneel)",
+    "new": "  c.sneaking = shown.mcr === 1 || false; // PEER-ACTS: kneeling at an act (a herb, the Basket's search, the knife at a body) - the rig's crouched idle, Morrowind's own (it has no kneel)",
     "tests": [
       "test/systems/gf2_peeracts.test.js"
     ]

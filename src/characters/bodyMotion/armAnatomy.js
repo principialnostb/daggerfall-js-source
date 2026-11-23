@@ -43,7 +43,7 @@ export function wristPole(shoulder, wrist, fingers, upperLength, foreLength, pre
   );
   const wanted = clamp(angle, -limit, limit),
     turn = (wanted - angle) * weight;
-  // TRUNK-SKIN (2026-11-06, the owner's 19-47-18 recording: running with a two-hander, the right shoulder in the chest):
+  // 
   // the wrist's ease never takes the elbow deeper into the trunk than the preferred elbow stood - a run's held right arm,
   // its fingers trailing the blade down behind, swung its elbow round to the breastbone once a stride, 9.8 units into a
   // woman's chest. The wrist bends past its ease instead, by as little of the turn as the trunk allows (trunkGive).

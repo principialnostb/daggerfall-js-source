@@ -91,9 +91,7 @@ function windowUrl(pixels, window) {
 }
 
 const sameLook = (a, b) => (a === null || b === null ? a === b : a.v === b.v && a.t === b.t);
-// A card's id is its WHOLE look - template and style. GARMENT-KINDS made `{ t, v }` looks, and an id of the style alone
-// gave every garment's style 0 one id: their cards shared one picture, and the card pressed was not the look worn
-// (the owner, 2026-11-08: "очень много дублирующихся текстур", "не всегда соответствует то что надеваешь").
+// Use template and style together as the card key because different garments reuse style numbers.
 const lookId = (look) => (look === null ? 'own' : `${look.t !== undefined ? `t${look.t}` : ''}${look.v !== undefined ? `v${look.v}` : ''}`);
 const shapeOf = (look) => (look && (look.t !== undefined || look.v !== undefined) ? { ...(look.t !== undefined ? { t: look.t } : {}), ...(look.v !== undefined ? { v: look.v } : {}) } : null);
 /** The words a card is read by. */
@@ -118,10 +116,7 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
   }
   const state = states.get(key);
   if (lastMode) state.mode = lastMode;
-  // THE TABS (the owner, 2026-11-08, with a screenshot of the helm's card): 3D and 2D share one card for every piece -
-  // two tabs when both are on, ONE full-width tab named for what it holds when only one is. 3D: the model-look switch
-  // and a look row to show (a helm shows its tab even with none); 2D: paperdoll customization
-  // and either a shape or a dye choice.
+  // Show a full-width tab when a piece offers just one kind of customization.
   const can3d = getPref('modelCustomization') === true && (helm || !!modelRow);
   let dye = paperdollDyeOf(item);
   const can2d = getPref('paperdollCustomization') !== false && (allLooks.length > 1 || dye !== null);
@@ -136,8 +131,7 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
   tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Внешний вид предмета');
   const panel = make('div', 'look-panel'); panel.setAttribute('role', 'tabpanel');
   const buttons = [];
-  // What the pictures are drawn from. The DYE too (the owner, 2026-11-08: a yellow short shirt's cards showed blue): two
-  // pieces of one template and material in different dyes, or one piece re-dyed, are different pictures.
+  // Key the thumbnail on dye as well as template and material.
   const drawKey = () => `${key}|${item.variant ?? 0}|${item.dye ?? ''}|${itemDyeColor(item) ?? ''}|${dye ?? ''}|${identity?.gender}|${identity?.race}|${dfmodGeneration()}`;
   let framed = drawn.get(drawKey()) ?? null;
   const draw = () => {
@@ -157,7 +151,7 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
     const current = shapeOf(paperdollLookOf(item));
     const looks = framed ? framed.looks : allLooks;
     const per = PAGE;
-    if (dye !== null) {   // GARMENT-DYES: the ten cloth dyes, the worn one lit; a press recolours the cards and the card
+    if (dye !== null) {   // The ten cloth dyes, the worn one lit; a press recolours the cards and the card
       const dyes = make('div', 'look-dyes');
       dyes.setAttribute('role', 'radiogroup'); dyes.setAttribute('aria-label', 'Цвет');
       for (const d of paperdollDyeChoices(item)) {

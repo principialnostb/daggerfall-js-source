@@ -32,8 +32,8 @@
   {
     "name": "PORTRAIT3D-untextured",
     "file": "src/combat/fpArm.js",
-    "old": "    r.tex = acquireCharacterTexture(renderer, skin ? skinnedMipsOf(entry.image, skin, skinUseOf(r.piece, r.textureFile)) : entry.image.mips, wrapModes(m ? m.clampMode : 3));   // SHADOW-FANG: the wolf in its skin\n",
-    "new": "",
+    "old": "    r.tex = acquireCharacterTexture(renderer, skin ? skinnedMipsOf(entry.image, skin, skinUseOf(r.piece, r.textureFile)) : rangeHairMips(entry.image.mips, r.slot, werewolf ? null : hairColor, m, hairTints), wrapModes(m ? m.clampMode : 3));",
+    "new": "    r.tex = null;",
     "tests": [
       "test/ui/portrait3d.test.js"
     ],
@@ -52,8 +52,8 @@
   {
     "name": "PORTRAIT3D-one-size-for-all",
     "file": "src/combat/fpArm.js",
-    "old": ", skin ?? '', `${px | 0}x${ph | 0}`].join(':');",
-    "new": ", skin ?? ''].join(':');",
+    "old": "  const key = [cat.gen, skeletonPath, ...skinRows.map((r) => `${r.hairMode ?? r.slot}=${r.model}`), ...heads.map((a) => `${a.slot}=${a.model}`), werewolf ? 'wolf' : '', skin ?? '', hairColor ?? '', `${px | 0}x${ph | 0}`].join(':');",
+    "new": "  const key = [cat.gen, skeletonPath, ...skinRows.map((r) => `${r.hairMode ?? r.slot}=${r.model}`), ...heads.map((a) => `${a.slot}=${a.model}`), werewolf ? 'wolf' : '', skin ?? '', hairColor ?? ''].join(':');",
     "tests": [
       "test/ui/portrait3d.test.js"
     ],
@@ -82,8 +82,8 @@
   {
     "name": "PORTRAIT3D-the-npc-unwalked",
     "file": "src/combat/fpArm.js",
-    "old": "{ beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads }",
-    "new": "{ beast, faceIndex, faceMatch, vampire, walk: null, has: exists, ownHeads }",
+    "old": "    beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads,",
+    "new": "    beast, faceIndex, faceMatch, vampire, walk: null, has: exists, ownHeads,",
     "tests": [
       "test/ui/portrait3d.test.js"
     ],
@@ -92,8 +92,8 @@
   {
     "name": "PORTRAIT3D-the-vampire-bare-faced",
     "file": "src/combat/fpArm.js",
-    "old": "{ beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads }",
-    "new": "{ beast, faceIndex, faceMatch, vampire: false, walk: npcFace, has: exists, ownHeads }",
+    "old": "    beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads,",
+    "new": "    beast, faceIndex, faceMatch, vampire: false, walk: npcFace, has: exists, ownHeads,",
     "tests": [
       "test/ui/portrait3d.test.js"
     ],
@@ -122,8 +122,8 @@
   {
     "name": "PORTRAIT3D-the-visor-hides-nothing",
     "file": "src/combat/fpArm.js",
-    "old": "PART_BONES[r.slot] ?? [], model: r.record.model })), worn.shadows);",
-    "new": "PART_BONES[r.slot] ?? [], model: r.record.model })), []);",
+    "old": "  let skinRows = shadowSkinRows(rows.filter((r) => r.record).flatMap(skinPartsOf), worn.shadows);",
+    "new": "  let skinRows = shadowSkinRows(rows.filter((r) => r.record).flatMap(skinPartsOf), []);",
     "tests": [
       "test/ui/portrait3d.test.js"
     ],
@@ -132,8 +132,8 @@
   {
     "name": "PORTRAIT3D-the-visor-always-down",
     "file": "src/combat/fpArm.js",
-    "old": "clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), beast, beastWear: beastWearPref() })",
-    "new": "clothes: [], bodyPool: cat.parts, female, helmStyle: 'closed', beast, beastWear: beastWearPref() })",
+    "old": "    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks'), beast, beastWear: beastWearPref() })",
+    "new": "    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: 'closed', looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks'), beast, beastWear: beastWearPref() })",
     "tests": [
       "test/ui/portrait3d.test.js"
     ],
@@ -192,8 +192,8 @@
   {
     "name": "PORTRAIT3D-the-helm-unkeyed",
     "file": "src/characters/headPortraits.js",
-    "old": "  return `${stamp}|${helm ? `${helm.templateIndex}/${helm.material ?? 0}/${getPref('mwSteelHelm')}/${getPref('mwBeastHelm')}` : '-'}`;",
-    "new": "  return `${stamp}|-`;",
+    "old": "  return `${appearanceDisplayKey()}|${stamp}|${helm ? `${helm.templateIndex}/${helm.material ?? 0}/${getPref('mwSteelHelm')}/${getPref('mwBeastHelm')}` : '-'}`;",
+    "new": "  return `${appearanceDisplayKey()}|${stamp}|-`;",
     "tests": [
       "test/ui/portrait3d.test.js"
     ],

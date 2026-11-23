@@ -1,5 +1,5 @@
 // @ts-check
-// GUARD-CONTINUITY: keep the accepted shorter guard walk. Running uses the free-run base through guardLocomotion.js.
+// Keep the accepted shorter guard walk. Running uses the free-run base through guardLocomotion.js.
 
 export const GUARD_STRIDE = Object.freeze({
   walk: Object.freeze({ maxRate: 1.7, maxStride: 1.35, calf: 0, toeMax: 22, keepFeet: true }), // RUN-FEET

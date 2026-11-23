@@ -41,8 +41,8 @@
   {
     "name": "DISC18-the-dungeon-draws-the-body-on-the-camera-s-feet",
     "file": "src/scenes/dungeon.js",
-    "old": "if (walkMode) mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });",
-    "new": "if (walkMode) mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.feetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });",
+    "old": "      mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // restore v3 body-facing behavior",
+    "new": "      mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.feetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // restore v3 body-facing behavior",
     "tests": [
       "test/player/disc18.test.js",
       "test/scenes/mac1_playreport.test.js"

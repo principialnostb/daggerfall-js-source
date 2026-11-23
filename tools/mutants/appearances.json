@@ -703,8 +703,8 @@
   {
     "name": "AUDIT-E1-the-hand-blind-to-the-look",
     "file": "src/net/peer/peerBodies.js",
-    "old": "  it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|${appearanceSig(it)}` : '';",
-    "new": "  it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|` : '';",
+    "old": "  it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|${appearanceSig(it)}|${it.__mwLook ?? ''}|${it.ownStyle ?? ''}` : '';",
+    "new": "  it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}||${it.__mwLook ?? ''}|${it.ownStyle ?? ''}` : '';",
     "tests": [
       "test/systems/appearances_audit.test.js"
     ]
@@ -712,8 +712,8 @@
   {
     "name": "AUDIT-E1-the-hand-blind-to-the-metal",
     "file": "src/net/peer/peerBodies.js",
-    "old": "  it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|${appearanceSig(it)}` : '';",
-    "new": "  it ? `${it.templateIndex}||${it.equipSlot}|${appearanceSig(it)}` : '';",
+    "old": "  it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|${appearanceSig(it)}|${it.__mwLook ?? ''}|${it.ownStyle ?? ''}` : '';",
+    "new": "  it ? `${it.templateIndex}||${it.equipSlot}|${appearanceSig(it)}|${it.__mwLook ?? ''}|${it.ownStyle ?? ''}` : '';",
     "tests": [
       "test/systems/appearances_audit.test.js"
     ]

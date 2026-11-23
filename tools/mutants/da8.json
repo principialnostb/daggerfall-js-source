@@ -12,8 +12,8 @@
   {
     "name": "DA8-2-a-timeout-cuts-off-a-download-the-player-can-see",
     "file": "app/lib/launcherState.cjs",
-    "old": "    case 'check-timeout':\n      if (u.status === 'checking') u.status = 'offline';\n",
-    "new": "    case 'check-timeout':\n      if (u.status === 'checking' || u.status === 'downloading') u.status = 'offline';\n",
+    "old": "      if (u.status === 'checking' || (s.requireCurrent && u.status === 'offline')) {",
+    "new": "      if (u.status === 'checking' || u.status === 'downloading' || (s.requireCurrent && u.status === 'offline')) {",
     "tests": [
       "test/tooling/da8_launcher.test.js"
     ]
@@ -21,8 +21,8 @@
   {
     "name": "DA8-4-play-now-is-the-default-and-enter-skips-the-update",
     "file": "app/lib/launcherState.cjs",
-    "old": "    if (SETUP_DONE.has(st.status)) v.statusActions = [{ id: 'play-now', label: 'Play without updating' }];\n",
-    "new": "    if (SETUP_DONE.has(st.status)) v.statusActions = [{ id: 'play-now', label: 'Play without updating', primary: true }];\n",
+    "old": "    if (!s.requireCurrent && SETUP_DONE.has(st.status)) v.statusActions = [{ id: 'play-now', label: 'Play without updating' }];",
+    "new": "    if (!s.requireCurrent && SETUP_DONE.has(st.status)) v.statusActions = [{ id: 'play-now', label: 'Play without updating', primary: true }];",
     "tests": [
       "test/tooling/da8_launcher.test.js"
     ]
@@ -176,8 +176,8 @@
   {
     "name": "DA8-26-the-notice-downloads-a-page-not-the-file",
     "file": "app/main.cjs",
-    "old": "download: file ? listed ?? latestDownloadUrl(file) : url",
-    "new": "download: url",
+    "old": "    return tag ? { tag, url, download: TEST_RELEASES ? testReleaseDownload(json, TEST_RELEASES.repository) : file ? listed ?? latestDownloadUrl(file) : url, game: TEST_RELEASES ? testGameAssets(json, TEST_RELEASES.repository) : gameAssetsOf(json), asset, file } : null;",
+    "new": "    return tag ? { tag, url, download: TEST_RELEASES ? testReleaseDownload(json, TEST_RELEASES.repository) : url, game: TEST_RELEASES ? testGameAssets(json, TEST_RELEASES.repository) : gameAssetsOf(json), asset, file } : null;",
     "tests": [
       "test/tooling/da8_launcher.test.js"
     ],

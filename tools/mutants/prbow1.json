@@ -20,8 +20,8 @@
   {
     "name": "anchor-at-eye-not-refused",
     "file": "src/render/characterSprite.js",
-    "old": "anchor[2] - eye[2]) > 1e-6 ? anchor : center;",
-    "new": "anchor[2] - eye[2]) >= 0 ? anchor : center;",
+    "old": "  const aim = target && Math.hypot(target[0] - eye[0], target[1] - eye[1], target[2] - eye[2]) > 1e-6 ? target : center;   // PR-BOW1: the ray the picture is taken along",
+    "new": "  const aim = target && Math.hypot(target[0] - eye[0], target[1] - eye[1], target[2] - eye[2]) >= 0 ? target : center;   // PR-BOW1: the ray the picture is taken along",
     "tests": [
       "test/render/prbow1_bow.test.js"
     ]
@@ -47,8 +47,8 @@
   {
     "name": "drawthird-no-anchor",
     "file": "src/combat/fpArm.js",
-    "old": "      drawBodyPicture(renderer, canvas, thirdMesh, model, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye);",
-    "new": "      drawBodyPicture(renderer, canvas, thirdMesh, model, { center, halfW, halfH, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye);",
+    "old": "      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes",
+    "new": "      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes",
     "tests": [
       "test/render/prbow1_bow.test.js"
     ]
@@ -65,8 +65,8 @@
   {
     "name": "anchor-off-axis",
     "file": "src/combat/fpArm.js",
-    "old": "      const anchor = transformPoint(model, 0, 0, body ? (body.minZ + body.maxZ) / 2 : (minZ + maxZ) / 2);",
-    "new": "      const anchor = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, body ? (body.minZ + body.maxZ) / 2 : (minZ + maxZ) / 2);",
+    "old": "  const lowest = transformPoint(model, 0, 0, bodyMinZ);",
+    "new": "  const lowest = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, bodyMinZ);",
     "tests": [
       "test/render/prbow1_bow.test.js"
     ]

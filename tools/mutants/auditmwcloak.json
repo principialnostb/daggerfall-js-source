@@ -2,8 +2,8 @@
   {
     "name": "AUDITMWCLOAK-fit-at-rest-alone",
     "file": "src/formats/morrowind/mwCloakFit.js",
-    "old": "  {\n    isCloak,\n    isUnder,\n    clearance = CLOAK_CLEARANCE,\n    limit = CLOAK_PUSH_LIMIT,\n    radius = CLOAK_EASE_RADIUS,\n    poses = CLOAK_FIT_POSES,\n  },",
-    "new": "  { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = [{}] },",
+    "old": "    poses = CLOAK_FIT_POSES,",
+    "new": "    poses = [{}],",
     "tests": [
       "test/formats/morrowind/auditmwcloak.test.js"
     ],
@@ -44,8 +44,8 @@
   {
     "name": "AUDITMWCLOAK-one-pass",
     "file": "src/formats/morrowind/mwCloakFit.js",
-    "old": "    for (let pass = 0; pass < 12; pass++) {",
-    "new": "    for (let pass = 0; pass < 1; pass++) {",
+    "old": "    passes = 12,",
+    "new": "    passes = 1,",
     "tests": [
       "test/formats/morrowind/auditmwcloak.test.js",
       "test/tooling/mwcloak1.test.js"
@@ -89,8 +89,8 @@
   {
     "name": "AUDITMWCLOAK-the-cloak-not-re-skinned",
     "file": "src/formats/morrowind/mwCloakFit.js",
-    "old": "      if (assembly.pose && assembly.mats)",
-    "new": "      if (false)",
+    "old": "if (updatePosed && assembly.pose && assembly.mats)",
+    "new": "if (false)",
     "tests": [
       "test/tooling/mwcloak1.test.js"
     ],

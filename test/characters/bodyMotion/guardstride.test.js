@@ -1,4 +1,4 @@
-// GUARD-TRAVEL: real bundled MAO clips on the retail hierarchy, not hand-authored joint poses.
+// Real bundled MAO clips on the retail hierarchy, not hand-authored joint poses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -139,7 +139,7 @@ test('GUARD-WALK-LEVEL: real-time stance walk reduces hip bounce while preservin
     const accumRoot = accumRootRef(sk, trackMap), body = bodyOf(sk, GRAPH_ROOT, sm), speed = 4.43;
     const animSpeed = animVelocity(keys, trackMap.get(sk.nodes.get(accumRoot).name.toLowerCase()), state.group);
     const reference = createStride({ sampleTrack, loopWindow, groups: /^walkforward2c$/i,
-      share: (k) => ({ rate: k / 1.35, stride: 1.35 }), calf: 0, toeMax: 22, keepFeet: true });   // RUN-FEET: the guard walk's own
+      share: (k) => ({ rate: k / 1.35, stride: 1.35 }), calf: 0, toeMax: 22, keepFeet: true });   // The guard walk's own
     const layer = createBodyWeight(), beforeZ = [], afterZ = [];
     let ankleError = 0, turnError = 0, maxStep = 0, oldStep = 0;
     for (let frame = 0; frame < hz * 5; frame++) {

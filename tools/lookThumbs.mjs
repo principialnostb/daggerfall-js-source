@@ -1,15 +1,5 @@
-// THE LOOKS' THUMBNAILS, in one command.
-//
-//     node tools/lookThumbs.mjs
-//         draw every own armour piece's looks (OWN_MW_ARMOR `styles`) from their NIFs and DDSs into
-//         src/assets/mw/looks/<the look's NIF>.png
-//
-// LOOK-THUMBS (2026-10-27, the owner: "что б не текстовое название было а превьюшка предмета, я думаю так гораздо
-// удобнее ориентироваться будет с развитием системы"). The pack's card shows a look as its picture, so each look has
-// one: its parts' meshes, as baked, in their own paintings, turned three-quarters to the viewer and lit from above in
-// front, on a clear ground - drawn here once rather than in the game, so the card costs one small PNG a look. A look
-// whose NIF is not on disk (the horned helm before its import - tools/skyrim/importIronHelmet.mjs) is skipped, and the
-// card shows its name instead.
+// Run node tools/lookThumbs.mjs to render equipment NIFs and DDS textures into src/assets/mw/looks/. Keep the
+// three-quarter view and lighting consistent. Skip looks whose source files are absent.
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { parseNif } from '../src/formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../src/formats/morrowind/mwNifMesh.js';
@@ -33,10 +23,7 @@ function texture(file) {
   return textureCache.get(file);
 }
 
-/** One look's picture: its parts' shapes, each in its own painting, drawn by the game's own look raster
- *  (src/render/lookThumbRaster.js - the same law the 3D tab's Morrowind cards are drawn by). LOOK-THUMBS-PAIRS (BLOODBATH,
- *  2026-11-08, the owner: "старые тоже нужно сделать парными"): a pair's two halves are both drawn, the left moved in
- *  beside the right (closePair) - at the bind they stand an arm's span apart. `parts` are { model, part } rows. */
+/** Draw both halves of paired equipment using each part's own material. */
 export function drawLook(parts, { yaw, pitch = 0 } = {}) {
   // `pitch` tips the MODEL about X before it is viewed (the importers' shields and axe lie flat), as it always did;
   // a bare model path is a part with no side

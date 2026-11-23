@@ -1,70 +1,8 @@
 import { extraAppearanceEnabled } from '../../systems/extraAppearance.js';
 import { OWN_MW_URLS } from '../../systems/ownMwAssets.js';
 import { modGroupEnabled } from '../../systems/enhancedModResources.js';
-// THE ARMOUR MORROWIND DOES NOT HAVE.
-//
-// MW-BRIG1 (2026-09-29, Mac: "This is for the morrowind model. The steel
-// brigantine"). The worn counterpart of ownWeaponModels.js, and a leaf
-// for the same reason that one is: mwItemMap.js asks it, and nothing it
-// imports may reach back.
-//
-// A worn Daggerfall piece reaches the Morrowind body through the player's
-// own records - mwArmorRecords finds an ARMO by material and piece token,
-// composeRefs follows its part references to BODY records, and each BODY
-// names the mesh. A model the port ships has no record in anybody's
-// Morrowind.esm, so this table stands where those two records would: per
-// piece, which Morrowind PART it fills (ARMO_PART's names - that is what
-// decides its bone and the skin it hides) and the mesh, shipped by
-// systems/ownMwAssets.js under the same `meshes/` path a BODY's model
-// takes. Everything downstream - the priority law, the skin shadows, the
-// binder - is the ordinary path.
-//
-// ═══ KEYED ON TEMPLATE AND MATERIAL ═══════════════════════════════
-//
-// The weapon table keys on the template alone because the Thunderlock has
-// no material ladder. Armour does: Roleplay & Realism Items' Jerkin is
-// leather, fur or "Brigandine" by its material (rriItems.js lightWord -
-// Iron and up). Mac's model was the STEEL one (MW-BRIG1); since MW-BRIG4
-// every brigandine metal wears it in its own painting, and the leather
-// and fur jerkins keep the retail cuirass they resolved to before.
-//
-// ═══ MW-STEEL1: THE STEEL PLATE ═══════════════════════════════════
-//
-// (2026-10-06, Mac: "These 2 files are for the armor replacement of the
-// morrowind steel armor with a varient to toggle the helmet type".) A
-// whole set: Daggerfall's seven classic pieces in STEEL wear Mac's plate
-// instead of retail's steel_* records - Steel only, Mac's answer, so Silver
-// and Elven (which wear Morrowind's steel because Morrowind has no silver
-// armour) keep retail's, and so does every Roleplay & Realism piece but the
-// brigandine. The helm comes two ways, closed (a visor and a plume) and
-// open (a nasal helm, the face showing): `styles`, picked by the Steel
-// Helm switch (systems/features.js, pref `mwSteelHelm`; closed by default,
-// Mac's answer). bible/04-Characters/Steel-Plate.md is the record.
-//
-// MW-STEEL4 (2026-10-07, Mac: "You do it properly"): the plate's meshes
-// ship SKINNED, as retail's armour does - weighted to Morrowind's own
-// bones in its bind at bake time (tools/bakeSteelPlate.mjs) - so a steel
-// piece here is the parts it fills and nothing else, and the binder takes
-// it on the very path it takes a retail ARMO's BODY meshes. The runtime fit
-// and skin solve MW-STEEL1-3 carried (`fit`, `solvePose`, a part's own
-// `skinFrom`) are gone with it.
-// MW-BRIG4 (2026-10-09, Mac: "Also for the integrated brigadine chest piece, we need each of these textures
-// implemented", nine paintings; asked which metal wears which, he took the map offered - one per metal): EVERY METAL
-// OF THE BRIGANDINE JERKIN wears the brigandine now, each in its own painting - the one mesh, baked once per metal
-// with that metal's texture (tools/bakeBrigandine.mjs). Steel keeps MW-BRIG1's red.
-//
-// ═══ MW-FIT1: WHAT THE PLATE COVERS ════════════════════════════════
-//
-// (2026-10-09, a player's report Mac passed on, over the paperdoll in both sets: "the upper arm is still visible with
-// the steel armor", "the ebony armor gets the same issue", "the helmet elevation is too much", "the coif has to cover
-// the neck".) A PAULDRON IS A SLEEVE: both sets' pauldrons close round the upper arm from the shoulder to the elbow,
-// where the gauntlet's cuff takes over (measured on the bind - every ray out of the upper arm's bone line meets the
-// pauldron), so each hides its upper arm as a gauntlet hides its forearm - and the skin that came up through the steel
-// is not drawn. A CLOSED HELM IS THE HEAD: a retail helmet that fills the head's slot is the closed helm, and no head
-// is drawn under it (bible/02-Formats/Morrowind-Rules.md, "A helmet force-deletes hair before its own parts are
-// added"); the steel plate's closed helm and the ebony helm hide it, and stand where Mac fitted them on the body, the
-// coif hung to the collar (tools/bakeSteelPlate.mjs HELM_LIFT is the open helm's alone). The open helm shows the face,
-// so it keeps the head.
+// These armour templates have no matching retail Morrowind piece. Resolve their locally authored models by
+// material and armour slot.
 import { ARMOR_MATERIAL, isPlate } from '../../systems/armorMaterials.js';
 
 /** Roleplay & Realism Items' Jerkin (systems/roleplayRealismItems/rriItems.js RRI_TEMPLATES,
@@ -72,11 +10,11 @@ import { ARMOR_MATERIAL, isPlate } from '../../systems/armorMaterials.js';
  *  test/formats/morrowind/mwbrig2.test.js holds it to the mod's own row. */
 export const RRI_JERKIN_TEMPLATE = 520;
 
-/** MW-BRIG4: the metals the Jerkin is a BRIGANDINE in - every plate material, Iron to Daedric (rriItems.js lightWord:
+/** The metals the Jerkin is a BRIGANDINE in - every plate material, Iron to Daedric (rriItems.js lightWord:
  *  "Iron and up"), in the material ladder's order. Each wears the brigandine in its own painting. */
 export const BRIGANDINE_METALS = Object.freeze(Object.keys(ARMOR_MATERIAL).filter((k) => isPlate(ARMOR_MATERIAL[k])));
 
-/** MW-STEEL1: Daggerfall's classic armour templates (combat/enemyEquipment.js ARMOR_ENUM, DFU's ItemEnums.Armor),
+/** Daggerfall's classic armour templates (combat/enemyEquipment.js ARMOR_ENUM, DFU's ItemEnums.Armor),
  *  restated for the leaf's sake; test/tooling/mwsteel1.test.js holds them to the enum. */
 export const CLASSIC_ARMOR_TEMPLATE = Object.freeze({
   Cuirass: 102,
@@ -88,9 +26,9 @@ export const CLASSIC_ARMOR_TEMPLATE = Object.freeze({
   Boots: 108,
 });
 
-/** MW-STEEL1: the steel helm's styles - the values of its look, turned in the inventory (systems/lookVariants.js, pref `mwSteelHelm`),
+/** The steel helm's styles - the values of its look, turned in the inventory (systems/lookVariants.js, pref `mwSteelHelm`),
  *  the default first. */
-export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open', 'horned']); // MW-HORN1: the horned helm, built (tools/bakeHornedHelm.mjs)
+export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open', 'horned']); // The horned helm, built (tools/bakeHornedHelm.mjs)
 export const STEEL_HELM_DEFAULT = STEEL_HELM_STYLES[0];
 
 const part = (p, model, hides = null, { showsSkin = false, fitMode = null } = {}) =>
@@ -102,17 +40,17 @@ const part = (p, model, hides = null, { showsSkin = false, fitMode = null } = {}
     ...(fitMode ? { fitMode } : {}),
   });
 
-/** MW-IRON1: the looks made from the player's own Skyrim install (tools/skyrim/), never committed - their meshes are
+/** The looks made from the player's own Skyrim install (tools/skyrim/), never committed - their meshes are
  *  on the disk of a player who ran the import and nowhere else, so they are no part of what ships. */
 export const PLAYER_MADE_STYLES = Object.freeze(['horned', 'iron']);
 
-/** MW-IRON1: Skyrim's heavy iron cuirass, cut into the cuirass's and the pauldrons' looks (tools/skyrim/
+/** Skyrim's heavy iron cuirass, cut into the cuirass's and the pauldrons' looks (tools/skyrim/
  *  importIronCuirass.mjs). Its cuirass is open at the neck as Skyrim's is, so it does not hide the chest under it - the
  *  skin shows where the armour does, and the import pushed every plate out over it (`showsSkin`: the slot occupied,
  *  its skin still drawn - mwItemMap.js composeWornArmor's `covers`). Its pauldrons ride the shoulder alone and leave
  *  the upper arm. */
 const IRON = Object.freeze({
-  // MW-IRON5: its skirt (the belt, the plates, the trousers' thighs) covers the groin and both thighs whole (2 of the
+  // Its skirt (the belt, the plates, the trousers' thighs) covers the groin and both thighs whole (2 of the
   // groin's 155 vertices open, none of the thighs' 138), so it hides them - drawn, they showed through it as the legs
   // moved (the owner: "небольшие зоны где кожа проглядывает"); the knee it does not reach stays drawn.
   cuirass: Object.freeze([
@@ -132,7 +70,7 @@ const IRON = Object.freeze({
     part('right foot', 'iron_boot_right.nif', ['right ankle']),
     part('left foot', 'iron_boot_left.nif', ['left ankle']),
   ]),
-  // MW-IRON3: Skyrim has no greaves - its trousers are the cuirass's - so the greaves' iron look is the trousers below
+  // Skyrim has no greaves - its trousers are the cuirass's - so the greaves' iron look is the trousers below
   // the skirt. With the skirt and the boots they cover the thighs but for the knee's inner front, where a hidden knee
   // would leave a hole; so they show the skin under them, as the cuirass does.
   greaves: Object.freeze([

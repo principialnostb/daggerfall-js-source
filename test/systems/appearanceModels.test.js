@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { appearanceHairPool, distinctAppearanceModels, playerBodyRows } from '../../src/formats/morrowind/mwFirstPerson.js';
 import { HAIR_SWATCHES, hairColorMips, hairGeometryKey, normalizeSavedHairColor, selectHairBatches } from '../../src/characters/hairColor.js';
+import { prepareHairTints } from '../../src/characters/hairPreparationClient.js';
 
 test('editor combines installed same-sex hair across races and collapses mesh aliases', () => {
   const makeHair = (id, race, model, female = false) => ({ id, race, model, female, slot: 'hair', playable: true, skin: true });
@@ -108,4 +109,21 @@ test('hair tint strengthens strand detail without sampling transparent atlas pad
   const plain = hairColorMips([{ rgba: source }], 'hair', '#b8a27b')[0].rgba;
   assert.ok(detailed[8] - detailed[4] > plain[8] - plain[4]);
   assert.deepEqual(detailed.slice(4, 16), tint(darkPadding).slice(4, 16));
+});
+
+test('prepared hair uses the original mip pixels and alpha for each actor colour', async () => {
+  const mips = [16, 8, 4, 2, 1].map(width => ({
+    width, height: width, rgba: Uint8Array.from({ length: width * width * 4 }, (_, i) => (i * 47 + width) % 256),
+  }));
+  const original = structuredClone(mips);
+  const colors = ['#bc9058', '#332018'];
+  const pieces = [{ slot: 'hair', material: { textureFile: 'hair.dds' } }];
+  const textures = new Map([['hair.dds', { image: { mips } }]]);
+  const prepared = await Promise.all(colors.map(color => prepareHairTints(pieces, textures, color)));
+  for (const [i, color] of colors.entries()) {
+    assert.deepEqual(prepared[i].get(mips), hairColorMips(structuredClone(mips), 'hair', color));
+    const again = await prepareHairTints(pieces, textures, color.toUpperCase());
+    assert.equal(again.get(mips), prepared[i].get(mips));
+  }
+  assert.deepEqual(mips, original);
 });

@@ -1,4 +1,4 @@
-// LAB2 (bible/05-Combat/Proving-Ground.md): THE READINGS of a recorded run. Pure functions over the frames the driver
+// THE READINGS of a recorded run. Pure functions over the frames the driver
 // keeps - bones in the body's own frame ([right, up, forward], metres from the feet), the rig's state words, the place.
 // Every reading is a signal with its frame, never an artistic verdict; a reading that could not be taken says so.
 

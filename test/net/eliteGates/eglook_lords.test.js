@@ -6,6 +6,7 @@
 // relay's bodyR and the hit target read off it, the wire untouched. What is seen follows the drawn sprite: its feet on the
 // body's place (the quad grows up from its base), a flyer's hover risen with it, no giant's shadow (OW-BIG's law), an errand's
 // numerals over its drawn head; its picture uploaded and sampled as at any size (NEAREST).
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -175,7 +176,7 @@ test('EG-LOOK THE BODY STANDS THE RELAY\'S (section 9, "the relay\'s bodyR and t
     assert.ok(q.size.h >= tg.height - 1e-9, 'his capsule inside his sprite');
   }
   // the presence is this screen's alone: nothing under src/net/ names it (the relay's bundle - test/net/relayversion.test.js - unmoved)
-  const net = new URL('../../../src/net/', import.meta.url).pathname, files = [];
+  const net = fileURLToPath(new URL('../../../src/net/', import.meta.url)), files = [];
   const walk = (dir) => { for (const f of readdirSync(dir)) { const p = join(dir, f); if (statSync(p).isDirectory()) walk(p); else if (f.endsWith('.js')) files.push(p); } };
   walk(net);
   for (const p of files) assert.doesNotMatch(readFileSync(p, 'utf8'), /EG_LORD_PRESENCE|egPresenceOf|egKit\.js/, `${p} reads no presence`);

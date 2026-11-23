@@ -38,8 +38,8 @@
   {
     "name": "MWTEX-pool-one-worker",
     "file": "src/formats/morrowind/mwTextureClient.js",
-    "old": "    if ((!best || best.jobs.size > 0) && opened < size) return open() ?? best;",
-    "new": "    if (!best && opened < size) return open() ?? best;",
+    "old": "    return opened < size ? open() : null;",
+    "new": "    return opened < 1 ? open() : null;",
     "tests": [
       "test/formats/morrowind/mwtexthread.test.js"
     ]
@@ -47,8 +47,8 @@
   {
     "name": "MWTEX-pool-transfers-the-callers-bytes",
     "file": "src/formats/morrowind/mwTextureClient.js",
-    "old": "        const copy = bytes.slice();",
-    "new": "        const copy = bytes;",
+    "old": "    const copy = j.bytes.slice();",
+    "new": "    const copy = j.bytes;",
     "tests": [
       "test/formats/morrowind/mwtexthread.test.js"
     ]
@@ -92,8 +92,8 @@
   {
     "name": "MWTEX-colour-measure-whole-chain",
     "file": "src/combat/fpArm.js",
-    "old": "decodeTextureImage(tpath, tarc.get(tpath).slice(), { levels: 1 }).mips[0]",
-    "new": "decodeTextureImage(tpath, tarc.get(tpath).slice()).mips[0]",
+    "old": "      rgb = garmentColourOf(decodeTextureImage(tpath, colourBytes(tpath, tarc.get(tpath)).slice(), { levels: 1 }).mips[0]);",
+    "new": "      rgb = garmentColourOf(decodeTextureImage(tpath, colourBytes(tpath, tarc.get(tpath)).slice()).mips[0]);",
     "tests": [
       "test/formats/morrowind/mwtexthread.test.js"
     ]
@@ -101,8 +101,8 @@
   {
     "name": "MWTEX-garments-one-by-one",
     "file": "src/combat/fpArm.js",
-    "old": "await inLanes(once, (rec) => preloadClothingColour(rec, parts, archives, gen));",
-    "new": "for (const rec of once) await preloadClothingColour(rec, parts, archives, gen);",
+    "old": "  await inLanes(once, (rec) => preloadClothingColour(rec, parts, archives, gen, urgent));",
+    "new": "  for (const rec of once) await preloadClothingColour(rec, parts, archives, gen, urgent);",
     "tests": [
       "test/formats/morrowind/mwtexthread.test.js"
     ]
@@ -146,8 +146,8 @@
   {
     "name": "AUDIT-MWTEX-F2-the-pool-decodes-the-whole-chain",
     "file": "src/combat/fpArm.js",
-    "old": "(await decodeTextureOffThread(tpath, tarc.get(tpath), { levels: 1 })).mips[0]",
-    "new": "(await decodeTextureOffThread(tpath, tarc.get(tpath))).mips[0]",
+    "old": "  try { img = await decodeTextureOffThread(tpath, tarc.get(tpath), { levels: 1 }); } catch { return null; }",
+    "new": "  try { img = await decodeTextureOffThread(tpath, tarc.get(tpath)); } catch { return null; }",
     "tests": [
       "test/formats/morrowind/mwtexthread.test.js"
     ]

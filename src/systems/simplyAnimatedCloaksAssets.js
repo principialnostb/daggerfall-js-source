@@ -1,4 +1,4 @@
-// CLOAKS1: Simply Animated Cloaks as a virtual Morrowind data-files archive.
+// Simply Animated Cloaks as a virtual Morrowind data-files archive.
 // The feature toggle and worn-clothing resolver already select these model names. The missing
 // integration was the asset mount: the mod's NIFs lived under Mods/Animations, outside every
 // archive the character builder searched, so the equipped item could never bind to the rig.

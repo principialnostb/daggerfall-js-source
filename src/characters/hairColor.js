@@ -37,7 +37,8 @@ export function hairEarBatch(batch) {
 function hairTriangleKeys(batch) {
   const points = [];
   for (let i = 0; i < batch.positions.length; i += 3) {
-    points.push(Array.from(batch.positions.slice(i, i + 3), value => Math.round(value * 1000)).join(','));
+    const p = batch.positions;
+    points.push([Math.round(p[i] * 1000), Math.round(p[i + 1] * 1000), Math.round(p[i + 2] * 1000)].join(','));
   }
   const keys = [];
   for (let i = 0; i < batch.indices.length; i += 3) {
@@ -46,8 +47,8 @@ function hairTriangleKeys(batch) {
   return keys;
 }
 
-export function hairGeometryKey(batches) {
-  return [...new Set(selectHairBatches(batches, 'hair').flatMap(hairTriangleKeys))].sort().join('|');
+export function hairGeometryKey(batches, selected = selectHairBatches(batches, 'hair')) {
+  return [...new Set(selected.flatMap(hairTriangleKeys))].sort().join('|');
 }
 
 export function selectHairBatches(batches, mode) {

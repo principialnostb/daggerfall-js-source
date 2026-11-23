@@ -11,8 +11,8 @@
   {
     "name": "MWSTEEL1-open-by-default",
     "file": "src/characters/ownModels/ownArmorModels.js",
-    "old": "export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open']);",
-    "new": "export const STEEL_HELM_STYLES = Object.freeze(['open', 'closed']);",
+    "old": "export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open', 'horned']); // The horned helm, built (tools/bakeHornedHelm.mjs)",
+    "new": "export const STEEL_HELM_STYLES = Object.freeze(['open', 'closed', 'horned']); // The horned helm, built (tools/bakeHornedHelm.mjs)",
     "tests": [
       "test/tooling/mwsteel1.test.js"
     ]
@@ -38,8 +38,8 @@
   {
     "name": "MWSTEEL1-hides-dropped",
     "file": "src/formats/morrowind/mwItemMap.js",
-    "old": "        for (const h of p.hides ?? [])\n          claim(\n            ARMO_PART.findIndex((r) => r.name === h),\n            prio,\n            null,\n            add,\n          );\n      }",
-    "new": "      }",
+    "old": "        for (const h of p.hides ?? [])",
+    "new": "        for (const h of [])",
     "tests": [
       "test/tooling/mwsteel1.test.js"
     ]
@@ -47,7 +47,7 @@
   {
     "name": "MWSTEEL1-styles-ignored",
     "file": "src/formats/morrowind/mwItemMap.js",
-    "old": "      const ownParts = ownArmorParts(own, { helmStyle }); // MW-STEEL1: the style the Steel Helm switch asks for",
+    "old": "      const ownParts = ownArmorParts(own, { helmStyle, looks, pieceStyle: piece.ownStyle }); // MW-STEEL1: the style the Steel Helm switch asks for",
     "new": "      const ownParts = own.parts; // MW-STEEL1: the style the Steel Helm switch asks for",
     "tests": [
       "test/tooling/mwsteel1.test.js"
@@ -73,21 +73,22 @@
   },
   {
     "name": "MWSTEEL1-switch-open-by-default",
-    "file": "src/systems/features.js",
-    "old": "key: 'mwSteelHelm', initial: 'closed',",
-    "new": "key: 'mwSteelHelm', initial: 'open',",
+    "file": "src/characters/ownModels/ownArmorModels.js",
+    "old": "export const STEEL_HELM_DEFAULT = STEEL_HELM_STYLES[0];",
+    "new": "export const STEEL_HELM_DEFAULT = 'open';",
     "tests": [
       "test/tooling/mwsteel1.test.js"
     ]
   },
   {
     "name": "MWSTEEL1-tile-does-not-rebuild",
-    "file": "src/ui/enhanced/enhancedMenu.js",
-    "old": "  mwSteelHelm: rebuildMorrowindBody,   // MW-STEEL1",
-    "new": "  // mwSteelHelm: rebuildMorrowindBody,   // MW-STEEL1",
+    "file": "src/ui/enhanced/enhancedInventory.js",
+    "old": "        rebuildForLook(deps.entity).then(() => { refresh(); render(); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e));",
+    "new": "        Promise.resolve().then(() => { refresh(); render(); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e));",
     "tests": [
       "test/tooling/mwsteel1.test.js"
-    ]
+    ],
+    "note": "A look chosen on an inventory item updates its card without rebuilding the equipped body."
   },
   {
     "name": "MWSTEEL1-strip-counts-unchanged",

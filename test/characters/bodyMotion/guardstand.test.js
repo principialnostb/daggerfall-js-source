@@ -1,4 +1,4 @@
-// GUARD-STAND: real bundled MAO clips on the retail hierarchy, not hand-authored joint poses.
+// Real bundled MAO clips on the retail hierarchy, not hand-authored joint poses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -49,7 +49,7 @@ function stand(group, type, seconds = 2, move = {}, config = GUARD_STAND) {
 test('GUARD-STAND: the one-hander and the fists stand at the two-hander\'s level - the hips lowered, the ankles where the clip put them, the knees bent - and never lifted', () => {
   for (const [group, type] of [['idle1h', MW_WEAPON_TYPE.LongBladeOneHand], ['idlehh', MW_WEAPON_TYPE.HandToHand], ['idle2c', MW_WEAPON_TYPE.LongBladeTwoHand]]) {
     const r = stand(group, type);
-    const want = type === MW_WEAPON_TYPE.LongBladeOneHand ? GUARD_STAND.narrow : GUARD_STAND.level;   // FIST-STANCE: the fists stand on the two-hander's wide feet
+    const want = type === MW_WEAPON_TYPE.LongBladeOneHand ? GUARD_STAND.narrow : GUARD_STAND.level;   // The fists stand on the two-hander's wide feet
     assert.ok(r.clip > want + 0.02, `${group}: the clip stands at ${r.clip.toFixed(3)}`);
     assert.ok(r.level <= want + 0.004 && r.level > want - 0.014, `${group}: stood at ${r.level.toFixed(3)}`);   // STAND-LIFE breathes under the level
     assert.ok(r.slid < 0.05, `${group}: an ankle moved ${r.slid.toFixed(3)} units`);

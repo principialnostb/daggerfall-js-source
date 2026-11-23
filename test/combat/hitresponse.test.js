@@ -1,4 +1,4 @@
-// HIT-RESPONSE (MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md): a landed blow holds the striking arm and the struck
+// A landed blow holds the striking arm and the struck
 // foe's frame for a short firm beat - heavier and harder longer, shorter for each further foe of a swing - and lays a
 // soft decaying shake on the look; a miss, or the switch off, does nothing.
 import { test } from 'node:test';

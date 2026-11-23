@@ -124,7 +124,7 @@
   },
   {
     "name": "MWSTEEL4-the-bind-written-for-its-inverse",
-    "file": "tools/nifWrite.mjs",
+    "file": "src/formats/morrowind/mwNifWrite.js",
     "old": "            transform: { rotation: inv.a, translation: inv.t, scale: 1 },",
     "new": "            transform: { rotation: b.bind.a, translation: b.bind.t, scale: 1 },",
     "tests": [
@@ -133,7 +133,7 @@
   },
   {
     "name": "MWSTEEL4-the-skin-at-the-texture",
-    "file": "tools/nifWrite.mjs",
+    "file": "src/formats/morrowind/mwNifWrite.js",
     "old": "  const skinAt = at + (texture ? 6 : 5);",
     "new": "  const skinAt = at + 5;",
     "tests": [

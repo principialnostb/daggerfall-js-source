@@ -1,12 +1,5 @@
 // @ts-check
-// GUARD-ELBOWS (2026-11-07, the owner's 01-06-55 recording: the fists' guard "a little wooden, maybe because the arms
-// are spread so far to the sides"). Measured on a woman's body, the hand-to-hand clips (MAO's idlehh / walkforwardhh)
-// hold the fists before the chin with the elbows out past the shoulders - 0.53-0.60 arm lengths off the chest's middle,
-// where a hanging arm's stands 0.45 - drawn for the retail man's broad chest. A guard keeps its elbows under its fists,
-// before the ribs. So each arm is swung about the line from its shoulder to its wrist - ARM-CLEARANCE's own turn: the
-// fist stays where the clip holds it, its turn kept, only the elbow travels - a share of the way to straight below that
-// line, never past `max`. clearArms runs after it, so an elbow never tucks into the trunk. The port's own; Daggerfall
-// Unity draws no arm.
+// Keep the elbows inside the shoulder line while preserving the hand-to-hand clip's guard at the chin.
 
 import { bodyOf, turnOf, at, mul, transpose, algebra, ease, clamp01 } from './bodyKit.js';
 import { rotAxisAngle, orthonormal } from '../../combat/climbRig.js';
@@ -20,14 +13,7 @@ const { sub, add, scale, dot, norm, len, cross } = algebra;
  *  seconds the guard takes up and lets go (a blow's arms are the blow's). */
 export const GUARD_ELBOWS = Object.freeze({ tuck: 0.55, max: 0.6, ease: 0.12 });
 
-// GUARD-RAISE (2026-11-07, the owner's 02-30-02 recording: the fists "pressed into the chest", the guard not a guard).
-// Every hand-to-hand pose the game has - idlehh, each blow's start and follow stop, the equip - holds the same guard,
-// measured on a woman's body in the chest's frame (right, forward, up; arm lengths): the fists at the chest bone's
-// height, 0.33 to the side and 0.69 ahead, the forearms level. A guard stands the fists before the chin. So each fist is
-// carried from that guard (`from`) to the chin's (`to`), `keep` of the clip's own motion about it kept (the breath,
-// FISTS-PUMP's bob - whole, the walk's swing threw a fist across the chest), the arm laid to it by a two-bone reach, the
-// elbow on its own side, the fist's turn in the world kept; the tuck below then brings the elbow under it. The left
-// leads, a little further out; the right stands by the chin.
+// Raise the hands into guard without pulling them into the breastplate.
 export const GUARD_RAISE = Object.freeze({
   from: Object.freeze({ L: [-0.33, 0.69, 0.09], R: [0.33, 0.69, 0.09] }),
   to: Object.freeze({ L: [-0.26, 0.56, 0.3], R: [0.24, 0.46, 0.36] }),

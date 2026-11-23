@@ -2,8 +2,7 @@ import { itemOwnStyle, setItemOwnStyle } from './item/itemAppearanceKey.js';
 import { extraAppearanceEnabled } from './extraAppearance.js';
 import { CLOAK_TEMPLATES, WOLF_CLOAK_LOOKS, CLOAK_LOOKS_PREF, wolfCloakModel } from '../characters/ownModels/wolfCloak.js';
 // @ts-check
-// LOOK-VARIANTS (2026-10-27, the owner: "выбирать вариации вещей визуального отображения прям через инвентарь когда вещь
-// надета на персонажа"): THE LOOKS A WORN PIECE CAN WEAR, turned from the inventory's paperdoll - the wheel over the
+// THE LOOKS A WORN PIECE CAN WEAR, turned from the inventory's paperdoll - the wheel over the
 // piece steps through them, and its tooltip names the one worn. A test bench for looks, before a look has a home of its
 // own on the item. Inventory choices now write per-instance mwItemOwnLooks; the older switches remain defaults.
 import { getPref, setPref } from './uiPrefs.js';
@@ -15,10 +14,10 @@ import { WEAPON_LOOKS_PREF, weaponLookKey, weaponSkinsFor, weaponSkinAvailable }
 /** The looks' names as the tooltip says them. */
 const LOOK_LABEL = Object.freeze({ closed: 'Closed', open: 'Open', horned: 'Horned', plate: 'Steel plate', iron: 'Iron', classic: 'Original', 'wolf-brown': 'Классика', 'wolf-white': 'Белый волк', 'wolf-black': 'Чёрный волк' });
 
-/** MW-IRON1: every own piece but the steel helm keeps its look here, by the piece's id (the helm's is its switch). */
+/** Every own piece but the steel helm keeps its look here, by the piece's id (the helm's is its switch). */
 export const ARMOR_LOOKS_PREF = 'mwArmorLooks';
 
-/** MW-IRON1: a player-made look (PLAYER_MADE_STYLES) is offered in the browser only when its meshes are there - a
+/** A player-made look (PLAYER_MADE_STYLES) is offered in the browser only when its meshes are there - a
  *  checkout that never ran its import has none. Node offers every look. */
 const IN_BROWSER = typeof window !== 'undefined';
 const available = (styles, value) => !IN_BROWSER || !PLAYER_MADE_STYLES.includes(value) || (styles[value] ?? []).every((p) => `meshes/${p.model}`.toLowerCase() in OWN_MW_URLS);
@@ -74,7 +73,7 @@ export function lookVariantLine(item) {
   return `Look: ${lookVariantLabel(item)} (${at + 1}/${l.values.length}) - wheel to change`;
 }
 
-// LOOK-THUMBS (2026-10-27, the owner: "что б не текстовое название было а превьюшка предмета"): each look's picture,
+// Each look's picture,
 // drawn by tools/lookThumbs.mjs as src/assets/mw/looks/<the look's first NIF>.png. Vite's glob is a table of URLs in the
 // browser and undefined in node (systems/ownMwAssets.js's reason), so node sees none and the card names the look.
 // The call must stay written as `import.meta.glob(` - Vite rewrites only that literal form; wrapped in a cast it is left

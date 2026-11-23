@@ -217,11 +217,14 @@ Choosing Original restores normal Morrowind resolution. A clean checkout has no 
 The handle axis stays +Y in Weapon Bone space. The initial size pass (superseded by MW-SKY-AXE-FIT below) gave the axe
 100 MW units (~1.43m) overall, close to Skyrim's original 98.70 units. The previous retail Morrowind length of
 56.24 units was too short. The pommel stays at -20.130182 (the measured MW lower-hand reach), with the head
-extending to +79.869818; both the shaft and head retain Skyrim's proportions. Relative-size check against retail
+extending to +79.869818; both the shaft and head retain Skyrim's proportions.
+
+Relative-size check against retail
 Morrowind's actual meshes: iron claymore 115.22, iron longsword 69.10, steel battleaxe 56.73 units. The skin's
 100 units are 0.868 of the claymore and 1.447 of the longsword: deliberately shorter than the largest sword,
 with the much broader head of a battleaxe. The owner's worn comparison screenshots (2026-10-29) guide acceptance;
 this is a relative weapon scale, not a claim that a physical metre measurement proves the in-game look.
+
 The detailed source is retained
 for close first-person viewing. `ownWeaponModelFor` feeds the existing shared weapon resolver/preload and icon
 paths, so world.js, exterior.js, worldModes.js and dungeonContext.js require no new host logic.
@@ -260,10 +263,13 @@ This is 74.68% of the claymore's length and 143.38% of the warhammer's, rather t
 First person keeps that SAME scale and orientation. Slide along the handle by -29.31571 units so the head's tip
 has the retail axe's +37.18434 reach. Both fists remain on the straight wooden shaft; the extra handle continues
 below the frame. This is a deliberate close-camera grip change, not a claim that both views grasp the same marked
-point on the handle. It replaces the 0.55 scale, ten-degree turns and twelve-unit slide above.
+point on the handle.
+
+It replaces the 0.55 scale, ten-degree turns and twelve-unit slide above.
 At 60-degree vertical FOV the head's projected edges are compared with the retail steel axe on the SAME rig/clip,
 over three idle phases and 4:3, 16:9 and 21:9, for retail and locally installed ReAnimation idle2c.
 Some head clipping is inherited from the reference framing; forcing every head vertex on screen is not the criterion.
+
 DFU reference: FPSWeapon.UpdateWeapon and GetWeaponRect place a 2D sprite; this continues the existing deliberate
 3D presentation departure, without changing combat. All four hosts use the existing resolver; none grows.
 Numerical projection is not visual acceptance of the body, attack arcs or custom Weapon Widget transforms.
@@ -275,10 +281,12 @@ The owner accepted the diagonal shaft and two-hand relationship in the concept, 
 forearms, and asked to try the position in the game with the existing hands and weapon. `axeViewPlacement.js`
 rigidly places the whole first-person arm pass in lens space: X -20, Y -11, Z -28 degrees, then [8, 20, -14.5]
 rig units. These are presentation judgements from the retail rig's projected hands/head, not physical dimensions.
+
 Existing meshes, gauntlets, shaft dimensions, relative grip, clips, clocks and FOV are retained. Third person,
 icons and holsters are untouched. The arm pass's recorded view includes the placement for projection/picking.
 The placement eases in/out over game time (0.12 s), only for the local Skyrim battleaxe while held; stone,
 sheet, death, spell, seat and saddle release it. Changing to another weapon clears it immediately.
+
 DFU reference: FPSWeapon.GetWeaponRect moves the weapon sprite; this is the established 3D lane's presentation
 departure. world.js, exterior.js, worldModes.js and dungeonContext.js share this existing arm seam; none grows.
 This is an in-game trial of placement, not a new attack-animation set or owner-approved visual result.
@@ -307,11 +315,15 @@ MW-SKY-AXE-MOD-MOTION (2026-10-29): the owner reports excess shoulder/forearm vi
 the selected improved first-person mod. Read ReAnimation's x1hMovement, x2cMovement and x2wMovement: each owns
 walk/run in four directions. The prior fixed eye-relative wrist target suppressed the mod's translation, while
 the extra 15-unit camera separation exposed arms behind the hands. Remove that camera separation entirely:
-the first-person lens is now the same lens as the other weapons. Ready-grip placement adds the source clip's
+the first-person lens is now the same lens as the other weapons.
+
+Ready-grip placement adds the source clip's
 eye-relative right-wrist delta from its selected idle source; rotations already follow the posed clip.
 Reference sampling uses built.tracks/built.clip, independently of the moving frame, and retains it across steps.
 Upper wrist baseline is eye+[7,28,-16], retaining the lower cuff position from ARMS, with the accepted 24-unit grip and edge-facing attitude.
-This supersedes the preceding camera offset and fixed wrist target. No custom walk/run oscillator is added.
+This supersedes the preceding camera offset and fixed wrist target.
+
+No custom walk/run oscillator is added.
 Third person, attack clocks, FOV, meshes and Skyrim dimensions are unchanged. All four hosts use the common arm seam.
 
 

@@ -1,22 +1,8 @@
 import { pixelViewport } from './pixelViewport.js';
 import { modGroupReady } from '../systems/enhancedModResources.js';
 // @ts-check
-// CHAR-PIX1 (2026-10-27, the owner: "в оригинале моделька персонажа немного пикселизируется как и у нпс ... сделай эту
-// пикселизацию грамотно"): THE MORROWIND BODY, PIXELATED IN PLACE. Daggerfall's own people are sprites drawn on its
-// 320x200 frame, so a body is as chunky as the world around it. The port's Morrowind bodies left that look at
-// MW-TP-MESH-ALL (fpArm.js drawThird) because the old way to it was a picture pasted on a camera-facing card
-// (characterSprite.js): the feet lost the ground, the card popped where the distance switched it, and the picture
-// re-rounded its size each frame and shimmered.
-//
-// This pass keeps the mesh and only lowers its resolution: the body is drawn under the WORLD's own camera into a
-// low-resolution colour + depth target, then written back block by block, each block taking its texel's colour AND its
-// depth (gl_FragDepth). Nothing moves: the perspective, the ground contact and the occlusion are the mesh's own, and a
-// wall or a tuft in front of a leg cuts it per block. The blocks sit on a grid locked to the screen, so a body that
-// walks slides under a still grid the way a sprite did on Daggerfall's frame - no swimming, no re-rounding.
-//
-// The size is in ROWS PER SCREEN HEIGHT, not in pixels: 200 is Daggerfall's own frame, at any window or render scale.
-// Three dials (systems/features.js char-pixel-*): the first-person hands (fpArm.js draw, the viewmodel's own sprite
-// pass), the player's own body, and everyone else's - NPCs, foes, guards, other players.
+// Draw the character into a pixel target at its world position. Its colour and depth must agree when composited
+// over scene geometry.
 import { buildProgram } from './glProgram.js';
 import { getPref } from '../systems/uiPrefs.js';
 import { CHAR_PIXEL_INITIAL, CHAR_PIXEL_PREFS } from '../systems/charPixel.js';
@@ -64,7 +50,7 @@ void main() {
   gl_FragDepth = d;   // the nearest the body stands in the block
 }`;
 
-/** CHAR-PIX-AVG (2026-11-07, the owner: grey and white pixels on a black bra): a block was ONE point of the body - one
+/** A block was ONE point of the body - one
  *  texel of its texture's mip - so where a texture is fine-grained (the underwear's fur edge, its grey stitching, the
  *  skin through a ragged hem) a block took a light grain the eye never sees in the whole. The low target is drawn
  *  PIX_SUB_MAX times finer each way (no finer than the screen), and a block is the mean of its body texels - the colour
@@ -219,7 +205,7 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null, d
   gl.bindTexture(gl.TEXTURE_2D, L.depth);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, L.color);
-  renderer._tex0Bound = null;   // PERF-TEX3: unit 0 is this pass's now
+  renderer._tex0Bound = null;   // Unit 0 is this pass's now
   gl.uniform1i(L.uColor, 0); gl.uniform1i(L.uDepth, 6);
   gl.uniform3f(L.uGrid, vp[0], vp[1], px);
   gl.uniform1i(L.uSub, sub);

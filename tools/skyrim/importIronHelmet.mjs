@@ -1,20 +1,6 @@
-// SKYRIM'S IRON HELMET AS THE HORNED STEEL HELM, from the owner's own install, in one command.
-//
-//     SKYRIM_PATH="D:/Steam/steamapps/common/Skyrim Special Edition" node tools/skyrim/importIronHelmet.mjs
-//
-// MW-HORN5 (2026-10-27, the owner: "может вообще из 5го скайрима их и выгрузить адаптировав?", Skyrim Special Edition
-// installed for it, for his personal, non-commercial fork). Every attempt to MAKE the helm (MW-HORN1-4) was judged
-// foreign in the game; this takes the real one. Like ARENA2, Skyrim's data is the player's and never the repository's:
-// this reads the helmet out of the install's BSAs into scratch/skyrim/ (ignored), Blender re-bakes its painting with its
-// normal map's light in it at the set's 128 (tools/skyrim/adaptIronHelmet.py), and tools/bakeHornedHelm.mjs makes the
-// NIF and DDS - all four outputs ignored by git (.gitignore, MW-HORN5), so nothing of Bethesda's is ever committed.
-//
-// The fit (FIT): the helmet is moved WITH THE HEAD IT WAS MADE FOR. Skyrim's male head (HEAD) is read from the same
-// install, and the helmet is carried by the map that puts that head's nose tip and crown on the Morrowind head's
-// (SCENE_BODY.head - Mac's Breton, which the game's head stands HELM_LIFT over), shrunk by `scale`. Its first fits went
-// by the closed helm's shell instead: unscaled it read too big beside the closed helm ("слишком большой размер"), and
-// shrunk round its collar the mask fell 0.8 behind the face, which stood out through it once the head was shown
-// ("оригинальное ебло со шлемом совместить"). `ahead` keeps the mask a little clear of a longer-nosed race.
+// Set SKYRIM_PATH to the owner's local installation and run node tools/skyrim/importIronHelmet.mjs. Fit the
+// helmet by aligning the source head's crown and nose to the target head, then bake the lighting at 128 pixels.
+// Keep the mask clear of the face. The extracted source and outputs stay local and are ignored by Git.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -49,9 +35,7 @@ function fromBsa(archives, path) {
   throw new Error(`${path} is in none of ${archives.join(', ')}`);
 }
 
-/** The helmet's plate as an OBJ, fitted. Its other shape - "shades", a see-through dark card behind the eye holes in
- *  an effect shader - is left out: painted solid it hid the wearer's eyes (the owner: "фронтально черные глазницы"),
- *  and the face under the mask is the wearer's own now. */
+/** Exclude the translucent eye-hole effect from the opaque helmet plate. */
 export function helmetObj(nif, fit) {
   let obj = '', base = 1;
   for (const s of nif.shapes) {
@@ -80,4 +64,4 @@ for (const [k, path] of textures.entries()) {
 console.log(`  ${MESH}: ${nif.shapes.map((s) => `${s.name} ${s.tris.length} tris`).join(', ')}; ${textures.join(', ')}`);
 execFileSync(BLENDER, ['-b', '--factory-startup', '--python', 'tools/skyrim/adaptIronHelmet.py'], { stdio: ['ignore', 'ignore', 'inherit'] });
 execFileSync(process.execPath, ['tools/bakeHornedHelm.mjs'], { stdio: 'inherit' });
-execFileSync(process.execPath, ['tools/lookThumbs.mjs'], { stdio: 'inherit' });   // LOOK-THUMBS: the horned look's picture
+execFileSync(process.execPath, ['tools/lookThumbs.mjs'], { stdio: 'inherit' });   // The horned look's picture

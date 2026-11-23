@@ -39,7 +39,7 @@ const SET = [102, 103, 104, 105, 106, 107, 108].map((templateIndex) => ({ templa
 
 test('MW-STEEL1: every shipped mesh and texture is re-made from the committed sources byte for byte, and read back as the port reads it', () => {
   const pngs = Object.fromEntries(Object.entries(TEXTURES).map(([t, p]) => [t, raw(p)]));
-  const baked = bakeSteelPlate({ set: raw(SOURCE.set), openHelm: raw(SOURCE.openHelm), pngs, skeleton: raw(RETAIL_SKELETON) });   // MW-STEEL4: skinned in retail's bind; MW-STEEL5: two sources
+  const baked = bakeSteelPlate({ set: raw(SOURCE.set), openHelm: raw(SOURCE.openHelm), pngs, skeleton: raw(RETAIL_SKELETON) });   // Skinned in retail's bind; MW-STEEL5: two sources
   assert.deepEqual(baked.pieces.map((p) => p.id), ['cuirass', 'skirt', 'pauldron_right', 'pauldron_left', 'gauntlet_right', 'gauntlet_left',
     'greave_right', 'greave_left', 'boot_right', 'boot_left', 'helm_open', 'helm_closed']);
   assert.deepEqual(baked.textures.map((t) => t.tex), ['cuirass', 'pauldron', 'gauntlet', 'greave', 'boot', 'helm', 'visor', 'skirt']);
@@ -64,8 +64,8 @@ test('MW-STEEL1: every shipped mesh and texture is re-made from the committed so
 });
 
 test('MW-STEEL1: the sources are Mac\'s exports less the Morrowind body they were fitted on - held to their bytes, and refused when a piece is not where it was read', () => {
-  assert.equal(sha(SOURCE.set), '4a68e08da934267f7675fb19af441d4ec8dac58274a1e27a77e46650754ea303');   // MW-STEEL5: Mac's steel_armor.fbx as it came
-  assert.equal(sha(SOURCE.openHelm), 'f51a41c3d3a150c4ee46e012ddb6ce52fa3b816b9e4fbb717bc3901acf2d0a58');   // MW-STEEL5: the open helm alone, out of MW-STEEL2's source
+  assert.equal(sha(SOURCE.set), '4a68e08da934267f7675fb19af441d4ec8dac58274a1e27a77e46650754ea303');   // Mac's steel_armor.fbx as it came
+  assert.equal(sha(SOURCE.openHelm), 'f51a41c3d3a150c4ee46e012ddb6ce52fa3b816b9e4fbb717bc3901acf2d0a58');   // The open helm alone, out of MW-STEEL2's source
   for (const [name, bytes] of [['set', raw(SOURCE.set)], ['open helm', raw(SOURCE.openHelm)]]) {
     for (const ref of Object.values(REFERENCE_PARTS)) assert.equal(meshModelNames(bytes).includes(ref), false, `the ${name} source carries no ${ref}`);
     assert.equal(bytes.includes(Buffer.from('tx_b_n_breton')), false, `the ${name} source names no Morrowind body texture`);

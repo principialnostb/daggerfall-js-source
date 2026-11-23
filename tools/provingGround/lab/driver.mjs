@@ -8,11 +8,11 @@ const SAFE = /^[a-z0-9][a-z0-9_.-]{0,95}$/i;
 
 /** Single owner of the Playwright page. Both the UI and agents use command(), never competing frame loops. */
 export function createLabDriver({ page, step, kit, lab = null, still = null, out, revision = 'unknown', modules = null }) {
-  // LAB2: a reload hands the driver the scenario and reading modules as they stand on disk now (server.mjs reload)
+  // A reload hands the driver the scenario and reading modules as they stand on disk now (server.mjs reload)
   const { scenario, generateSuite, generateDrills, library, matrixPlan, analyze, VERSION, LOADOUTS, REFERENCE_LOADOUT, SIGNATURE_SET } = modules?.model ?? MODEL;
   const { report, compare, diverge, signature, coherence, attacking } = modules?.measure ?? MEASURE;
   mkdirSync(out, { recursive: true });
-  const body = lab ?? (async () => null);   // LAB2: the body's own doors (labKit.js); absent, every mesh reading is unmeasured
+  const body = lab ?? (async () => null);   // The body's own doors (labKit.js); absent, every mesh reading is unmeasured
   let tail = Promise.resolve(), run = null, cursor = 0, held = new Set(), yaw = 0, mouse = false, centreAt = -1, swingWas = null;
   // THE DICE, FRAME BY FRAME: each frame's seed is the scenario's and the frame's own, so the world's stray draws in
   // one frame (snow, a far creature) do not shift the rolls of the next
@@ -64,7 +64,7 @@ export function createLabDriver({ page, step, kit, lab = null, still = null, out
     const made = found ? await window.__labKit.bones() : null;
     return { s: await window.__pgKit.state(), b: made ?? await window.__pgKit.bones(), bonesOf: made ? 'pose' : 'drawn', foes: await window.__pgKit.foes(),
       sources: { movement: s.movementSource, idle: s.idleSource, action: s.actionSource, jump: s.jumpSource },
-      clip: { time: s.time, group: s.posedGroup, upper: s.upperName, hit: s.hit, death: s.death, layers: (globalThis.__armTrace ??= { on: true }).clip ? { la: globalThis.__armTrace.clip.la, ub: globalThis.__armTrace.clip.ub, blendW: globalThis.__armTrace.clip.blendW } : null },   // DUAL-RUN: the arm layers' clips and weights
+      clip: { time: s.time, group: s.posedGroup, upper: s.upperName, hit: s.hit, death: s.death, layers: (globalThis.__armTrace ??= { on: true }).clip ? { la: globalThis.__armTrace.clip.la, ub: globalThis.__armTrace.clip.ub, blendW: globalThis.__armTrace.clip.blendW } : null },   // The arm layers' clips and weights
       blow: s.blow ? { clock: s.blow.clock, hitAt: s.blow.hitAt, seconds: s.blow.seconds } : null, legs: s.motion?.legs ?? null, body: found,
       skeleton: s.skeletonPath, groups: s.groups, sourcePaths: s.sources };
   });
@@ -142,7 +142,7 @@ export function createLabDriver({ page, step, kit, lab = null, still = null, out
     // the draw, the sheathe or a fresh hold played out before anything is recorded: its frames are no part of the run
     for (let waited = 0; waited < 420; waited += 10) { await step(10); if (!/equipping/i.test(String((await kit('state'))?.up ?? ''))) break; }
     await kit('home'); await centre();
-    // LAB2: ONE START. The dice seeded, then the stance stood through to its idle clip's own loop point, so every run
+    // ONE START. The dice seeded, then the stance stood through to its idle clip's own loop point, so every run
     // of a scenario leaves from the same pose; `aligned` says whether the loop point was found
     const seed = spec.seed ?? 1;
     await page.evaluate((n) => window.__pg?.seed?.(n), seed);
@@ -202,7 +202,7 @@ export function createLabDriver({ page, step, kit, lab = null, still = null, out
         const frame = await observe(), was = run.frames[run.frames.length - 1];
         const now = { f: cursor, label: s.label, ...frame.s, b: frame.b, yaw, sources: frame.sources, clip: frame.clip, blow: frame.blow, legs: frame.legs, foes: frame.foes };
         run.frames.push(now);
-        // LAB2: A BLOW'S OWN FRAMES kept as pictures - where it starts, where the game lands it, where it ends
+        // A BLOW'S OWN FRAMES kept as pictures - where it starts, where the game lands it, where it ends
         const hit = (f) => !!f?.blow && Number.isFinite(f.blow.clock) && f.blow.clock >= f.blow.hitAt;
         if (attacking(now) && !attacking(was)) await photograph(cursor, 'blow-start');
         else if (attacking(now) && hit(now) && !hit(was)) await photograph(cursor, 'blow-hit');

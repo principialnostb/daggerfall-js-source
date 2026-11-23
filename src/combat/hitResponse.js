@@ -1,17 +1,5 @@
 // @ts-check
-// HIT-RESPONSE (2026-10-27, MOTION-DOCTRINE pilot step 3 - RESPONSE, bible/05-Combat/Motion-Doctrine.md): THE WORLD
-// ANSWERS A BLOW. When the player's melee blow lands (combat/playerWeapon.js resolveHit, a struck foe with damage):
-//   - HITSTOP: the striking arm (both views - combat/fpArm.js scales the player's rig's clock) and the struck foe's own
-//     animation (characters/mobile/mobileUnit.js update) hold for a short, firm beat - longer the heavier the weapon and
-//     the harder the blow, and shorter for each further foe of one swing (a sweep never drags). Only those two: the
-//     world, the clock and every other body run on (multiplayer is never slowed - Precision's rule, the doctrine's);
-//   - THE TARGET'S REACTION after the beat: the foe's own clock is held, so its flinch - DFU's knockback and hurt frames,
-//     which the blow already starts - plays out from the hitstop's end, as Precision delays its reaction;
-//   - A SOFT SHAKE: a smooth decaying sine on the look (player/cameraRecoiler.js lays it beside DFU's own reel), a few
-//     tenths of a degree, never the vanilla jerk.
-// The idea is Precision's (Ershin, Skyrim SE, Nexus 72347: hitstop on attacker and target only, the reaction after it,
-// a sine shake, diminishing returns within a swing); the code is the port's own. Daggerfall Unity has none of it - a
-// departure in presentation only: the damage, the to-hit and the knockback are DFU's, untouched.
+// Feed a landed melee blow back into the visible world at contact.
 
 import { modSetting } from '../systems/modSettings.js';
 

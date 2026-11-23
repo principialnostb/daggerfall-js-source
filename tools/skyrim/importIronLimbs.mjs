@@ -1,19 +1,7 @@
-// SKYRIM'S IRON GAUNTLETS AND BOOTS AS THE STEEL GAUNTLETS' AND BOOTS' IRON LOOK, from the owner's own install.
-//
-//     node tools/skyrim/importIronLimbs.mjs [--preview]
-//
-// MW-IRON2 (2026-10-27, the owner: "давай просто пока что доделаем перчатки и ботинки"). After the cuirass (MW-IRON1,
-// tools/skyrim/importIronCuirass.mjs - its BSA reader, its painting's finish and its NIF writer are this one's too):
-// Skyrim's female iron gauntlets and boots (meshes\armor\iron\f\gauntlets_1.nif, boots_1.nif), each one mesh for both
-// sides, cut left and right by side and carried onto the Morrowind body by bone SEGMENTS (tools/skyrim/retarget.mjs):
-//   - the upper arm's cuff, the forearm and its twists, the thigh's top and the calf each ride their own segment;
-//   - the hand with all its fingers, and the foot with its toe, are carried WHOLE on the hand's and the foot's segment,
-//     scaled to the Morrowind one's length - Skyrim's five three-jointed fingers have no one-to-one in Morrowind's three
-//     two-jointed ones, and a gauntlet takes the hand's place, so no skin under it to follow;
-//   - their weights go to the Morrowind bones the Skyrim ones stand for: the thumb to the thumb, the index and middle
-//     fingers to Finger1, the ring and little to Finger2, each finger's third joint to its second; the toe to the foot.
-// Then pushed out over the Better Bodies skin as the cuirass is, painted by Blender's re-bake and brought to Mac's
-// gauntlets' and boots' tone at their sizes (256 and 128). Nothing of Bethesda's is committed: every output is ignored.
+// Run node tools/skyrim/importIronLimbs.mjs [--preview] against the owner's Skyrim installation. Split each
+// pair by side. Retarget cuffs and legs by bone segment and fit each hand or foot whole. Map the five source
+// fingers to the target finger groups before baking. Generated meshes and textures stay local and are ignored
+// by Git.
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
@@ -38,12 +26,7 @@ export const LIMBS = Object.freeze({
     mesh: ['meshes', 'armor', 'iron', 'f', 'gauntlets_1.nif'].join(BS),
     pieces: { gauntlet_left: { shape: PLATE_RIG.gauntlet_left.shape, nif: 'src/assets/mw/meshes/iron_gauntlet_left.nif' }, gauntlet_right: { shape: PLATE_RIG.gauntlet_right.shape, nif: 'src/assets/mw/meshes/iron_gauntlet_right.nif' } },
     painting: { name: 'iron_gauntlets.dds', dds: 'src/assets/mw/textures/iron_gauntlets.dds', size: 256 },
-    // In the game the fist was huge and the elbow's cuff hollow (the owner: "кулак огромный", "полое пространство где
-    // локти"). The hand was scaled by its bone (6.49 against 6.03, +8%) where the hands themselves - wrist to fingertip,
-    // Better Bodies' against Skyrim's femalehands_1 - are 13.32 against 15.37 (-13%), and the fit pushed the curled
-    // fingers out over Better Bodies' open palm, which the gauntlet hides anyway. So the hand is scaled by the hands
-    // (`handScale`) and left out of the fit; and the gauntlet hides the wrist alone - the forearm is drawn inside its
-    // cuff, 0.6 under it.
+    // Fit the cuff and fist to the donor arm to close the side of the elbow.
     fitParts: /Upper Arm|Forearm|Wrist/, hands: true, margin: 0.6,
   },
   boots: {
@@ -56,7 +39,7 @@ export const LIMBS = Object.freeze({
     // instead (PLATE_RIG's boot - the foot holds the foot, the calf the shaft, the thigh the top, blended at the
     // joints), as Mac's boots, which stand on the ground; the heel set on the plate boot's sole (-0.18 at the bind);
     // and kept 0.7 off the knee, which the boot leaves drawn and which showed through it as the leg bent.
-    rig: true, sole: -0.18, margin: (part, p) => (/Knee/.test(part) || p[2] < KNEE_TOP ? 1.0 : 0.6),   // MW-IRON5: 1.0 off the knee (0.7 still showed it)
+    rig: true, sole: -0.18, margin: (part, p) => (/Knee/.test(part) || p[2] < KNEE_TOP ? 1.0 : 0.6),   // 1.0 off the knee (0.7 still showed it)
   },
 });
 
@@ -170,7 +153,7 @@ export function importLimb(key) {
   save(join(OUT, `${key}-normal.png`), tex[1]);
   save(join(OUT, `${key}.obj`), wornObj(r.pieces, Object.keys(limb.pieces)));
   execFileSync(BLENDER, ['-b', '--factory-startup', '--python', 'tools/skyrim/bakePainting.py', '--', ...[`${key}.obj`, `${key}-diffuse.png`, `${key}-normal.png`, `${key}-painting.png`].map((f) => resolve(OUT, f)), String(limb.painting.size)], { stdio: ['ignore', 'ignore', 'inherit'] });
-  // MW-IRON4: toned to the iron cuirass's finished painting, not to Mac's piece of the same slot - Mac's boots are far
+  // Toned to the iron cuirass's finished painting, not to Mac's piece of the same slot - Mac's boots are far
   // brighter than his cuirass (mean 60 and 48), and the iron boots came out lighter than the iron they are worn with
   const png = finishPainting(readPng(readFileSync(join(OUT, `${key}-painting.png`))), readPng(readFileSync(IRON_TONE)));
   save(join(OUT, `${key}-finished.png`), writePng(png));

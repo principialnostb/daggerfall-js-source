@@ -1,4 +1,4 @@
-// LOWER-BODY (MOTION-DOCTRINE pilot step 1, bible/05-Combat/Motion-Doctrine.md section 5): under a third-person blow the
+// Under a third-person blow the
 // legs keep the movement's (or the jump's) clip - rule 26's lower half - and the switch puts the single winner back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -90,7 +90,7 @@ test('LOWER-BODY: the switch defaults to По формуле, and the rig wires 
   const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
   assert.match(src, /lowerBody\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third'/);
   assert.match(src, /tracks: lowerBody\.tracks\(/);
-  assert.match(src, /sampleTrack: loopSeam\.sampler\(lowerBody\.sampler\(/);   // PIN MOVED (LOOP-SEAM): carried over the seam outside it
+  assert.match(src, /sampleTrack: loopSeam\.sampler\(lowerBody\.sampler\(/);   
 });
 
 test('LOWER-SWAP: the legs\u2019 clip changed under a blow is crossed over LOWER_BODY_EASE.swap from where the last stood - never in a frame', async () => {

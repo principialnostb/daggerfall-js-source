@@ -1,14 +1,14 @@
-// CHARACTER-LAB: portable scenario data, shared by the panel and the agent driver.
+// Portable scenario data, shared by the panel and the agent driver.
 export const VERSION = 1;
 export const LIMIT = 3600;
 const KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ControlLeft', 'Space', 'KeyZ', 'KeyF']);
 const SWINGS = new Set(['down', 'up', 'left', 'right']);
 
-// LAB2: WHAT THE BODY WEARS AND HOLDS, by name - the Test Room warrior's own pack. A loadout is worn whole: every slot
+// WHAT THE BODY WEARS AND HOLDS, by name - the Test Room warrior's own pack. A loadout is worn whole: every slot
 // taken off first, so two runs of one loadout are the same body.
 const STEEL = ['Steel Cuirass', 'Steel Greaves', 'Steel Boots', 'Steel Gauntlets', 'Steel Helm', 'Steel Left Pauldron', 'Steel Right Pauldron'];
 export const DRESS = Object.freeze({ bare: [], clothes: ['shirt|blouse', 'trousers|pants'], armour: STEEL, cloak: [...STEEL, 'cloak'] });
-export const ARMS = Object.freeze({ fists: [], sword: ['Longsword'], shield: ['Longsword', 'Kite Shield'], twohand: ['Claymore'], dual: ['Longsword', 'Longsword'] });   // DUAL-RUN: a pair of one-handers, the second blade in the left hand
+export const ARMS = Object.freeze({ fists: [], sword: ['Longsword'], shield: ['Longsword', 'Kite Shield'], twohand: ['Claymore'], dual: ['Longsword', 'Longsword'] });   // A pair of one-handers, the second blade in the left hand
 export const LOADOUTS = Object.freeze(Object.fromEntries(Object.entries(ARMS).flatMap(([arm, held]) =>
   Object.entries(DRESS).map(([dress, worn]) => [`${arm}-${dress}`, Object.freeze([...worn, ...held])]))));
 /** The fighter the owner accepted: every other carry is read against it (Motion-Doctrine, One fighter). */
@@ -45,7 +45,7 @@ export function scenario(value) {
   return { version: VERSION, name: value.name, outfit, foe, drawn: value.drawn ?? true, steps, ...extra };
 }
 
-/** LAB2: THE DRILLS - the sequences a fight is made of, past the suite's single moves: series, a held blow, a blow
+/** THE DRILLS - the sequences a fight is made of, past the suite's single moves: series, a held blow, a blow
  *  into a stop and out of one, a change of way under a blow, reversals, the draw. */
 export function generateDrills() {
   const cases = [];

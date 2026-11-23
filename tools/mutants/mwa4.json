@@ -65,8 +65,8 @@
   {
     "name": "MWA4-remove-leaves-the-arms-standing",
     "file": "src/ui/enhanced/enhancedMenu.js",
-    "old": "      async () => {\n        fpArm.unload();\n        const ds = await import('../../scenes/dataSource.js');\n        await ds.clearStoredMorrowind();",
-    "new": "      async () => {\n        const ds = await import('../../scenes/dataSource.js');\n        await ds.clearStoredMorrowind();",
+    "old": "        fpArm.unload();\n        const ds = await import('../../scenes/dataSource.js');",
+    "new": "        const ds = await import('../../scenes/dataSource.js');",
     "tests": [
       "test/ui/enhanced/mwarms_fps.test.js"
     ]
@@ -84,8 +84,8 @@
   {
     "name": "MWA4-the-boot-build-without-the-data",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "  if (!entity?.chargenDone || !(dataCount() > 0) || standing(entity)) return null;",
-    "new": "  if (!entity?.chargenDone || standing(entity)) return null;",
+    "old": "  if (!entity?.chargenDone || !(dataCount() > 0) || standing(entity)) {",
+    "new": "  if (!entity?.chargenDone || standing(entity)) {",
     "tests": [
       "test/ui/enhanced/mwarms_fps.test.js"
     ]

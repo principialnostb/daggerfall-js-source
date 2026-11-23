@@ -116,7 +116,7 @@ function killHarness({ foes, foeDeps = null, getTexture = async () => ({ recordC
     setEnemyAlert, playRareDrop: () => { log.chimes++; }, raiseEnemyDeath: () => { log.deaths++; }, liveStat: () => 50, stampWonWeapons, rollCorpseKit,
     isClassEnemyId, enemyEntityType, audio: {}, ENEMY_BASICS, corpseTextureOf,   // AUDIT DEX A1: the corpse mints read it
     weaponKnockbackApplies: () => false, maxFatigue: () => 100, q2: (x) => x, q3: (x) => x,
-    _wallNow: () => null, floorLanding: (c, p) => p, collider: null, getTexture,
+    _wallNow: () => null, corpseFloorLanding: (_collider, feet) => feet, collider: null, getTexture,
     uploadRecord: () => {}, billboardSize: () => ({ w: 1, h: 1 }), armFlatAnim: () => {}, flatAnims: { remove: () => {} }, uploadRecordFrame: () => {},
     eliteCorpseSize, isEliteCorpse, markEliteCorpseBatch,   // ELITE FOES: spawnCorpseNow's
     corpsePrefabs: createCorpsePrefabs({ runs: () => true, key: () => null }),   // DEX5: the real runner - no prefab registered here, so none attaches

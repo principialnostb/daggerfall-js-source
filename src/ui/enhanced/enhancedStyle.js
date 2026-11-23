@@ -130,6 +130,48 @@ export const ENHANCED_FONTS_URL = fontsUrl([FONT_DISPLAY, FONT_DATA, FONT_PIXEL_
    are not. Ledger A row "THE HUD LINE AS A TOAST". */
 
 export const ENHANCED_CSS = `
+.cosmetics-menu .cosmetics-status {
+  --cosmetics-tone: #a8a89e;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(1.45em, auto));
+  gap: .25em;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: .8em 0;
+  padding: .65em .85em;
+  background: #161a20;
+  border: 1px solid #514835;
+  border-inline-start: 3px solid var(--cosmetics-tone);
+  line-height: 1.45;
+}
+.cosmetics-status[data-state="ready"] { --cosmetics-tone: #a5c88c; }
+.cosmetics-status[data-state="waiting"] { --cosmetics-tone: #dfbd72; }
+.cosmetics-status[data-state="error"] { --cosmetics-tone: #ee9a84; }
+.cosmetics-status strong { color: var(--cosmetics-tone); }
+.cosmetics-status span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cosmetics-menu .cosmetics-port { max-inline-size: 11em; }
+.cosmetics-menu .cosmetics-actions { display: flex; flex-wrap: wrap; gap: .45em; }
+
+.cosmetics-menu [hidden] { display: none !important; }
+.cosmetics-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10em), 1fr));
+  gap: .65em;
+  margin: .8em 0;
+}
+.cosmetics-facts div {
+  min-width: 0;
+  padding: .65em .8em;
+  background: #161a20;
+  border: 1px solid #514835;
+}
+.cosmetics-facts dt { color: #cab78a; }
+.cosmetics-facts dd { margin: .35em 0 0; overflow-wrap: anywhere; }
+
 .pixelation-intro {position:relative}
 .pixelation-intro .emc-language {justify-content:flex-end; flex-wrap:wrap; margin-bottom:12px}
 .pixelation-card .ft-seg {width:100%; box-sizing:border-box}

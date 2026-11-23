@@ -4,10 +4,7 @@ import { readFileSync } from 'node:fs';
 import { THUMB_FIST, isThumbBone, thumbShare, thumbCentres, thumbMoves, movedThumb, createThumbFist } from '../../../src/formats/morrowind/mwThumbFist.js';
 import { firstPersonHandsSource } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
 
-// THUMB-FIST (2026-10-26, Mac: "Robert's hands everywhere but the thumb of a clenched fist" - then: "copying the vanilla
-// thumb whole does not fit; correct Robert's own, it is too long and oddly bent"). Measured on the data, each thumb
-// bone's own frame (xbase_anim.1st.kf "idlehh"): Better Hands' tip 2.08 out against Better Bodies' 2.04, but its
-// flesh 0.4-0.5 off each phalanx's axis. Each phalanx is moved by that, its shape kept, never lengthened.
+// Compare the closed donor thumb with the rest of the clenched hand.
 
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const HAND = 1, THUMB = 2;

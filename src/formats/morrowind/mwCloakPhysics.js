@@ -6,23 +6,21 @@
 // Deliberately visible secondary motion in Morrowind's authored world units.
 // The old 1.6-unit envelope and 0.28-unit step made the hem look nearly rigid.
 import { meetCloakBody } from './mwCloakColliders.js';   // CLOAK-CONTACT, CLOAK-BODY
-import { SHIELD_PRESS } from './mwCloakFit.js';
+import { SHIELD_PRESS as SHIELD_PRESS_LIMIT } from './mwCloakFit.js';
 
 const MAX_OFFSET = 5.0;
 const MAX_STEP = 0.72;
 const DAMPING = 0.972;
 const GRAVITY = 22;
-const ITERATIONS = 5;   // CLOAK-CONTACT: 7 cost a third more of the frame and held no tighter
+const ITERATIONS = 5;   // 7 cost a third more of the frame and held no tighter
 const STIFFNESS = 0.68;
-// CLOAK-CONTACT: the share of its way back to the fitted shape a vertex goes each sixtieth of a second, at the collar
+// The share of its way back to the fitted shape a vertex goes each sixtieth of a second, at the collar
 // and at the hem. Measured without it: standing still the cloth drifted 3.5 units off its fit and stayed there. CLOAK-BODY:
 // the hem's was 0.035, and its walk swing fell from 10.2 units to 8.6; at 0.015 it swings 10.0 and stands 0.5 off.
 const MEMORY = Object.freeze([0.1, 0.015]);
 // Morrowind is Z-up; negative Y is behind the actor. Keep shield-covered
 // cloth slightly off the fitted body so a static cloak layer can sit there.
 const STOWED_SHIELD_CLOAK_CLEARANCE = 0.38;
-// SHIELD-SEAT: the most a seated shield presses the cloth under it toward the body, in units (the seat holds to it)
-const SHIELD_PRESS_LIMIT = SHIELD_PRESS;
 
 const distance3 = (p, a, b) => Math.hypot(
   p[a * 3] - p[b * 3],
@@ -176,7 +174,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   state.shieldPinned.fill(0);
   state.shieldClearance.fill(0);
   let held = 0;
-  // SHIELD-SINK: the footprint and the press are read off the fitted cloth, posed - read off the pressed cloth, a press
+  // The footprint and the press are read off the fitted cloth, posed - read off the pressed cloth, a press
   // undid itself every other footprint (2.38, 0.38, 2.00, 0.38 units a fifth of a second apart)
   const from = posedBase?.length === posedCloth.length ? posedBase : posedCloth;
   const depths = contactDepths(state, from, surfaces);
@@ -354,9 +352,6 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
       if (!fixed(edge.a)) { pos[a] += dx; pos[a + 1] += dy; pos[a + 2] += dz; }
       if (!fixed(edge.b)) { pos[b] -= dx; pos[b + 1] -= dy; pos[b + 2] -= dz; }
     }
-    for (let v = 0; v < pinned.length; v++) if (pinned[v]) {
-      const o = v * 3; pos[o] = base[o]; pos[o + 1] = base[o + 1]; pos[o + 2] = base[o + 2];
-    }
   }
 
   // Apply a small, phase-locked pose target AFTER the structural solve. The
@@ -396,7 +391,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     }
   }
 
-  // CLOAK-BODY: last, past the envelope's clamp - a leg stepping back takes the hem as far as it goes
+  // Last, past the envelope's clamp - a leg stepping back takes the hem as far as it goes
   if (typeof motion === 'object' && motion !== null) meetCloakBody(state, motion.colliders, fixed);
 
   positions.set(pos);

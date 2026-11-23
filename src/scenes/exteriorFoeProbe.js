@@ -1,4 +1,4 @@
-// LAB1: a weak development lookup; the game host remains the pool's owner.
+// A weak development lookup; the game host remains the pool's owner.
 let latest = null;
 
 export function registerExteriorFoeProbe(pool, inside = false) {

@@ -27,7 +27,7 @@
 // have no fixed Update order either.
 
 import { getInt } from '../systems/settings/settings.js';
-import { hitResponse } from '../combat/hitResponse.js'; // HIT-RESPONSE: a landed blow's soft shake, beside the reel
+import { hitResponse } from '../combat/hitResponse.js'; // A landed blow's soft shake, beside the reel
 
 /** CameraRecoiler.cs:33. */
 export const BASE_MAX_RECOIL_SEVERITY = 50;
@@ -87,7 +87,7 @@ export class CameraRecoiler {
     cam.pitch += this.applied[0] * DEG;
     cam.yaw -= this.applied[1] * DEG;
     this.applied = [0, 0];
-    // HIT-RESPONSE (combat/hitResponse.js, MOTION-DOCTRINE - the port's own, beside CameraRecoiler.cs): a landed blow's
+    // A landed blow's
     // soft shake, laid and taken back as the reel is; DFU's recoil setting is not its switch (the doctrine's is)
     const hs = paused ? [0, 0] : hitResponse.shake(dt);
     if (hs[0] || hs[1]) {
@@ -110,7 +110,7 @@ export class CameraRecoiler {
     const yAngle = Math.sin(this.timer) * scalar * this.swayAxis[1];
     cam.pitch -= xAngle * DEG; // Rotate(+x) pitches DOWN in Unity's frame; the port's +pitch looks up
     cam.yaw += yAngle * DEG; // Rotate(+y) turns right, as the port's +yaw does
-    this.applied = [this.applied[0] + xAngle, this.applied[1] + yAngle]; // HIT-RESPONSE: beside the shake laid above
+    this.applied = [this.applied[0] + xAngle, this.applied[1] + yAngle]; // Beside the shake laid above
     this.swaying = this.timer > 0;
     return true;
   }

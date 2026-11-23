@@ -22,13 +22,25 @@ export const modResourceAllowed = path => {
   const pack=packForPath(path);
   return !pack || (modGroupEnabled(pack.group) && removed[pack.id] !== true);
 };
+// The manifest is immutable after mounting. Keep its identity out of every per-actor cache key.
+let desktopManifestKey = '';
+async function manifestKey(paths) {
+  const json = JSON.stringify(paths);
+  if (!globalThis.crypto?.subtle) return json;
+  try {
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return json;
+  }
+}
 let presentationRevision = 0;
 export const noteModPresentationChanged = () => { presentationRevision++; };
 export const modResourceSignature = () => JSON.stringify([
   presentationRevision,
   Object.entries(disabled).filter(([,value])=>value===false).sort(),
   Object.entries(removed).filter(([,value])=>value===true).sort(),
-  [...desktopPack.keys()],
+  desktopManifestKey,
   [...records.values()].map(pack=>[pack.id,pack.revision||0]).sort(),
 ]);
 
@@ -47,10 +59,12 @@ export function initEnhancedModResources() {
           const payload = await manifest.json();
           if (!Array.isArray(payload) || payload.some(name => typeof name !== 'string' || !name.startsWith('Mods/'))) throw new Error('Invalid EMC resource list');
           const stablePaths = manifest.headers?.get('X-DFO-EMC-Paths') === '1';
+          const keyForManifest = await manifestKey(payload);
           payload.forEach((name, index) => {
             const key = stablePaths ? 'file/' + name.split('/').map(encodeURIComponent).join('/') : index;
             desktopPack.set(name, 'dagger://game/test-emc/' + key);
           });
+          desktopManifestKey = keyForManifest;
           modDiagnostics.record({ level: payload.length ? 'info' : 'warn', phase: 'emc', action: 'emc-mounted', details: { files: payload.length, stablePaths } });
         }
       } catch (error) { modDiagnostics.record({ level: 'error', phase: 'emc', action: 'emc-mount-failed', message: String(error) }); }

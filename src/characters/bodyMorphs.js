@@ -2,7 +2,7 @@
 // Values are normalized to [-1, 1] and persisted per browser profile.
 import { normalizeSavedHairColor } from './hairColor.js';
 import { getBool, setValue, saveSettings, onSettingChange } from '../systems/settings/settings.js';
-// BODY-SHAPE (characters/bodyShape.js): each label names what the slider visibly does on the Better Bodies mesh.
+// Each label names what the slider visibly does on the Better Bodies mesh.
 // Height, arm length and leg length are gone: a vertex morph cannot lengthen a body whose head, hands and worn
 // armour hang from bones - they need the skeleton's own scale, a separate change.
 export const BODY_MORPH_FIELDS = [
@@ -62,7 +62,7 @@ export function resetBodyMorphs() {
   return { ...cached };
 }
 
-// NUDITY-SYNC: the editor's «Нижнее бельё» and the settings' Show Nudity
+// The editor's «Нижнее бельё» and the settings' Show Nudity
 // (ChildGuard/PlayerNudity - the paperdoll's welds) are ONE switch, underwear
 // = !nudity. The editor's saved choice is the authority: on first read it is
 // written over a setting that disagrees; a later Show Nudity change in the

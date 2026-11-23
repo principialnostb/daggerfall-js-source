@@ -7,6 +7,7 @@
 //   #71  LiveSpeed is re-read every pass, not captured at spawn
 //   #72  CanAct carries no hostility term - a pacified foe with a
 //        FOE target still pursues
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -19,7 +20,7 @@ import { EnemyAttack, ATTACK_SPEED_FLOOR } from '../../src/characters/enemy/enem
 import { collectDungeonEnemies } from '../../src/characters/dungeonEnemies.js';
 import { liveStat } from '../../src/systems/statMods.js';
 
-const ROOT = new URL('../..', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const rd = (p) => readFileSync(join(ROOT, p), 'utf8');
 const clearCollider = () => ({
   raycast: () => Infinity,

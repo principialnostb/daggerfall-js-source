@@ -207,8 +207,8 @@
   {
     "name": "CLIMBHANDS2-morrowind-climbs-only-armed",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "!gunSliding && !armCasts && !armsClimb && !runHands && !armsRun)) return;",
-    "new": "!gunSliding && !armCasts && !runHands && !armsRun)) return;",
+    "old": "      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun && !armsMovement && !armsSheathe)) {",
+    "new": "      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !runHands && !armsRun && !armsMovement && !armsSheathe)) {",
     "tests": [
       "test/combat/climbhands2.test.js",
       "test/combat/mwcast1.test.js"

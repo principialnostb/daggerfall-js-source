@@ -188,7 +188,7 @@ export const WRITERS = {
     o.u32(rec.drawMode ?? 0);
   },
 
-  // MW-STEEL2: A SKIN, so a test can stand a SKINNED body - a retail body part's own records - on a skeleton whose
+  // A SKIN, so a test can stand a SKINNED body - a retail body part's own records - on a skeleton whose
   // rest is not its bind pose, which is what the plate's T-pose fault needed and no rigid fixture can show. The
   // reader's field order exactly (mwNifFile.js NiSkinInstance / NiSkinData): the instance names its data, its
   // skeleton root and its bones; the data carries the skin's own transform, the bone count, the 4.0.0.2 partition ref,
@@ -199,7 +199,7 @@ export const WRITERS = {
     o.refList(rec.bones ?? []);
   },
 
-  // MW-CAST1: AN EXTERNAL .KF, so a test can stand an arm whose clips carry a group no committed fixture has (the
+  // AN EXTERNAL .KF, so a test can stand an arm whose clips carry a group no committed fixture has (the
   // spellcast group). The reader's field order exactly (mwNifFile.js): the helper is a bare NiObjectNET whose extra
   // chain is the text keys and then one bone name per controller, and whose controller chain is the keyframe
   // controllers in the same order. Held to the reader by a round trip: armfpweapon.kf parsed and written back is the
@@ -247,7 +247,7 @@ export const WRITERS = {
     keyGroup(o, rec.scales, 1);
   },
 
-  // MW-BOW1: a bow's limbs and string, drawn - the reader's NiGeomMorpherController (the time controller, the data,
+  // A bow's limbs and string, drawn - the reader's NiGeomMorpherController (the time controller, the data,
   // `alwaysUpdate`) and NiMorphData (the morph count, the vertex count, the relative-targets byte, then each morph's
   // float keys - a quadratic key's tangents after its value, a TBC key's three floats - and its vectors).
   NiGeomMorpherController(o, rec) {
@@ -297,7 +297,7 @@ export const WRITERS = {
   },
 };
 
-/** MW-CAST1: a KeyGroup<T> as the reader takes it (mwNifFile.js readKeyGroupOf): the count, then - only when there are
+/** A KeyGroup<T> as the reader takes it (mwNifFile.js readKeyGroupOf): the count, then - only when there are
  *  keys - the interpolation type and the keys, a quadratic key's two tangents and a TBC key's three floats after its
  *  value. `dim` is 1 for a float group, 3 for a vector. */
 function keyGroup(o, group, dim) {
@@ -369,15 +369,7 @@ export function meshToNif(mesh, { texture = null, node = null, keepV = false } =
   return meshesToNif([{ mesh, texture }], { node, keepV });
 }
 
-/**
- * MW-STEEL1: SEVERAL baked meshes as ONE part, each shape with its own
- * texture - the closed steel helm is a shell and a visor painted from two
- * pictures, and a part is one file. Every shape is written exactly as
- * meshToNif writes its one (nameless, its own material, texturing and
- * stencil, its own source), in order under the one root, so a single
- * mesh is the same records, the same indices and the same bytes it
- * always was.
- */
+/** Keep each shape's material, texture and stencil when writing a multi-shape NIF. */
 export function meshesToNif(shapes, { node = null, keepV = false } = {}) {
   if (!shapes?.length) throw new Error('no meshes to write');
   // 0: the root. Rule 34 wipes its transform in the parser anyway.
@@ -441,27 +433,7 @@ function rigidInverse({ a, t }) {
   };
 }
 
-/**
- * MW-STEEL4: SEVERAL baked meshes as ONE SKINNED part, the shape a retail body part or armour piece has - each shape
- * a NiSkinInstance over named bones and a NiSkinData of their inverse binds and weights, so the reader takes it on
- * the very path it takes Morrowind's own (bindPart's skinned branch, rule 12: rebound onto the wearer's skeleton by
- * the bones' NAMES, never parented to a bone; drawn by skinBatch, rule 20).
- *
- * `bones` is `[{ name, bind: { a, t } }]`: where each bone stood in the BIND POSE, in the frame the meshes are
- * authored in (`a` row-major, as mwAffine's affines are). Each shape is `{ mesh, texture, name, weights }`, `name`
- * the shape's own (rule 15's filter picks a skinned part's geometry by it: "Tri Right Hand 0" for the right hand),
- * and `weights` one `[[boneName, weight], ...]` list per vertex. What is written for each:
- *
- *   NiSkinInstance  its data, the root (0) as its skeleton root, and the bones the shape weights, in `bones` order
- *   NiSkinData      an identity skin transform, and per bone its INVERSE BIND - the bind undone, mesh space to bone
- *                   space, as rule 19 reads it (no inversion at load) - its vertices' bounding sphere in that bone's
- *                   space, and its (vertex, weight) list
- *
- * and the bones themselves, as NiNodes under the root standing at their binds, after every shape: the file is its own
- * bind pose, so a tool that skins it against its own nodes (NifSkope) draws it where it was authored. The port never
- * reads them - a rebound part's bones are the wearer's (rule 12) - and so their order costs a shape's records nothing:
- * a rigid shape here would be the records meshesToNif writes.
- */
+/** Write multiple skinned shapes under one root, each with its own NiSkinInstance and material. */
 export function skinnedMeshesToNif(shapes, { node, bones, keepV = false }) {
   if (!shapes?.length) throw new Error('no meshes to write');
   if (!bones?.length) throw new Error('a skinned part needs its bones');

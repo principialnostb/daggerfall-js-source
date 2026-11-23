@@ -1,4 +1,4 @@
-// BODY-WEIGHT (MOTION-DOCTRINE pilot step 2, bible/05-Combat/Motion-Doctrine.md section 7): one weight from what the body
+// One weight from what the body
 // wears and holds, and the trunk's spring answer to the body's real acceleration - forward into a start, back against a
 // stop, settling with a little overshoot; heavier is slower and deeper; laid over the clip's trunk, the legs untouched.
 import { test } from 'node:test';
@@ -141,7 +141,7 @@ const mul33 = (a, b) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => a[r * 3] *
 
 test('BODY-WEIGHT: the rig steps it behind the MotionDoctrine switch and lays it over the body-motion slot', () => {
   const src = readFileSync(new URL('../../../src/combat/fpArm.js', import.meta.url), 'utf8');
-  assert.match(src, /bodyWeight\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third', cam, lastBuildOpts\?\.armor, thirdBuilt\?\.mwType, dead, motion\.word\(\), movementState, movementSource, movementAnimSpeed\)/);   // RUN-STRIDE: the movement clip to the run's stride
+  assert.match(src, /bodyWeight\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third', cam, lastBuildOpts\?\.armor, thirdBuilt\?\.mwType, dead, motion\.word\(\), movementState, movementSource, movementAnimSpeed\)/);   // The movement clip to the run's stride
   assert.match(src, /bodyWeight\.moveRate\(Math\.min\(MOVEMENT_SPEED_CAP,/, 'RUN-STRIDE: the movement rate read through the stride of a run');
-  assert.match(src, /motion: bodyWeight\.slot\(motion\.slot\)/);   // PIN MOVED back (STRIDE set aside, Motion-Doctrine.md 7d)
+  assert.match(src, /motion: bodyWeight\.slot\(motion\.slot\)/);   
 });

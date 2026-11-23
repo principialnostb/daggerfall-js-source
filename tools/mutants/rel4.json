@@ -97,8 +97,8 @@
   {
     "name": "REL5-1-the-version-is-back-in-the-installer-name",
     "file": "app/package.json",
-    "old": "      \"artifactName\": \"DFO-Online-win-${arch}-setup.${ext}\",\n",
-    "new": "      \"artifactName\": \"DFO-Online-${version}-win-${arch}-setup.${ext}\",\n",
+    "old": "      \"artifactName\": \"DFO-Online-Mod-win-${arch}-setup.${ext}\",\n",
+    "new": "      \"artifactName\": \"DFO-Online-Mod-${version}-win-${arch}-setup.${ext}\",\n",
     "tests": [
       "test/tooling/rel4_release.test.js",
       "test/tooling/relwin1.test.js"

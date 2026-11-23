@@ -13,7 +13,7 @@ const FILES = IN_BROWSER
       '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
       "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
       // MAO files remain user-supplied under Mods/Animations; they are not vendored in this repository.
-      // MAO-SOURCE (2026-10-30): the pack ships Xbase_anim.kf, and the glob is case-sensitive - spelled in lower case it
+      // The pack ships Xbase_anim.kf, and the glob is case-sensitive - spelled in lower case it
       // found nothing, and the setting silently left the game's own clips playing
       '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf',
       '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim_female.kf',
@@ -21,7 +21,7 @@ const FILES = IN_BROWSER
       '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
       "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
       // MAO files remain user-supplied under Mods/Animations; they are not vendored in this repository.
-      // MAO-SOURCE (2026-10-30): the pack ships Xbase_anim.kf, and the glob is case-sensitive - spelled in lower case it
+      // The pack ships Xbase_anim.kf, and the glob is case-sensitive - spelled in lower case it
       // found nothing, and the setting silently left the game's own clips playing
       '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf',
       '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim_female.kf',
@@ -139,7 +139,7 @@ export async function loadWalkAnimationAssets({ female = false, shield = false }
     { entry: axelFemale, variant: 'axel', family: 'walk' },
     { entry: axelRunFemale, variant: 'axel', family: 'run' },
   ] : [];
-  // MAO-SOURCE (2026-10-30, the owner compared Vanilla and MAO in the game): the pack's movement is the standard - its run
+  // The pack's movement is the standard - its run
   // and its walks in a stance; the plain walk, the stance and the blows stay as they were. No setting: the choice is made.
   const overhaul = { variant: 'overhaul', family: 'all', movementOnly: true };
   const overhaulEntries = animationOverhaulEntries({ female, shield, base: overhaulMale, femaleOverride: overhaulFemale });
@@ -549,7 +549,7 @@ export function inspectWalkAnimationAssets() {
   };
 }
 
-/** MAO-SOURCE: the groups the overhaul answers: a run, a sneak, a turn in place and a walk in a stance (walkforward2c) - not
+/** The groups the overhaul answers: a run, a sneak, a turn in place and a walk in a stance (walkforward2c) - not
  *  the plain walk with no stance (walkforward, walkback, walkleft, walkright: the owner kept the one it had), an idle, a
  *  jump or a blow. */
 export function isMovementAnimationGroup(name) {
@@ -648,7 +648,7 @@ export function runVariantForActor({
 /** MAO's female file is a sparse override, not a replacement for the shared library.
  * Later sources win per group, as in tpAnimSources / OpenMW NpcAnimation. */
 export function animationOverhaulEntries({ female = false, shield = false, base = null, femaleOverride = null } = {}) {
-  // SHIELD-WALK-UPRIGHT (the owner, 2026-11-12: the woman's shield stood upright "before we moved the build"): inheriting
+  // Inheriting
   // the shared library gave her MAO's walkleft1h arm, which tilts the shield 45 degrees. Under a shield she keeps her own
   // file alone, so the archive's upright strafe arm holds it, as it did.
   if (female && shield && femaleOverride) return [femaleOverride];
@@ -663,7 +663,7 @@ export function isFistAnimationGroup(name) {
 /** Keep source admission in one place for the runtime and diagnostic comparisons. */
 export function selectAnimationFamily(asset, report) {
   const isOverhaul = asset.family === 'all' || asset.animationOverhaul === true;
-  // SHIELD-WALK-UPRIGHT: under a shield the armed movement groups stay the archive's - its strafe arm holds the shield upright
+  // Under a shield the armed movement groups stay the archive's - its strafe arm holds the shield upright
   const bare = (name) => isMovementAnimationGroup(name) && !/(?:1h|hh)$/i.test(String(name ?? '').trim());
   const accepts = asset.family === 'fists' ? isFistAnimationGroup : asset.movementOnly ? (asset.bareOnly ? bare : isMovementAnimationGroup)
     : asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;

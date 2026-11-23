@@ -2,8 +2,8 @@
   {
     "name": "BLOW-FLOW-the-return-snapped",
     "file": "src/combat/blowFlow.js",
-    "old": "  if (fromBlow) return BLOW_FLOW.exit;",
-    "new": "  if (fromBlow) return 0;",
+    "old": "  if (fromBlow) return fists ? FIST_PACE.exit : BLOW_FLOW.exit;   // The fist is taken back, not let down",
+    "new": "  if (fromBlow) return fists ? FIST_PACE.exit : 0;   // The fist is taken back, not let down",
     "tests": [
       "test/combat/blowflow.test.js"
     ]
@@ -20,7 +20,7 @@
   {
     "name": "BLOW-FLOW-no-window-after-the-blow",
     "file": "src/combat/fpArm.js",
-    "old": "    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType))) return;",
+    "old": "    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType, blowPlan?.fists))) return;",
     "new": "    if (playing) return;",
     "tests": [
       "test/combat/mwpace1.test.js"
@@ -65,8 +65,8 @@
   {
     "name": "MW-PACE3-the-release-not-snapped",
     "file": "src/combat/blowFlow.js",
-    "old": "  const windRate = PACE.wind * sf, relRate = PACE.release * sf;",
-    "new": "  const windRate = PACE.wind * sf, relRate = PACE.wind * sf;",
+    "old": "  const windRate = pace.wind * sf, relRate = pace.release * sf;",
+    "new": "  const windRate = pace.wind * sf, relRate = pace.wind * sf;",
     "tests": [
       "test/combat/blowflow.test.js",
       "test/combat/mwpace1.test.js"
@@ -111,8 +111,8 @@
   {
     "name": "BLOW-FLOW-into-a-blow-at-once",
     "file": "src/combat/blowFlow.js",
-    "old": "  if (toBlow) return BLOW_FLOW.entry;\n",
-    "new": "",
+    "old": "  if (toBlow) return fists ? FIST_PACE.entry : BLOW_FLOW.entry;",
+    "new": "  if (toBlow) return fists ? FIST_PACE.entry : 0;",
     "tests": [
       "test/combat/blowflow.test.js"
     ]
@@ -120,8 +120,8 @@
   {
     "name": "BLOW-RETURN-the-carry-at-once",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "        w: w * back,",
-    "new": "        w,",
+    "old": "        w: w * back * entry,",
+    "new": "        w: w * entry,",
     "tests": [
       "test/combat/blowflow.test.js"
     ]
@@ -147,8 +147,8 @@
   {
     "name": "SERIES-FLOW-the-press-lost",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "      if (taken) { attackSeries.consume(); fpAttack(taken, dt); }",
-    "new": "      if (strike) { attackSeries.consume(); fpAttack(strike, dt); }",
+    "old": "      if (taken) { attackSeries.consume(flow); fpAttack(taken, dt); }",
+    "new": "      if (strike) { attackSeries.consume(flow); fpAttack(strike, dt); }",
     "tests": [
       "test/combat/weapon/weaponrig.test.js"
     ]
@@ -156,8 +156,8 @@
   {
     "name": "SERIES-FLOW-a-window-inside-the-series",
     "file": "src/combat/blowFlow.js",
-    "old": "  if (series && plan?.seriesBase > 0) return plan.seriesBase * (1.5 - q);",
-    "new": "  if (false && series && plan?.seriesBase > 0) return plan.seriesBase * (1.5 - q);",
+    "old": "  if (series && plan?.seriesBase > 0) return Math.max(lone * (plan.flow ? BLOW_STYLE.floor : 1), plan.seriesBase * (1.5 - q));",
+    "new": "  if (false && series && plan?.seriesBase > 0) return Math.max(lone * (plan.flow ? BLOW_STYLE.floor : 1), plan.seriesBase * (1.5 - q));",
     "tests": [
       "test/combat/mwpace1.test.js"
     ]
@@ -165,8 +165,8 @@
   {
     "name": "SERIES-FLOW-the-wait-cut-short",
     "file": "src/combat/fpArm.js",
-    "old": "if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait) break;",
-    "new": "if (recovering && seriesWanted && recoverHeld < holdFor(attackType)) break;",
+    "old": "        if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait && !blowPlan?.fists) break;   // PUNCH-READY: a fist waits for the next punch in its guard, cocked - not frozen in its follow-through",
+    "new": "        if (recovering && seriesWanted && recoverHeld < holdFor(attackType) && !blowPlan?.fists) break;   // PUNCH-READY: a fist waits for the next punch in its guard, cocked - not frozen in its follow-through",
     "tests": [
       "test/combat/mwpace1.test.js"
     ]
@@ -174,8 +174,8 @@
   {
     "name": "BLOW-FLOW-a-thrust-holds-as-a-cut",
     "file": "src/combat/blowFlow.js",
-    "old": "export const holdFor = (attackType) => (attackType === 'thrust' ? BLOW_FLOW.thrustHold : BLOW_FLOW.hold);",
-    "new": "export const holdFor = () => BLOW_FLOW.hold;",
+    "old": "export const holdFor = (attackType, fists = false) => (fists ? FIST_PACE.hold : attackType === 'thrust' ? BLOW_FLOW.thrustHold : BLOW_FLOW.hold);",
+    "new": "export const holdFor = (attackType, fists = false) => (fists ? FIST_PACE.hold : attackType === 'thrust' ? BLOW_FLOW.hold : BLOW_FLOW.hold);",
     "tests": [
       "test/combat/mwpace1.test.js"
     ]
@@ -183,8 +183,8 @@
   {
     "name": "BASH-EXIT-the-sword-arm-dropped-at-once",
     "file": "src/combat/fpArm.js",
-    "old": "if (((blowBash && attackingNow()) || bashExit > 0) && idle)",
-    "new": "if (((blowBash && attackingNow())) && idle)",
+    "old": "    if (modGroupEnabled('animations') && ((blowBash && attackingNow()) || bashExit > 0) && idle) { req.limbs = { R: { clip: idle, side: 'R', mirror: false } }; req.carry.key = 'bash'; }",
+    "new": "    if (modGroupEnabled('animations') && ((blowBash && attackingNow())) && idle) { req.limbs = { R: { clip: idle, side: 'R', mirror: false } }; req.carry.key = 'bash'; }",
     "tests": [
       "test/combat/blowflow.test.js"
     ]

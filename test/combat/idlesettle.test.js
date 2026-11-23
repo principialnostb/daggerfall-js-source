@@ -1,4 +1,4 @@
-// IDLE-SETTLE (MOTION-DOCTRINE; bible/05-Combat/Motion-Doctrine.md): a stop lands the fresh idle where its legs are
+// A stop lands the fresh idle where its legs are
 // quiet - read off the clip's own lower-body tracks - instead of at its start, where a stance's idle shifts its weight.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -46,7 +46,7 @@ test('IDLE-SETTLE: the start is read once per source and group, and settleIdle m
 
 test('IDLE-SETTLE: the rig settles the idle only on a stop, behind the MotionDoctrine switch', () => {
   const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
-  assert.match(src, /if \(movementState && !keepMove\) \{ resetMovement\(\); resetIdle\(modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\); \}/);   // PIN MOVED (MOVE-GRACE)
+  assert.match(src, /if \(movementState && !keepMove\) \{ resetMovement\(\); resetIdle\(modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\); \}/);   
   assert.match(src, /function resetIdle\(settle = false\) \{ idleState = null; idleGroup = null; refreshIdle\(true, settle\); \}/);
   assert.match(src, /if \(settle\) settleIdle\(idleState, idleSource, sampleTrack\);/);
 });

@@ -1,4 +1,4 @@
-// MOD-DIAG1: structured diagnostics for third-party asset integration.
+// Structured diagnostics for third-party asset integration.
 // The collector is deliberately host-neutral: Electron writes durable NDJSON files;
 // browser/headless hosts remain useful without granting arbitrary filesystem access.
 

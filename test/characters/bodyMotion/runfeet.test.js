@@ -1,4 +1,4 @@
-// RUN-FEET: a lengthened stride swings the legs further and leaves each foot turned as its clip turned it.
+// A lengthened stride swings the legs further and leaves each foot turned as its clip turned it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';

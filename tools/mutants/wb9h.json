@@ -56,8 +56,8 @@
   {
     "name": "WB9h-the-stale-drawn-stale",
     "file": "src/net/peer/peerBodies.js",
-    "old": "      if (b.stale) {",
-    "new": "      if (false) {",
+    "old": "      if (b.stale || b.posedAt !== this._frame) {",
+    "new": "      if (b.posedAt !== this._frame) {",
     "tests": [
       "test/net/peer/wb9h_crowd_bodies.test.js"
     ]

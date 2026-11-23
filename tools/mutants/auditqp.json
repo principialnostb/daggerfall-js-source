@@ -102,8 +102,8 @@
   {
     "name": "AQP-D4-spacing-pushes-own-puppets",
     "file": "src/scenes/dungeonContext.js",
-    "old": "spacingSkips(f) || f._ownFrom != null || (!_authority && isRoomFoe(f, i))",
-    "new": "spacingSkips(f) || (!_authority && isRoomFoe(f, i))",
+    "old": "    spaceFoes(foes, collider, foeFrameDt(dt), (f, i) => spacingSkips(f) || f._ownFrom != null || (!_authority && isRoomFoe(f, i)));   // AUDIT (pre-merge) D4: a party member's own foe (QUEST-PARTY 3c, SUMMON-SYNC) is a puppet too - its runner's frame places it",
+    "new": "    spaceFoes(foes, collider, foeFrameDt(dt), (f, i) => spacingSkips(f) || (!_authority && isRoomFoe(f, i)));   // AUDIT (pre-merge) D4: a party member's own foe (QUEST-PARTY 3c, SUMMON-SYNC) is a puppet too - its runner's frame places it",
     "tests": [
       "test/scenes/foespacing.test.js"
     ]

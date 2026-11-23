@@ -130,8 +130,8 @@
   {
     "name": "AP-A5-click-door-ungated",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "      if (armCannotDraw() || (pelletsOwed() && !playerWeapon.mixedPair)) return;",
-    "new": "      if (armCannotDraw()) return;",
+    "old": "      if (armCannotDraw() || armCannotSwing() || (pelletsOwed() && !playerWeapon.mixedPair)) return;   // BOW-CLOCK: nor a shot the Morrowind arm cannot draw yet; AUDIT PISTOL-PORT A5: nor one with no Pellet left for it (MIXED-PAIR: the pair's dry gun gives its pull to the blade - gunReady)",
+    "new": "      if (armCannotDraw() || armCannotSwing()) return;   // BOW-CLOCK: nor a shot the Morrowind arm cannot draw yet; AUDIT PISTOL-PORT A5: nor one with no Pellet left for it (MIXED-PAIR: the pair's dry gun gives its pull to the blade - gunReady)",
     "tests": [
       "test/combat/gun/pistolport_audit.test.js"
     ]

@@ -7,7 +7,7 @@ import { betterBodiesTextureStem } from '../../../src/formats/morrowind/mwBetter
 import { getBool, setValue } from '../../../src/systems/settings/settings.js';
 import { existsSync, readdirSync } from 'node:fs';
 
-// BODY-SHAPE: a bare box is read with the rest landmarks (feet 0, neck top 1) and the front along -y,
+// A bare box is read with the rest landmarks (feet 0, neck top 1) and the front along -y,
 // the frame Better Bodies' own rest mesh was measured in.
 const bounds = { minX: -1, maxX: 1, minY: -1, maxY: 1, minZ: 0, maxZ: 1 };
 const u = REST_LANDMARKS.neck - REST_LANDMARKS.pelvis;

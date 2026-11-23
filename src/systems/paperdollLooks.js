@@ -2,23 +2,8 @@ import { itemAppearanceKey } from './item/itemAppearanceKey.js';
 import { clothingKind } from './item/clothingKinds.js';
 import { clothingDisplayTemplate } from './item/clothingDisplay.js';
 import { ITEM_TEMPLATES } from './item/itemTemplates.js';
-// PAPERDOLL-LOOKS (BLOODBATH, 2026-11-08; bible/10-UI/Enhanced-Mod-Compatibility.md "2D card looks"): THE 2D LOOK OF A
-// PIECE ON THE PLAYER'S OWN INVENTORY CARD - the paperdoll figure and the piece's icon in the player's lists. Local and
-// cosmetic only: it never changes item.variant or item.templateIndex (shared with gameplay, the Wardrobe, 3D imports and
-// the wire), never reaches a peer, and is not the Wardrobe's look (net/appearanceLaw.js), which is drawn first - a
-// piece wearing a Wardrobe look is customised as the piece it is drawn as.
-//
-// DEPARTURE from DFU: Daggerfall Unity draws a piece's own record only (ItemHelper.GetItemImage); this picks another of
-// the game's own records for it. Paperdoll Enhanced replaces the same records (it adds none), so the same choice works
-// with the mod and without it.
-//
-// What a piece may wear:
-// - armour 102-108: its template's styles inside its OWN material family (armorMaterials.js clampArmorVariant - the
-//   owner's choice, 2026-11-08: "только своего материала"); a helm keeps its six;
-// - clothing with styles: any of its template's styles;
-// - weapons and shields: the record of another template of the same class and hands (PAPERDOLL_CLASSES below), so the
-//   doll's either-hand record law still holds for the drawn picture.
-// Choices that resolve to the same record as the piece's own, or as an earlier choice, are dropped: no duplicates.
+// Paperdoll and inventory icon choices are local cosmetics. Preserve the item's gameplay variant and equipment
+// data.
 import { getPref, setPref } from './uiPrefs.js';
 import { getTemplate } from '../characters/paperdoll/paperdoll.js';
 import { resolvePaperdollRecord } from '../characters/paperdoll/paperdollArt.js';
@@ -26,8 +11,8 @@ import { clampArmorVariant } from './armorMaterials.js';
 import { getItemHands } from './equip.js';
 import { drawnPiece } from '../net/appearanceLaw.js';
 import { setPaperdollLookSource } from './paperdollLookSource.js';
-import { hoodCapable, hoodUp } from './survival/temperature.js';   // HOOD-LOOKS: the one hood law (cloakState)
-import { CLOTHING_DYES } from '../characters/dyes.js';   // GARMENT-DYES: the ten cloth dyes
+import { hoodCapable, hoodUp } from './survival/temperature.js';   // The one hood law (cloakState)
+import { CLOTHING_DYES } from '../characters/dyes.js';   // The ten cloth dyes
 
 export const PAPERDOLL_LOOKS_PREF = 'paperdollLooks';
 /** The helmet-only store this module grew from; read for helms that have no entry in the new one. */
@@ -44,11 +29,7 @@ export const PAPERDOLL_CLASSES = Object.freeze({
   129: 'bow', 130: 'bow',
 });
 
-/** GARMENT-KINDS (BLOODBATH, 2026-11-08, the owner: "нет смысла ограничивать по цвету и форме вещи ... подобрать хотя бы
- *  где футболка где полное облачение"): A GARMENT'S 2D KIND, by what it covers. A garment may be drawn as any style of any
- *  garment of its kind on its own body's sheet (Daggerfall's men's 141-181 on archive 239, women's 182-216 on 235), its
- *  dye kept. Paperdoll Enhanced adds no record to choose (it repaints the same 111 clothing and 37 armour records, by dye
- *  and metal, women's archives alone - measured 2026-11-08), so the kinds are what widen the choice. */
+/** Group garments by body coverage so a chosen style uses a compatible paperdoll slot. */
 export { GARMENT_KINDS } from './item/clothingKinds.js';
 const CLOTHING_TEMPLATES = Array.from({ length: 216 - 141 + 1 }, (_, i) => 141 + i);
 /** A garment template's kind, or null. */
@@ -62,8 +43,7 @@ const stylesOf = (t) => Math.max(1, getTemplate(t)?.variants ?? 0);
 
 const groupOf = (t) => (t >= 109 && t <= 112 ? 'Armor' : 'Weapons');
 const classKey = (t) => `${PAPERDOLL_CLASSES[t]}:${getItemHands({ group: groupOf(t), templateIndex: t })}`;
-// HOOD-LOOKS (BLOODBATH, 2026-11-08, the owner: "учитывался какой плащ поднят капюшон или нет ... а то там щас всё
-// вперемешку"): a cloak's and plain robes' styles are hood-up and hood-down pictures (temperature.js
+// A cloak's and plain robes' styles are hood-up and hood-down pictures (temperature.js
 // HOODED_CLOAK_VARIANTS, HOODED_ROBES' variant 1). A garment that carries a hood is offered only the styles drawn as it is
 // worn now, and keeps one choice for each - raising the hood shows the hood-up choice, lowering it the other.
 const hoodKey = (piece) => (hoodCapable(piece) ? (hoodUp(piece) ? ':hood' : ':bare') : '');
@@ -120,7 +100,7 @@ export function paperdollLookChoices(item, identity = undefined) {
   const out = [];
   const own = mode === 'template' ? { t: piece.templateIndex } : { v: naturalVariant(piece, t) };
   seen.add(drawnIdentity(piece, own));
-  const hooded = hoodUp(piece);   // HOOD-LOOKS: a style drawn hood up only while the hood is up, never on a garment that has none
+  const hooded = hoodUp(piece);   // A style drawn hood up only while the hood is up, never on a garment that has none
   const candidates = mode === 'variant'
     ? Array.from({ length: t.variants }, (_, v) => ({ v }))
     : mode === 'garment'
@@ -143,7 +123,7 @@ const allBodyChoices = (item) => [...paperdollLookChoices(item), ...paperdollLoo
 const sameLook = (a, b) => !!a && !!b && a.v === b.v && a.t === b.t;
 const validLook = (raw) => !!raw && typeof raw === 'object' && (Number.isInteger(raw.v) || Number.isInteger(raw.t));
 const storedLook = (look) => (look.t !== undefined && look.v !== undefined ? { t: look.t, v: look.v } : look.v !== undefined ? { v: look.v } : { t: look.t });
-/** GARMENT-DYES (BLOODBATH, 2026-11-08, the owner: "лишь 1 цвет представлен"): a garment's 2D colour is chosen apart from
+/** A garment's 2D colour is chosen apart from
  *  its shape - one of Daggerfall's ten cloth dyes, kept beside the shape in the same entry (`d`). Paperdoll Enhanced paints
  *  every record in every one of them, so its pictures follow too. */
 const dyesFor = (piece) => piece && !piece.artifact && piece.rarity !== 'gilded' && CLOTHING_GROUPS.has(piece.group) ? CLOTHING_DYES : [];
@@ -205,7 +185,7 @@ export function setPaperdollLook(item, look) {
   if (sameLook(now, look) || (look === null && now === null)) return false;
   const key = storeKey(item, true);
   const looks = { ...(getPref(PAPERDOLL_LOOKS_PREF) ?? {}) };
-  const dye = looks[key] && dyesFor(drawnPiece(item)).includes(looks[key].d) ? { d: looks[key].d } : {};   // GARMENT-DYES: the colour stays when the shape changes
+  const dye = looks[key] && dyesFor(drawnPiece(item)).includes(looks[key].d) ? { d: looks[key].d } : {};   // The colour stays when the shape changes
   if (look === null && !Object.keys(dye).length) delete looks[key];
   else looks[key] = { ...(look ? storedLook(look) : {}), ...dye };
   setPref(PAPERDOLL_LOOKS_PREF, looks);

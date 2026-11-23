@@ -195,16 +195,17 @@
     "tests": [
       "test/systems/ve4_vanillaEnhancedShipped.test.js"
     ],
-    "old": "  installVanillaEnhancedPack();   // VE4: the shipped mods, in one load order with the attached\n",
+    "old": "  installVanillaEnhancedPack(testPacks);   // VE4: the shipped mods, in one load order with the attached",
     "new": ""
   },
   {
     "name": "VE4-store-registration-without-the-pack",
-    "file": "src/scenes/dataSource.js",
+    "file": "src/scenes/shared.js",
     "tests": [
       "test/systems/ve4_vanillaEnhancedShipped.test.js"
     ],
-    "old": "  installVanillaEnhancedPack();   // VE4: the shipped mods, in one load order with the attached\n",
-    "new": ""
+    "old": "  const textures = registerTextureStore().catch(() => 0);",
+    "new": "  const textures = Promise.resolve(0);",
+    "note": "Boot skips texture store registration, so shipped and attached packs are unavailable."
   }
 ]

@@ -3,7 +3,7 @@
 // systems/survival/camp.js; this is the ground, the sprite, the mesh,
 // the light, the ray and the menu.
 //
-// HEARTH-3D: the shared pool now draws an original fixed 3D campfire via campfireVisual.js.
+// The shared pool now draws an original fixed 3D campfire via campfireVisual.js.
 // The legacy billboard path remains for renderer adapters without mesh support.
 // The previous presentation: a camp's FIRE is TEXTURE.210 record 1 (the town brazier's flame, the
 // lights archive at 12 fps - FlatAnim picks the rate off the archive)
@@ -166,32 +166,8 @@ export function createCamps({
     if (i >= 0) camps.splice(i, 1);
   }
   const own = () => camps.filter(mine).map((c) => c.rec);
-  /**
-   * AUDIT SURV-TIERS: OFF KEEPS THE CAMPS; IT DOES NOT BURN THEM.
-   *
-   * The pool refused to restore or relay a camp with the arc off (AUDIT
-   * SURV B), so a save LOADED with the arc Off dropped every camp in it
-   * (the next save then had none), and an Off host dropped its peers' camps from the room it
-   * hands on - Off destroyed the ground under the tiers' own promise
-   * that switching it back finds the world where it was. So the DATA is
-   * the world's in every tier: the burn, the save, the scene cache and
-   * the wire keep every camp. What Off takes away is THIS player's USE
-   * of them - the menu, the warmth and the rest a fire makes - which is
-   * every door that reads `shown()`.
-   *
-   * SURV-OFFSIGHT (2026-09-23, Mac: "No, not off.. theres no reason to
-   * have it in off, really only being able to see other people's
-   * campfires makes sense"). WHAT OFF SEES IS NOT WHAT IT USES. Another
-   * player's camp is part of the world the room shares - they sit at
-   * that fire and sleep in that tent - so the doors of SIGHT read
-   * `seen()`: every camp with the arc on, and with it Off every camp that
-   * is not this player's. Sight is the flame, its light and the tent -
-   * and (AUDIT SURV-TIERS, the third pass) the ray, the name and the
-   * look, since a tent the ray passed through had handed the click to
-   * the door behind it. With the arc Off the click opens nothing. This
-   * player's own camps, stood while the arc was on, stay out of sight
-   * with the rest of the arc.
-   */
+  /** Retain camp records when survival is off. The disabled feature hides them and leaves them available when it
+   * is enabled again. */
   // REST2 (bible/06-Systems/Rest-Arc.md section 3): ONLINE THE FIRES ARE EVERYONE'S. A rest online is an act at a fire
   // or a bed (systems/rest/restAct.js), so the Campfire, the camps it stands and the world's braziers are the rest's, not the
   // arc's alone: online every door below opens with the arc Off too. Offline Off is SURV-OFFSIGHT's, unchanged.

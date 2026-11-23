@@ -1,11 +1,4 @@
-// THE MORROWIND BODY THE ARMOUR IS FITTED ON, in the plate scene's frame.
-//
-// MW-IRON1 (2026-10-27, the owner: "что бы оно на тело ложилось на его пропорции идеально и не просвечивали текстуры кожи
-// и прочее"). The player's body is Better Bodies by default (modSettings.js BetterBodiesSource 2) - one NIF of skinned
-// parts, Tri Chest to Tri Right Foot, under Mods/Bodies. Each part's vertices are put where the bind stands them: per
-// vertex, the weighted sum over its bones of the bone's bind (the vendored retail skeleton's, plateBind - the scene's
-// frame the plate is baked in) times the bone's skin transform. A single bone's answer is not enough: Better Bodies'
-// skin transforms disagree by up to 9 units between the bones of one vertex.
+// Fit the armour in the target Morrowind body's frame.
 import { readFileSync } from 'node:fs';
 import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
 import { affineOfTransform } from '../../src/formats/morrowind/mwAffine.js';

@@ -192,8 +192,8 @@
   {
     "name": "GPU-TRAIL-main-sender-unchecked",
     "file": "app/main.cjs",
-    "old": "  if (!gameWindow || gameWindow.isDestroyed() || e.sender !== gameWindow.webContents) return;\n",
-    "new": "",
+    "old": "  if (!gameWindow || gameWindow.isDestroyed() || e.sender !== gameWindow.webContents) return;\n  gpuTrail = trailFrom(trail);",
+    "new": "  gpuTrail = trailFrom(trail);",
     "tests": [
       "test/tooling/gputrail_crashlog.test.js"
     ],

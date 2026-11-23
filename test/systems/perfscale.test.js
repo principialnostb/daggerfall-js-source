@@ -150,7 +150,7 @@ test('PERF-SCALE S2: at 75% the classic world draws into round(canvas x 0.75) an
     assert.equal(frameTarget(), t.fbo); assert.equal(r._frameFbo, t.fbo);
     assert.equal(s.clears.at(-1).fb, t.fbo, 'the world\'s clear lands in the image');
     assert.deepEqual(r.retroImageSpan, [540, 720], 'a sprite sized in canvas pixels is sized in the image\'s (AUDIT RETRO1 C6\'s law)');
-    assert.deepEqual(r.frameInfo, { gpu: r.gpuName, world: [960, 540], canvas: [1280, 720], dpr: Number(globalThis.devicePixelRatio) || 1, scale: 0.75, retro: false });
+    assert.deepEqual(r.frameInfo, { gpu: r.gpuName, world: [960, 540], canvas: [1280, 720], worldDisplayHeight: 720, dpr: Number(globalThis.devicePixelRatio) || 1, scale: 0.75, retro: false });
     const clears = s.clears.length;
     s.draws.length = 0;
     r.drawScreenQuad({ id: 'ui' }, Q);

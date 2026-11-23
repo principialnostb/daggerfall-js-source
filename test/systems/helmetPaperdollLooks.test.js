@@ -13,7 +13,7 @@ test('the helm other five looks change icon and doll together across gender/race
   const previous = getPref(HELMET_2D_PREF), modelLook = lookVariantsOf(helm)?.current;
   try {
     setPref(HELMET_2D_PREF, null);
-    // PAPERDOLL-LOOKS: no duplicates - the helm's own style (2) is "Original", never a second card
+    // No duplicates - the helm's own style (2) is "Original", never a second card
     assert.equal(setHelmetPaperdollVariant(helm, 2), false);
     for (const variant of [0, 1, 3, 4, 5]) {
       assert.equal(setHelmetPaperdollVariant(helm, variant), true);
@@ -81,7 +81,7 @@ test('tabs and row arrows only browse; selecting 2D preserves tab/page on invent
     assert.equal(changes, 1);
     assert.equal(again.children[1].children[0], modelRow);
     await Promise.resolve();
-    // THE TABS (the owner, 2026-11-08): one on, one full-width tab named for it; both on, two
+    // A single available kind of customization gets a full-width tab.
     assert.deepEqual(root.children[0].children.map((b) => b.textContent), ['3D', '2D']);
     setPref('modelCustomization', false);
     assert.deepEqual(helmetAppearancePicker(options).children[0].children.map((b) => b.textContent), ['2D-облик']);

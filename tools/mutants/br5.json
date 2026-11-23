@@ -42,7 +42,7 @@
   {
     "name": "BR5-download-old-name",
     "file": "app/package.json",
-    "old": "\"artifactName\": \"DFO-Online-${os}-${arch}.${ext}\"",
+    "old": "\"artifactName\": \"DFO-Online-Mod-${os}-${arch}.${ext}\"",
     "new": "\"artifactName\": \"DaggerfallOnline-${os}-${arch}.${ext}\"",
     "tests": [
       "test/ui/brand.test.js",
@@ -63,8 +63,8 @@
   {
     "name": "BR5-launcher-wordmark-split",
     "file": "app/launcher/index.html",
-    "old": "<h1 class=\"wordmark\"><img src=\"dfo-online.png\" alt=\"DFO Online\"",
-    "new": "<h1 class=\"wordmark\"><img src=\"dfo-online.png\" alt=\"Daggerfall Online\"",
+    "old": "src=\"daggerfall-online.png\" alt=\"Daggerfall Online\"",
+    "new": "src=\"daggerfall-online.png\" alt=\"Daggerfall Enhanced\"",
     "tests": [
       "test/ui/brand.test.js"
     ],

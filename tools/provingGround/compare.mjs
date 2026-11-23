@@ -1,4 +1,4 @@
-// PROVING-GROUND (bible/05-Combat/Proving-Ground.md): THE LANES SIDE BY SIDE as one picture - for each scenario named,
+// THE LANES SIDE BY SIDE as one picture - for each scenario named,
 // the vanilla, fork and new contact sheets' first rows in a row.  node tools/provingGround/compare.mjs <out.png> <set-scene> ...
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';

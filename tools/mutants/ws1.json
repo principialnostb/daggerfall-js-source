@@ -137,8 +137,8 @@
   {
     "name": "binder-subtree-lost",
     "file": "src/formats/morrowind/mwFirstPerson.js",
-    "old": "underNode: part.underNode, excludeNode: part.excludeNode });   // WS1: a subtree of the file",
-    "new": "});",
+    "old": "        bound = bindElbowSkin(skeleton, mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), underNode: part.underNode, excludeNode: part.excludeNode, hairMode: part.hairMode }));   // WS1: a subtree of the file",
+    "new": "        bound = bindElbowSkin(skeleton, mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), hairMode: part.hairMode }));   // WS1: a subtree of the file",
     "tests": [
       "test/formats/morrowind/ws1_sheathing.test.js"
     ]
@@ -164,8 +164,8 @@
   {
     "name": "data-vendored-before-loose",
     "file": "src/scenes/dataSource.js",
-    "old": "    archives.push(makeLooseArchive(loose));\n  }\n  // WS1:",
-    "new": "  }\n  // WS1:",
+    "old": "    archives.push(ws.weaponSheathingArchive());",
+    "new": "    archives.unshift(ws.weaponSheathingArchive());",
     "tests": [
       "test/formats/morrowind/ws1_sheathing.test.js"
     ]

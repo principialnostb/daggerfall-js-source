@@ -1,18 +1,5 @@
 // @ts-check
-// STRIDE (2026-10-27, MOTION-DOCTRINE; the owner: "run all the animations, walk to run, every variation - I see many
-// small problem moments"). MEASURED on the retail clips (Morrowind.bsa xbase_anim.kf, the port's own readers): the
-// walk's accumulation root travels 154 MW units a second (2.2 m/s), the run's 223 (3.2 m/s), the sneak's 33.5
-// (0.48 m/s) - and Daggerfall moves its body far faster (player/motor.js at Speed 50: a walk 4.4 m/s, a run 8.1, a
-// crouched walk about 1.9). The reference plays a movement clip at the body's speed over the clip's
-// (character.cpp:2392-2408, combat/fpArm.js refreshMovement), so the feet never slide - and so every Daggerfall walk
-// played its legs at 2x, every run at 2.5x, every sneak at 4x: the frantic little steps of a sped-up film.
-// The port's answer (a departure from that rate, presentation only): the speed's ratio `k` is SHARED between the
-// cadence and the stride - the clip plays at `k ** CADENCE` and the legs swing `k / cadence` as far about their own
-// mean pose of the cycle (thighs and calves, their turn from the cycle's mean scaled), never past `maxStride`; the
-// planted foot then crosses the ground at the body's speed as before, in longer, fewer steps. A longer stride stands
-// the hips higher over a straightened leg, so the body is lowered by however much the lower foot rose (`ground`): it
-// keeps the ground the clip stood it on. The body-motion gait (BODY-MOTION, Body-Motion.md) drew its own legs instead
-// and the fork took that out (2026-10-21): this keeps the clip's legs and only lengthens them.
+// Ground speed and the authored clip's foot speed determine the cadence and length of the stride.
 
 import { rotAxisAngle, rotationPart } from '../../combat/climbRig.js';
 import {
@@ -42,29 +29,23 @@ export const STRIDE = Object.freeze({
 export function strideShare(k) {
   if (!(k > 1)) return { rate: Math.max(0, k || 0), stride: 1 };
   const stride = Math.min(STRIDE.maxStride, k ** (1 - STRIDE.cadence));
-  // MAX-RATE (2026-10-28, the owner's game: a sideways run asked 3.86x - Daggerfall strafes at the full run, and a run
-  // sideways's clip covers 73 units a second): past `maxRate` the legs scurry, which reads worse than the little slide
+  // Past `maxRate` the legs scurry, which reads worse than the little slide
   // the rest of the speed then takes
   return { rate: Math.min(STRIDE.maxRate, k / stride), stride };
 }
 
-/** RUN-STRIDE (2026-10-29, the owner: the run "badly broken"; asked between a capped clip and a longer stride: "lengthen
- *  the stride"). Read off the clip: MAO's runforward2c travels 4.57 m/s (320 units), Daggerfall runs at 8.1 (Speed and
- *  Running 50) - the reference's rate played its legs at 1.77x, a 1.2 s cycle in 0.68: the back heel flung to the seat,
- *  a sprinter's patter. For a run the clip now plays at most `maxRate` its own speed and the legs swing the rest of the
- *  ratio about their cycle's mean, up to `maxStride` (past it the rate takes the rest again); the walk keeps its clip as
- *  the owner accepted it. The same law STRIDE was (set aside with the out-of-stance walk, 7d), here only for a run. */
+/** Limit running cadence and make up the remaining ground distance with a longer stride. */
 export const RUN_STRIDE = Object.freeze({ maxRate: 1.36, maxStride: 1.3, calf: -0.8, keepFeet: true });
 /* Measured on the retail rig under MAO's runforward2c at 8.1 m/s: the reference - a 0.49 s cycle, the knee folded to 54
  * degrees, the thighs -36..51; a stride of 1.42 with the calves swung as far folded the knee to 31 and threw the thighs
  * to -57..67 (a sprinter's high knee); 1.3 with the calves' kick held back (`calf` -0.8 of the stride's share): a 0.64 s
  * cycle, the knee at 68 at its tightest, the thighs -51..62, the planted foot keeping the body's pace. */
-/* WALK-STRIDE (2026-10-30, the owner: walking, "the limbs start jerking very fast"; the run with its stride "is smooth"): the
+/* The
  * same law for a walk. Daggerfall walks at 4.4 m/s over clips of 1.8 to 2.2: the legs played at 2 to 2.5x. A walk's stride
  * keeps the knee as the clip has it (`calf` 0: a calf swung as far locked the knee at 178), and a longer swing would lift the
  * toes to 41-63 degrees, so `toeMax` holds them to what MAO's own walk reaches. */
-export const WALK_STRIDE = Object.freeze({ maxRate: 1.5, maxStride: 1.7, calf: 0, toeMax: 22, keepFeet: true }); // RUN-FEET: the walk's feet too
-// PROFILE-WALK: the ordinary forward walk's knee, presentation only. The extended thigh keeps the clip's knee
+export const WALK_STRIDE = Object.freeze({ maxRate: 1.5, maxStride: 1.7, calf: 0, toeMax: 22, keepFeet: true }); // The walk's feet too
+// The ordinary forward walk's knee, presentation only. The extended thigh keeps the clip's knee
 // timing, but gives its flexion some of the longer stride and rounds off near-straight extension (degrees).
 export const WALK_KNEES = Object.freeze({ soft: 15, gain: 0.2, max: 85 });
 export function walkStrideShare(k) {
@@ -159,7 +140,7 @@ export function lengthenLegs(
     if (!local?.rotation) continue;
     const M = quatToMat33(mean);
     const D = mul(local.rotation, transpose(M));
-    // RUN-STRIDE: a calf's own share of the stride (`calf`: 1 as the thigh, under 1 a tighter kick held back)
+    // A calf's own share of the stride (`calf`: 1 as the thigh, under 1 a tighter kick held back)
     const sb = /calf/.test(name) ? 1 + (s - 1) * calf : s;
     pose.set(ref, {
       rotation: Float32Array.from(mul(powRot(D, sb), M)),
@@ -169,7 +150,7 @@ export function lengthenLegs(
     did = true;
   }
   if (!did) return null;
-  // RUN-FEET (the owner, 2026-11-05: the one-hander "runs on its toes", an old one): the swung calf carried its foot with
+  // The swung calf carried its foot with
   // it - the planted foot 14 to 27 degrees more toe-down than its clip (MAO's runs, measured). The feet keep the turn the
   // clip gave them in the rig, the legs alone swing further.
   if (keepFeet && before) {
@@ -191,7 +172,7 @@ export function lengthenLegs(
   if (!feet.length || !Number.isFinite(lowBefore)) return 0;
   const after = skelMats(skeleton, pose, rootRef, measured);
   let dz = Math.min(...feet.map((r) => after.get(r)?.t?.[2] ?? Infinity)) - lowBefore;
-  // STRIDE-SMOOTH: the lower foot changes sides and the height asked leaps with it (13.7 cm/frame^2 of hip jerk in a steady
+  // The lower foot changes sides and the height asked leaps with it (13.7 cm/frame^2 of hip jerk in a steady
   // run): followed, never taken at once
   if (settle) {
     settle.dz = settle.dz == null ? dz : ease(settle.dz, dz, STRIDE_SMOOTH.ground, settle.dt);
@@ -214,7 +195,7 @@ export function lengthenLegs(
   return dz;
 }
 
-/** PROFILE-WALK: retain the clip's knee plane and foot orientation while giving a longer stride a softer knee.
+/** Retain the clip's knee plane and foot orientation while giving a longer stride a softer knee.
  * Applied before the existing ground compensation, so a changed ankle height cannot lift the whole body off the ground.
  * The free forward and back walks opt in (GUARD-BACK-KNEES: without it the back stride's stance foot rose and dipped
  * 13-9-14 cm, a hump its clip does not have); the accepted run keeps its own leg chain. */
@@ -256,7 +237,7 @@ function softenWalkKnees(skeleton, pose, rootRef, skelMats, stride, w) {
   }
 }
 
-/** WALK-STRIDE: a foot whose toes stand more than `toeMax` degrees over their rest pitch turned down to it, about its own
+/** A foot whose toes stand more than `toeMax` degrees over their rest pitch turned down to it, about its own
  *  side, by the share `w`; the ankle's place is kept. */
 function holdToes(skeleton, pose, rootRef, skelMats, toeMax, w) {
   const body = bodyOf(skeleton, rootRef, skelMats);
@@ -355,7 +336,7 @@ export function clipFootSpeed(
   return speed;
 }
 
-/** STRIDE-SMOOTH (2026-10-30, the owner: as the pace rises "small jerks" in the walk and the run): seconds the body's height
+/** Seconds the body's height
  *  (`ground`) and the speed ratio the cadence and the stride are read from (`ratio`) follow what is asked. */
 export const STRIDE_SMOOTH = Object.freeze({ ground: 0.09, ratio: 0.25 });
 

@@ -21,7 +21,7 @@ import { leftArmModeOf, leftArmPlan, createLeftArmLayer, LEFT_ARM_EASE } from '.
 import { U } from '../../../src/characters/bodyMotion/melee.js';
 import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR, betterBodiesSectionKey, armWeightedTriangles } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
-// MW-D8: THE ARM IN THE GAME.
+// THE ARM IN THE GAME.
 //
 // What these pins can and cannot see, stated up front. The GL path - the
 // offscreen first-person pass, the composite, where the arm lands on
@@ -107,7 +107,7 @@ test('SHIELD-GUARD: the fists behind a shield stand as a one-hander does; the bl
   // the wiring: the stance doors (idle, walk, jump) ask stanceOf, which asks the guard; the blows' group does not
   const src = rd('src/combat/fpArm.js');
   assert.match(src, /const stanceOf = \(\) => \{[\s\S]*?return shieldGuardStance\(t, carriesShield\(built\) \|\| carriesShield\(thirdBuilt\)\);/);
-  // CLIMB-STANCE: on the stone the fists stand bare - the clip under the climb's hands (a hold behind the eye is not
+  // On the stone the fists stand bare - the clip under the climb's hands (a hold behind the eye is not
   // reached: climbRig.js climbRequestToFirstPerson) is the idle's hands-down, never the boxer's guard in the picture
   assert.match(src, /const stanceOf = \(\) => \{[\s\S]*?if \(climbHands && t === MW_WEAPON_TYPE\.HandToHand\) return MW_WEAPON_TYPE\.None;\s+return shieldGuardStance/);
   assert.match(src, /function refreshWeaponGroup\(\) \{[\s\S]*?const type = animWeaponType\(built\.mwType, sheathed, spellReady\);\s+weaponGroup = composeWeaponGroup\(type, hasGroup\)\.group;/);
@@ -126,7 +126,7 @@ test('LEFT-ARM: who holds the left arm, and which clip\'s arm each plan lays (th
   const plan = (o) => leftArmPlan(o);
   // the guard: moving straight the strafe's arm on the stride; standing the stance's own (lowered); a blow or a jump the
   // strafe's arm held still, eased up
-  // ARM-HOLD: the fists' shield held as a weapon's shield is - the strafe's arm held, swung by the legs' walk
+  // The fists' shield held as a weapon's shield is - the strafe's arm held, swung by the legs' walk
   const guardHeld = { stance: 'drawn', still: false, rigOrder: true, sway: 0, hold: 0.1 };
   assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'runback' }), { kind: 'movement', base: 'runleft', ...guardHeld });
   assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'walkforward' }), { kind: 'movement', base: 'walkleft', adapt: true, ...guardHeld });
@@ -139,7 +139,7 @@ test('LEFT-ARM: who holds the left arm, and which clip\'s arm each plan lays (th
   assert.equal(plan({ mode: 'guard', view: 'first', moving: true, base: 'walkforward' }), null);
   // a one-hander and a shield: walking straight the strafe's arm on the stride, as Dev has it, running any
   // straight uses the live side-run arm from all-animations; side running keeps its held pose. Blows keep their clip.
-  // ARM-HOLD: every one held at its clip's mean and swung by the legs' own walk (leftArmLayer.js ARM_HOLD)
+  // Every one held at its clip's mean and swung by the legs' own walk (leftArmLayer.js ARM_HOLD)
   const held = { sway: 0, hold: 0.1 };
   assert.deepEqual(plan({ mode: 'shield', moving: true, base: 'walkforward' }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, rigOrder: true, adapt: true, ...held });
   assert.deepEqual(plan({ mode: 'shield', moving: true, base: 'walkleft' }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, rigOrder: true, ...held }, 'a strafe holds its own arm');
@@ -465,7 +465,7 @@ test('MW-D10: the draw is rule 54 and nothing else - no framing, no offsets, no 
   const draw = src.slice(src.indexOf('    draw(canvas)'), src.indexOf('    status()'));
   assert.match(draw, /const eye = firstPersonEye\(built\.arm\.mats, built\.cameraRef\);/,
     'the eye is the camera node, read fresh from the pose');
-  // MAC-P: the call carries the viewmodel's LIGHT too (the room's own at the camera); the
+  // The call carries the viewmodel's LIGHT too (the room's own at the camera); the
   // lens-local flag and the basis-change matrix are what this pin is for, and neither moved.
   assert.match(draw, /renderCharacterSprite\(mesh, NIF_TO_PASS, proj, view, fw, fh, \{ lensLocal: true, viewmodelLight: vmLight \}\)/,
     'and the model matrix is the basis change alone - no placement, no scale (DISC13-C: fw x fh is the frame window\'s, the screen\'s own frame with no transform)');
@@ -478,7 +478,7 @@ test('MW-D10: the draw is rule 54 and nothing else - no framing, no offsets, no 
   }
   // The planes come off the arm's own reach, in RIG units, because the
   // file need not be authored in metres.
-  // AUDIT 37 F1: TWO reaches - the near plane off the IDLE pose it was
+  // TWO reaches - the near plane off the IDLE pose it was
   // tuned against, the far off PX27's sweep of every clip, because one
   // number could not answer both: growing it to stop the far plane
   // cutting a swing short pushed the near plane out with it, and a rig
@@ -567,7 +567,7 @@ const wpdtRec = (id, model, type, name = 'W', { short = false, enchanted = false
   const U = (n) => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
   const sub = (n, d) => [...A(n), ...U(d.length), ...d];
   const w = new Uint8Array(short ? 16 : 32);
-  new DataView(w.buffer).setInt16(8, type, true);   // MW-D22: mType is at byte 8 (loadweap.hpp) - 10 was the shared guess
+  new DataView(w.buffer).setInt16(8, type, true);   // mType is at byte 8 (loadweap.hpp) - 10 was the shared guess
   const d = [...sub('NAME', Z(id)), ...sub('MODL', Z(model)), ...sub('FNAM', Z(name)),
     ...(enchanted ? sub('ENAM', Z('ench')) : []), ...sub('WPDT', [...w])];
   return [...A('WEAP'), ...U(d.length), ...U(0), ...U(0), ...d];
@@ -871,7 +871,7 @@ test('MW-D11 rule 36: the texture path is FOUR PROBES over a re-rooted, extensio
   assert.equal(correctTexturePath('textures\\tx_hand.tga', has), 'textures/tx_hand.dds',
     'backslashes are separators');
 
-  // RE-ROOTING: everything before the matched component is DISCARDED,
+  // Everything before the matched component is DISCARDED,
   // which is how an absolute authoring path resolves. The SUBDIRECTORY
   // has to survive the re-root, or the basename fallback silently
   // rescues the easy case and hides a prefix-test that never re-roots at
@@ -1678,7 +1678,7 @@ test('MW-D27: the faceIndex THREAD is unbroken, swept at the source', () => {
   // PIN MOVED (MW-HEADS2): and whether the body is a player's - the port's own heads are a player's alone
   assert.match(arm, /playerBodyRows\(parts, race, female, \{ beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId \}\)/,
     'the body build no longer hands the face and explicit editor selections to the picker');
-  // TR2: the menu's inline opts moved into weaponRig's ONE HOME - the
+  // The menu's inline opts moved into weaponRig's ONE HOME - the
   // sweep follows the thread there (menu -> buildArmsFor ->
   // armBuildOptsOf -> fpArm.build), because a sweep of a door that no
   // longer carries the wire proves nothing.
@@ -1700,7 +1700,7 @@ import {
   MW_CLOTHING_TYPE, DF_CLOTHING_ROWS, mwClothingRecord, fpWornAdds,
 } from '../../../src/formats/morrowind/mwItemMap.js';
 import { armorRecords, clothingRecords, raceBeastFlag, pickWeaponRecord, facePools, MOD_WEAPON_TO_MW } from '../../../src/formats/morrowind/mwFirstPerson.js';
-import { OWN_MW_MODELS } from '../../../src/characters/ownModels/ownWeaponModels.js';   // FIELD-GUN-MW2: counted off the table, not typed
+import { OWN_MW_MODELS } from '../../../src/characters/ownModels/ownWeaponModels.js';   // Counted off the table, not typed
 import { OWN_MW_ARMOR } from '../../../src/characters/ownModels/ownArmorModels.js';   // MW-BRIG1: and the armour
 import { CLOAK_NAMES } from '../../../src/characters/ownModels/ownClothingModels.js';   // MW-CLOAK1: and the cloak
 import { CLOTHING_NAME } from '../../../src/formats/morrowind/mwItemMap.js';

@@ -98,8 +98,8 @@
   {
     "name": "V7-memo-removed",
     "file": "src/net/remotePlayers.js",
-    "old": "  let k = _keyOf.get(look);\n  if (k === undefined) { k = _computeLookKey(look); _keyOf.set(look, k); }\n  return k;",
-    "new": "  return _computeLookKey(look);",
+    "old": "  let k = _keyOf.get(look);",
+    "new": "  let k = undefined;",
     "tests": [
       "test/net/slam12.test.js",
       "test/net/slam2.test.js",

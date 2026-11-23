@@ -1,5 +1,5 @@
 // @ts-check
-// GUARD-WALK-POSE: the guard continues through the step: shorter travel, lower hips, yielding knees.
+// The guard continues through the step: shorter travel, lower hips, yielding knees.
 import { guardStance } from './guardStance.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 import { ease } from './bodyKit.js';
@@ -16,7 +16,7 @@ export const GUARD_WALK_POSE = Object.freeze({
 });
 
 export function guardWalks(word, group) {
-  // FISTS-GUARD: empty hands drawn are fists (the body's weapon None - carry.js carryClassOf)
+  // Empty hands drawn are fists (the body's weapon None - carry.js carryClassOf)
   return (
     !!word?.on &&
     !!word.shown &&

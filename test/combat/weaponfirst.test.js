@@ -1,5 +1,4 @@
-// WEAPON-FIRST (bible/07-Rendering/Load-Stalls.md section 5; the owner, 2026-10-28: a weapon's first equip "может
-// достигать и 30 секунд, а может и вовсе не прогрузиться", a second one quick): a failed swap asked again a few times,
+// A failed swap asked again a few times,
 // further apart each time; the carried weapons read and decoded before the click; the swap's own line in the console.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

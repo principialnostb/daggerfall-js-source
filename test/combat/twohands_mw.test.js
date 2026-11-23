@@ -32,7 +32,7 @@ import { mat33Mul } from '../../src/formats/morrowind/mwNifMesh.js';
 import { applyMirrorRig, mirrorPlan, counterpartName, strikingSide, limbSkeleton, offWeaponBoneAddon, WEAPON_BONE_LEFT_SOURCE, mirrorBindSources } from '../../src/combat/twoHands/mirrorRig.js';
 import { rotAxisAngle } from '../../src/combat/climbRig.js';
 import { createFpArm, fpSkeletonPath, tpSkeletonPath, strideOppositeTime, FP_CLIP_PATH, resolveOffWeaponParts, resolveWeaponParts, OFF_WEAPON_BONE, fpWeaponKey, GUARD_LENS_DROP, bladePictureHeight, bladeInnerEdge, FP_FIELD_OF_VIEW } from '../../src/combat/fpArm.js';
-import { GUARD, RUN_PUMP, RUN_STEP_M, runPhaseOfBob, runPhaseFollow, runPhaseStep, PAIR_SPREAD, pairSpreadAngle, RUN_3D } from '../../src/combat/twoHands/handsLaw.js';
+import { GUARD, RUN_PUMP, RUN_STEP_M, runPhaseOfBob, runPhaseFollow, runPhaseStep, PAIR_SPREAD, pairSpreadAngle } from '../../src/combat/twoHands/handsLaw.js';
 import { HeadBobber } from '../../src/player/headBobber.js';
 import { MW_WEAPON_TYPE, MW_UNITS_PER_METER, assembleFirstPersonArm, poseAssembly } from '../../src/formats/morrowind/mwFirstPerson.js';
 import { bodyRec } from '../fixtures/mw/bodyRec.mjs';
@@ -639,28 +639,18 @@ test('TWO-HANDS AUDIT the arm, A MIRRORED BLOW KEEPS THE WAY ASKED (finding 5): 
   assert.equal(arm.status().attackReversed, false);
 }, 0.5));
 
-test('TWO-HANDS the arm, the running hands: running with nothing in hand the pump takes the hands (up as the run starts, posed past half), the two wrists out of step with the stride; a punch takes them at once; the run\'s end lets them go; third person never; the rig\'s own stride phase (the head bob\'s clock) is FOLLOWED - stood on while it keeps the stride\'s step, caught up within CATCH of the stride\'s tempo when it jumps (TWO-HANDS AUDIT 2, L3 M3) - the speed\'s walk where it hands none', () => seeded(async () => {
+test('First-person run tracks the head-bob clock, eases out for a punch, and keeps the clip in control of both wrists', () => seeded(async () => {
   const arm = await drawnArm();
   arm.setHands({ mode: 'fists', lead: 'R' });
   arm.setSheathed(true);
   for (let i = 0; i < 60; i++) arm.update(0.05);
   assert.equal(arm.runPosed(), false);
   arm.setRunHands(true, { speed: 7 });
-  const zs = { L: [], R: [] };
-  for (let i = 0; i < 60; i++) { arm.update(1 / 30); const h = arm.handsState(); zs.L.push(h.wrists.L[2]); zs.R.push(h.wrists.R[2]); }
+  for (let i = 0; i < 60; i++) arm.update(1 / 30);
   assert.equal(arm.runPosed(), true);
   assert.ok(arm.handsState().run.w > 0.99);
-  const hw = arm.handsState().wrists;
-  assert.ok(hw.L[0] < 0 && hw.R[0] > 0, 'each hand pumps on its own side');
-  const span = (a) => Math.max(...a.slice(20)) - Math.min(...a.slice(20));
-  assert.ok(span(zs.L) > 0.1 && span(zs.R) > 0.1, `both pump (${span(zs.L).toFixed(3)}, ${span(zs.R).toFixed(3)})`);
-  let opposite = 0, n = 0;
-  for (let i = 21; i < 60; i++) { const a = zs.L[i] - zs.L[i - 1], b = zs.R[i] - zs.R[i - 1]; if (Math.abs(a) > 1e-3 && Math.abs(b) > 1e-3) { n++; if (Math.sign(a) !== Math.sign(b)) opposite++; } }
-  assert.ok(opposite / n > 0.8, `out of step (${opposite}/${n})`);
-  // PIN MOVED (TWO-HANDS AUDIT 2, L3 M3): the rig's phase was taken AS IT STANDS (`run.phase === 2.5` for a phase handed
-  // still) - and HeadBobber's clock jumps: a run resumed inside its 0.5 s stop sets the timer to PI, so a stutter-step
-  // swapped the fists in a frame. Now the phase FOLLOWS the bob: on it while the bob keeps the stride's step, caught up
-  // within RUN_PUMP.CATCH of the stride's own tempo when it jumps, never backward. A real HeadBobber drives it here.
+  assert.equal(arm.built().arm.runFit, null);
+  assert.equal(arm.handsState().run.targets, null);
   const bobber = new HeadBobber(), bag = {}, look = { pitch: 0, yaw: 0 };
   const DT = 1 / 60, V = 7, walk = V * DT * Math.PI / RUN_STEP_M;
   const runFrame = (moving) => {
@@ -720,6 +710,7 @@ test('TWO-HANDS AUDIT the arm, THE RUN AND THE CLIMB BLEND (finding 4): onto the
   for (let i = 0; i < 120; i++) { const d = step(); if (i >= 60) steady = Math.max(steady, d); }
   arm.setRunHands(false); onWall = true;
   const on = []; for (let i = 0; i < 60; i++) on.push(step());
+  assert.ok(arm.built().arm.climbFit, 'the wall solver takes the wrists at the top of the transition');
   // the climb's ease is geometric: each step a share of the last. The run dropped whole made the first step four times the next.
   assert.ok(on[0] < 2 * on[1], `onto the wall: ${on.slice(0, 4).map((v) => v.toFixed(3)).join(' ')}`);
   for (let i = 2; i < 20; i++) assert.ok(on[i] <= on[i - 1] * 1.05 + 1e-3, `and eases on (${i}: ${on[i].toFixed(3)} after ${on[i - 1].toFixed(3)})`);
@@ -734,52 +725,36 @@ test('TWO-HANDS AUDIT the arm, THE RUN AND THE CLIMB BLEND (finding 4): onto the
   assert.ok(sheet < 2 * steady, `the frame the sheet comes up: ${sheet.toFixed(3)} (a running stroke steps ${steady.toFixed(3)})`);
 }));
 
-test('TWO-HANDS AUDIT the arm, THE RUN ON THE LENS (finding 11): with the arms on the law (follow-camera off) the running hands are asked for the same places ON THE PICTURE whichever way the player looks - their lines laid in the pitched lens\'s frame - and the wrists stand there', () => seeded(async () => {
+test('First-person running preserves the sampled wrist transforms at each camera pitch', () => seeded(async () => {
   let pitch = 0;
   const arm = await drawnArm({ camera: () => ({ pitch, pos: [0, 1.6, 0], yaw: 0 }) });
   arm.setFollowCamera(false);
   try {
     arm.setHands({ mode: 'fists', lead: 'R' });
     arm.setSheathed(true);
-    for (let i = 0; i < 40; i++) arm.update(1 / 60);
-    // a phase that stands, so each look reads the same stroke - PIN MOVED (TWO-HANDS AUDIT 2): and a stride that stands
-    // with it (speed 0): the phase now FOLLOWS the bob within the stride's tempo (handsLaw.js runPhaseFollow), and a bob
-    // standing still under a body running 7 m/s is no clock it stands on
-    arm.setRunHands(true, { speed: 0, phase: 1 });
-    arm.update(1 / 60);
-    assert.equal(arm.handsState().run.phase, 1, 'the run\'s first frame takes the rig\'s phase at once - nothing of the pump drawn yet (runPhaseFollow\'s `fresh`)');
-    const onLens = (eye, p) => { const d = [p[0] - eye[0], p[1] - eye[1], p[2] - eye[2]]; const fwd = [0, Math.cos(pitch), Math.sin(pitch)], up = [0, -Math.sin(pitch), Math.cos(pitch)]; return Math.atan2(d[0] * up[0] + d[1] * up[1] + d[2] * up[2], d[0] * fwd[0] + d[1] * fwd[1] + d[2] * fwd[2]); };
-    const read = {};
-    for (const p of [0, -0.5, 0.5]) {
-      pitch = p;
-      for (let i = 0; i < 120; i++) arm.update(1 / 60);
-      const t = arm.handsState().run.targets;
-      const b = arm.built(), eye = b.arm.mats.get(b.cameraRef).t;
-      read[p] = { asked: onLens(t.eye, t.R), wrist: onLens(eye, arm.handsState().wrists.R) };
-    }
-    for (const p of [-0.5, 0.5]) {
-      assert.ok(Math.abs(read[p].asked - read[0].asked) < 1e-6, `look ${p}: the stroke asked for at ${read[p].asked.toFixed(4)} rad up the picture, as at 0 (${read[0].asked.toFixed(4)})`);
-      assert.ok(Math.abs(read[p].wrist - read[0].wrist) < 0.06, `look ${p}: the wrist ${read[p].wrist.toFixed(3)} rad, at 0 ${read[0].wrist.toFixed(3)} (laid unpitched it moved 0.4)`);
+    for (let i = 0; i < 120; i++) arm.update(1 / 60);
+    arm.setRunHands(true, { speed: 7 });
+    for (const angle of [0, -0.5, 0.5]) {
+      pitch = angle;
+      for (let i = 0; i < 90; i++) {
+        arm.update(1 / 60);
+        if (i < 45) continue;
+        const rig = arm.built().arm;
+        const raw = rig.fns.skelMats(rig.skeleton, rig.rawPose, GRAPH_ROOT);
+        assert.ok(arm.handsState().run.w > 0.99);
+        assert.equal(rig.runFit, null);
+        for (const side of ['left', 'right']) {
+          const joint = rig.skeleton.byName.get(side + ' hand');
+          assert.ok(joint != null, side);
+          const neck = rig.skeleton.byName.get('bip01 neck');
+          const relative = (mats) => mul(inv(mats.get(neck)), mats.get(joint));
+          assert.ok(diff(relative(rig.mats), relative(raw)) < 1e-5, side + ' wrist relative to the neck at ' + angle);
+        }
+      }
     }
   } finally { arm.setFollowCamera(true); }
 }));
 
-test('RUN-WIDE THE FIRST PERSON\'S RUNNING FISTS (2026-10-19, Mac: "The hands are way too close together when running both in third and first person"): the top of the pump\'s stroke stands each fist before and just outside its own shoulder - its line through the picture, at its distance out, past the retail shoulder joint across, on a 16:9 picture and a 4:3 one (at 0.36 of the half-frame it stood 14 cm across and 11, toward the middle) - and the arm\'s own run asks the wrist for that place (mutants: RUN-WIDE-the-first-person-fists-in)', () => seeded(async () => {
-  const sk = retail(), rest = M(sk, new Map());
-  const shoulder = dist(rest.get(sk.byName.get('bip01 l upperarm')).t, rest.get(sk.byName.get('bip01 r upperarm')).t) / 2 / MW_UNITS_PER_METER;
-  const tanV = Math.tan(FP_FIELD_OF_VIEW / 2);
-  const across = (aspect) => { const v = [RUN_3D.TOP.x * tanV * aspect, 1, RUN_3D.TOP.y * tanV]; return (RUN_3D.TOP.d * v[0]) / Math.hypot(v[0], v[1], v[2]); };
-  for (const aspect of [16 / 9, 4 / 3]) assert.ok(across(aspect) > shoulder, `at ${aspect.toFixed(2)}: the fist ${across(aspect).toFixed(3)} m across, the shoulder ${shoulder.toFixed(3)}`);
-  // the arm asks for it: the right hand at the top of its stroke, on the picture at the law's share across
-  const arm = await drawnArm();
-  arm.setHands({ mode: 'fists', lead: 'R' });
-  arm.setSheathed(true);
-  for (let i = 0; i < 40; i++) arm.update(1 / 60);
-  arm.setRunHands(true, { speed: 0, phase: Math.PI / 2 });
-  arm.update(1 / 60);
-  const t = arm.handsState().run.targets, d = [t.R[0] - t.eye[0], t.R[1] - t.eye[1], t.R[2] - t.eye[2]];
-  assert.ok(Math.abs(d[0] / d[1] / (tanV * 16 / 9) - RUN_3D.TOP.x) < 1e-6, `the right fist asked for at ${(d[0] / d[1] / (tanV * 16 / 9)).toFixed(3)} of the half-frame across`);
-}));
 
 test('TWO-HANDS AUDIT the arm, THE PAIR\'S DRAW (finding 7): the second arm is composed from the first frame of the right hand\'s draw to the last of its sheathe - the blades come and go at the right\'s attach and detach keys', () => seeded(async () => {
   const arm = await drawnArm();

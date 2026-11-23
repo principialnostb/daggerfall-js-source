@@ -1,4 +1,4 @@
-// SHIELD-LIFE: the held shield answers a start, a stop, a stride, a strafe and a turn - within small bounds, and settles.
+// The held shield answers a start, a stop, a stride, a strafe and a turn - within small bounds, and settles.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createShieldSet, SHIELD_LIFE } from '../../../src/characters/bodyMotion/shieldSet.js';

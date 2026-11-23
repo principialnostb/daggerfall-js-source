@@ -1,4 +1,4 @@
-// DA3: THE DESKTOP SHELL - the downloadable build's main process.
+// THE DESKTOP SHELL - the downloadable build's main process.
 //
 // The game itself is untouched: this window loads the SAME dist/ the
 // website deploys, over a custom dagger:// protocol. What the shell
@@ -36,7 +36,7 @@ const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, net, session, shell
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { frameRateSwitches } = require('./lib/frameRate.cjs');   // FPS-VSYNC: VSync off lifts Chromium's wait
+const { frameRateSwitches } = require('./lib/frameRate.cjs');   // VSync off lifts Chromium's wait
 const { backendLaunch, holdsVSync, watchBackend, backendOption, chooseBackend, restartArgs } = require('./lib/graphicsBackend.cjs');   // GPU-BACKEND: the Vulkan opt-in and its guard
 
 // DAGGER_USER_DATA points saves/config somewhere else - the probe's

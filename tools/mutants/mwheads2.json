@@ -12,8 +12,8 @@
   {
     "name": "MWHEADS2-the-player-in-the-data's",
     "file": "src/formats/morrowind/mwFirstPerson.js",
-    "old": "  const pools = facePools(parts, race, female, { has, own: ownHeads });\n",
-    "new": "  const pools = facePools(parts, race, female, { has, own: false });\n",
+    "old": "  const pools = facePools(parts, faceRace, female, { has, own: ownHeads });",
+    "new": "  const pools = facePools(parts, faceRace, female, { has, own: false });",
     "tests": [
       "test/tooling/mwheads1.test.js"
     ],
@@ -22,8 +22,8 @@
   {
     "name": "MWHEADS2-the-body-not-asked",
     "file": "src/combat/fpArm.js",
-    "old": "vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });",
-    "new": "vampire: !!vampire, walk: npcFace, ownHeads: false });",
+    "old": "    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, texGen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId, hairColor, remoteBodySkin, remoteCosmetics, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17",
+    "new": "    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, texGen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: false, appearanceHeadId, appearanceHairId, hairColor, remoteBodySkin, remoteCosmetics, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17",
     "tests": [
       "test/tooling/mwheads1.test.js"
     ],

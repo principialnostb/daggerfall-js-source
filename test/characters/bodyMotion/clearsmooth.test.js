@@ -1,7 +1,4 @@
-// CLEAR-SMOOTH (2026-11-07, src/characters/bodyMotion/armClearance.js; the owner's 12-40-11 recording: the arms twitch at
-// an interval standing). A woman's plain idle in the game is OpenMW Dynamic Animations' zIdle; its left arm drifts a hair
-// into the breasts and back, and the clearance's turn leapt between two ways out (0.15 and 0.38 radians) twice a loop,
-// 0.35 s apart, the elbow swinging with the hand still. Held here on that clip, on the woman's own skeleton.
+// On the woman's retail skeleton, a held hand must remain steady while a breathing clip moves the elbow.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

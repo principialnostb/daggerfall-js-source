@@ -122,8 +122,8 @@
   {
     "name": "MWHEADS1-AUDIT-rows-ignore-the-archives",
     "file": "src/formats/morrowind/mwFirstPerson.js",
-    "old": "  const pools = facePools(parts, race, female, { has, own: ownHeads });\n",
-    "new": "  const pools = facePools(parts, race, female, { own: ownHeads });\n",
+    "old": "  const pools = facePools(parts, faceRace, female, { has, own: ownHeads });",
+    "new": "  const pools = facePools(parts, faceRace, female, { own: ownHeads });",
     "tests": [
       "test/tooling/mwheads1.test.js"
     ],
@@ -132,8 +132,8 @@
   {
     "name": "MWHEADS1-AUDIT-third-body-ignores-the-archives",
     "file": "src/combat/fpArm.js",
-    "old": "{ beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });",
-    "new": "{ beast, faceIndex, faceMatch, vampire, walk, ownHeads });",
+    "old": "    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId: npcHair?.id ?? appearanceHairId });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them",
+    "new": "    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, ownHeads, appearanceHeadId, appearanceHairId: npcHair?.id ?? appearanceHairId });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them",
     "tests": [
       "test/tooling/mwheads1.test.js"
     ],

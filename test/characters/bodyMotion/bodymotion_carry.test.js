@@ -1,7 +1,4 @@
-// BODY-MOTION (2026-10-18, Mac: "Weapon specific walking/running animations ... (running with a 2 hander by the hip)
-// (1 hand idle animation, holding down away from side. Running with it using the same format) (Duelhand idle away from
-// sides, running with them behind you) - Improved melee 3rd person attack animations"; bible/04-Characters/
-// Body-Motion.md) - THE CARRY, THE BLOWS AND THE WIRING, on the vendored retail biped with the pair's Weapon Bone Left
+// THE CARRY, THE BLOWS AND THE WIRING, on the vendored retail biped with the pair's Weapon Bone Left
 // made as the build makes it (combat/twoHands/mirrorRig.js offWeaponBoneAddon).
 //
 // What is pinned: every weapon type and hands mode to its carry class; the stances Mac named, measured on the solved
@@ -72,13 +69,13 @@ test('BODY-MOTION THE CLASSES: each weapon type and hands mode to the carry it i
     [{ mwType: T.LongBladeTwoHand, shown: true }, 'two'], [{ mwType: T.BluntTwoClose, shown: true }, 'two'], [{ mwType: T.AxeTwoHand, shown: true }, 'two'],
     [{ mwType: T.BluntTwoWide, shown: true }, 'wide'], [{ mwType: T.SpearTwoWide, shown: true }, 'spear'],
     [{ mwType: T.LongBladeOneHand, shown: true, hands: 'dual' }, 'dual'], [{ mwType: T.HandToHand, shown: true }, 'fists'],
-    [{ mwType: T.None, shown: true, hands: 'fists' }, 'fists'], [{ mwType: T.None, shown: true }, 'fists'],   // AUDIT BODY-MOTION MELEE-3: a peer's, a person's bare hands (and the player's beside a shield or a light) - 'single'
+    [{ mwType: T.None, shown: true, hands: 'fists' }, 'fists'], [{ mwType: T.None, shown: true }, 'fists'],   // A peer's, a person's bare hands (and the player's beside a shield or a light) - 'single'
     [{ mwType: T.MarksmanBow, shown: true }, 'clip'], [{ mwType: T.MarksmanCrossbow, shown: true }, 'clip'], [{ mwType: T.MarksmanThrown, shown: true }, 'clip'],
     [{ mwType: T.LongBladeOneHand, shown: true, spell: true }, 'clip'],
   ];
   assert.deepEqual(rows.map(([w]) => carryClassOf(w)), rows.map(([, c]) => c));
   assert.deepEqual(['one', 'dual', 'two', 'wide', 'spear', 'fists', 'free', 'clip'].map(meleeFamilyOf), ['one', 'one', 'two', 'two', 'two', 'fists', null, null]);
-  assert.deepEqual({ ...TWO_HAND_GRIP }, { two: -0.4, wide: 0.5, spear: 0.55 });   // PIN MOVED (AUDIT BODY-MOTION CARRY-1): a fifth down, the left fist sat inside the right forearm
+  assert.deepEqual({ ...TWO_HAND_GRIP }, { two: -0.4, wide: 0.5, spear: 0.55 });   // A fifth down, the left fist sat inside the right forearm
   assert.equal(blowName('slash', true), 'back');
   assert.equal(blowName('chop', true), 'chop');
 });
@@ -128,7 +125,7 @@ test('BODY-MOTION A ONE-HANDER, HELD DOWN AND AWAY FROM THE SIDE (Mac\'s stance)
 test('BODY-MOTION A TWO-HANDER: at rest a low guard with both hands on the grip (the left on the haft toward the pommel - AUDIT BODY-MOTION CARRY-NIT: it said below); at a run carried at the hip (Mac: "running with a 2 hander by the hip") in BOTH hands - TWO-RUN, Mac after the merge: "the greatsword running doesnt use both hands", then "held lower at the hip, but not attached to the hip" - the grip low by the hip, under its joint by more than a twentieth of a leg (it stood 0.02 to 0.06 under), held clear of the thigh by 7 units and ahead of the hip by 4 (it stood 5 off the thigh and beside the hip), the blade trailing behind and down, the left hand on the hilt toward the pommel and the chest turned toward the weapon to reach it (mutants: BODY-MOTION-haft-hand-unplaced, BODY-MOTION-two-run-at-the-chest, TWO-RUN-the-left-lets-go, TWO-RUN-the-chest-square, TWO-RUN-the-arms-swing, TWO-RUN-held-against-the-hip, TWO-RUN-the-chest-upright)', () => {
   const idle = play({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand }, 1.5).mats;
   const grip = pt(idle, 'weapon bone'), b = blade(idle, 'weapon bone');
-  // GRIP-ANATOMY: standing, the left fist at the pommel end (TWO_HAND_STILL); a blow keeps TWO_HAND_GRIP
+  // Standing, the left fist at the pommel end (TWO_HAND_STILL); a blow keeps TWO_HAND_GRIP
   const haft = [grip[0] + b[0] * TWO_HAND_STILL.two * A, grip[1] + b[1] * TWO_HAND_STILL.two * A, grip[2] + b[2] * TWO_HAND_STILL.two * A];
   // the left hand's grip point: where its fist closes - the left Weapon Bone's origin (the mirror of the right's)
   assert.ok(len(sub(pt(idle, 'weapon bone left'), haft)) < 0.12 * A, `the left hand closed on the haft (${(len(sub(pt(idle, 'weapon bone left'), haft)) / A).toFixed(2)} arms off)`);
@@ -364,7 +361,7 @@ test('BODY-MOTION THE RIG\'S WORD: on only in third person, on a base_anim skele
   assert.deepEqual(['AttackWindUp', 'AttackRelease', 'AttackEnd'].map((upper) => motionWord({ ...base, upper, attackType: 'chop', progress: 0.5 }).blow.section), ['windup', 'release', 'follow']);
   assert.equal(motionWord({ ...base, upper: 'WeaponEquipped', attackType: 'chop' }).blow, null);
   assert.equal(motionWord({ ...base, upper: 'Equipping' }).equip, true);
-  // SHIELD-RUN: a shield is a piece the body wears in the composer's shield slot, named for its record
+  // A shield is a piece the body wears in the composer's shield slot, named for its record
   assert.equal(w.shield, false, 'no pieces: no shield');
   for (const slot of ['shield (iron_shield)', "shield (nordic_trollbone_shield) - ground mesh, the reference's own fallback"]) {
     assert.equal(motionWord({ ...base, rig: { ...rig, arm: { pieces: [{ slot: 'cuirass (iron_cuirass)' }, { slot }] } } }).shield, true, `a shield worn: ${slot}`);

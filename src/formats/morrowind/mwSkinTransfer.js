@@ -1,35 +1,5 @@
-// MW-BRIG2 (2026-09-29, Mac on MW-BRIG1: "The texture was great, you just somehow moved the geometry in the
-// process"): A WORN MODEL SKINNED FROM THE BODY UNDER IT.
-//
-// MW-BRIG1 hung the steel brigandine RIGID on the skeleton's "Chest" and "Groin" nodes and took each node's REST
-// transform back out (restPoseInverse). The body it was fitted to does not move that way. A retail body part is
-// SKINNED (Morrowind-Rules.md MW-D21: "authored part-local, is a torso on the ground"), and the reference places
-// every one of its vertices by the part's OWN NiSkinData - v' = v * (Sum w_i * invBind_i * boneSkelMat_i) *
-// skinToSkel * skinTransform (rule 20) - on the spine, pelvis and leg bones, never on the Chest node. So the moment
-// the idle played, the torso moved by its bones and the brigandine by a node the body never uses, and the two came
-// apart. Nothing about the fit could have saved it: two things placed by two different transforms agree in one pose
-// at most.
-//
-// The fix is to stop having two transforms. Each garment vertex copies the skin of the body vertex nearest it - the
-// same bones, the same weights, the same inverse binds, the same skin transform - and its own position is solved so
-// that, in the pose the modeller fitted it in (the skeleton at rest), that skin puts it exactly where it was
-// authored. From then on it is drawn by skinBatch, the one door the body itself goes through, so every frame it moves
-// by precisely the transform the skin under it moves by. It is the "copy bone weights" every armour fitter uses,
-// with the reference's own skinning doing the rest.
-//
-// A body part that is RIGID (some mods' are) is a skin of one bone: its attach bone, with the mirror and BoneOffset
-// the rigid path applies (rules 13 and 14) as the inverse bind, so a garment over it rides that bone exactly as the
-// part does.
-//
-// MW-BRIG3 (2026-09-29, Mac on MW-BRIG2: "completely broke the morrowind torso" - "it's placed lower where the torso
-// should be", worn only, on a male body): THE DEFECT WAS WHERE IT SAT, BOTH TIMES. The skinning above holds the
-// garment to the body in every pose, and it holds it exactly as far from the body as it started - so a garment that
-// starts too LOW stays too low, and it hides the chest skin it was meant to cover (the cuirass slot shadows it), which
-// leaves the upper torso empty under the neck. Both MW-BRIG1 and MW-BRIG2 took the height from the modeller's scene
-// on faith (tools/bakeBrigandine.mjs: that scene's body "is" the skeleton at rest), and nobody measured the result on a
-// real body. The brigandine itself says the scene's body was not this one: its collar peaks at z 94.8 and its belt at
-// z ~67, well under a Morrowind man's neck and waist. So the height is now MEASURED ON THE WEARER (fitLift below): the
-// garment's top meets the top of the body part it hides, in the same rest pose the skin is solved in.
+// Preserve the worn mesh's rest position while transferring the donor's weights. The actor's skeleton then
+// places it in the pose.
 
 import { GRAPH_ROOT } from './mwSkin.js';
 
@@ -67,7 +37,7 @@ export function sourceSkin(batch, { attachRef = null, mirrored = false, boneOffs
 }
 
 /**
- * MW-BRIG3: THE LIFT that puts a garment on the wearer. Morrowind is Z-up; this answers how far along +Z the garment
+ * THE LIFT that puts a garment on the wearer. Morrowind is Z-up; this answers how far along +Z the garment
  * must move so that its highest point meets the highest point of `anchors` - the body part it hides, SKINNED in
  * `ctx`'s pose (the rest pose the transfer is solved in). Skinned, never read raw: a retail part's authored vertices
  * are part-local, "a torso on the ground" (Morrowind-Rules.md MW-D21). A pure translation, so the garment's shape is

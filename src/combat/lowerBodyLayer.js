@@ -1,15 +1,7 @@
 import { movingStrikeTracks, sampleMovingStrike } from './movingStrike.js';
 // @ts-check
-// LOWER-BODY (2026-10-27, MOTION-DOCTRINE pilot step 1, bible/05-Combat/Motion-Doctrine.md section 5): THE LEGS UNDER A
-// BLOW. The third-person frame poses one winning clip on every bone (combat/fpArm.js: action over movement over jump over
-// idle), so a blow's attack clip took the pelvis and the legs - and a Morrowind attack clip stands still: the feet froze
-// while the capsule travelled, and the body slid. The reference resolves priority per bone group (rule 26,
-// bible/02-Formats/Morrowind-Rules.md): a weapon group plays at Priority_WeaponLowerBody on the lower body, below
-// Priority_Movement and Priority_Jump, so while the actor moves its legs keep the movement clip and only its torso and
-// arms strike. This layer is that vector's lower half, laid over the single winner as a weighted overlay (the LEFT-ARM
-// layer's shape, combat/leftArmLayer.js): the lower body's bones answered by the movement's (or the jump's) clip at its
-// own clock while a blow wins the frame. A port of the reference, not a departure; its eases are the doctrine's
-// SHARPNESS (short, so the legs are handed over in a few frames and never snap).
+// A moving actor keeps the leg phase under an upper-body attack. Blend the lower body as the attack starts and
+// ends.
 
 import { ease } from '../characters/bodyMotion/bodyKit.js';
 import { blendMaskBones } from '../formats/morrowind/mwFirstPerson.js';
@@ -22,8 +14,7 @@ import { createDirectionalWalkSampler } from './directionalWalkSampler.js';
 /** The eases (seconds): the legs handed to the stride as a blow begins mid-stride, and back to the clip's when the body
  *  stops under a blow. A moving upper-body attack keeps the existing lower owner. */
 export const LOWER_BODY_EASE = Object.freeze({ in: 0.08, out: 0.12, swap: 0.15 });
-/* LOWER-SWAP (2026-10-29, the proving ground: 91 of 132 single-frame leaps in the owner's recorded play were a movement
- * clip changed under a blow - walk to run, forward to a strafe - a foot 0.95 m in one frame): the legs' clip changed
+/* The legs' clip changed
  * while the layer holds them is crossed over `swap` seconds between their live clocks; GUARD-CONTINUITY transfers
  * the supporting-foot phase and advances the outgoing clip during that crossfade. */
 
@@ -48,7 +39,7 @@ export function lowerBodyBones(skeleton) {
   return mask;
 }
 
-/** SHIELD-RUN-LEGS: the upper body above the lower spine ("bip01 spine1" and under it), memoised per skeleton. */
+/** The upper body above the lower spine ("bip01 spine1" and under it), memoised per skeleton. */
 const UPPER = new WeakMap();
 export function upperBodyBones(skeleton) {
   if (!skeleton || !skeleton.nodes) return new Set();
@@ -87,7 +78,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
     // Only this layer owns these wrappers; the left arm also uses __overlay.
     if (!track || track.__poseOwner !== ownership) return inner(track, time);
     // Process each clip at its OWN clock before mixing. The outer filter's time belongs to the weapon.
-    // MOTION-FRAME-COST: the outer filter asks three times a frame; the owned clip's answer does not depend on its time.
+    // The outer filter asks three times a frame; the owned clip's answer does not depend on its time.
     let o = frameSamples.get(track);
     if (!o) {
       o = clipSampler(track.__overlay, clock);
@@ -105,7 +96,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
       striking = !!strike && !!movement && /^(weapononehand|weapontwohand|blunttwohand|weapontwowide|weaponspear)$/.test(action?.group ?? '');
       if (!on || !third || hit || dead) { layer.reset(); return 0; }
       const owner = lowerBodyOwner({ on, third, action: !!action, hit: !!hit, dead: !!dead, movement: !!movement, jump: !!jump });
-      // LEG-CLOCK: where the movement clip's own legs stand in their stride (bodyMotion.js reads it for its gait)
+      // Where the movement clip's own legs stand in their stride (bodyMotion.js reads it for its gait)
       // (read when asked: a clip change below carries the stride over to the new clip's time first)
       stride = owner === 'movement' && movement && movementSource?.keys ? { state: movement, keys: movementSource.keys } : null;
       const state = owner === 'movement' ? movement : jump;
@@ -168,7 +159,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
       return sampler;
     },
     weight: () => w,
-    /** LEG-CLOCK: the movement clip's stride phase this frame (movementContinuity.js clipStridePhase), or null. */
+    /** The movement clip's stride phase this frame (movementContinuity.js clipStridePhase), or null. */
     stridePhase: () => (stride ? clipStridePhase(stride.state, stride.keys) : null),
     reset() {
       stride = null; trackMap = null; clock = 0; w = 0; memo = null; inner = sampleTrack; key = null; prev = null; mix = 1; swapT = 0;

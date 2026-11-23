@@ -43,7 +43,7 @@ import { placeAtBone, placeNormalsAtBone } from './mwFirstPerson.js';
 export const CLOAK_CLEARANCE = 1;
 /** The furthest a cloak vertex is eased back - past it, what is under the cloak is not a body, and is left through. */
 export const CLOAK_PUSH_LIMIT = 10;
-/** MW-CLOAK2: how far round a point that comes through it the cloak eases back, in units - the push falls from the
+/** How far round a point that comes through it the cloak eases back, in units - the push falls from the
  *  whole at the point to nothing here, (1 - (d / r)^2)^2, so the sheet bows over a pauldron's edge rather than
  *  creasing at a triangle's. */
 export const CLOAK_EASE_RADIUS = 8;
@@ -64,10 +64,10 @@ export const SLUNG_UNDER = 'bip01 spine1';
  *  most. SHIELD-SINK (2026-11-13): it sat where half its points cleared the cloak, and the cloth came through the rest. */
 export const SHIELD_PRESS = 4;
 export const SHIELD_BODY_GAP = 1;
-/** SHIELD-SEAT: the most a shield hung off its mount is drawn IN to the cloak, in units (the mount holds it by its grip). */
+/** The most a shield hung off its mount is drawn IN to the cloak, in units (the mount holds it by its grip). */
 export const SHIELD_DRAW_IN = 14;
 /**
- * AUDIT MW-CLOAK: the poses fit 1 holds the cloak over - each a turn of named bones about one of their own axes over
+ * The poses fit 1 holds the cloak over - each a turn of named bones about one of their own axes over
  * their rest, degrees: an upper arm about its z swings its hand back (the left +, the right -), a thigh about its z
  * steps its leg forward (+), a calf about its z bends its knee (+), the chest about its z leans back (-). The rest
  * first; then a stride each way, its back knee bent, with both arms swung back - the arms and the legs move apart parts
@@ -94,7 +94,7 @@ export const CLOAK_FIT_POSES = Object.freeze([
   Object.freeze({ 'bip01 spine2': ['z', -10] }),
 ]);
 /** The poses above and the arms', the blows' and the deep stances' - what fitThirdPersonCloak fits every cloak to.
- *  CLOAK-BODY: the animated cloak's collar is pinned, so its fit must already clear a pauldron on an arm swung back. */
+ *  The animated cloak's collar is pinned, so its fit must already clear a pauldron on an arm swung back. */
 export const CLOAK_STILL_POSES = Object.freeze([
   ...CLOAK_FIT_POSES,
   // The walk envelope swings the arms back; attacks also sweep them forward
@@ -116,7 +116,7 @@ export const CLOAK_STILL_POSES = Object.freeze([
 export const CLOAK_ANIMATED_FIT_POSES = Object.freeze(CLOAK_STILL_POSES.filter((pose) =>
   Object.keys(pose).every((bone) => bone.endsWith('upperarm'))));
 
-/** AUDIT MW-CLOAK: the follow's solve - its rounds of a linear law re-taken where the last left the gear, the sweeps of
+/** The follow's solve - its rounds of a linear law re-taken where the last left the gear, the sweeps of
  *  each, a unit's slide priced as a turn of `slideCost` radians, the most it turns and slides a pose, and the cell of
  *  the gear's (x, z) one contact stands for (the gear sampled at the same spacing). */
 export const FOLLOW = Object.freeze({
@@ -468,7 +468,27 @@ function solve3(m, v) {
  * deep }` - how many of the cloak's vertices moved, the furthest, and how many points stood more than the limit through
  * it and were left so - or null when the body wears no cloak.
  */
-export function fitCloakOver(
+export function fitCloakOver(assembly, options) {
+  const work = fitCloakSteps(assembly, options);
+  let step = work.next();
+  while (!step.done) step = work.next();
+  return step.value;
+}
+
+// Only an unpublished rig may pause during fitting. Live contact and swaps finish synchronously.
+export async function fitCloakDuringBuild(assembly, options) {
+  const work = fitCloakSteps(assembly, options);
+  let deadline = performance.now() + 4;
+  for (let step = work.next(); ; step = work.next()) {
+    if (step.done) return step.value;
+    if (performance.now() >= deadline) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      deadline = performance.now() + 4;
+    }
+  }
+}
+
+function* fitCloakSteps(
   assembly,
   {
     isCloak,
@@ -508,6 +528,7 @@ export function fitCloakOver(
         // each pose is measured once (the cloak placed at the origin, and a unit along each axis) and every pass after is
         // arithmetic
         if (!set.jac || set.jac.cloak !== cloak) {
+          yield;
           const at0 = set.place(cloak, { ...cloak.batch, positions: new Float32Array(bind.length) });
           const axes = [0, 1, 2].map((k) => {
             const q = new Float32Array(bind.length);
@@ -551,6 +572,7 @@ export function fitCloakOver(
           const bodyPositions = [];
           const bodyIndices = [];
           for (const { p, edges } of underPieces) {
+            yield;
             const placed = set.place(p);
             // a piece wholly outside that region (a gauntlet, a boot, the helm) is not sampled at all
             let lx = Infinity,
@@ -592,7 +614,7 @@ export function fitCloakOver(
             if (!cell) continue;
             const over = cell.front - (u[v + 1] - clearance);
             if (over <= 1e-4) continue;
-            // AUDIT MW-CLOAK: a point the cloak has no room left to clear is no body's - left through and named, never
+            // A point the cloak has no room left to clear is no body's - left through and named, never
             // chased (chased, its ring crept up to the limit pass after pass round a point still through it)
             let room = Infinity;
             for (let k = 0; k < 3; k++) room = Math.min(room, limit - total[rep[cloak.indices[cell.frontTri + k]]]);
@@ -651,6 +673,7 @@ export function fitCloakOver(
             }
           };
           for (let t = 0; t + 2 < cloak.indices.length; t += 3) {
+            if (t % 768 === 0) yield;
             const ia = cloak.indices[t] * 3,
               ib = cloak.indices[t + 1] * 3,
               ic = cloak.indices[t + 2] * 3;
@@ -845,6 +868,26 @@ function inv3(m) {
   ];
 }
 
+function leaningCloakSheets(assembly, cloaks, ref, rest) {
+  const sheets = [];
+  for (const degrees of [-5, -10]) {
+    const pose = poseOf(assembly, { 'bip01 spine2': ['z', degrees] });
+    const hip = assembly.fns.attachmentTransform(pose.mats, ref);
+    const toRest = mul33(rest.a, inv3(hip.a));
+    for (const cloak of cloaks) {
+      const points = pose.place(cloak);
+      for (let i = 0; i < points.length; i += 3) {
+        const x = points[i] - hip.t[0], y = points[i + 1] - hip.t[1], z = points[i + 2] - hip.t[2];
+        points[i] = rest.t[0] + toRest[0] * x + toRest[1] * y + toRest[2] * z;
+        points[i + 1] = rest.t[1] + toRest[3] * x + toRest[4] * y + toRest[5] * z;
+        points[i + 2] = rest.t[2] + toRest[6] * x + toRest[7] * y + toRest[8] * z;
+      }
+      sheets.push(cloakSheet(points, cloak.indices));
+    }
+  }
+  return sheets;
+}
+
 /** The rigid stowed pieces `isGear` names, by the bone they hang from - a hanging part (the hip lantern) and a mirrored
  *  one are no holster's. */
 function gearGroups(assembly, isGear) {
@@ -876,15 +919,16 @@ export function fitStowedGear(
     moveLimit = SLUNG_MOVE_LIMIT,
     pressed = false,
     isUnder = null,
+    stableHip = null,
   },
 ) {
   const cloaks = assembly.pieces.filter((p) => p.kind === 'skinned' && isCloak(p));
   if (!cloaks.length) return null;
   const rest = poseOf(assembly);
   const sheets = cloaks.map((c) => cloakSheet(rest.place(c), c.indices));
-  const front = (x, z) => {
+  const front = (surfaces, x, z) => {
     let y = null;
-    for (const s of sheets) {
+    for (const s of surfaces) {
       const c = s.at(x, z);
       if (c && (y == null || c.front > y)) y = c.front;
     }
@@ -998,9 +1042,12 @@ export function fitStowedGear(
         };
     } else {
       // under it: the least whole degree forward that keeps every piece in front of the sheet's front
+      const surfaces = stableHip && pieces.some(stableHip)
+        ? sheets.concat(leaningCloakSheets(assembly, cloaks, ref, at))
+        : sheets;
       const clearAt = (set, deg) =>
         each(set, deg, (x, y, z) => {
-          const s = front(x, z);
+          const s = front(surfaces, x, z);
           if (s == null) return;
           reached = true;
           if (y < s + groupClearance) return false;

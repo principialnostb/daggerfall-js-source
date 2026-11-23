@@ -2,6 +2,7 @@
 // are the extraction tool's (tools/daggerfallArenaExtract.mjs; test/tooling/arena1_extract.test.js re-runs it on the bundle);
 // these pins hold what the files SAY - the manifest's words, the listing, no picture, the model's shape and table,
 // the block's contents and none of ZLNDFLAT's leftovers, the undercroft's 32 blocks - with no game data needed.
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -12,7 +13,7 @@ import { NPC_FLAT_ARCHIVES } from '../../../src/world/rdbLayout.js';
 import { lenientJson, jsonRows } from '../../../tools/daggerfallArenaExtract.mjs';
 
 const PIECE_SET = [62209, 63000, 63004, 63007, 63024, 63028, 63035, 72006];
-const DIR = new URL('../../../vendor/daggerfall-arena/', import.meta.url).pathname;
+const DIR = fileURLToPath(new URL('../../../vendor/daggerfall-arena/', import.meta.url));
 const read = (rel) => readFileSync(join(DIR, rel), 'utf8');
 const json = (rel) => JSON.parse(read(rel));
 const walk = (d, pre = '') => readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n), `${pre}${n}/`) : [`${pre}${n}`]));

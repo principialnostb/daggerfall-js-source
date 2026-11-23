@@ -25,7 +25,7 @@ test('MS1: the table - the one strike that runs against Morrowind\'s slash', () 
   assert.deepEqual([...REVERSED_STRIKES], ['StrikeRight']);
   for (const s of Object.keys(DF_STRIKE_TO_MW_ATTACK)) assert.equal(strikeReversed(s), s === 'StrikeRight', s);
   assert.equal(strikeReversed('StrikeLeft'), false, 'StrikeLeft IS Morrowind\'s slash');
-  // SHIELD-GUARD: a fist's slash is a hook, and backwards a punch pulled - the fists' StrikeRight plays forward
+  // A fist's slash is a hook, and backwards a punch pulled - the fists' StrikeRight plays forward
   assert.equal(strikeReversed('StrikeRight', MW_WEAPON_TYPE.HandToHand), false, 'a fist has no backhand');
   for (const t of [MW_WEAPON_TYPE.LongBladeOneHand, MW_WEAPON_TYPE.ShortBladeOneHand, MW_WEAPON_TYPE.AxeTwoHand]) {
     assert.equal(strikeReversed('StrikeRight', t), true, `a blade's (type ${t}) still does`);

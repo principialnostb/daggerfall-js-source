@@ -2,8 +2,8 @@
   {
     "name": "BARE-BOOTS-chain-alone",
     "file": "src/formats/morrowind/mwItemMap.js",
-    "old": "  Chain: ['chain', 'iron'],\n  Chain2: ['chain', 'iron'], // BARE-BOOTS: what imperial chain lacks, iron",
-    "new": "  Chain: ['chain'],\n  Chain2: ['chain'], // BARE-BOOTS: what imperial chain lacks, iron",
+    "old": "  Chain: ['chain', 'iron'],\n  Chain2: ['chain', 'iron'], // What imperial chain lacks, iron",
+    "new": "  Chain: ['chain'],\n  Chain2: ['chain'], // What imperial chain lacks, iron",
     "tests": [
       "test/systems/fb1015c_bareboots.test.js"
     ]

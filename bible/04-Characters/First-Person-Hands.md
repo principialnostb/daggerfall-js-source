@@ -65,7 +65,9 @@ made; the default ones, plate especially, are worse").
 `armWeightedTriangles` (src/formats/morrowind/mwFirstPerson.js:"export function armWeightedTriangles") kept a triangle only if all three corners rode
 the forearm. A cuff's wrist end rides the hand as much as the arm, so retail's netch cuff lost a long V-shaped wedge
 down its length (the owner: "a pale stripe on the leather glove in every pose") and the plates their wrist band
-either side ("gaps on both sides of the hand-forearm joint"). Now each shape is kept whole beside its per-triangle
+either side ("gaps on both sides of the hand-forearm joint").
+
+Now each shape is kept whole beside its per-triangle
 piece (`cuffWhole`, or `cuffWholes` for a shape with no all-arm triangle), and once a donor is bound
 `fitCuffPieces` (src/formats/morrowind/mwFirstPerson.js:"function fitCuffPieces") cuts it with `trimToCuff` (src/formats/morrowind/mwCuffFit.js:"export function trimToCuff"):
 every triangle whose centre lies short of the donor hand's start (`handStart`) plus `CUFF_FIT.bury` stays - cuff and

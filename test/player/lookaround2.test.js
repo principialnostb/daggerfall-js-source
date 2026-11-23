@@ -1,5 +1,4 @@
-// LOOK-AROUND2 (2026-10-27, the owner: "чуть подержал активировалось и крути верти делай че хочешь, потом снова
-// подержал отключилось"): the TogglePerspective hold is a SWITCH for the swing round the body - on with one hold, kept
+// The TogglePerspective hold is a SWITCH for the swing round the body - on with one hold, kept
 // after the release, off with the next; a tap still switches the view, but not while the swing is on.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

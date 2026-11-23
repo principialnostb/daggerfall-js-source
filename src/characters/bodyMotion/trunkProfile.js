@@ -1,13 +1,6 @@
 // @ts-check
-// TRUNK-SKIN (2026-11-06, the owner's 19-47-18 recording: running with a two-hander, "the shoulder sinks into the chest").
-// ARM-CLEARANCE measured the trunk as one ellipse about the chest - a man's, from the pelvis to the chest bone - and the
-// game's body is Better Bodies (67d1d4c46d): a woman's breasts stand 0.63 of the shoulder width out in front where that
-// ellipse ended at 0.42, and the upper arm above the chest bone was never looked at. THE TRUNK'S OWN SKIN instead:
-// Better Bodies' trunk (its Tri Chest and Tri Groin, the faces on the spine and the pelvis), every race, as a polar
-// profile about the chest bone in the chest's frame - slices DZ shoulder widths high from z0, NA bins round from the
-// left (atan2(fwd, right) + pi), each the furthest the skin stands out there (shoulder widths; 0 where no trunk is: the
-// shoulders' own seam, between the thighs). Baked once from the meshes on the retail rig's rest; the races share one
-// shape, so it is the body's, not a race's. The port's own; Daggerfall Unity draws no arm.
+// Measure clearance against the posed Better Bodies trunk at the limb's height. A uniform chest ellipse misses
+// the shoulders and breasts.
 
 /** The limbs' own half-thickness (shoulder widths, Better Bodies' median about the bone): a point on the bone stands
  *  this far inside its skin. */

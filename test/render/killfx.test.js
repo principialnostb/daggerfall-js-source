@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+
 
 import {
   KillFx, KillFxPass, KFX_RECIPES, KILL_FX_LOOKS, KFX_GHOST_S, KILL_FX_EDGE, KFX_LIGHT, KFX_POOL_CAP, KFX_POOL_OF, KFX_FADE_S, KFX_FAR_M, KFX_MAX_INSTANCES,
@@ -201,9 +201,9 @@ test('STOREFRONT THE KILL EFFECTS DRAWN ONCE THE OPAQUE WORLD IS WHOLE (AUDIT ST
     for (let k = 1; k < at.length; k++) assert.ok(at[k - 1] < at[k], `${file}: ${needles[k - 1].trim()} before ${needles[k].trim()}`);
   };
   order('src/scenes/world.js', ['    if (livePersonBatches.length) renderer.drawBillboards(livePersonBatches, camRight, bbUp);', '    frameGrass();', '    frameBanners();',
-    '    if (windfall.particles && !tvf && windfall.draw(', '    frameHaze();', '    renderer.drawHeld(camRight, bbUp);', '    magic.drawFx?.();', '    drawFalling();   // RAIN-OVER-GRASS']);
+    '    if (windfall.particles && !tvf && windfall.draw(', '    frameHaze();', '    renderer.drawHeld(camRight, bbUp);', '    drawCampWorldFx(camps, magic);', '    drawFalling();   // RAIN-OVER-GRASS']);
   order('src/scenes/exterior.js', ['      if (personBatches.length) renderer.drawBillboards(personBatches, camRight, UP_Y);', '    if (windfall.particles && windfall.draw(',
-    '      if (hz.visible && hazeGl.draw(', '    magic.drawFx?.();', '      precip.drawFall(precipShown,']);
+    '      if (hz.visible && hazeGl.draw(', '    drawCampWorldFx(camps, magic);', '      precip.drawFall(precipShown,']);
   order('src/scenes/worldModes.js', ['      if (_foeBatches.length) renderer.drawBillboards(_foeBatches, camRight, UP_Y);', '      if (_guardBatches.length) renderer.drawBillboards(_guardBatches, camRight, UP_Y);',
     '      if (magic.batches().length) renderer.drawBillboards(magic.batches(), camRight, UP_Y);', '    for (const d of interiorCtx.charDraws) renderer.drawCharacter(d.mesh, d.matrix);', '    magic?.drawFx?.();', '    host.drawVeiledPeerBodies?.();']);
   order('src/scenes/dungeonContext.js', ['      renderer.drawBillboards([..._mobileBatches, ..._dropBatches, ..._spellBatches],', '    magic.drawFx?.();', '    _npcLane?.drawVeiled();']);
@@ -310,7 +310,7 @@ test('STOREFRONT LESS MOTION, FOLLOWED (AUDIT STOREFRONT RENDER L10): the try-on
 });
 
 test('STOREFRONT A FRAME OF THE EFFECTS ALLOCATES NOTHING (AUDIT STOREFRONT RENDER L6; dissolve.js\'s law): the kill effects\' build and light, a skinned portal\'s tick and its batches write their records in place - measured in a node of its own with the collector at hand against a control that allocates (mutants: a colour array a part; a light record a frame; a size a piece; the batches flat-mapped)', () => {
-  const root = fileURLToPath(new URL('../..', import.meta.url));
+  const root = new URL('../../', import.meta.url).href;
   const script = `
     const { KillFx } = await import(${JSON.stringify(`${root}src/render/killFx.js`)});
     const { createPortalSet } = await import(${JSON.stringify(`${root}src/scenes/portalFx.js`)});

@@ -1,19 +1,6 @@
 // @ts-check
-// LOOK-AROUND (2026-10-27, the owner: "функция при нажатии кнопки ... что бы я мог осматривать персонажа от 3го лица
-// ... а то он вертится вместе с прицелом"): OpenMW's PREVIEW MODE, which mwCamera.js left out for want of a binding.
-// The reference (camera.lua:86-111): TogglePOV TAPPED switches the view, as it always has; HELD past 0.25 s it is the
-// preview - the mouse swings the camera round the actor while the actor stands as it stood, and the release brings
-// the camera back behind. Here the release eases it home rather than cutting (a departure: a cut across the whole body
-// reads as a jump). Only in third person - held in first, it is a tap on the release, as before.
-//
-// LOOK-AROUND2 (2026-10-27, the owner: "не на удержание кнопки чуть подержал активировалось и крути верти делай че
-// хочешь, потом снова подержал отключилось"): a departure from the reference's hold - the hold is a SWITCH. Held past
-// HOLD_SECONDS it turns the swing on, and it stays on after the release; held again it turns it off and the camera eases
-// home. A tap still switches the view, but not while the swing is on (it would leave the body it is looking at), and
-// the swing ends of itself when the view leaves third person.
-//
-// The mouse is taken where every host feeds it (player/lookFilter.js add), the swing laid on the third-person eye where
-// it is made (player/mwView.js), and the hosts' views follow the eye's `look`.
+// OpenMW camera.lua:86-111 separates a tapped POV toggle from a held preview. Here the held preview is a switch
+// so the player can look around without holding the key.
 
 export const HOLD_SECONDS = 0.25;   // camera.lua's own threshold
 const PITCH_UP = 1.0, PITCH_DOWN = 1.2;   // the swing's reach over and under the level, radians

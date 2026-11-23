@@ -1,4 +1,4 @@
-// PROVING-GROUND (bible/05-Combat/Proving-Ground.md): THE GAME IN OPERATION, DRIVEN BY A SCRIPT.
+// THE GAME IN OPERATION, DRIVEN BY A SCRIPT.
 //
 //   node tools/provingGround/run.mjs boot [--lane fork|vanilla|new] [--headed]
 //
@@ -53,7 +53,7 @@ async function main() {
   mkdirSync(OUT, { recursive: true });
   process.env.ARENA2_PATH = ARENA2;
   const lab = command === 'lab' ? (await import('./lab/server.mjs')).createLabPlugin() : null;
-  // LAB2: the ground serves the game alone. A second checkout or a data folder inside the root (a worktree, .dream-*)
+  // The ground serves the game alone. A second checkout or a data folder inside the root (a worktree, .dream-*)
   // is neither scanned for entries nor watched - one such copy cost the boot minutes and the server gigabytes.
   const aside = ['**/.proving-ground/**', '**/.claude/**', '**/.dream-*/**', '**/.git/**', '**/ARENA2/**', '**/Morrowind models/**', '**/Mods/**', '**/dist/**'];
   const server = await createServer({ root: ROOT, configFile: join(ROOT, 'vite.config.js'), logLevel: 'error', plugins: lab ? [lab.plugin] : [],

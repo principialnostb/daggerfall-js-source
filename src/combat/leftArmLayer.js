@@ -1,47 +1,26 @@
 import { modGroupEnabled } from '../systems/enhancedModResources.js';
 // @ts-check
-// LEFT-ARM (2026-10-26): THE LEFT ARM LAID OVER THE CLIP, BY WEIGHT. One layer for the arms the clip does not hold the
-// way a body should - a shield's, a free hand's - sampled from another clip of the same rig and eased on and off, so a
-// change of what holds the arm is a blend and never a frame's jump. combat/fpArm.js asks it each frame which plan
-// stands (leftArmPlan), steps it (the clip it reads, its clock, its weight) and poses through its tracks and sampler.
-//
-//   'shield' - a one-hander and a shield: walking forward or back the left strafe's arm (the forward clips swing the
-//              shield arm; the strafe holds it up), else the clip's own.
-//   'guard'  - the fists behind a shield (combat/shieldGuard.js): moving forward or back the left strafe's arm; standing
-//              the stance's own (the one-hander's idle lowers it - Mac: "let it lower"), and the strafe's arm again,
-//              eased up, for a blow or a jump. In the first person the idle's arm holds it through a blow (the fists'
-//              clip raised it across half the picture).
-//   'free'   - a one-hander and no shield: walking, the bare walk's left arm (the player's walk source, PlayerWalkSource)
-//              in place of the one-hander's.
-// Departures from the reference, which plays each clip's own arms.
+// Blend the shield or free arm over the base movement clip while allowing the legs to retain their walking
+// phase.
 
 import { clamp01, ease } from '../characters/bodyMotion/bodyKit.js';
 import { MW_WEAPON_TYPE } from '../formats/morrowind/mwFirstPerson.js';
 import { isWalkVariantEnabled, isRunVariantEnabled } from '../formats/morrowind/mwWalkAnimationAssets.js';
 
-/** SHIELD-STRAFE-SOURCE: the sources a strafe's walk is picked from, in the rig's order - as the movement filters them by
+/** The sources a strafe's walk is picked from, in the rig's order - as the movement filters them by
  *  the walk chosen (`preference`, the movement's `walk:<choice>` key; any other, the game's). */
 export function strafeSources(sources, preference) {
   const m = /^(walk|run):(.*)$/.exec(String(preference ?? ''));
-  const ok = m?.[1] === 'run' ? isRunVariantEnabled : isWalkVariantEnabled;   // SHIELD-RUN-AS-WALK: a run's strafe as a run picks it
+  const ok = m?.[1] === 'run' ? isRunVariantEnabled : isWalkVariantEnabled;   // A run's strafe as a run picks it
   return (sources ?? []).filter((s) => ok(s, m?.[2] || 'vanilla'));
 }
 
 /** The eases (seconds): the arm up quickly for a blow (its wind-up is a third of a second), down slower to the stance. */
 export const LEFT_ARM_EASE = Object.freeze({ in: 0.08, out: 0.22 });
-/** ARM-FADE: seconds a layer's arm fades from the clip it leaves to the one it takes. */
+/** Seconds a layer's arm fades from the clip it leaves to the one it takes. */
 export const ARM_FADE = 0.3;
 /** The shield keeps the strafe's raised arm, with a quieter live stride around that pose. */
-/** ARM-HOLD (2026-11-06, the owner's 21-46-18 recording: the shield shakes; the free arms want their own carriage, made of
- *  the movements the body already has): an arm a layer carries is HELD at its clip's mean pose and SWUNG by this share of
- *  the very walk the legs play, off that walk's mean - never by another clip's live swing (a strafe's arm, a one-hander's
- *  upper body: their own strides rocked the shield 14 to 19 degrees to the side). `shield` the shield's arm walking,
- *  running, backing and stepping aside; `free` a one-hander's free arm, its pose `freePose` of the way from the free
- *  walk's to the one-handed walk's (where the one-handed stance holds it standing), `freeRun` running; `upper` the armed upper body under a
- *  shield (CARRY-LOCOMOTION-COHERENCE's 0.55, the share of the chest's wave the owner kept). ARM-REST: standing, a free
- *  hand is the plain idle's arm on its own breath, laid `rest` over the one-handed stance's bent arm (`restRight` the
- *  right beside a shield, over the stance's armed one). FISTS-PUMP: the fists' guard walking is the hand-to-hand clip's
- *  guard held, swung by `fists` of the plain walk the legs play - the guard bobs with the stride. */
+/** Mix the held arm's mean pose with the gait's own swing in the same clip phase. */
 export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8, fists: 0.3 });
 
 /** @type {readonly number[]} */
@@ -55,7 +34,7 @@ export function leftArmModeOf({ view = 'third', type = MW_WEAPON_TYPE.None, shie
   if (!modGroupEnabled('animations')) return null;
   if (!free) return null;
   if (shield && type === MW_WEAPON_TYPE.HandToHand) return 'guard';
-  if (shield) return 'shield';   // SHIELD-BASH: the first person's only for a bash (leftArmPlan)
+  if (shield) return 'shield';   // The first person's only for a bash (leftArmPlan)
   if (view !== 'third') return null;
   return !dual && ONE_HANDED.includes(type) ? 'free' : null;
 }
@@ -65,7 +44,7 @@ export function leftArmModeOf({ view = 'third', type = MW_WEAPON_TYPE.None, shie
  * 'movement' or 'stance' (the composer the host asks), `base` its bare base, `stance` 'drawn' (the stance the rig stands
  * in) or 'bare' (no weapon short group: the free walk), `still` held at one frame rather than kept on the stride.
  */
-/** ARM-HOLD: a shield's arm moving - straight, the strafe's arm of that gait (SHIELD-RUN-AS-WALK), its trunk laid on the
+/** A shield's arm moving - straight, the strafe's arm of that gait (SHIELD-RUN-AS-WALK), its trunk laid on the
  *  walk's (SHIELD-STRAFE-TRUNK, walking); to the side, the strafe's own, the legs' walk - each held at its mean and swung by
  *  ARM_HOLD.shield of the legs' walk. Null where the base is neither (a turn). */
 function heldShield(b, strafeOf) {
@@ -78,28 +57,25 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
   const b = String(base ?? '');
   const walkingStraight = moving && /(forward|back)$/.test(b) && !/^turn/.test(b);
   const strafeOf = walkingStraight ? b.replace(/(forward|back)$/, 'left') : null;
-  // SHIELD-BASH: a one-hander's bash throws the shield from where the guard holds it, as the fists' does
+  // A one-hander's bash throws the shield from where the guard holds it, as the fists' does
   if (mode === 'shield' && bashing) return view === 'first' ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
   if (mode === 'shield') {
     if (view !== 'third' || attacking || !moving || !b || /^turn/.test(b)) return null;
-    // SHIELD-RUN-AS-WALK (the owner, 2026-11-05: the run's shield - how it is held, how the arm sways - as the walk's,
-    // worked out): straight, the strafe's arm of that gait, live, from the very clip a strafe of it plays; to the side,
+    // Straight, the strafe's arm of that gait, live, from the very clip a strafe of it plays; to the side,
     // the strafe's own arm
-    // SHIELD-WALK-UPRIGHT (the owner, 2026-11-12: the strafe's raised, upright shield in every direction "is a very
-    // good base"): walking forward takes the strafe's held arm again, as backing and running do
+    // Walking forward takes the strafe's held arm again, as backing and running do
     return heldShield(b, strafeOf);
   }
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
-    // ARM-HOLD (the owner, 2026-11-06: a shield with no weapon still rocked walking - the fists' guard had kept the strafe's
-    // live arm, 25.6 degrees to the side a stride walking, 27.2 backing, 14.9 running): the shield held as a weapon's is
+    // The shield held as a weapon's is
     if (strafeOf) return heldShield(b, strafeOf);
     if (attacking || jumping) return { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
     return moving ? heldShield(b, null) : null;
   }
   if (mode === 'free') {
     if (attacking) return null;
-    // ARM-REST (the owner, 2026-11-06: standing the free hand "a stick", "a small bend at the elbow"): standing, the plain
+    // Standing, the plain
     // idle's own arm, on its breath, laid ARM_HOLD.rest over the one-handed stance's bent one
     if (!moving) return jumping ? null : { kind: 'stance', base: 'idle', stance: 'bare', still: false, sway: 1, w: ARM_HOLD.rest };
     return b && !/^turn/.test(b) ? { kind: 'movement', base: b, stance: 'drawn', still: false, sway: 0, hold: /^run/.test(b) ? ARM_HOLD.freeRun : ARM_HOLD.free, pose: ARM_HOLD.freePose } : null;
@@ -149,7 +125,7 @@ export function nlerpQuat(a, b, w) {
   return q.map((v) => v / l);
 }
 
-/** SHIELD-STRAFE-TRUNK: the arm's root, and the bones above it (Bip01 down) whose turns the arm rides. */
+/** The arm's root, and the bones above it (Bip01 down) whose turns the arm rides. */
 export const ARM_ROOT = 'bip01 l clavicle';
 export const ARM_CHAIN = Object.freeze(['bip01', 'bip01 pelvis', 'bip01 spine', 'bip01 spine1', 'bip01 spine2', 'bip01 neck']);
 const qmul = (a, b) => [
@@ -165,7 +141,7 @@ export function weightedOverlayTracks(base, overlay, bones, adapt = false, owner
   const out = new Map(base ?? []);
   if (overlay && bones) {
     for (const [name, t] of overlay) if (bones.has(name) && t) {
-      // ARM-HOLD: the movement clip's own track under any layer's wrapper - the walk the legs are on
+      // The movement clip's own track under any layer's wrapper - the walk the legs are on
       let raw = base?.get(name) ?? null;
       while (raw && raw.__overlay) raw = raw.__base;
       out.set(name, { __overlay: t, __base: base?.get(name) ?? null, __raw: raw, __owner: owner, __name: name });
@@ -178,10 +154,10 @@ export function weightedOverlayTracks(base, overlay, bones, adapt = false, owner
 }
 
 /** The sampler for weightedOverlayTracks: an overlaid bone at the overlay's clock, blended over the base's by weight.
- *  LAYER-STACK: with an `owner`, only that layer's wrappers are its own - another's go to `sampleTrack`, the layer under. */
+ *  With an `owner`, only that layer's wrappers are its own - another's go to `sampleTrack`, the layer under. */
 export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => null, owner = null, sway = () => 0, adaptation = () => 1, hold = () => 0, baseSpan = () => null, poseShare = /** @type {(track?: any) => number} */ (() => 1)) {
   const means = new WeakMap();
-  /** SHIELD-STEADY: a track's turn and place averaged over `w` (the loop window), sixteen samples, the shorter way. */
+  /** A track's turn and place averaged over `w` (the loop window), sixteen samples, the shorter way. */
   const meanOf = (tr, w) => {
     const hit = means.get(tr);
     if (hit && hit.start === w.start && hit.stop === w.stop) return hit.value;
@@ -211,7 +187,7 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
       scale: live.scale,
     };
   };
-  /** ARM-HOLD: `track`'s overlay held at its mean - `poseShare` of the way from the walk's own mean to it - and the walk the
+  /** `track`'s overlay held at its mean - `poseShare` of the way from the walk's own mean to it - and the walk the
    *  legs are on (its `__raw` movement track) moving it by `k` of its own swing off that walk's mean. */
   const held = (track, time, k) => {
     const ow = span(), bw = baseSpan(), raw = track.__raw;
@@ -235,7 +211,7 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
     const kh = clamp01(hold());
     let o = (kh > 0 ? held(track, time, kh) : null) ?? at(track.__overlay, clock());
     if (kh > 0 && track.__chainO && o.rotation) {
-      // ARM-HOLD: the trunks' difference at their means - the live difference of two clips' trunks rocked the shield 16
+      // The trunks' difference at their means - the live difference of two clips' trunks rocked the shield 16
       // degrees a stride walking; held, the arm rides the walk's own trunk, the legs' clip
       const ow = span(), bw = baseSpan();
       const rawB = track.__chainB.map((t) => { let r = t; while (r && r.__overlay) r = r.__base; return r; });
@@ -246,8 +222,7 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
       }
       return blendBase(track, time, o);
     }
-    // SHIELD-STRAFE-TRUNK (the owner's video, 2026-11-05: walking forward the strafe's arm pointed the shield out from
-    // the hip): the strafe turns its trunk to the way it goes; on a straight walk's trunk its arm, laid from the
+    // The strafe turns its trunk to the way it goes; on a straight walk's trunk its arm, laid from the
     // collarbone down, pointed elsewhere. The root is turned by the overlay's trunk less the base's, so the arm stands to
     // the body as the strafe's does, the shoulder where the walk has it.
     if (track.__chainO && o.rotation) {
@@ -276,11 +251,11 @@ export function mixPose(b, o, w) {
   };
 }
 
-/** ARM-SIDES: a plan's `freeSide` - that arm a free hand under the layer's held clip: its pose the legs' own walk's (the
+/** A plan's `freeSide` - that arm a free hand under the layer's held clip: its pose the legs' own walk's (the
  *  held pose's share 0 for its bones), swung by the layer's hold. */
 const FREE_ARM = Object.freeze({ L: /^bip01 l (?:clavicle|upperarm|forearm|hand|finger)/, R: /^bip01 r (?:clavicle|upperarm|forearm|hand|finger)/ });
 
-/** ARM-SIDES: the arm's bones of the other side - the left arm's mask, mirrored by name (`bip01 l ...` to `bip01 r ...`). */
+/** The arm's bones of the other side - the left arm's mask, mirrored by name (`bip01 l ...` to `bip01 r ...`). */
 const mirrored = new WeakMap();
 export function mirrorMask(mask) {
   let out = mirrored.get(mask);
@@ -300,8 +275,7 @@ export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementG
   // under a moving arm can fade from the last (ARM-FADE) rather than leap.
   const fresh = () => ({ state: null, source: null, group: null, clock: 0, steady: false, sway: 1, adapt: 0, hold: 0, baseWin: null, pose: 1, side: 'L', freeSide: null });
   let cur = fresh(), w = 0, memo = null, old = null, oldTracks = null, fade = 1;
-  // LAYER-STACK (SHIELD-RUN-LEGS): two of these layers stack - the armed upper body under the shield's arm; each samples
-  // its own wrappers and hands the rest to the layer under it (`under`, set by sampler(inner))
+  // Each arm layer samples the layer beneath it. Keep their owner tokens distinct when both are active.
   const owner = {}; let under = sampleTrack;
   const below = (tr, t) => under(tr, t);
   const overlayOf = (c) => weightedOverlaySampler(below, () => c.clock, () => 1, () => ((c.steady || c.sway < 1 || c.hold > 0) && c.state && c.source ? loopWindow(c.state, c.source.keys) : null), owner, () => c.steady ? 0 : c.sway, () => c.adapt, () => c.hold, () => c.baseWin, (track) => (c.freeSide && FREE_ARM[c.freeSide].test(track?.__name ?? '') ? 0 : c.pose));
@@ -346,7 +320,7 @@ export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementG
           const pick = pickAnimSource(candidates, composed.group, resetClip, { loopFallback: true, loopCount: Infinity });
           if (pick) {
             const first = !c.state;
-            // ARM-FADE (the owner, 2026-11-06: one arm, every state, as the free hand beside a sword): a clip changed while
+            // A clip changed while
             // the layer holds the arm - a walk to a stand, a stand to a walk - fades from the last clip's arm
             if (!first && w > 0.01 && memo) { old = { ...c }; oldTracks = memo.tracks; oldOverlay = overlayOf(old); fade = 0; }
             cur = { ...c, state: pick.state, source: pick.source, group: key, side };
@@ -358,7 +332,7 @@ export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementG
         const n = cur;
         if (n.state && !plan.still && movement && movementSource) n.clock = strideTime(movement, movementSource.keys, n.state, n.source.keys);
         else if (n.state && !plan.still) {
-          // ARM-REST: standing, the clip's arm on its own clock - an idle's breath, not a pose held still
+          // Standing, the clip's arm on its own clock - an idle's breath, not a pose held still
           const win = loopWindow(n.state, n.source.keys), span = win.stop - win.start;
           if (span > 0) n.clock = win.start + ((((n.clock - win.start) + Math.max(0, dt)) % span) + span) % span;
         }

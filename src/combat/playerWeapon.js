@@ -33,10 +33,10 @@ import {
   machineCancelBowDraw,
   THUNDERLOCK_NUM_FRAMES,
   CLASSIC_UPDATE_INTERVAL,
-  blowSchedule, // MW-PACE1: the strike just begun, timed - what the Morrowind arm fits its blow into
-  shotSchedule, // MW-SHOT-PACE: and a bow's shot, timed the same way
+  blowSchedule, // The strike just begun, timed - what the Morrowind arm fits its blow into
+  shotSchedule, // And a bow's shot, timed the same way
 } from '../characters/weaponStates.js';
-import { GUN_FEEL, GUN_TICK_SECONDS, thunderlockReloadSeconds, PISTOLET_FEEL } from './gun/gunFeel.js'; // FIELD-GUN7: the lab's cadence, from the one home
+import { GUN_FEEL, GUN_TICK_SECONDS, thunderlockReloadSeconds, PISTOLET_FEEL } from './gun/gunFeel.js'; // The lab's cadence, from the one home
 import { DIRECTION_TO_STRIKE, ATTACKS_FP, sampleClip } from '../characters/anims.js';
 import { combinePose } from '../characters/animate.js';
 import { weaponTypeForItem, WEAPON_TYPES, isGunType, isPistoletType } from './fpsWeapon.js';

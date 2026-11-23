@@ -13,9 +13,10 @@ import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, chmodSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-export const ROOT = new URL('..', import.meta.url).pathname;
+export const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const WF = '.github/workflows/account-deploy.yml';
 export const STEP = 'Report where the account Worker runs';
 export const workflow = () => readFileSync(join(ROOT, WF), 'utf8');

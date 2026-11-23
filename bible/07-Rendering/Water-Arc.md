@@ -34,44 +34,63 @@ A basin follows the wet edges shared by neighbouring tiles. Where an authored ba
 
 The coverage test stamps town layouts on level ground and checks each vertex that four original basin tiles agree is wet. It also samples the procedural town outlines and checks the finished terrain beside real roads in Bubyrydata and Berbaaqnia. See `test/world/terrain/pondcoverage.test.js`. With ARENA2_PATH set, `node tools/pondTerrainSweep.mjs` lists the settlements and coordinates where authored water falls outside the fitted bed on the generated terrain. The sweep exits with a failure on uncovered water. Add `--rivers` to include the Basic Roads rivers and streams.
   Submerged ground placements of town fountains, signposts, hanging signs and mountain ground sprouts are omitted from the flat groups and their cover bodies. Loose pole and rack sprites are also suppressed inside these basins, except on the surveyed reed deck. Their dry and elevated copies keep their authored placement.
+
 - **Skyrim village pond** (`src/world/water/pondTerrain.js`). At map pixel (1551, -372), a 0.32 m grid follows the
   water corners of the surveyed settlement. The water sits 0.44 m below the street and the deepest floor is 1.55 m
-  below the street. A curved channel crosses the diagonal shore tile between the two bowls. The ground descends from street grade along a single slope. Small indentations widen the cut in plan. `src/world/terrain/earthBank.js` measures the finish distance from that contour. The exposed earth follows the actual slope and height above
-  water. The grass finish fades from the contour into the dry approach over 5.5 m. A seamless procedural tile supplies fine loam, matted grass, clustered grit and sparse fibres. Wet silt darkens at the foot of the bank. The soil projects vertically on cut faces where a narrow darker band picks out the roots. Grass tufts grow at breaks of slope. Their blades share a compact base, follow the ground at both root corners and bend outward above the bank. Each of the six uprights on a 3D reed rack samples the rendered floor triangle under its foot
-  and extends 0.12 m into submerged ground. The reed deck keeps its authored height. Four small clumps of rushes and three pairs of stones follow the rendered shoreline. Each stone meets the slope along its footprint. The woodland-hills ground sprout is drawn on dry land. Its wet instances are omitted from the billboard batch, including when its seasonal picture changes.
+  below the street. A curved channel crosses the diagonal shore tile between the two bowls. The ground descends from street grade along a single slope.
+
+  Small indentations widen the cut in plan. `src/world/terrain/earthBank.js` measures the finish distance from that contour. The exposed earth follows the actual slope and height above
+  water. The grass finish fades from the contour into the dry approach over 5.5 m. A seamless procedural tile supplies fine loam, matted grass, clustered grit and sparse fibres. Wet silt darkens at the foot of the bank.
+
+  The soil projects vertically on cut faces where a narrow darker band picks out the roots. Grass tufts grow at breaks of slope. Their blades share a compact base, follow the ground at both root corners and bend outward above the bank. Each of the six uprights on a 3D reed rack samples the rendered floor triangle under its foot
+  and extends 0.12 m into submerged ground.
+
+  The reed deck keeps its authored height. Four small clumps of rushes and three pairs of stones follow the rendered shoreline. Each stone meets the slope along its footprint. The woodland-hills ground sprout is drawn on dry land. Its wet instances are omitted from the billboard batch, including when its seasonal picture changes.
   The Objects pixelation setting sizes the pond's reflection, ripple and refraction-direction samples in screen pixels.
+
   HD shades each fragment. The depth test and bank coverage use the original fragment in every tier. Blue-green
   scattering obscures the bed with distance through water, and the full-quality shore fades over 4.5 cm of depth.
-  The shore mesh shares the terrain's lifetime and is drawn before refraction. The streamed exterior walks and seats its ground flora on these same triangles. This fordable pond departs from DFU `PlayerMotor.GetOnExteriorWaterMethod` by measuring the water at the feet. On foot, movement slows with immersion, reaching the character’s swimming pace at one metre. A water-walking effect supports the player on the sheet at their dry pace. Fixed exteriors, interiors and dungeons have no surveyed pond.
+  The shore mesh shares the terrain's lifetime and is drawn before refraction. The streamed exterior walks and seats its ground flora on these same triangles.
+
+  This fordable pond departs from DFU `PlayerMotor.GetOnExteriorWaterMethod` by measuring the water at the feet. On foot, movement slows with immersion, reaching the character’s swimming pace at one metre. A water-walking effect supports the player on the sheet at their dry pace. Fixed exteriors, interiors and dungeons have no surveyed pond.
+
 - **The bed's face** (`src/render/waterBedGlsl.js`). Under the enhanced water a ground water texel takes the climate's
   dirt darkened to silt. A shore record's painted water outside the sheet goes under the silt too, and the fringe beyond
   is wet mud (`src/world/puddleMask.js` `shoreWaterColours`, `SHORE_DRY_RATIO`).
+
 - **The swell.** Three wave trains about the wind, at deep water's speed, their height the wind's from `SWELL_CALM`
   (0.05) to `SWELL_GALE` (0.34), faded over the bank. `swellAt` is the same sum on the CPU. The open sea takes the swell
   as slope only. On a transition tile the sheet fades its fallback optical depth towards the bank, so silt shows at
   the edge of small ponds without a carved bed. Full quality still uses the depth of submerged surfaces in the frame.
   At grassy banks a narrow strip of wet silt and a weaker sky reflection make that shallow water visible.
+
 - **The body.** Beer-Lambert absorption (`WATER_ABSORB` 0.55, 0.30, 0.22 a unit), replaced by the water's own colour
   (the climate's water texel's mean) lit by the ground's light. On the lighting lane the frame's colour and depth are
   copied once a frame before the first water draw (`AirPass.snapshotUnderWater`), so the water refracts what lies under
   it. Only the part of the frame the water can read is copied (`waterRowsReach`, `Performance-Exterior.md`). On the
   classic lane the blend does the same sum. Schlick Fresnel over the sky (capped at 0.85), glints of sun,
   moon and lamps, the fog.
+
 - **The shore.** Foam over the shallow band (`FOAM_DEPTH` 0.22), its edge riding the swell up the bank (`FOAM_RUNUP`),
   cut into lace by drifting noise; steep crests whiten in a strong wind. Come Sail Away's sprite breakers stand down
   under the enhanced water.
+
 - **The ripples** (`src/world/water/waterRipples.js`). A damped wave equation (`RIPPLE_DAMPING` 0.975) on a 96-cell grid
   48 units round the camera at 30 Hz, stirred by the player and every boat afloat. Uploaded only when it moved.
+
 - **The open sea.** Iliac Puddle No More's surface sheets (Deep Waters) are drawn by the same program from above; its own
   underside from below.
+
 - **The horizon.** One haze law for every surface past the streamed grid's fog (`src/render/horizonHaze.js`
   `HORIZON_HAZE_GLSL`): the world fog's ramp capped at the far ring's hold. The streamed sea holds it too, and the far
   ring's sea shares the water's own look (`SEA_LOOK_GLSL`), so the sea runs on continuously to the horizon. Ring cells
   inside the streamed rect fill the sea past the world's far plane, only those the eye can see.
+
 - **The coast** (`src/world/terrain/groundEdge.js`, `src/render/groundEdgeGlsl.js`). A transition tile draws its two
   kinds' base records across a soft rim. On marching-square shores the water, silt and bank follow the existing
   swimming contour. Three octaves of noise vary the blend around it. Deep Waters' sea is cut on a wandering line
   instead of whole tiles. `?coastedges=off` restores the tile edges.
+
 - **Town puddles are dry** (`src/world/puddleDry.js`). A one-tile patch of water, or one made only of shallow-water art,
   takes the ground its dry neighbours stand on. It runs where a block is served (`src/formats/blocksFile.js`
   `getBlock`), so every reader of the ground sees one ground, on both skins. Moats, ponds and docks stay.

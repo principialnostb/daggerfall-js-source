@@ -326,8 +326,8 @@
     "tests": [
       "test/systems/auditve.test.js"
     ],
-    "old": "        _unregistered.set(key, { state: 'error', error: openWords(why) }); // AUDIT VE R5: said, with a Remove\n      }",
-    "new": "      }"
+    "old": "        _unregistered.set(key, { state: 'error', error: openWords(why) });",
+    "new": ""
   },
   {
     "name": "AUDITVE-R6-v2-refused",

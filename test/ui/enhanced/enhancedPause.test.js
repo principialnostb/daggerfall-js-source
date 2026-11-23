@@ -18,6 +18,7 @@
 //
 // A PIN MUST FAIL: every assertion below dies under a one-character
 // change to the law it names.
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join, dirname, resolve, relative } from 'node:path';
@@ -29,7 +30,7 @@ import { _resetForTests } from '../../../src/systems/uiPrefs.js';
 import { hostText } from '../../hostText.mjs';   // HOST-SPLIT 2 (AUDIT, the second read): its negatives read the host whole
 import { remainWords } from '../../../src/ui/quest/questRail.js';   // PX22: the words, pinned by what they say (AUDIT OW-REVISITED L5-6)
 
-const root = new URL('../../../', import.meta.url).pathname.replace(/\/$/, '');
+const root = fileURLToPath(new URL('../../..', import.meta.url));
 const read = (p) => hostText(p);
 
 // uiSkin reads globalThis.location.search when it is given no string,

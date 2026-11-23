@@ -1,5 +1,5 @@
 // @ts-check
-// DIRECTION-WALK-SMOOTH: round the armed back/side steps on their own loop clock, before lower-body blending.
+// Round the armed back/side steps on their own loop clock, before lower-body blending.
 export const DIRECTION_WALK_SMOOTH = Object.freeze({ armed: 0.12, back: 0.045, share: 0.16 });
 const WEIGHTS = Object.freeze([1, 6, 15, 20, 15, 6, 1]);
 

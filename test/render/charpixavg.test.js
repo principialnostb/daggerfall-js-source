@@ -1,4 +1,4 @@
-// CHAR-PIX-AVG (2026-11-07, src/render/charPixelLayer.js): a pixelated block is the mean of the body texels it holds,
+// A pixelated block is the mean of the body texels it holds,
 // drawn up to PIX_SUB_MAX times finer each way, never finer than the screen - not one point of the texture.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

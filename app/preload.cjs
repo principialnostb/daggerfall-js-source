@@ -1,4 +1,4 @@
-// DA4: THE BRIDGE - the shell's file store, handed to the page.
+// THE BRIDGE - the shell's file store, handed to the page.
 //
 // Runs isolated, before any game script. The page sees ONE global,
 // `daggerShell`, whose storage speaks in FUNCTIONS (length(), key(i),

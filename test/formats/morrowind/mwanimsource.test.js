@@ -10,7 +10,7 @@ import { buildFpArm, createFpArm, fpSkeletonPath, UPPER_BODY, unequipActionPlan 
 import { poseAssembly, armPieceRows } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { sampleTrack } from '../../../src/formats/morrowind/mwAnim.js';
 
-// MW-D14: RULE 18 AND THE SOURCE LIST, which is not one file.
+// RULE 18 AND THE SOURCE LIST, which is not one file.
 //
 // The port loaded exactly one .kf and used the settings' skeleton name
 // verbatim. Both are right FOR A MALE and wrong for everyone else, which

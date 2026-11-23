@@ -120,7 +120,7 @@ test('REL4: the notes are the patch notes the release brings, once, and say so p
 });
 
 test('AUDIT INSTALL L5-10: the script\'s own commands, run - a set one short exits 1, "latest" prints what the publish job reads', () => {
-  const script = new URL('../../scripts/desktopRelease.mjs', import.meta.url).pathname;
+  const script = fileURLToPath(new URL('../../scripts/desktopRelease.mjs', import.meta.url));
   const node = (...args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
   const dir = mkdtempSync(join(tmpdir(), 'rel4-set-'));
   try {

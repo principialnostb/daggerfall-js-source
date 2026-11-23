@@ -6,6 +6,7 @@
 //   - the operator's plan (tools/reviveRealmCharacter.mjs), driven here over the real death: the repo's own putLineage,
 //     realmDie, inheritHome and ledger write it, the tool's own queries read it before and after, and its plan is run;
 //   - the workflow (.github/workflows/realm-revive.yml) holds the shape realm-restore.yml proved.
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
@@ -181,7 +182,7 @@ function runAsTheWorkflow(mode, vars, cwd) {
   assert.ok(line, `the workflow no longer runs the tool's ${mode}`);
   const words = line.slice('node $tool '.length).split(' > ')[0].trim().split(/\s+/)
     .flatMap((w) => (w === '$flags' ? (vars.flags ? vars.flags.trim().split(/\s+/) : []) : [w.replace(/^"|"$/g, '').replace(/\$(HANDLE|CHARACTER|RUNNER_TEMP)/g, (_, k) => vars[k])]));
-  const out = spawnSync(process.execPath, [new URL('../../../tools/reviveRealmCharacter.mjs', import.meta.url).pathname, ...words], { cwd, encoding: 'utf8' });
+  const out = spawnSync(process.execPath, [fileURLToPath(new URL('../../../tools/reviveRealmCharacter.mjs', import.meta.url)), ...words], { cwd, encoding: 'utf8' });
   assert.equal(out.status, 0, `the workflow's ${mode} line fails the tool: ${out.stderr}`);
   return out.stdout;
 }

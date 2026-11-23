@@ -102,8 +102,8 @@
   {
     "name": "MWFOLK1-hidden-in-the-first-person",
     "file": "src/formats/morrowind/mwItemMap.js",
-    "old": "          outfitAdd,\n        );",
-    "new": "        );",
+    "old": "        deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: outfitAdd });",
+    "new": "        deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: null });",
     "tests": [
       "test/tooling/mwfolk1.test.js"
     ],
@@ -132,8 +132,8 @@
   {
     "name": "MWFOLK1-one-body-two-outfits",
     "file": "src/net/peer/peerBodies.js",
-    "old": "        : lookKey(look)) +\n      npcKeyOf(look) +\n      outfitKeyOf(look);",
-    "new": "        : lookKey(look)) + npcKeyOf(look);",
+    "old": "        : lookKey(look)) +\n      npcKeyOf(look) +\n      outfitKeyOf(look) + (look.cosmeticKey ?? '');",
+    "new": "        : lookKey(look)) + npcKeyOf(look) + (look.cosmeticKey ?? '');",
     "tests": [
       "test/tooling/mwfolk1.test.js"
     ],
@@ -162,8 +162,8 @@
   {
     "name": "MWFOLK1-the-card-calls-it-armour",
     "file": "src/combat/fpArm.js",
-    "old": "      : p.kind === 'outfit' ? `outfit ${p.id}`   // MW-FOLK1: a townsperson's whole outfit",
-    "new": "      : p.kind === 'never' ? `outfit ${p.id}`   // MW-FOLK1: a townsperson's whole outfit",
+    "old": "      : p.kind === 'outfit' ? `outfit ${p.id}`   // A townsperson's whole outfit",
+    "new": "      : p.kind === 'never' ? `outfit ${p.id}`   // A townsperson's whole outfit",
     "tests": [
       "test/tooling/mwfolk1.test.js"
     ],

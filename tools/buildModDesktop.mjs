@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// MOD-DESKTOP: the owner's game as a desktop app of its own, beside the official one, never turning into it.
+// The owner's game as a desktop app of its own, beside the official one, never turning into it.
 // An install with the official appId replaces the official install, and its updater then replaces the build with
 // Lattymoy's latest release. This script refuses a build that could do either, and refuses a dist without the mods.
 //

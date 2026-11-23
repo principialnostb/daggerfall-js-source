@@ -173,8 +173,8 @@
   {
     "name": "MWNPC4-revive-no-idle",
     "file": "src/combat/fpArm.js",
-    "old": "      dead = false; deathState = null; deathSource = null; hitState = null; hitSource = null;\n      refreshIdle(true);",
-    "new": "      dead = false; deathState = null; deathSource = null; hitState = null; hitSource = null;",
+    "old": "      thirdCorpseMinZ = null;\n      refreshIdle(true);",
+    "new": "      thirdCorpseMinZ = null;",
     "tests": [
       "test/combat/mwnpc4_npclane.test.js"
     ]

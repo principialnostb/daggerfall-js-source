@@ -1,17 +1,12 @@
 // @ts-check
-// ARM-CLEARANCE (2026-10-28, MOTION-DOCTRINE 7c; the owner, holding a claymore in Skyrim's plate: "the left arm goes
-// into the body with this pose"). Measured in the owner's game: the claymore stance's left elbow stood 0.08-0.13 m off
-// the spine's axis - inside a cuirass - and it is the CLIP's (the stance's idle and walks hold the left arm; the carry's
-// haft grip never takes it there), drawn for Morrowind's slight bodies, not for plate. So the elbow is cleared where the
-// clip leaves it: an elbow inside the trunk's radius (a share of the body's shoulder width, wider in heavier armour)
-// swings the arm about the line from its shoulder to its wrist - the hand stays where the clip put it, its turn kept -
-// the least way out, never past `maxTurn`. The port's own; Daggerfall Unity draws no arm, the clips none to plate.
+// The elbow can intersect a cuirass even when the authored hand position is correct. Rotate it about the
+// shoulder-to-wrist axis and keep the grip fixed.
 
 import { bodyOf, turnOf, at, mul, transpose, algebra, ease } from './bodyKit.js';
 import { rotAxisAngle, orthonormal } from '../../combat/climbRig.js';
 import { bodyFrames } from './bodySolve.js';
 import { relaxHeldArms, heldPoseAnatomy } from './armAnatomy.js';
-import { trunkRadius, LIMB } from './trunkProfile.js'; // TRUNK-SKIN: the body's own trunk, the breasts and the shoulders' height
+import { trunkRadius, LIMB } from './trunkProfile.js'; // The body's own trunk, the breasts and the shoulders' height
 
 const { sub, add, scale, dot, norm, len } = algebra;
 
@@ -21,24 +16,15 @@ const { sub, add, scale, dot, norm, len } = algebra;
 export const ARM_CLEARANCE = Object.freeze({ width: 0.5, depth: 0.42, armor: 0.14, maxTurn: 0.9, step: 0.05 });
 
 /** How far out of the trunk's ellipse `p` stands (rig space: x the right, y the facing, z up; 1 on its edge). */
-/** TRUNK-SKIN: the ellipse's shortfall outweighs the skin's (a turn that clears it is taken as ARM-CLEARANCE took it),
+/** The ellipse's shortfall outweighs the skin's (a turn that clears it is taken as ARM-CLEARANCE took it),
  *  and a turn of the arm costs TURN_COST of shortfall a radian. */
 const ELLIPSE_WEIGHT = 10,
   TURN_COST = 0.08,
   SKIN_TURN = 0.6,
   SKIN_TURN_HELD = 0.6;
 
-/** CLEAR-SMOOTH (2026-11-07, the owner's 12-40-11 recording: the free arm, the sword arm and the shield arm twitch at an
- *  interval; the two-hander's held hands do not). The search took its turn on a 0.05-radian grid, so as an idle carried
- *  the arm a hair into the breasts the turn leapt a whole step - twice an idle loop, 0.35 s apart, the elbow swinging
- *  with the hand still; a held grip never searched the skin (SKIN_TURN_HELD only in a blow). Read in the owner's game
- *  (a woman standing in zIdle): the lower way out of the breasts closes as the idle moves the arm, and the best turn
- *  leapt to the upper one, 0.1 radian in 0.18 s, once a loop - no hold can keep a way out that is gone. Now the
- *  ellipse's least clearing turn is found by `iterations` halvings, and the skin's turn is a soft minimum over a `grid`
- *  of turns: each weighted by exp(-(its cost - the least) / `temperature`), so it moves as the costs move. What is left
- *  is the clip's own: about zIdle's wrap the trunk moves quicker and the turn humps 0.08 radian in 0.3 s. The turn is
- *  eased toward its target over `ease` seconds - `still` standing, `quick` walking (`moving`, 0..1) or in a blow, where
- *  the arms are quick and the clearance must keep up. */
+/** Smooth the elbow correction across adjacent search angles to keep an idle arm from jumping between two clear
+ * poses. */
 export const CLEAR_SMOOTH = Object.freeze({
   iterations: 12,
   grid: 0.02,
@@ -80,7 +66,7 @@ export function clearArms(
   };
   const offAxis = (p) => outOf(local(p), [0, 0, 0], A, Bd);
   const bottom = dot(sub(pelvis, chest), frame.up);
-  // TRUNK-SKIN: how far out of the trunk's own skin a point on a limb's bone stands, its limb's thickness on it (1 on the
+  // How far out of the trunk's own skin a point on a limb's bone stands, its limb's thickness on it (1 on the
   // skin); the armour's pad as the ellipse's. Infinity where no trunk is (the shoulders' seam, below the hips).
   const pad = extra;
   const skinOut = (p, limb) => {
@@ -103,7 +89,7 @@ export function clearArms(
     ];
     const trunk = points.filter((p) => local(p)[2] >= bottom && local(p)[2] <= 0);
     const ellipse = trunk.length ? Math.min(1, ...trunk.map(offAxis)) : 1;
-    // TRUNK-SKIN: the upper arm's lower half too, at any height the trunk has - the shoulder's own seam excepted
+    // The upper arm's lower half too, at any height the trunk has - the shoulder's own seam excepted
     const upper = [add(scale(S, 0.5), scale(E, 0.5)), add(scale(S, 0.25), scale(E, 0.75))].map((p) =>
       skinOut(p, LIMB.upper),
     );
@@ -138,7 +124,7 @@ export function clearArms(
           base = th;
         }
         if (d >= 1) {
-          // CLEAR-SMOOTH: the least turn that clears, found between the step that did not and the one that did - not the
+          // The least turn that clears, found between the step that did not and the one that did - not the
           // step itself, which a breathing chest moves a whole step at a time (the owner's 12-40-11 recording)
           let lo = th - Math.sign(th) * ARM_CLEARANCE.step,
             hi = th;
@@ -174,7 +160,7 @@ export function clearArms(
       }
     }
     if (reach > 0 && bestC > 1e-9) {
-      // CLEAR-SMOOTH: not the one best turn but every turn in reach weighted by how near the best it is (a soft minimum,
+      // Not the one best turn but every turn in reach weighted by how near the best it is (a soft minimum,
       // `temperature` in the cost's units) - where two ways out of the skin cost alike the turn stands between them, and
       // as one closes its weight goes and the turn flows to the other, where the best leapt
       const lo = Math.max(base - reach, -ARM_CLEARANCE.maxTurn),
@@ -198,7 +184,7 @@ export function clearArms(
       const g = 1 - Math.exp(-(total(cost(S, elbowAt(base), W)) - cMin) / T);
       if (sw > 0) best = base + (st / sw - base) * Math.max(0, Math.min(1, g));
     }
-    // CLEAR-SMOOTH: standing, the turn eased slowly; walking or in a blow, quickly
+    // Standing, the turn eased slowly; walking or in a blow, quickly
     const tau = swinging
       ? CLEAR_SMOOTH.ease.quick
       : CLEAR_SMOOTH.ease.still +

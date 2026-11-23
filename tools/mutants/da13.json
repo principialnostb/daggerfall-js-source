@@ -182,7 +182,7 @@
   {
     "name": "DA13-19-a-failed-stage-left-behind",
     "file": "app/lib/gameStore.cjs",
-    "old": "        stop = true;\n        fs.rmSync(dir, { recursive: true, force: true });\n        throw e;",
+    "old": "        stop = true;\n        await io.rm(dir, { recursive: true, force: true });\n        throw e;",
     "new": "        stop = true;\n        throw e;",
     "tests": [
       "test/tooling/da13_gamechannel.test.js"
@@ -262,8 +262,8 @@
   {
     "name": "DA13-27-the-game-download-holds-nothing",
     "file": "app/lib/launcherState.cjs",
-    "old": "      u.status = 'downloading';\n      u.percent = 0; u.transferred = 0; u.total = Number(ev.total) || 0;\n      break;\n    case 'game-applied':",
-    "new": "      u.status = 'current';\n      u.percent = 0; u.transferred = 0; u.total = Number(ev.total) || 0;\n      break;\n    case 'game-applied':",
+    "old": "      u.status = 'downloading';\n      u.percent = 0; u.transferred = 0; u.total = Number(ev.total) || 0;\n      break;\n    case 'game-preparing':",
+    "new": "      u.status = 'current';\n      u.percent = 0; u.transferred = 0; u.total = Number(ev.total) || 0;\n      break;\n    case 'game-preparing':",
     "tests": [
       "test/tooling/da13_gamechannel.test.js"
     ],
@@ -292,8 +292,8 @@
   {
     "name": "DA13-30-a-failure-strands-the-launcher",
     "file": "app/lib/launcherState.cjs",
-    "old": "{ u.status = 'checking'; u.kind = null; u.version = null; }",
-    "new": "{ u.status = 'failed'; u.kind = null; u.version = null; }",
+    "old": "        u.status = s.requireCurrent ? 'failed' : 'checking';",
+    "new": "        u.status = s.requireCurrent ? 'failed' : 'failed';",
     "tests": [
       "test/tooling/da13_gamechannel.test.js"
     ],
@@ -393,8 +393,8 @@
   {
     "name": "DA13-40-compared-to-the-installer",
     "file": "app/main.cjs",
-    "old": "    if (!isNewerRelease(gameVersion(), latest.tag)) return 'current';",
-    "new": "    if (!isNewerRelease(app.getVersion(), latest.tag)) return 'current';",
+    "old": "    if (!isNewerRelease(gameVersion(), latest.tag)) {",
+    "new": "    if (!isNewerRelease(app.getVersion(), latest.tag)) {",
     "tests": [
       "test/tooling/da13_gamechannel.test.js"
     ],

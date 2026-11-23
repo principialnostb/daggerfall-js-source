@@ -1,4 +1,4 @@
-// MW-CLOAK-PROBE: use the running dev server and the user's normal browser.
+// Use the running dev server and the user's normal browser.
 // Usage: npm run mwcloakprobe [base-url]
 // Start the game with "npm run dev" first. No separate server, Chromium,
 // Playwright profile, graphics backend, or collision solver is involved.

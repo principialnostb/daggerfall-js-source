@@ -23,7 +23,7 @@ export const CLASSIC_FRAME_UPDATE = 980; // const int classicFrameUpdate
 export const CLASSIC_UPDATE_INTERVAL = 0.0625; // GameManager.classicUpdateInterval (classic 16Hz); bow anim tick
 export function getMeleeWeaponAnimTime(liveSpeed, ctx = null) {
   const o = _animTimeOverride?.(liveSpeed, ctx, CLASSIC_FRAME_UPDATE); // TryGetOverride("GetMeleeWeaponAnimTime") - RRI2's weaponBalance registers one
-  // MARTIAL2: the swing's PACE, over whichever law answered - the port's own, or a mod's
+  // The swing's PACE, over whichever law answered - the port's own, or a mod's
   if (o != null) return paced(o, ctx, null);
   // SWING-LAW: a wielder the port knows (`ctx.entity` - the player's machine, the Weapon Widget's clone, the third-person
   // body) swings on the port's own law; one it does not (a foe's machine, a peer's walker at PEER_SWING_SPEED, the

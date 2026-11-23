@@ -39,14 +39,14 @@
 
 import { ALL_KEYS } from './settings/settings.js';
 import { MOD_SETTINGS } from './modSettings.js';
-import { declareOnlinePrefs } from './online/onlineLane.js';   // RF4: the lane learns its answers from the rows
+import { declareOnlinePrefs } from './online/onlineLane.js';   // The lane learns its answers from the rows
 import { t, localizedText } from './textManager.js';
 import {WORLD_PIXEL_DEFAULTS,WORLD_PIXEL_KEYS} from './worldPixelConfig.js';
 import { CHAR_PIXEL_INITIAL, CHAR_PIXEL_TIERS } from './charPixel.js';   // CHAR-PIX1   // L10N4: the screen's words in the player's language, read as they are read
 
 /** The three kinds, in label order. `label` is what the row wears and
  *  the chip says; the colour is the skin's (ui/enhanced/enhancedStyle.js .kind).
- *  L10N4: every word on this page is a getter over t(), so a reader reads
+ *  Every word on this page is a getter over t(), so a reader reads
  *  the player's language at the moment it reads - never English frozen at
  *  load, before the boot has chosen the language. */
 export const KINDS = Object.freeze({
@@ -97,13 +97,13 @@ export const GROUPS = Object.freeze({
 });
 export const GROUP_ORDER = Object.freeze(['sight', 'interface', 'sound', 'world', 'loot', 'combat', 'character']);
 
-/** WM3: the Windmills pack's switch key. It is declared HERE with its
+/** The Windmills pack's switch key. It is declared HERE with its
  *  row (RF4's law) rather than in `world/windmills.js`, because that
  *  module reads it through `uiPrefs` and `uiPrefs` reads this page's
  *  defaults - the other direction closes a cycle and the shelf loads
  *  before the row exists. */
 export const WINDMILLS_KEY = 'windmills';
-/** KG3: The King's Gambit's switch key - declared here with its row, as the Windmills' is (the game reads it through
+/** The King's Gambit's switch key - declared here with its row, as the Windmills' is (the game reads it through
  *  `uiPrefs`, which reads this page's defaults). */
 export const KINGS_GAMBIT_KEY = 'kingsGambit';
 /** EVENTS2 (2026-10-24, the players on Discord: "Allow us to filter which events we want to show up in the event

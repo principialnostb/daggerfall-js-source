@@ -1,11 +1,11 @@
 // @ts-check
-// GUARD-CONTINUITY: one leg transform and one height history across locomotion changes.
+// One leg transform and one height history across locomotion changes.
 import { createStride, runStrideShare, RUN_STRIDE, walkStrideShare, WALK_STRIDE } from './stride.js';
 import { GUARD_STRIDE, GUARD_WALK, guardStrideShare } from './guardStride.js';
 import { createGuardWalkBalance } from './guardWalkBalance.js';
 import { createGuardWalkPose } from './guardWalkPose.js';
-import { createFistLegs } from './fistLegs.js'; // FIST-LEGS: a punch's lower body held at the stance, for BLOW-LEGS
-import { createGuardStand } from './guardStand.js'; // GUARD-STAND: every stance weapon stands at the two-hander's level
+import { createFistLegs } from './fistLegs.js'; // A punch's lower body held at the stance, for BLOW-LEGS
+import { createGuardStand } from './guardStand.js'; // Every stance weapon stands at the two-hander's level
 
 const WALK = Object.freeze({ ...WALK_STRIDE, share: walkStrideShare, knees: true });
 const RUN = Object.freeze({ ...RUN_STRIDE, share: runStrideShare, knees: false });

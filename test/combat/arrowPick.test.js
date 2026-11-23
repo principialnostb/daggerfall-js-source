@@ -106,7 +106,7 @@ test('MW-D50: a bow that resolves without its arrow says why on the console, onc
   assert.equal(said.length, 1, 'once for the reason, and never without ammunition in the pack');
   assert.match(said[0], /^\[mw\] the bow carries no arrow - arrow: your archives carry no unenchanted Morrowind ammunition/);
   const src = rd('src/combat/fpArm.js');
-  // MW-D51: + the torch's six - both builds' preload and resolve (4), and
+  // + the torch's six - both builds' preload and resolve (4), and
   // setTorch's own preload and its one resolve for both rigs (2).
   // HT-WAIST: + the lantern at the waist's four - the body build's preload
   // and resolve, setHipLight's preload and its one resolve (the body alone).

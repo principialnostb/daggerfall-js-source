@@ -1,4 +1,4 @@
-// CLIP-KNEE: a foot solved where the clip already has it keeps the clip's knee - the layer on or off, one leg.
+// A foot solved where the clip already has it keeps the clip's knee - the layer on or off, one leg.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';

@@ -1,4 +1,4 @@
-// PROVING-GROUND (bible/05-Combat/Proving-Ground.md): THE REPORT - every lane's runs side by side, "it was so, it
+// THE REPORT - every lane's runs side by side, "it was so, it
 // became so": per scenario its numbers and its contact sheet, written as one local page beside the pictures
 // (.proving-ground/out/report.html - the owner's data's pictures, never committed).
 //   node tools/provingGround/report.mjs [lane ...]   (default: vanilla fork new - those that have runs)

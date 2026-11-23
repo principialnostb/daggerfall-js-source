@@ -294,8 +294,8 @@
   {
     "name": "lane-spec-dropped",
     "file": "src/render/enhancedLighting.js",
-    "old": "    acc += att * (max(dot(n, Ln), 0.0) + spec) * uPointColors[i];",
-    "new": "    acc += att * max(dot(n, Ln), 0.0) * uPointColors[i];",
+    "old": "    acc += att * (mix(max(facing, 0.0), 0.24 + 0.76 * abs(facing), twoSided) + spec * (1.0 - twoSided)) * uPointColors[i];",
+    "new": "    acc += att * (mix(max(facing, 0.0), 0.24 + 0.76 * abs(facing), twoSided)) * uPointColors[i];",
     "tests": [
       "test/render/el4_frame.test.js"
     ]

@@ -1,4 +1,4 @@
-// PROVING-GROUND (bible/05-Combat/Proving-Ground.md): A SCENARIO PLAYED AND READ. A scenario is a list of actions, each a
+// A SCENARIO PLAYED AND READ. A scenario is a list of actions, each a
 // number of frames on the fixed clock with keys held, a swing dragged or the camera swung; every frame the body's bones,
 // the player's place and the rig's word are recorded, and every `every` frames a picture of the body is taken from the
 // camera the scenario asks. `metrics` reads the record: single-frame leaps, the planted foot's slide, the cadence, each

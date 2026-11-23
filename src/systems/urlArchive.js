@@ -42,7 +42,7 @@ export function makeVendoredArchive(urls, fetchBytes) {
           (async () => {
             try {
               const entry = table.get(key);
-              const url = typeof entry === 'function' ? await entry() : entry; // AUDIT-WS: the eager table hands URLs, a lazy one loaders
+              const url = typeof entry === 'function' ? await entry() : entry; // The eager table hands URLs, a lazy one loaders
               const b = await fetchBytes(url);
               bytes.set(key, b);
               return b;

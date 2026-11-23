@@ -341,8 +341,8 @@
   {
     "name": "LA-COST5-the-hard-edge-back",
     "file": "src/render/enhancedLighting.js",
-    "old": "      : mix(contactShadow(wp, n, Ln, d), 1.0, smoothstep(uPointLights[i].w * ${glslFloat(EL_CONTACT_FADE_START)}, uPointLights[i].w * ${glslFloat(AIR_CONTACT_RANGE_FRACTION)}, d));",
-    "new": "      : contactShadow(wp, n, Ln, d);",
+    "old": "      : mix(contactShadow(wp, biasNormal, Ln, d), 1.0, smoothstep(uPointLights[i].w * ${glslFloat(EL_CONTACT_FADE_START)}, uPointLights[i].w * ${glslFloat(AIR_CONTACT_RANGE_FRACTION)}, d));",
+    "new": "      : contactShadow(wp, biasNormal, Ln, d);",
     "tests": [
       "test/render/la_cost.test.js"
     ]

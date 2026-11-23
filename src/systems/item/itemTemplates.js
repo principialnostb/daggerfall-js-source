@@ -8,7 +8,7 @@ import { clothingDisplayTemplate } from './clothingDisplay.js';
 // (ItemHelper.GetEnumArray/GetItemTemplate).
 
 import { clampArmorVariant, isPlate, plateMetal } from '../armorMaterials.js'; // AUDIT 23 (items-6); BAL6-GAUNTLETS: a plate piece's metal
-import { paperdollLookFor } from '../paperdollLookSource.js'; // PAPERDOLL-LOOKS: the player's 2D card look, through a leaf door (paperdollLooks.js registers it)
+import { paperdollLookFor } from '../paperdollLookSource.js'; // The player's 2D card look, through a leaf door (paperdollLooks.js registers it)
 import {
   conditionMultipliersByMaterial,
   valueMultipliersByMaterial,
@@ -16,7 +16,7 @@ import {
   WEAPON_CONDITION_POOL,
 } from '../../characters/weapons.js'; // AUDIT 23 (items-5); AUDIT 68 S27-weightForMaterial-dup: ItemBuilder's value ladder and the Weapons enum, one home each; WEAPON-POOL: the one pool
 import { GROUP_TEMPLATE_INDICES } from './itemTemplatesData.js';
-import { HAND_WRAPS_TEMPLATE } from '../../characters/handWrapsIds.js'; // HAND-WRAPS: minted cloth (a leaf)
+import { HAND_WRAPS_TEMPLATE } from '../../characters/handWrapsIds.js'; // Minted cloth (a leaf)
 import { WAGON_KINDS, wagonKindOf } from '../wagon/wagonKinds.js'; // WAGONS1: a wagon's picture is Mac's wagon of its kind (read at call time - wagonKinds.js reads this module's TRANSPORT_SMALL_CART)
 import TEMPLATES_JSON from '../../characters/itemTemplates.json' with { type: 'json' };
 import { playerArchiveFor, resolvePaperdollRecord } from '../../characters/paperdoll/paperdollArt.js'; // AUDIT 17f: SetRace, one home; NT3 (F006): the record law too

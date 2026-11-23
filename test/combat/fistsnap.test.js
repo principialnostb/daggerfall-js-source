@@ -1,4 +1,4 @@
-// FIST-SNAP: a punch is thrown and taken back quicker than a weapon's blow; how often it is thrown is not this module's.
+// A punch is thrown and taken back quicker than a weapon's blow; how often it is thrown is not this module's.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { calmBlowPlan, recoverRate, holdFor, PACE, FIST_PACE, BLOW_FLOW } from '../../src/combat/blowFlow.js';

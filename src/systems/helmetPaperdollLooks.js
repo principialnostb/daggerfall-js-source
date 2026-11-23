@@ -1,5 +1,5 @@
 // Cosmetic art selection only. Never change item.variant: it is shared with gameplay/3D imports.
-// PAPERDOLL-LOOKS (2026-11-08): the helm is one case of systems/paperdollLooks.js now - every piece with a 2D choice
+// The helm is one case of systems/paperdollLooks.js now - every piece with a 2D choice
 // shares its store, its no-duplicates rule and its gate. These names stay for the helmet's callers and pins.
 import { getPref, setPref } from './uiPrefs.js';
 import { LEGACY_HELMET_PREF, paperdollLookOf, setPaperdollLook, clearPaperdollLooks } from './paperdollLooks.js';

@@ -164,8 +164,8 @@
   {
     "name": "NUDEFLATS-mw-weld-unwired",
     "file": "src/combat/fpArm.js",
-    "old": "      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, beast, beastWear }, showNudity());",
-    "new": "      : composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, beast, beastWear });",
+    "old": "      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks'), beast, beastWear, hasMesh: archiveHas(archives) }, bareChestShown());",
+    "new": "      : composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks'), beast, beastWear, hasMesh: archiveHas(archives) }, bareChestShown());",
     "tests": [
       "test/formats/nudeflats.test.js",
       "test/formats/morrowind/fparm.test.js"

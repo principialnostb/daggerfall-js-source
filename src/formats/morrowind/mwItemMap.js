@@ -1,67 +1,18 @@
 import { itemOwnStyleFields } from '../../systems/item/itemAppearanceKey.js';
-// ═══════════════════════════════════════════════════════════════════
-// THE ITEM MAP — every Daggerfall equippable against Morrowind's
-// records, in ONE table with three guarantees (Mac's brief,
-// 2026-08-30):
-//
-//   1. ONE HOME. Every consumer - the hand attach that exists, the
-//      worn body when its slice lands, ground drops later - resolves
-//      a DF item through here and nowhere else. The weapon half
-//      already lives in mwFirstPerson (DF_TO_MW_WEAPON /
-//      DF_TO_MW_MATERIAL / pickWeaponRecord, MW-D9's declared
-//      divergence); this module is the door in front of both halves
-//      and the armor half's home.
-//
-//   2. TOTAL, AND HONEST. itemMapCoverage() enumerates every weapon
-//      template x weapon material and every armor template x armor
-//      material and answers a ROW for each - and a row is allowed to
-//      say "keep the classic sprite", but it must SAY it (the
-//      anti-lie law), never fall through silently. The pin walks the
-//      whole space.
-//
-//   3. NEVER TRAPS. Resolution is against the PLAYER'S records at
-//      runtime by search token, exactly as pickWeaponRecord does -
-//      this repo cannot know what ids a modded Morrowind carries. A
-//      row that resolves to nothing costs that item its MW model and
-//      it draws the classic sprite, with the miss NAMED in the
-//      report (mwItemReport, on the mw-inspect page).
-//
-// ── THE ROWS THAT ARE JUDGEMENT, not translation ─────────────────
-// DF's armor materials are not MW's, and the misses are recorded
-// here rather than smoothed:
-//   - SILVER. Morrowind has no silver armor at all. Steel is the
-//     nearest metal that exists; nothing here is right.
-//   - LEATHER -> netch leather, MW's own light-leather line. Its
-//     hands are BRACERS, not gauntlets, so the gauntlet row tries
-//     both tokens in order.
-//   - CHAIN -> imperial chain, which exists ONLY as cuirass and
-//     greaves on retail. ~~Every other chain piece will report a miss
-//     and keep its sprite~~ - BARE-BOOTS (FIELD BUGS 2026-10-15c, "No
-//     boots model on legendary boots"): the Morrowind figure has no
-//     sprite to keep, so a miss stood bare skin - chain boots, gauntlets
-//     and pauldrons drew bare feet, hands and shoulders. What imperial
-//     chain lacks is iron now (the chain's second token), as the NPCs'
-//     wardrobe already dresses a chain piece Morrowind cannot draw
-//     (characters/wardrobe.js CHAIN_PIECES). And the chain walks by
-//     PIECE: a material whose first token has records but not this
-//     piece tries the next (Adamantium's Tribunal set, then ebony).
-//   - MITHRIL/ELVEN -> glass, ADAMANTIUM -> ebony, DWARVEN ->
-//     'dwemer' (the armor ids' own spelling; the WEAPON ids spell it
-//     'dwarven', which is exactly why armor gets its own material
-//     table instead of reusing the weapon one).
-// ═══════════════════════════════════════════════════════════════════
+// Map Daggerfall equipment templates and materials to Morrowind records. Weapons and armour use different
+// material tables.
 
 import { WEAPONS, WEAPON_MATERIALS } from '../../characters/weapons.js';
-import { OWN_MW_MODELS } from '../../characters/ownModels/ownWeaponModels.js'; // FIELD-GUN-MW2: the weapons Morrowind does not have
-import { OWN_MW_ARMOR, ownArmorModelFor, ownArmorParts } from '../../characters/ownModels/ownArmorModels.js'; // MW-BRIG1: the armour Morrowind does not have; MW-STEEL1: and its styles
+import { OWN_MW_MODELS } from '../../characters/ownModels/ownWeaponModels.js'; // The weapons Morrowind does not have
+import { OWN_MW_ARMOR, ownArmorModelFor, ownArmorParts } from '../../characters/ownModels/ownArmorModels.js'; // The armour Morrowind does not have; MW-STEEL1: and its styles
 import {
   CLOAK_NAMES,
   CLOAK_PAINTINGS,
   cloakModel,
   ownCloakFor,
   ownOutfitFor,
-} from '../../characters/ownModels/ownClothingModels.js'; // MW-CLOAK1: and the clothing; MW-FOLK1: and the townsfolk's outfits
-import { t } from '../../systems/textManager.js'; // L10N4: MW-FOLK1's notes in the player's language
+} from '../../characters/ownModels/ownClothingModels.js'; // And the clothing; MW-FOLK1: and the townsfolk's outfits
+import { t } from '../../systems/textManager.js'; // MW-FOLK1's notes in the player's language
 import { ARMOR_MATERIAL } from '../../systems/armorMaterials.js';
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';
 import { selectedShieldLook } from '../../characters/ownModels/shieldLooks.js';
@@ -144,7 +95,7 @@ export const DF_CLOTHING_ROWS = Object.freeze({
   'Plain Robes': { type: MW_CLOTHING_TYPE.Robe, reserve: 'robe' },
   'Priest Robes': { type: MW_CLOTHING_TYPE.Robe, reserve: 'robe' },
   'Priestess Robes': { type: MW_CLOTHING_TYPE.Robe, reserve: 'robe' },
-  // MW-CLOAK1: a cloak is WORN as the port's own (ownClothingModels.js, composeWornArmor) - the robe row is the item's
+  // A cloak is WORN as the port's own (ownClothingModels.js, composeWornArmor) - the robe row is the item's
   // icon's record now, nothing on the body
   'Casual Cloak': { type: MW_CLOTHING_TYPE.Robe, reserve: 'robe' },
   'Formal Cloak': { type: MW_CLOTHING_TYPE.Robe, reserve: 'robe' },
@@ -163,12 +114,12 @@ export const RESERVES = Object.freeze({
   robe: [4, 5, 21, 22, 13, 14, 19, 20, 11, 12, 3],
   skirt: [4, 21, 22],
 });
-import { DF_TO_MW_WEAPON, DF_TO_MW_MATERIAL, ARM_PARTS, MOD_WEAPON_TO_MW } from './mwFirstPerson.js'; // WEREWOLF1: ARM_PARTS, addPartGroup's first-person fallback parts; MW-ASSIGN: a mod's weapons
+import { DF_TO_MW_WEAPON, DF_TO_MW_MATERIAL, ARM_PARTS, MOD_WEAPON_TO_MW } from './mwFirstPerson.js'; // ARM_PARTS, addPartGroup's first-person fallback parts; MW-ASSIGN: a mod's weapons
 import { drawnPiece } from '../../net/appearanceLaw.js'; // APPEARANCES: a worn piece's look
-import { modelLookFor } from '../../systems/modelLookSource.js'; // MODEL-LOOKS: the player's own 3D look of a piece (a leaf)
+import { modelLookFor } from '../../systems/modelLookSource.js'; // The player's own 3D look of a piece (a leaf)
 
 /** DF armor material -> the token MW armor record ids carry. */
-// MW-D37: colour truth (see DF_MATERIAL_RGB): Elven is silver-white in
+// Colour truth (see DF_MATERIAL_RGB): Elven is silver-white in
 // Daggerfall and MW has no silver armor, so it wears steel beside
 // Silver; Mithril is dark blue-steel and Adamantium near-black, both
 // ebony to the eye (Adamantium tries Tribunal's own first). Each value
@@ -176,7 +127,7 @@ import { modelLookFor } from '../../systems/modelLookSource.js'; // MODEL-LOOKS:
 export const DF_TO_MW_ARMOR_MATERIAL = Object.freeze({
   Leather: ['netch'],
   Chain: ['chain', 'iron'],
-  Chain2: ['chain', 'iron'], // BARE-BOOTS: what imperial chain lacks, iron
+  Chain2: ['chain', 'iron'], // What imperial chain lacks, iron
   Iron: ['iron'],
   Steel: ['steel'],
   Silver: ['steel'],
@@ -275,16 +226,16 @@ export const DECLARED_SPRITE_WEAPONS = Object.freeze({
 
 const matName = (table, v) => Object.entries(table).find(([, x]) => x === v)?.[0] ?? null;
 
-/** MW-STEEL1: every mesh an own model can wear, every style's, in its table's order. */
+/** Every mesh an own model can wear, every style's, in its table's order. */
 const ownModelsOf = (own) => [...new Set([own.parts, ...Object.values(own.styles ?? {})].flat().map((p) => p.model))];
 
-/** MWNPC17: a CLOT record's rung on Morrowind's own clothing ladder, by its id's prefix (common_, expensive_,
+/** A CLOT record's rung on Morrowind's own clothing ladder, by its id's prefix (common_, expensive_,
  *  extravagant_, exquisite_ - characters/wardrobe.js CLOTHING_TIERS), or -1 for an id that names none (a mod's own). */
 export function clothingTierOf(id) {
   const m = /^(common|expensive|extravagant|exquisite)_/i.exec(String(id ?? ''));
   return m ? ['common', 'expensive', 'extravagant', 'exquisite'].indexOf(m[1].toLowerCase()) : -1;
 }
-/** MWNPC17: how many of a dye's nearest garments a person's `pick` chooses among - near enough that a red shirt is
+/** How many of a dye's nearest garments a person's `pick` chooses among - near enough that a red shirt is
  *  still red, wide enough that two red shirts are two shirts. */
 export const CLOTH_PICK_NEAREST = 3;
 /** AUDIT MWNPC16-18 C F2: and only those whose colour is within this of the nearest's - its distance times

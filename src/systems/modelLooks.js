@@ -1,22 +1,7 @@
 import { enhancedAxeRecord } from '../characters/ownModels/enhancedBattleaxe.js';
 import { noteModelDyePlayer } from './modelDye.js';
 import { itemAppearanceKey } from './item/itemAppearanceKey.js';
-// MODEL-LOOKS (BLOODBATH, 2026-11-08; bible/10-UI/Enhanced-Mod-Compatibility.md "3D looks"): THE 3D LOOK OF A PIECE ON
-// THE PLAYER'S OWN BODY - the Morrowind record it is drawn as, chosen in the item card's 3D tab. Independent of the 2D
-// card look (systems/paperdollLooks.js). Local only: it never changes the item, never rides the wire (net/remotePlayers.js
-// composeLook reads the equip table, not this), and the resolvers answer it only for a piece the player holds - a peer or
-// a townsperson in the same cuirass keeps its own (systems/modelLookSource.js).
-//
-// What a piece may be drawn as (the owner, 2026-11-08: "не ограничиваться сетом из скайрима и шлемами - на всю броню из
-// своего семейства, оружие и одежду"):
-// - armour 102-112: every Morrowind record of the same piece in its family's weight class (formats/morrowind/mwItemMap.js
-//   armorWeightOf: leather -> light, chain -> medium, plate -> heavy), a pair (gauntlets) only when both sides exist;
-// - clothing: every garment of the same Morrowind type (shirt, pants, shoes, skirt, robe); a cloak stays the port's own;
-// - a weapon: every record of the same Morrowind weapon type (formats/morrowind/mwFirstPerson.js dfWeaponToMw), so its
-//   animations and grip are the piece's own.
-// Armour records are selected by appearance and family; two records that draw the same mesh are one choice, and the one the resolver already picks
-// is "Original". The port's own looks (the Skyrim set, the steel helm's styles, the shields, the wolf pelts) stay their
-// own switches (systems/lookVariants.js); a chosen record stands over them.
+// Choose the 3D equipment record shown on the player's model independently of the 2D inventory appearance.
 import { getPref, setPref } from './uiPrefs.js';
 import { equipTableOf } from './equip.js';
 import { customItemClass, rriNativeMaterialValue } from './roleplayRealismItems/rriItems.js';
@@ -159,10 +144,7 @@ export function modelLookOwnRecords(item, catalog) {
   }
   return [];
 }
-/** The resolver's own record AS A CHOICE: { id, label, records } or null. The owner, 2026-11-08 ("какие-то вариации
- *  вещей потерялись - как минимум вот такой шлем"): a piece the port draws with a model of its own (the steel helm's
- *  styles, the steel plate) never shows the Morrowind record it stands over, and the 3D tab, which led with "Original"
- *  only when no own look did, offered it nowhere - so it is offered beside the own looks, chosen like any record. */
+/** Include the record resolved by the normal equipment path so the original model remains a selectable look. */
 export function modelLookOwnChoice(item, catalog) {
   const recs = modelLookOwnRecords(item, catalog);
   if (!recs.length) return null;

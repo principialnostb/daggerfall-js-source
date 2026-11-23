@@ -8,7 +8,7 @@
 // idle, ghost/wraith, slaughterfish). The scene owns rendering (a
 // live billboard batch per foe); this module owns the state/frames.
 //
-// C14: the Spell anim state is LIVE (casters play over records 20-24
+// The Spell anim state is LIVE (casters play over records 20-24
 // when HasSpellAnimation - Orc Shaman - else the primary records,
 // verbatim GetStateAnims). SpellAnimFrames only SEEDS the state: it
 // is not one of AnimateEnemy's doingAttackAnimation states, so the
@@ -16,7 +16,7 @@
 // (AUDIT 18). RangedAttack1/2 are N/A
 // for monsters (HasRangedAttack1 is class-enemy-only in EnemyBasics
 // - the rigs' bow path owns it).
-// C16: the -1 frame IS the damage moment (doMeleeDamage -> the scene's
+// The -1 frame IS the damage moment (doMeleeDamage -> the scene's
 // MeleeDamage resolution; the machine's hit frame stays the RIGS'
 // clock).
 //

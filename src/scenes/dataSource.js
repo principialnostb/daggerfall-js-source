@@ -14,7 +14,7 @@
 // UPPERCASE basenames - real ARENA2 ships uppercase, user folders vary.
 
 import { isTouchDevice } from '../ui/touch/touchDevice.js';   // TI3
-import { isEnhanced } from '../systems/uiSkin.js';   // FONT3: the asset picker's face follows the skin
+import { isEnhanced } from '../systems/uiSkin.js';   // The asset picker's face follows the skin
 import { PIXEL_FONT_CSS } from '../ui/pixelifyFive.js';   // FONT3
 import { optionPath } from '../ui/settings/settingsMap.js';   // ORG2
 
@@ -30,7 +30,7 @@ const STORE = 'arena2';
 const MUSIC_STORE = 'music';
 /** M-TEX: the same reasoning as the music store, one domain over. */
 const TEXTURE_STORE = 'textures';
-/** MW-IMPORT: user-supplied Morrowind data (Morrowind.bsa, expansions,
+/** User-supplied Morrowind data (Morrowind.bsa, expansions,
  *  Morrowind.esm) for the opt-in 3D asset layer. Same doctrine as
  *  ARENA2 - actively-sold game data, never in the repo or build, lives
  *  only in the player's browser. Its lifecycle is its own: attaching
@@ -74,68 +74,8 @@ const mem = new Map(); // NAME -> Uint8Array
  *  turned the classic sky to the gradient at its next ask. */
 const readAgain = new Set();
 
-// Ingest DIET (2026-08-14, the mobile storage fix): ARENA2 is 517MB
-// but the engine reads ~155MB - TEXTURE archives, the BSAs, palettes,
-// PAKs, CFGs, fonts, WOODS.WLD, MAGIC.DEF, SPELLS.STD, IMG/CIF art,
-// RSC text, RCI, SND, the .TXT set (BIOG*.TXT biographies + FACTION.TXT)
-// and CLASSES.DAT. The other 362MB (VIDs 83, SKY/PACKED DATs 247,
-// FLCs, quest QBN/QRC) is unread by the port - ingesting it tripled
-// storage + memory pressure and quota-killed phones. When a future
-// slice needs a dropped kind: bump MANIFEST_V - stale stored sets
-// auto-wipe to the picker.
-//
-// AUDIT 18 F2: the diet outlived three slices that shipped readers for
-// kinds it drops, and each degraded SILENTLY through a warn-and-skip.
-// CLASSES.DAT (the U18 class-questions results walk, chargenSession.js),
-// FACTION.TXT (the T3a reaction layer, townTalk.js) and every BIOG*.TXT
-// (the S3e biography, biogFile.js) are fetched by LIVE code and were all
-// filtered out - so on the deployed and phone paths the whole biography
-// stage, the class-questions screen and every faction datum were simply
-// absent. Dev hid it: the vite ARENA2_PATH middleware serves the network
-// fallback, which production 404s.
-// The whole .TXT set is 19 files / 148KB, so it rides WHOLESALE rather
-// than by name - a future .TXT reader is then covered without anyone
-// remembering. CLASSES.DAT is named EXACTLY, because a bare \.DAT$ would
-// drag in the 247MB SKY/PACKED sets the diet exists to refuse.
-//
-// AUDIT 19 F8: .GFX joined the wholesale list. There are exactly TWO
-// (SCRL00I0/SCRL01I0, the U18 class-questions parchment scroll) and they
-// were STARVED - fetched in a `for (const name of [...])` loop, which the
-// F2 pin's single-literal regex could not see, so the deployed and phone
-// paths fell back to the text panel and the pin passed. The pin now scans
-// every ARENA2 filename the source NAMES, not just the ones it fetches in
-// a shape the regex recognises.
-//
-// U22: the VIDs are the same trap and CANNOT ride wholesale - the set is
-// 86MB and \.VID$ would undo the diet's single biggest saving. So they
-// are named one at a time, and ONLY when something actually plays them:
-// ANIM0001 is the splash (1.4MB) and is wired in main.js; ANIM0012 is
-// the death video (DaggerfallUI.cs:50), wired by D1 and ingested below.
-// V1 wired the two dream videos, so the rule fed them: ANIM0002 (the
-// lycanthropy dream, 1.3MB) and ANIM0004 (the vampire dream, 1.3MB)
-// now play from scenes/shared.js's wireInfectionVideos, and the fake
-// death reuses ANIM0012, already here for D1. DFU names three more -
-// ANIM0000/ANIM0011/DAG2, the new-game cinematics
-// (DaggerfallStartNewGameWizard.cs:33-35, 26.6MB between them) - and
-// none of THOSE is wired here yet, so none is ingested. (The merge audit found
-// this comment and the Ledger row it mirrors both still saying the
-// diet held ANIM0001 alone, fourteen lines above the KEEP that names
-// ANIM0012 - the exact drift the rule below exists to prevent.) Adding a file nobody plays costs every user the bytes for
-// nothing; forgetting one that IS played is the F2 silent degradation.
-// Which is why the rule is ENFORCED, not remembered - and the enforcement
-// was already here: AUDIT 18 F2's pin re-derives the fetch list from the
-// source on every run, so main.js's getBytes('ANIM0001.VID') put the
-// splash under the rule the moment it was written. Proven by mutation -
-// drop the name below and F2 fails with "desktop diet drops
-// ANIM0001.VID". Wire a video, and the pin makes you feed it.
-// AUDIT DA: the desktop shell is NEVER lean, whatever it sniffs - a
-// touch-screen Windows laptop is not a phone, and a player there who
-// fell back to the in-page picker used to ingest the sky-less lean
-// set with no way out of it from the app. The shell's presence
-// (daggerShell, the preload bridge) outranks the touch sniff.
-// TI3: ...and the touch sniff is ui/touch/touchDevice.js's law - a finger as
-// the PRIMARY pointer - so a touchscreen laptop in a browser is not lean
-// either.
+// On touch devices ingest only the archive types the engine reads. The primary-pointer check leaves touchscreen
+// laptops with the desktop data set.
 const LEAN = typeof window !== 'undefined' && !window.daggerShell && isTouchDevice();
 export const KEEP = (name, lean = LEAN) => /^TEXTURE\.\d+$/.test(name) ||
   /\.(BSA|COL|PAL|PAK|CFG|FNT|WLD|DEF|STD|IMG|CIF|RSC|RCI|SND|TXT|GFX|BSS|CFA)$/.test(name) ||   // U45 added BSS: the three compass needles, 116KB for all three; HC1 added CFA: TR2's riding sprites (MRED00I0/MRED01I0), which the deployed site had NEVER held - the horse and cart drew nothing there

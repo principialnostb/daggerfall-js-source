@@ -1,4 +1,4 @@
-import { paperdollLooksKey } from '../../systems/paperdollLooks.js';   // PAPERDOLL-LOOKS: every piece's 2D look keys the composite
+import { paperdollLooksKey } from '../../systems/paperdollLooks.js';   // Every piece's 2D look keys the composite
 import { appearanceDisplayKey } from '../../characters/activeAppearance.js';
 import { getPref } from '../../systems/uiPrefs.js';
 import { dfmodGeneration } from '../../systems/dfmodTextures.js';

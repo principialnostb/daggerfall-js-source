@@ -6,12 +6,7 @@ import { appearanceFigure } from './appearanceFigure.js';
 import { modelDyeKey, modelDyeOf, setModelDye } from '../../systems/modelDye.js';
 import { CLOTHING_DYES, DYE_NAMES } from '../../characters/dyes.js';
 import { DF_CLOTHING_DYE_RGB } from '../../formats/morrowind/mwItemMap.js';
-// MODEL-LOOKS (BLOODBATH, 2026-11-08; systems/modelLooks.js): THE 3D TAB'S ONE ROW - every look a piece may wear on the
-// player's body in one list (the owner: "не должно быть таких разделений на старое и новое а все в одну кучу"): the
-// port's own looks first (the Skyrim set, the helm's styles, the shields, the wolf pelts - systems/lookVariants.js, each
-// its own switch), then every Morrowind record; with no own look, "Original" (the resolver's own record) leads. Paged
-// three at a time like the 2D tab. Each card is a picture drawn the own looks' way (render/mwLookThumb.js: the record as
-// worn, a pair as a pair), or the own look's baked picture; its name until the picture lands.
+// Display eligible 3D looks in one selectable row in the equipment card.
 import { modelLookChoices, modelLookOf, setModelLook, modelLookOwnRecords, modelLookOwnChoice, modelLookKind } from '../../systems/modelLooks.js';
 import { setLookVariant } from '../../systems/lookVariants.js';
 import { mwLookThumb } from '../../render/mwLookThumb.js';

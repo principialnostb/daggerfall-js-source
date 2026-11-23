@@ -1,4 +1,4 @@
-// FP-INERTIA (MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md): the first-person viewmodel lags a turn and a glance,
+// The first-person viewmodel lags a turn and a glance,
 // sways against a start, dips on a landing - heavier slower and deeper - and rests exactly on the lens when nothing moves.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

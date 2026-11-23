@@ -11,8 +11,8 @@
   {
     "name": "SW1b-2-the-draw-seam-returns-before-the-shield",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun)) return;",
-    "new": "      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun)) return;",
+    "old": "      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun && !armsMovement && !armsSheathe)) {",
+    "new": "      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun && !armsMovement && !armsSheathe)) {",
     "tests": [
       "test/combat/sw1_shield_widget.test.js"
     ]

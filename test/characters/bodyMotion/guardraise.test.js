@@ -1,4 +1,4 @@
-// GUARD-RAISE (2026-11-07, src/characters/bodyMotion/guardElbows.js): the fists' guard stands the fists before the chin,
+// The fists' guard stands the fists before the chin,
 // not pressed into the chest - measured on a woman's body (the vendored xbase_anim_female) in the game's own idlehh pose
 // (Morrowind Animation Overhaul's clip, as the game plays it).
 import { test } from 'node:test';

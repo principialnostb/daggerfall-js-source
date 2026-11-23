@@ -1,4 +1,4 @@
-// LOAD-STALL (bible/07-Rendering/Load-Stalls.md): THE PLAYER'S BODY BUILT IN NODE, ON REAL DATA, TIMED.
+// THE PLAYER'S BODY BUILT IN NODE, ON REAL DATA, TIMED.
 //
 //   node tools/mwBuildProbe.mjs [--race nord] [--female] [--repeat 3]
 //
@@ -98,7 +98,7 @@ if (args.includes('--weapons')) {
   console.log = original;
   console.log(`build ok=${res.ok} wall=${Math.round(performance.now() - t0)}ms worst-freeze=${stop()}ms${res.ok ? '' : ` ${res.stage}: ${res.error}`}`);
   const W = { Dagger: 113, Longsword: 120, Claymore: 122, Battle_Axe: 127, Short_Bow: 129, Katana: 121 };
-  if (args.includes('--prewarm')) {   // WEAPON-FIRST: the carried weapons warmed first, as the pack and the build do
+  if (args.includes('--prewarm')) {   // The carried weapons warmed first, as the pack and the build do
     quiet(); t0 = performance.now();
     const n = await rig.prewarmWeapons(Object.entries(W).map(([name, templateIndex]) => ({ templateIndex, material: 0, name })));
     console.log = original;
@@ -156,7 +156,7 @@ for (let r = 0; r < repeat; r++) {
     const res = await fpArm.buildFpArm({ race, female, armor, deps, ownHeads: true });
     const total = Math.round(performance.now() - t0);
     const freeze = stop();
-    // LOAD-STALL 2: the sweep the build deferred, run as the rig runs it - beside the frames
+    // The sweep the build deferred, run as the rig runs it - beside the frames
     let later = '';
     if (res.ok && typeof res.sweepLater === 'function') {
       const stopLater = freezeMeter();

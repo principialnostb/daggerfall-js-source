@@ -1,5 +1,5 @@
 // @ts-check
-// SHIELD-WALK-SET (2026-11-07, the owner): walking forward the shield is the neutral one (SHIELD-WALK-NEUTRAL,
+// Walking forward the shield is the neutral one (SHIELD-WALK-NEUTRAL,
 // combat/leftArmLayer.js: the stance idle's arm) and should "rise a little higher than the neutral position"; running,
 // on the run's strafe arm, it "nearly rests on the chin" - "just move the arm a little". So the shield arm is turned
 // about its shoulder - `lift` up and forward about the body's right, `abduct` out about its facing, `yaw` round about the
@@ -14,15 +14,12 @@ const DEG = Math.PI / 180;
 
 /** Degrees per gait; `ease` seconds it takes up and lets go. Tunable live through globalThis.__shieldSet ({ walk, run }). */
 export const SHIELD_SET = Object.freeze({
-  walk: Object.freeze({ lift: 0, abduct: 0, yaw: 0, roll: 0 }), // SHIELD-WALK-UPRIGHT: the strafe's arm needs no lift
+  walk: Object.freeze({ lift: 0, abduct: 0, yaw: 0, roll: 0 }), // The strafe's arm needs no lift
   run: Object.freeze({ lift: -15, abduct: 8, yaw: 0, roll: 0 }),
   ease: 0.2,
 });
 
-/** SHIELD-LIFE (the owner, 2026-11-12: the upright shield is "a frame", wanted "livelier": stops, small movements). Degrees
- *  laid on the held arm: `kick` the dip at a start and the carry at a stop per unit the pace changes, on a spring of
- *  `hz` and `damp`; `bob` with each footfall; `lean` out toward a strafe; `turn` into a turn per radian a second, at
- *  most `turnMax`. Tunable live through globalThis.__shieldSet.life. */
+/** Small shield movements follow the end of the step while keeping coverage across the torso. */
 export const SHIELD_LIFE = Object.freeze({
   kick: 1.6,
   hz: 2.2,
@@ -64,7 +61,7 @@ export function createShieldSet() {
       if (Math.abs(walk - wantWalk) < 1e-3) walk = wantWalk;
       run = ease(run, wantRun, SHIELD_SET.ease, d);
       if (Math.abs(run - wantRun) < 1e-3) run = wantRun;
-      // SHIELD-LIFE: the pace's change kicks a damped spring; the stride bobs it; a strafe and a turn lean it
+      // The pace's change kicks a damped spring; the stride bobs it; a strafe and a turn lean it
       const L = lifeOf(),
         now = clamp01(gait?.move ?? 0) * (1 + r),
         k = 2 * Math.PI * L.hz;

@@ -1,14 +1,5 @@
-// BODY-SHAPE: the appearance editor's body sliders, as vertex morphs of the player's posed body.
-//
-// Every region is found the way the body itself is built, not by a fraction of its bounding box:
-// - HEIGHTS come from the skeleton's own bones in the pose (pelvis, spine, spine1, spine2, neck) - the
-//   chest is where Bip01 Spine2 is, the waist where Spine1 is, the hips where the Thighs join;
-// - LIMBS come from the skin's own weights - a vertex is arm, leg or trunk by the bones that move it,
-//   so an arm hanging at the hip is never widened by "hips", nor a thigh by "waist".
-// The former masks were fractions of the body's box measured WITHOUT the head (the head is its own piece),
-// against heights picked for a body WITH one: "breast" landed on the belly, "waist" on the groin, "hips"
-// in the gap between the legs. REST_LANDMARKS is the fallback, measured on Better Bodies' bb_skinf_no /
-// bb_skinm_no at rest (feet 0, neck top 1), for a body whose skeleton names no Bip01 bones.
+// The appearance sliders deform the posed mesh using rest landmarks so a moving limb retains its selected
+// proportions.
 
 export const REST_LANDMARKS = Object.freeze({
   neck: 0.929, spine2: 0.844, spine1: 0.756, spine: 0.668, pelvis: 0.605, knee: 0.363, ankle: 0.06,

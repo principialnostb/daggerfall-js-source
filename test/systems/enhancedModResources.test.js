@@ -2,6 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { globPattern, modResourceGlob, normalizeModFiles, modPackState, resourceConnectionState, combinedModFileCount } from '../../src/systems/enhancedModResources.js';
 import { MOD_PACKS } from '../../src/systems/enhancedModCatalog.js';
+test('the mounted desktop manifest has a compact identity and preserves indexed asset URLs', async t => {
+  let paths;
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(paths)));
+  const shell = globalThis.daggerShell;
+  globalThis.daggerShell = { ...shell, testEmc: true };
+  t.after(() => { if (shell === undefined) delete globalThis.daggerShell; else globalThis.daggerShell = shell; });
+  async function mount(id, list) {
+    paths = list;
+    const resources = await import('../../src/systems/enhancedModResources.js?manifest=' + id);
+    await resources.initEnhancedModResources();
+    assert.equal(resources.desktopEmcResource(list[0]), 'dagger://game/test-emc/0');
+    return resources.modResourceSignature();
+  }
+  const files = Array.from({ length: 8000 }, (_, i) => 'Mods/Bodies/' + i + '.nif');
+  const first = await mount(1, files);
+  assert.ok(first.length < 256);
+  assert.equal(await mount(2, files), first);
+  assert.notEqual(await mount(3, files.toReversed()), first);
+});
+
 test('runtime glob admits exactly the same subtrees and brace extensions',()=>{
  const re=globPattern('../../../Mods/Animations/Test/**/*.{kf,KF}');
  assert.ok(re.test('../../../Mods/Animations/Test/a.kf'));

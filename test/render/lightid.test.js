@@ -10,6 +10,7 @@
 // light with no name (an anonymous list, a new record each frame) keeps the cached path; and the court's own counts
 // (tools/courtShadowProbe.mjs) before and after. The lo tier's half (a light holding a 512 slot draws no lo map) is
 // disc15.test.js's.
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -26,7 +27,7 @@ import { bossGlow } from '../../src/world/gate/gateBoss.js';
 import { GATE_STATE_EMPTY } from '../../src/net/gate/gateLink.js';
 import { courtShadowCounts, meanOf, worstOf, CASE_FRAMES } from '../../tools/courtShadowProbe.mjs';
 
-const ROOT = new URL('../..', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const rd = (p) => readFileSync(join(ROOT, p), 'utf8');
 const walk = (d) => readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : p.endsWith('.js') ? [p] : []; });
 const I = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);

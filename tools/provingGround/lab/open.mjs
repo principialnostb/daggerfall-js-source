@@ -13,7 +13,7 @@ export async function openLab({ page, context, lab, base, out }) {
   const kit = (fn, ...args) => page.evaluate(([name, values]) => window.__pgKit[name](...values), [fn, args]);
   const step = (n) => page.evaluate((count) => window.__pg.step(count), n);
   const body = (fn, ...args) => page.evaluate(([name, values]) => window.__labKit[name](...values), [fn, args]);
-  // LAB2: a frame drawn with the clock all but still - the camera swung or an edit shown, the motion not advanced
+  // A frame drawn with the clock all but still - the camera swung or an edit shown, the motion not advanced
   const still = () => page.evaluate(() => window.__pg.step(1, 0.01));
   if (await page.evaluate(() => (document.body?.innerText ?? '').includes('CLICK OR PRESS A KEY'))) {
     await page.keyboard.press('Enter'); await step(1);

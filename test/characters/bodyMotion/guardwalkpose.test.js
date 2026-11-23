@@ -1,4 +1,4 @@
-// GUARD-TRAVEL: real bundled MAO clips on the retail hierarchy, not hand-authored joint poses.
+// Real bundled MAO clips on the retail hierarchy, not hand-authored joint poses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

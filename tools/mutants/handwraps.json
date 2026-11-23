@@ -534,8 +534,8 @@
   {
     "name": "HANDWRAPS-run-held",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "const held = (s) => slots?.[s] && !isHandWraps(slots[s]);",
-    "new": "const held = (s) => slots?.[s];",
+    "old": "    const held = (item) => !!item && !isHandWraps(item);   // HAND-WRAPS (AUDIT C5): the wraps leave the hands empty",
+    "new": "    const held = (item) => !!item;   // HAND-WRAPS (AUDIT C5): the wraps leave the hands empty",
     "tests": [
       "test/combat/handwraps_audit.test.js"
     ],

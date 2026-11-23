@@ -1,16 +1,6 @@
 // @ts-check
-// FP-INERTIA (2026-10-27, MOTION-DOCTRINE pilot step 4, bible/05-Combat/Motion-Doctrine.md): THE FIRST-PERSON HANDS
-// CARRY WEIGHT. The viewmodel was glued to the eye (RULE 54: the camera is a node of the rig, so a turn of the head never
-// moved the arms against the view); now the arms and what they hold answer the look and the body - they lag a turn
-// and a glance and swing back, sway against a start and a stop, dip on a landing and lift on a jump - through stiff
-// springs (SHARPNESS: a little overshoot, never jelly) whose stiffness, depth and damping are the body's WEIGHT
-// (characters/bodyMotion/bodyWeight.js): a dagger is quick and light, a two-hander in plate slow and deep. The idea is
-// First Person (FP) Inertia's (TheShinyHaxorus, Skyrim SE, Nexus 167883, MIT) - one spring per weapon class, a look
-// spring and a movement spring, pivoted at the shoulder; the code is the port's own. Laid in front of the lens as the
-// gun's kick is (combat/gun/gunFeel.js armKickMatrix), so the whole viewmodel moves as one and nothing else in the
-// pass does. Daggerfall Unity draws its hands as a screen sprite that never lags, so this is a departure from it.
-// 2026-10-28, Armoured-Twohand-Pilot.md: camera-driven sway retired at the
-// owner's judgement; only acceleration, jumping and landing remain active.
+// Apply inertia to the first-person viewmodel using the equipment's mass. Camera turns retain the authored hand
+// motion.
 
 import { bodyWeightOf } from '../characters/bodyMotion/bodyWeight.js';
 import { algebra, clamp, ease } from '../characters/bodyMotion/bodyKit.js';
@@ -19,19 +9,9 @@ import { MW_WEAPON_TYPE } from '../formats/morrowind/mwFirstPerson.js';
 
 const { lerp } = algebra;
 
-/**
- * THE LAWS, each `[light, heavy]` by the weight:
- *   look  - radians of lag per radian a second of turn (`yaw`) and of glance (`pitch`), never past `maxRot`; the arms
- *           also slide `slide` metres per radian a second against a turn and roll `roll` of the yaw lag into it;
- *   move  - metres of sway per m/s^2 of the body's own acceleration (back against a start, sideways against a step),
- *           never past `maxMove`; the body's velocity followed over `velTau`;
- *   land  - a landing's dip (metres a second of the spring's velocity, at a full fall of `fall` seconds aloft) and a
- *           jump's lift;
- *   omega, zeta - the springs' stiffness (radians a second) and damping (under 1: a little overshoot).
- * `pivot` the shoulder in the eye's space (metres: right, up, back - the eye looks down -Z).
- */
+/** Each pair gives the light and heavy equipment limits for that response. */
 export const FP_INERTIA = Object.freeze({
-  cameraSway: false,   // Owner, 2026-10-28: added look lag distracts; existing clip motion is sufficient.
+  cameraSway: false,   // The clip supplies hand movement during a turn.
   look: Object.freeze({ yaw: Object.freeze([0.018, 0.032]), pitch: Object.freeze([0.014, 0.026]), maxRot: 0.16, slide: Object.freeze([0.004, 0.008]), roll: 0.35 }),
   move: Object.freeze({ gain: Object.freeze([0.0009, 0.0015]), maxMove: 0.05, velTau: 0.08 }),
   land: Object.freeze({ dip: Object.freeze([0.5, 0.9]), lift: Object.freeze([0.18, 0.3]), fall: 0.8 }),

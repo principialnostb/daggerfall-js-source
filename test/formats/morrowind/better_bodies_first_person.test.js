@@ -12,7 +12,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 test('first-person runtime dispatch uses the independent hand-source selector', () => {
   const runtime = readFileSync(resolve(repoRoot, 'src/combat/fpArm.js'), 'utf8');
   assert.match(runtime, /import \{ firstPersonHandsSource \} from '..\/formats\/morrowind\/mwBetterBodiesPaths\.js';/);
-  // BETTER-HANDS: Better Bodies' arm with Better Hands' hands, Better Bodies' own hand read for the fist's thumb
+  // Better Bodies' arm with Better Hands' hands, Better Bodies' own hand read for the fist's thumb
   assert.match(runtime, /firstPersonHandsSource\(modSetting\('morrowind-textures', 'FirstPersonHands'\)\) === 'better-hands'/);
   assert.doesNotMatch(runtime, /=== 'robert-bodies'|=== 'better-bodies'/, 'the two retired sources are gone');
   assert.match(runtime, /betterBodiesAssetUrls\(\{ race, female \}\)/);

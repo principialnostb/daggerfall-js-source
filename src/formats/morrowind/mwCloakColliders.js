@@ -1,9 +1,5 @@
 // @ts-check
-// CLOAK-CONTACT (the owner, 2026-11-12: the animated cloak "stands very far from the back", gear slung over it "does not
-// press it", and it costs frames; measured: the live contact pass refitted the cloak to the whole body every frame, 14.4
-// ms). CLOAK-BODY (the owner, 2026-11-13: legs and armour came through the cloth after capsules took the refit's place;
-// measured: the capsules, on the bones, met 0-2 of 1949 points a stride). The cloth meets the worn pieces' own posed
-// surface: their backmost point over each unit of the cloak's (x, z), taken in its bind space each frame.
+// Use the posed surfaces of worn pieces to keep the animated cloak clear of the body and the stowed shield.
 import { placeAtBone } from './mwFirstPerson.js';
 
 /** Units the cloth keeps behind the body; the most one frame pushes it (deeper is a limb over the cloak, not under it);

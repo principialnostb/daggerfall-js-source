@@ -47,19 +47,20 @@
   {
     "name": "VIEW-TOGGLE-not-polled",
     "file": "src/scenes/world.js",
-    "old": "    if (hccActionPressed('TogglePerspective')) mwViewTogglePerspective();\n",
-    "new": "",
+    "old": "    stepLookAround(dt, !gamePaused() && !pointerSurfaces.size && !_loading && held(keys, 'TogglePerspective'), mwViewTogglePerspective, () => mwCamera.thirdPerson());   // LOOK-AROUND: sample the shared input before an interior or dungeon takes the frame",
+    "new": "    stepLookAround(dt, !gamePaused() && !pointerSurfaces.size && !_loading && false, mwViewTogglePerspective, () => mwCamera.thirdPerson());   // LOOK-AROUND: sample the shared input before an interior or dungeon takes the frame",
     "tests": [
       "test/player/viewtoggle.test.js"
     ]
   },
   {
     "name": "VIEW-TOGGLE-held-not-pressed",
-    "file": "src/scenes/world.js",
-    "old": "    if (hccActionPressed('TogglePerspective')) mwViewTogglePerspective();\n",
-    "new": "    if (held(keys, 'TogglePerspective')) mwViewTogglePerspective();\n",
+    "file": "src/player/lookAround.js",
+    "old": "    if (!held && !active) toggle();   // a tap",
+    "new": "    if (!active) toggle();   // a tap",
     "tests": [
-      "test/player/viewtoggle.test.js"
-    ]
+      "test/player/lookaround2.test.js"
+    ],
+    "note": "Releasing a hold toggles perspective as if the key had been tapped."
   }
 ]

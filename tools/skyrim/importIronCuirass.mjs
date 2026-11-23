@@ -1,24 +1,6 @@
-// SKYRIM'S HEAVY IRON CUIRASS AS THE STEEL CUIRASS'S AND PAULDRONS' IRON LOOK, from the owner's own install.
-//
-//     node tools/skyrim/importIronCuirass.mjs [--preview]
-//
-// MW-IRON1 (2026-10-27, the owner: "цельный этот сет от этого железного шлема", "тяжелую конечно", and the split:
-// "кираса и два наплечника отдельно, ремень кирасе"). Skyrim's female heavy iron cuirass (meshes\armor\iron\f\
-// cuirassheavy_1.nif - the _1 body weight) is one armour for the whole body; the port's is Daggerfall's pieces, so it is
-// cut along its own skin:
-//   - PAULDRONS: the Pauldron shape's triangles held by the arm's bones (clavicle, upper arm, the pauldron's own bone),
-//     left and right by side; the strap across the chest and the buckle on it are held by the spine - THE CUIRASS's;
-//   - CUIRASS: the trunk held by the spine and the neck, and the shoulders' tops held by the clavicles;
-//   - SKIRT: what the pelvis and the thighs hold - the belt, the plates, the satchel;
-//   - FLAPS: what the skirt's own bones hold - the leather aprons front and back, made to hang over Skyrim's trousers;
-//     over bare legs they read as rags at the crotch (the owner: "у промежности тряпок понавешано"), so they are kept
-//     apart with the trousers and not worn;
-//   - LEGS: what the calves hold - the trousers and their wraps, Skyrim's greaves (it has no greaves slot) - kept apart
-//     for the greaves and not worn by the cuirass;
-//   - the Skyrim body inside the armour is left out: the port has its own.
-// Each is carried onto the Morrowind body (tools/skyrim/retarget.mjs) - Better Bodies' Dunmer woman at the vendored
-// female skeleton's bind - pushed out over its skin, and skinned to the Morrowind bones its Skyrim bones stand for, in
-// that bind. Like the helm (MW-HORN5), nothing of Bethesda's is committed: the outputs are ignored by git.
+// Run node tools/skyrim/importIronCuirass.mjs [--preview] against the owner's Skyrim installation. Retarget the
+// iron cuirass and pauldrons to the Morrowind bones at bind pose. Separate the skirt and trousers from the
+// cuirass and omit Skyrim's body. Generated meshes and textures stay local and are ignored by Git.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
@@ -43,7 +25,7 @@ export const CUIRASS = ['meshes', 'armor', 'iron', 'f', `cuirassheavy_${WEIGHT}.
 export const SKY_BODY = ['meshes', 'actors', 'character', 'character assets', `femalebody_${WEIGHT}.nif`].join(BS);
 export const SKY_SKELETON = ['meshes', 'actors', 'character', 'character assets female', 'skeleton_female.nif'].join(BS);
 export const PIECES = Object.freeze(['cuirass', 'skirt', 'pauldron_left', 'pauldron_right', 'legs', 'flaps']);
-/** MW-IRON5: the knee's top on Better Bodies at the bind (its part reaches 50.6, under the thigh's from 50.0) - below
+/** The knee's top on Better Bodies at the bind (its part reaches 50.6, under the thigh's from 50.0) - below
  *  it the armour stands 1.0 off the skin whatever part it is nearest. */
 export const KNEE_TOP = 52;
 const ARM_CROSS = 0.95;   // the arm's cross-section, Morrowind's to Skyrim's
@@ -56,7 +38,7 @@ export const WORN = Object.freeze({
   skirt: { nif: 'src/assets/mw/meshes/iron_skirt.nif', shape: PLATE_RIG.skirt.shape },
   pauldron_left: { nif: 'src/assets/mw/meshes/iron_pauldron_left.nif', shape: PLATE_RIG.pauldron_left.shape },
   pauldron_right: { nif: 'src/assets/mw/meshes/iron_pauldron_right.nif', shape: PLATE_RIG.pauldron_right.shape },
-  // MW-IRON3: the trousers below the skirt (the LEGS the cut set apart) as the greaves' iron look, a leg each
+  // The trousers below the skirt (the LEGS the cut set apart) as the greaves' iron look, a leg each
   greave_left: { nif: 'src/assets/mw/meshes/iron_greave_left.nif', shape: PLATE_RIG.greave_left.shape },
   greave_right: { nif: 'src/assets/mw/meshes/iron_greave_right.nif', shape: PLATE_RIG.greave_right.shape },
 });
@@ -189,15 +171,13 @@ export function carryCuirass({ fit = true, trunk: trunkMode = 'slices', flaps = 
   for (const [name, p] of Object.entries(pieces)) {
     if (!p.indices.length) continue;
     const before = underSkin(p.positions, bodyIdx);
-    // MW-IRON5: everything 1.0 over the knee, which nothing covers whole and so stays drawn - 0.6 still showed through.
-    // MW-IRON3: the skirt and the trousers stand 0.6 off the skin, not 0.35 - over the thighs and knees, which they leave
-    // drawn, the skin showed through as the legs moved (the owner: "чуть чуть текстура кожи проглядывает")
+    // Fit the plate over the exposed knee and keep the skirt clear of the trousers.
     const fitted = fit ? fitOver(p.positions, p.indices, bodyIdx, { margin: (part, p) => (/Knee/.test(part) || p[2] < KNEE_TOP ? 1.0 : name === 'skirt' || name === 'legs' ? 0.6 : 0.35) }) : { positions: p.positions, moved: 0, worst: 0 };
     p.positions = fitted.positions;
     const after = underSkin(p.positions, bodyIdx);
     report[name] = { verts: p.positions.length, tris: p.indices.length / 3, underBefore: before.n, pushed: fitted.moved, worst: +fitted.worst.toFixed(2), underAfter: after.n, pokes: after.parts };
   }
-  // MW-IRON3 (the owner: the steel greaves still drew under the iron set - "либо скрыть ... либо делить"): the trousers
+  // The trousers
   // cut by side into the greaves, weighted the plate's way (PLATE_RIG's greave - the thigh, the calf past the knee), as
   // the boots are, since Skyrim's own weights lift what they hold off a Morrowind joint
   for (const side of ['left', 'right']) {
@@ -307,10 +287,7 @@ export function wornObj(pieces, names = Object.keys(WORN)) {
   return obj;
 }
 
-/** The painting brought to the set's bar (the owner: "+- одинаковую планку качества держать"): squeezed from Skyrim's
- *  1024 to the set's 256 it keeps Mac's cuirass's tone (mean 48, spread 23 against 40 and 26) but loses its small
- *  detail - so the detail is given back with an unsharp mask, and the tone is brought to Mac's mean, its spread a little
- *  over it. Only the texels the mesh wears are read and changed (the rest is the bake's black). Pure. */
+/** Bring the cuirass painting to the set's texture scale while retaining the original details. */
 export function finishPainting(png, reference, { amount = 0.7, spread = 1.1 } = {}) {
   const lum = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
   const stats = (p) => { const L = []; for (let i = 0; i < p.data.length; i += 4) { const l = lum(p.data, i); if (p.data[i + 3] > 127 && l > 3) L.push(l); } const m = L.reduce((a, b) => a + b, 0) / L.length; return { m, sd: Math.sqrt(L.reduce((a, b) => a + (b - m) ** 2, 0) / L.length) }; };
@@ -352,7 +329,7 @@ if (isMain(import.meta.url)) {
   console.table(r.report);
   for (const w of Object.values(WORN)) console.log(`  -> ${w.nif}`);
   console.log(`  -> ${PAINTING.dds}`);
-  execFileSync(process.execPath, ['tools/lookThumbs.mjs'], { stdio: 'inherit' });   // LOOK-THUMBS: the iron looks' pictures
+  execFileSync(process.execPath, ['tools/lookThumbs.mjs'], { stdio: 'inherit' });   // The iron looks' pictures
   if (process.argv.includes('--preview')) {
     const d = decodeDds(new Uint8Array(fromBsa(TEXTURES, ['textures', 'armor', 'iron', 'f', 'cuirassplate.dds'].join(BS))), { levels: 1 }).mips[0];
     const tex = { width: d.width, height: d.height, data: d.rgba };

@@ -1,4 +1,4 @@
-// MW-D25: THE VIEW SYNC - the one seam between the camera machine and
+// THE VIEW SYNC - the one seam between the camera machine and
 // the player's rigs, so the four hosts wire three calls instead of
 // re-deriving the lockstep four times (MW-D15's lesson: the camera dep
 // drifted per host until it had one home).
@@ -39,7 +39,7 @@ import { eotbCamera } from './eyeOfTheBeholder/eotbCamera.js';
 import { eotbBody } from './eyeOfTheBeholder/eotbBody.js';
 import { eotbWagon } from './eyeOfTheBeholder/eotbWagon.js';
 import { modSetting } from '../systems/modSettings.js';
-import { getPref } from '../systems/uiPrefs.js'; // MW-SHOULDER: the player's shoulder
+import { getPref } from '../systems/uiPrefs.js'; // The player's shoulder
 import { horseRigFor, HORSE_SEAT } from '../world/horseRig.js'; // COATS3D: the 3D horse under the Morrowind body
 import { gaitShare } from '../world/horseModel.js';
 import { SEAT_PELVIS_HEIGHT } from './seatPose.js';

@@ -196,6 +196,7 @@ Archive 210 records 6, 16, 17, 18 and 20 now draw original solid shafts,
 metal cups, collars and cage prongs, with the campfire's sixteen volumetric
 flame poses narrowed to the cup. The original record art was inspected from
 the local freeware data to distinguish torches from candles and lanterns.
+
 DFU reference: `DaggerfallBillboard.Update`, `SetMaterial` and `AnimateBillboard`
 (Assets/Scripts/Internal/DaggerfallBillboard.cs). Fixed geometry deliberately
 replaces camera-facing art; placement, point lights and the 12 fps fire cadence
@@ -204,23 +205,30 @@ The renderer seam covers exterior.js, world.js, worldModes.js and
 dungeonContext.js without growing those hosts, throughout Tamriel.
 `src/world/torchModel.js` owns the variants; `src/scenes/torchVisual.js` owns
 shared GPU leases and frees meshes, textures and emission on the last release.
+
 Dungeon and interior batches fit wall fixtures to the nearest vertical face
 of the static collider at collar height. The bracket spans from that face to
 the collar, and the flame clears the stone even if the sprite pivot was
 embedded. The shaft leans 18 degrees out about its collar, and the flame
 rises vertically from the shifted cup. The wall probe samples above and below
-the collar when it misses at collar height. If those short probes miss, a
+the collar when it misses at collar height.
+
+If those short probes miss, a
 wider search accepts inclined faces and seats the support at the actual hit
 height. It ranks contacts by distance, height shift and slope, adapts the
 bracket depth to the slope, and rejects a blocked bracket. A fixture without a verified wall
-draws its 3D shaft and flame at the authored position without a bracket. A probe against the static colliders of twelve original
+draws its 3D shaft and flame at the authored position without a bracket.
+
+A probe against the static colliders of twelve original
 dungeons fitted 831 of 866 wall torches. The menu uses the existing saved preference key.
 The dungeon static batch groups world-space models by material and cell. The main draw skips groups whose full geometry lies outside the camera frustum. Shadow replay still receives the full mesh and uses its own bounds.
 
 `src/render/campfireBillboards.js` skips torch geometry outside the camera frustum using the mounted position and a bound that includes the bracket and flame. The billboard still owns the light and interaction. `test/world/torch3d.test.js` checks selection, frustum culling and shared resource lifecycle;
 `tools/torchProbe.mjs` renders local front/back views using the game renderer.
 
-In dense fixture batches, `src/render/fixtureDepth.js` reads the farthest existing scene depth in each 16-pixel-square tile once per batch. A flame layer skips its pixel pass only if its nearest possible depth is behind every tile its projected bounds and pixel blocks can cover. Near-plane intersections, uncovered tiles and unavailable scene depth keep the regular draw. The test uses the current camera and depth buffer. The two translucent shells of a flame share one snapshot of the incoming blend and depth-write state. Each shell restores it. A direct mesh fallback clears the snapshot.
+In dense fixture batches, `src/render/fixtureDepth.js` reads the farthest existing scene depth in each 16-pixel-square tile once per batch. A flame layer skips its pixel pass only if its nearest possible depth is behind every tile its projected bounds and pixel blocks can cover. Near-plane intersections, uncovered tiles and unavailable scene depth keep the regular draw. The test uses the current camera and depth buffer.
+
+The two translucent shells of a flame share one snapshot of the incoming blend and depth-write state. Each shell restores it. A direct mesh fallback clears the snapshot.
 ## FIXTURE-3D (2026-11-11)
 The owner requested the remaining dungeon lights. Archive 210 now has original
 3D art for all thirty records, including braziers, candles, chandeliers,
@@ -228,49 +236,64 @@ hanging lanterns and floor posts. Unlit records keep dark materials.
 This extends the departure from DFU DaggerfallBillboard.SetMaterial and
 AnimateBillboard recorded above. Light positions, ranges and gameplay use
 the authored flats. The shared switch is called 3D Light Fixtures.
+
 Dungeon and interior placement reuse the static collider to bridge short
 gaps between a hanging fixture and its ceiling. Exterior.js and world.js
 inherit the geometry through the renderer and use authored suspension
 lengths. WorldModes.js inherits the interior and dungeon placement.
 There is no province gate. The fixture draw culls against the view before
-creating a mesh or drawing its flames. The shared visual lease frees the
+creating a mesh or drawing its flames.
+
+The shared visual lease frees the
 fixture meshes and materials with the last user.
 The art revision leaves candles and floor lamps as they were. Braziers use
 dark forged bowls with a recessed coal bed and rolled rims. Chandeliers use
 iron hoops, candle cups and shaped straps. Unlit fixtures have no flame or
 emissive material.
-The reference art pass adds bent claws, ribs and rivets to both braziers. The
+The reference art pass adds bent claws, ribs and rivets to both braziers.
+
+The
 pedestal also carries inlaid marks and torn cloth. Chandeliers have wax runs.
 The owner approved Blender model 03 as the shared pendant lamp. Records 8,
 11, 12, 13, 22 and 24–27 use the same mesh and its five authored textures.
 The packed GLB geometry keeps its UVs and uses a fixed model scale of 1.05 m for the pendant.
+
 Linked chain geometry spans the authored suspension height and the measured
 ceiling gap, so a long lantern sprite does not enlarge the housing or flame.
 Record 12 uses a dark pane and omits the flame. Lit lamps use the shared animated candle flame and draw a separate
 translucent pane over it. The renderer shares one GPU mesh
-across these records and releases it with the last fixture user. Chandeliers
+across these records and releases it with the last fixture user.
+
+Chandeliers
 retain their wheel and candle geometry. The record selector is the seam
 for adding distinct lamp variants later.
 The classic street lantern replaces archive 210 records 14, 15, 28 and 29 through
 `src/world/classicStreetLantern.js` `createClassicStreetLantern`. It retains the
 authored flat height and ground position. Record 21 remains a candle stand.
 The square post and stepped pedestal carry two opposing arms with six-sided amber
-lanterns on town streets. There is no candle or flame inside. The single-arm
+lanterns on town streets.
+
+There is no candle or flame inside. The single-arm
 fixture uses the same mesh buffers and textures, released by the last fixture owner.
 This departs from DFU `DaggerfallBillboard.SetMaterial` and `Update`: a fixed
 solid mesh replaces the camera-facing quad. `src/world/streetLanternPlacement.js`
 places a point light in each housing using the post’s position, angle and height.
 `src/world/townLanternLayout.js` `layoutTownFlats` uses the authored town-block
-positions as anchors. It omits elevated posts and looks for dry verges along
+positions as anchors.
+
+It omits elevated posts and looks for dry verges along
 the town’s built streets, paved tiles and connected dirt lanes. In the streamed
 world the finished terrain and path mask keep the post’s foot beyond the dirt
 shoulder, including blended dirt and grass. It uses verges
 clear of buildings and other posts in the block. The crossbar runs across the
-road. A clear off-road anchor can stand when there is no suitable verge nearby.
+road.
+
+A clear off-road anchor can stand when there is no suitable verge nearby.
 DFU `RMBLayout.AddLight` places one light above each authored flat. The street-surface lift applies to both lights as to the post. Each
 light has its own identity and uses the city-light budget, night schedule and
 range. The two lights share the post's flicker. Classic sprite mode retains
 DFU's original single light position.
+
 The shared fixture path serves `src/scenes/exterior.js`, `src/scenes/world.js`,
 `src/scenes/worldModes.js` and `src/scenes/dungeonContext.js`. The fixed and
 streamed town builds mark their double-arm fixtures, including those in the
@@ -287,7 +310,9 @@ The separate 3D Loot card controls the dungeon pile presentation through
 and is independent of 3D Light Fixtures and static dungeon props. Turning
 it off draws the existing sprite batches, preserving pickup and saved loot.
 Scene-authored dungeon treasure uses eleven owner-selected solid props. Random
-piles keep approved rolls and deterministically remap the others. Fixed
+piles keep approved rolls and deterministically remap the others.
+
+Fixed
 placements use their authored record,
 and its billboard still owns the pickup, visibility and save state. Other
 records keep their sprites. This changes only the presentation of DFU
@@ -296,30 +321,57 @@ DungeonContext opts in both initial placement and restore. WorldModes
 inherits dungeon presentation. World and Exterior share the renderer
 but their unmarked piles keep their existing presentation. The renderer
 shares mesh and paint resources across marked batches and releases them
-when the batches retire. No ARENA2 art is included in the solid props.
+when the batches retire.
+
+No ARENA2 art is included in the solid props.
 Sacks have uneven gathered cloth, a double cord wrap, a knot with two
 loose ends, and stitches following a fold. The tall sack and the shorter
 sacks in mixed piles use distinct proportions. The pile appearance is
 stable by dungeon and placement in offline and online play. Treasure paint
-uses 16px tiles and the blades use narrow bevels on a flat silhouette. Vessel tops
+uses 16px tiles and the blades use narrow bevels on a flat silhouette.
+
+Vessel tops
 use planar UVs to keep pixel blocks from stretching across the lid. Large
 projected treasure bounds increase object pixel size according to the pile
 profile. Weapon piles keep their established response. Coin piles cap growth
 earlier and chests use a coarser grid up close with a denser wood texture.
 Small piles use the selected tier directly and HD still bypasses the pass.
+
 ## DUNGEON-PROPS-3D
+
 - **Burials.** Wooden coffins have joined inner and outer walls, solid rims and thick lids. Stone sarcophagi preserve the original lid poses and ankh. Open cavities place the skeleton on its back and fit nearby treasure where space permits.
+
 - **Furniture and storage.** Tables, seats, chests and crates use distinct plank, grain and end-grain treatments. Closed storage chests keep their searchable identity. Open loot chests show their contents.
+
 - **Cells and devices.** Standing cages have solid bars, doors and plank decks. Torture devices use distinct frames, stone or iron surfaces, and solid fittings. Blood marks are part of the material.
-- **Placed tableware and tools.** Daggerfall Unity's [GameObjectHelper.CreateDaggerfallBillboardGameObject](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Utility/GameObjectHelper.cs) supplies the archive and record billboard reference. DFO draws selected authored flats with models from the player's attached Morrowind data through the same NIF loader as dropped loot. The model uses the flat's base. Established goblet, bottle and flask records use their authored flat dimensions with the original object pixelation path. Books and selected new tabletop objects cap the flat's size. Quartos use a 0.30 m cap, two thirds of the authored 0.45 m height of goblet TEXTURE.200 record 0. Capped tabletop NIFs and assembled props use the Objects pixel grid at the furniture setting without the adaptive ground-loot footprint. HD bypasses pixelation. Standalone closed and open books, scrolls, parchment and bread use corresponding Morrowind meshes. Book and parchment stacks, scroll pairs and bottle clusters preserve their multiple objects. Each stack uses the fitted height of each lower mesh for contact. Assemblies keep the authored flat visible until all components are ready. Barrels pick an alternate by authored position and fit within 0.78 m, based on the 0.777 m ARCH3D barrel 41822. The two standalone wicker baskets fit within 0.58 m, based on the small ARCH3D crate 41818 at 0.577 m wide. Storage meshes retain their object pixelation path. Placed tableware includes the silver goblets from archive 200 and the bottles, flasks and wide jars from archive 205. The 3D Ground Loot preference controls placed replacements too, and selected furnishings fall back to shared low-poly meshes when the Morrowind model is unavailable. Other selected records retain their flats until their models are ready. The streamed world uses pixelBuild, the standalone exterior uses exterior, and worldModes uses interiorContext. dungeonContext has its own furnishing pass.
+
+- **Placed tableware and tools.** Daggerfall Unity's [GameObjectHelper.CreateDaggerfallBillboardGameObject](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Utility/GameObjectHelper.cs) supplies the archive and record billboard reference. DFO draws selected authored flats with models from the player's attached Morrowind data through the same NIF loader as dropped loot. The model uses the flat's base. Established goblet, bottle and flask records use their authored flat dimensions with the original object pixelation path.
+
+  Books and selected new tabletop objects cap the flat's size. Quartos use a 0.30 m cap, two thirds of the authored 0.45 m height of goblet TEXTURE.200 record 0. Capped tabletop NIFs and assembled props use the Objects pixel grid at the furniture setting without the adaptive ground-loot footprint. HD bypasses pixelation. Standalone closed and open books, scrolls, parchment and bread use corresponding Morrowind meshes.
+
+  Book and parchment stacks, scroll pairs and bottle clusters preserve their multiple objects. Each stack uses the fitted height of each lower mesh for contact. Assemblies keep the authored flat visible until all components are ready. Barrels pick an alternate by authored position and fit within 0.78 m, based on the 0.777 m ARCH3D barrel 41822.
+
+  The two standalone wicker baskets fit within 0.58 m, based on the small ARCH3D crate 41818 at 0.577 m wide. Storage meshes retain their object pixelation path. Placed tableware includes the silver goblets from archive 200 and the bottles, flasks and wide jars from archive 205. The 3D Ground Loot preference controls placed replacements too, and selected furnishings fall back to shared low-poly meshes when the Morrowind model is unavailable.
+
+  Other selected records retain their flats until their models are ready. The streamed world uses pixelBuild, the standalone exterior uses exterior, and worldModes uses interiorContext. dungeonContext has its own furnishing pass.
+
 - **Basin water.** The well and fountain meshes use the living ponds' wind ripples and sky reflection from `src/render/pondSurfaceGlsl.js`. Basin UVs control the depth tint at the edge. The roof shelters the well's surface. Fountain jets still send out small rings where they land. The streamed world and standalone exterior pass the current sky and wind to the mesh shader. Interiors and dungeons use the calm fallback.
+
 - **Street fountain.** The port replaces ARCH3D model 41220 with its own octagonal basin, moulded rim and low spout. Daggerfall Unity's [GameObjectHelper.CreateDaggerfallMeshGameObject](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Utility/GameObjectHelper.cs) uses the original ARCH3D geometry. The replacement retains the original basin footprint, water level, placement ID and water-source interaction. Its mesh is built by `src/world/streetFountain.js` `buildStreetFountain`. The two pentagonal variants (41221 and 41222) retain their own ARCH3D footprint and waterline, with a broad bevelled coping above the waterline, a stepped plinth and a filled upper bowl. Their water and the octagonal pool share narrow falling streams and basin-local animated ripples in the classic and enhanced mesh shaders. The streamed world and building interiors keep the fountains out of the static merge so their material and Objects pixelation survive. The standalone exterior draws them through the same data pipeline.
+
 - **Courtyard fountain.** Daggerfall Unity lays this outdoor flat through [RMBLayout.AddMiscBlockFlats](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Utility/RMBLayout.cs). DFO replaces TEXTURE.212 record 2 with its own low-poly model through the placed-furnishing path. The octagonal basin, coping, pedestal and plinth share a 64 by 64 atlas of weathered grey-brown stone with dark joints and damp faces. The street fountain shader uses the two stream impact points for muted ripples and small splashes on the dark pool. Placement, collision and drinking still use the original record. The streamed world and standalone exterior use the common furnishing path. worldModes and dungeonContext need no separate placement. The treasure3d test checks the selected record, the dry variant, the placement and the water materials.
+
 - **Wells, pumps and dry fountains.** `src/world/placedWaterSources.js` `buildPlacedWaterSource` replaces the default billboards from [RMBLayout.AddMiscBlockFlats](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Utility/RMBLayout.cs) for TEXTURE.212 records 0, 3, 8 and 9. The covered well has a stone shaft, a braced gable roof and a timber winch. The rope wraps around the winch drum and hangs from it to the iron bail of a hooped wooden bucket. The two hand pumps use green and dark metal. The dry fountain uses the working fountain's stonework and spouts with a bare, stained basin. The shared placed-furnishing path retains the original flat's scale, collision and interaction in the streamed world and standalone exterior. worldModes and dungeonContext use the same renderer without separate placement. The texture used for open water (85:0) remains a material. The streamed world keeps grass roots and their sway outside the stone rims of the well and courtyard fountains.
+
 - **Waterside racks.** The two TEXTURE.212 records 15 and 16 use original low-poly wooden frames in place of the billboard stood by Daggerfall Unity's [GameObjectHelper.CreateDaggerfallBillboardGameObject](https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Utility/GameObjectHelper.cs). The `src/world/waterRack.js` `buildWaterRack` builder shares square weathered timber, offset diagonal bracing and a compressed reed bed under overlapping fans with drooping outer leaves across both records and adds the tall pole to record 16. The replacement keeps the authored base and uses the existing placed-prop switch and Objects pixelation. The streamed world and standalone exterior use their common placed-furnishing path. Interior and dungeon placement need no separate rack wiring.
+
 - **Sprite replacements.** Chains, remains, suspended cages, furnishings and cave props retain the authored placement role. Morrowind remains use the player's attached assets. Floor stains stay flat.
+
 - **Pixelation.** Classic prop families have fixed object profiles. Stone burial shells and their skeletons share a fixed 1.5 multiplier. Loot uses its own bounded footprint profile.
+
 - **Review in game.** In a local Dev offline dungeon, press backquote (ё) to open the spawner. Choose a family and place a model or a part of the family. Camera mode uses Alt+Shift+Enter for the selected prop. Previews are scene-owned and clear together with their collision.
+
 - **Scope.** The reviewed furniture is wired in DungeonContext. WorldModes and the standalone dungeon draw it through the shared renderer. Exterior, World and Interior keep their existing furniture. Burial placement departs from DFU RDBLayout.AddModels and AssignFixedTreasure by fitting the visible shell and treasure to the cavity. Sprite replacements depart from RDBLayout.AddFlats.
+
 - **Open review.** Burial accessories, unclassified furniture and storage, banners, statues, columns and the miscellaneous RDB group retain their original models. Moving instances, loot clearance and camera-motion review remain open where listed in the audit.
 The [dungeon decor audit](../../docs/Dungeon-3D-Decor-Audit.md) tracks model IDs, example RDB blocks and visual acceptance.

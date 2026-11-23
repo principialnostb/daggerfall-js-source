@@ -1,5 +1,4 @@
-// LOOK-THUMBS-MW (BLOODBATH, 2026-11-08; the owner, of the 3D tab's Morrowind cards: "на старых первых вариантах хорошие
-// красивые иконки по масштабированию и визуалу, а тут ... новые"): A LOOK'S PICTURE DRAWN THE WAY THE OWN LOOKS' ARE -
+// A LOOK'S PICTURE DRAWN THE WAY THE OWN LOOKS' ARE -
 // tools/lookThumbs.mjs drawLook's law (turned three-quarters, tipped toward the viewer, lit from above in front, framed
 // tight, supersampled and box-filtered down) - but at runtime and over the player's own Morrowind meshes, which no
 // file in the repository may carry. Pure: shapes in (formats/morrowind/mwNifMesh.js flattenNif's batches), RGBA out.

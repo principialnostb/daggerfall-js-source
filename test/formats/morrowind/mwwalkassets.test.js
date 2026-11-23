@@ -113,11 +113,11 @@ test('ANIM-UI5: identical archive-only source choices are not duplicated', () =>
     'OpenMW Dynamic Animations · 1-е лицо',
     'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо',
   ]);
-  assert.equal(keys.FirstPersonSource.default, 3);   // TEST-PR: ReAnimation v3 + ODA
+  assert.equal(keys.FirstPersonSource.default, 3);   // ReAnimation v3 + ODA
   assert.deepEqual([...keys.OpenMWDynamicAnimations.options], ['Vanilla', 'OpenMW Dynamic Animations · 3-е лицо']);
-  assert.equal(keys.OpenMWDynamicAnimations.default, 1);   // TEST-PR: ODA on
+  assert.equal(keys.OpenMWDynamicAnimations.default, 1);   // ODA on
   assert.deepEqual([...keys.HitReactionSource.options], ['Vanilla', 'Hit Reactions Animated v2']);
-  assert.equal(keys.HitReactionSource.default, 0);   // TEST-PR: Vanilla reactions
+  assert.equal(keys.HitReactionSource.default, 0);   // Vanilla reactions
 });
 
 test('MW-ANIM-4: first-person source modes and layered providers are stable', () => {

@@ -1,13 +1,5 @@
 // @ts-check
-// HAND-FINGERS (2026-11-06, the owner's screenshots and 22-13-15 recording: the fists' fingers half open like claws; "fix
-// the fingers, simply"). The body layer turns a hand and leaves its fingers to the clip, and every drawn stance walks the
-// worked gait - the free walk, its fingers open: a raised fist was a claw, a hilt walked and ran in an open palm (both of
-// a two-hander's). The fingers are now the game's own, two of its poses baked from the retail rig: a FIST, the
-// hand-to-hand idle's (`idlehh`, the knuckles 88 degrees), and an OPEN hand, the plain idle's (`idle`, an empty hand at
-// rest). A hand closed on something stands a share of the way to the fist (a hilt as the one-handed stance closes it
-// standing, 77 degrees; a shield's strap); the fists drawn are fists; the free hand beside a shield is the open hand, as
-// the free hand beside a sword is the walk's own. Every other hand keeps the clip's fingers. The port's own; Daggerfall
-// Unity draws no articulated hand.
+// Finger adjustments follow the current grip so the same hand can close on a hilt, make a fist or relax.
 
 import { mat33ToQuat } from '../../combat/heldPose.js';
 import { quatToMat33 } from '../../formats/morrowind/mwSkin.js';
@@ -59,7 +51,7 @@ export function fingerShares(word) {
     shield = !!word.shield;
   const fist = (k) => ({ fist: k, open: 0 });
   const left = !word.torch && !word.spellHand && shield ? fist(FINGERS.grip) : null;
-  // FIST-BESIDE-SHIELD: the right beside a shield is a free hand - open, as the free hand beside a sword
+  // The right beside a shield is a free hand - open, as the free hand beside a sword
   if (cls === 'fists' && !shield && guardTraveling(word)) return { L: null, R: null };
   if (cls === 'fists')
     return shield

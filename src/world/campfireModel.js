@@ -1,4 +1,4 @@
-// HEARTH-3D: original DFO geometry and pixel paint, metres, +Y up, foot at zero.
+// Original DFO geometry and pixel paint, metres, +Y up, foot at zero.
 // Deliberate departure from DFU DaggerfallBillboard.SetMaterial/Update:
 // a fire has a fixed body and volumetric tongues, never a camera-facing picture.
 import { MeshBench, prism, box } from './ships/galleonMesh.js';

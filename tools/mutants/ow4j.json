@@ -186,8 +186,8 @@
   {
     "name": "OW4-J6-quad-upright",
     "file": "src/combat/fpArm.js",
-    "old": "{ center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye);",
-    "new": "{ center, halfW, halfH, anchor, hitFlash, conceal, fx, glowLook: padLooks }, proj, view, eye);",
+    "old": "      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes",
+    "new": "      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, anchor, hitFlash, conceal, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes",
     "tests": [
       "test/render/prbow1_bow.test.js"
     ],
@@ -196,8 +196,8 @@
   {
     "name": "OW4-J6-mwview-no-up",
     "file": "src/player/mwView.js",
-    "old": "  return fpArm.drawThird(canvas, {\n    proj,\n    view,\n    eye,\n    feet,\n    yaw,\n    grow: face?.grow > 1 ? face.grow : 1,\n    up: face?.up ?? null,\n    horse,\n    conceal: ghostSelfVeil(), // the toybox's ghost: my own body see-through\n  });",
-    "new": "  return fpArm.drawThird(canvas, { proj, view, eye, feet, yaw, grow: face?.grow > 1 ? face.grow : 1, horse, conceal: ghostSelfVeil() });",
+    "old": "    up: face?.up ?? null,",
+    "new": "    up: null,",
     "tests": [
       "test/render/prbow1_bow.test.js",
       "test/formats/morrowind/prbow1b_followups.test.js"

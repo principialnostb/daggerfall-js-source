@@ -1,5 +1,5 @@
 // @ts-check
-// CHAR-PIX1: the pixelated bodies' three dials, a leaf - features.js lists them and render/charPixelLayer.js reads them.
+// The pixelated bodies' three dials, a leaf - features.js lists them and render/charPixelLayer.js reads them.
 
 /** The dials' steps: [rows per screen height, label]. 0 is the mesh at full resolution (HD); 200 is Daggerfall's 320x200
  *  frame. At 1080p a block is 2, 3, 4 and 5 pixels - Retro fills the step from Soft's 3 to Classic's 5. */

@@ -1,4 +1,4 @@
-// MW-SKY-AXE-READY: placement of the EXISTING first-person rig, hands and weapon together.
+// Placement of the EXISTING first-person rig, hands and weapon together.
 // DFU FPSWeapon.GetWeaponRect moves the sprite; this is the 3D lane's deliberate presentation equivalent.
 // Existing hand bones are solved onto a wider grip; meshes, clocks, FOV and third person stay unchanged.
 import { lookAt } from '../../world/mat4.js';

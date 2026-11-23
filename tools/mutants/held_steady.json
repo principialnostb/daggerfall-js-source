@@ -54,21 +54,12 @@
     ]
   },
   {
-    "name": "HELD-STEADY-the-wave-never-split",
+    "name": "NATIVE-RUN-free-body-enters-the-carry",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "        calm = chestAt(0);",
-    "new": "        calm = chestAt(ride);",
+    "old": "if (cls === 'free' || !(entry > 1e-3)) {",
+    "new": "if (!(entry > 1e-3)) {",
     "tests": [
-      "test/characters/bodyMotion/bodymotion_steady.test.js"
-    ]
-  },
-  {
-    "name": "HELD-STEADY-the-chest-rides-whole",
-    "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "      const chest = chestAt(ride),",
-    "new": "      const chest = chestAt(1),",
-    "tests": [
-      "test/characters/bodyMotion/bodymotion_steady.test.js"
+      "test/characters/bodyMotion/nativeClipPose.test.js"
     ]
   },
   {

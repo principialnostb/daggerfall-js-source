@@ -209,8 +209,8 @@
   {
     "name": "BODY-MOTION-two-grip-spacing",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "export const TWO_HAND_GRIP = Object.freeze({ two: -0.4, wide: 0.5, spear: 0.55 }); // AUDIT BODY-MOTION CARRY-1: the two-hander's left a fifth of an arm down sat inside the right forearm",
-    "new": "export const TWO_HAND_GRIP = Object.freeze({ two: 0.2, wide: 0.5, spear: 0.55 }); // AUDIT BODY-MOTION CARRY-1: the two-hander's left a fifth of an arm down sat inside the right forearm",
+    "old": "export const TWO_HAND_GRIP = Object.freeze({ two: -0.4, wide: 0.5, spear: 0.55 }); // The two-hander's left a fifth of an arm down sat inside the right forearm",
+    "new": "export const TWO_HAND_GRIP = Object.freeze({ two: 0.2, wide: 0.5, spear: 0.55 }); // The two-hander's left a fifth of an arm down sat inside the right forearm",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]
@@ -245,8 +245,8 @@
   {
     "name": "BODY-MOTION-one-idle-blade",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }),",
-    "new": "      R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, 0.62), edge: dir(-0.26, -0.56, -0.78) }),",
+    "old": "      R: row(-4, 26, 22, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }),",
+    "new": "      R: row(-4, 26, 22, -7, 0, { blade: dir(0.26, 0.74, 0.62), edge: dir(-0.26, -0.56, -0.78) }),",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]
@@ -254,8 +254,8 @@
   {
     "name": "BODY-MOTION-one-run-blade",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
-    "new": "      R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, -0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
+    "old": "      R: row(-6, 21, 30, -4, 0.15, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
+    "new": "      R: row(-6, 21, 30, -4, 0.15, { blade: dir(0.2, -0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]
@@ -281,8 +281,8 @@
   {
     "name": "BODY-MOTION-two-run-at-the-chest",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(43, 10, 0, -31, 0, { blade: dir(0.8, -0.23, -0.55), edge: dir(-0.31, 0.62, -0.72) }),",
-    "new": "      R: row(43, 10, 95, -31, 0, { blade: dir(0.8, -0.23, -0.55), edge: dir(-0.31, 0.62, -0.72) }),",
+    "old": "      R: row(-7, 17.5, 70, 25.5, 0, { blade: dir(0.3, -0.62, -0.72), edge: dir(0.95, 0.26, 0.17) }),",
+    "new": "      R: row(-7, 17.5, 95, 25.5, 0, { blade: dir(0.3, -0.62, -0.72), edge: dir(0.95, 0.26, 0.17) }),",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]
@@ -308,8 +308,8 @@
   {
     "name": "BODY-MOTION-torch-arm-taken",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "        const want = hands && !(side === 'L' && (input.torch || shieldArm || input.spellHand)) ? 1 : 0; // AUDIT SPELL-HAND L3-5: and the spell hand's left arm, as a torch's",
-    "new": "        const want = hands && !(side === 'L' && (shieldArm || input.spellHand)) ? 1 : 0; // AUDIT SPELL-HAND L3-5: and the spell hand's left arm, as a torch's",
+    "old": "          !(side === 'L' && (input.torch || shieldArm || freeArm || input.spellHand)) &&",
+    "new": "          !(side === 'L' && (shieldArm || freeArm || input.spellHand)) &&",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]
@@ -360,12 +360,12 @@
     ]
   },
   {
-    "name": "BODY-MOTION-blow-chest-unturned",
+    "name": "NATIVE-STRIKE-carry-missing-between-strikes",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "            (gp.chest.yaw - gp.chest.wave.yaw * (1 - wave) + runTurn) * (1 - k) + (bp ? bp.chest[0] * RAD * wind : 0),",
-    "new": "            (gp.chest.yaw - gp.chest.wave.yaw * (1 - wave) + runTurn) * (1 - k),",
+    "old": "const entry = activeBlow ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;",
+    "new": "const entry = activeBlow ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 0;",
     "tests": [
-      "test/characters/bodyMotion/bodymotion_carry.test.js"
+      "test/characters/bodyMotion/nativeClipPose.test.js"
     ]
   },
   {
@@ -461,8 +461,8 @@
   {
     "name": "BODY-MOTION-slot-unwired",
     "file": "src/combat/fpArm.js",
-    "old": "            motion: motion.slot,   // BODY-MOTION: the gait, the carry and a blow's body over the clip's\n",
-    "new": "",
+    "old": "            motion: bodyWeight.slot(motion.slot),   // ARM-CLEARANCE (bodyWeight.js's slot) over BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip",
+    "new": "            motion: bodyWeight.slot(null),   // ARM-CLEARANCE (bodyWeight.js's slot) over BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]

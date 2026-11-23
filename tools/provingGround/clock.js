@@ -1,12 +1,11 @@
-// PROVING-GROUND (bible/05-Combat/Proving-Ground.md): THE FIXED CLOCK, laid into the page before any of the game's own
+// THE FIXED CLOCK, laid into the page before any of the game's own
 // code (Playwright's addInitScript). While the game loads the clock is the wall's (fetches, decodes and the build queue
 // run as they would); `__pg.freeze()` stops it, and from then on time moves only by `__pg.step(n)` - each step advances
 // performance.now (and Date.now with it) by exactly 1/60 s and runs the frame callbacks the game asked for, so a run is
 // the same run frame for frame on any machine and in a background tab. `__pg.release()` hands time back to the wall.
 (() => {
   if (window.__pg) return;
-  // NO POINTER LOCK: on Windows a lock is the system's ClipCursor - even from the ground's hidden browser it took the
-  // owner's own mouse away (2026-10-29). The ground turns the camera through the game's hooks, never the mouse.
+  // Skip pointer lock in the hidden benchmark window so the desktop mouse remains available.
   Element.prototype.requestPointerLock = function () { return Promise.resolve(); };
   try { Object.defineProperty(Document.prototype, 'pointerLockElement', { get: () => null, configurable: true }); } catch { /* the page's own */ }
   const realNow = performance.now.bind(performance);
@@ -29,7 +28,7 @@
     else realCancel(id);
   };
   let frames = 0, lastMs = 0;
-  // LAB2: THE DICE. Math.random is the wall's own until a scenario seeds it; from then every draw is mulberry32's, so
+  // THE DICE. Math.random is the wall's own until a scenario seeds it; from then every draw is mulberry32's, so
   // a scenario replayed from its seed rolls the same combat, the same idle variants and the same foe.
   const realRandom = Math.random;
   let dice = 0, draws = 0;

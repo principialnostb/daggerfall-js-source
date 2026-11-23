@@ -5,6 +5,7 @@
 // line that named an Oblivion Gate says so; the Sigil Stone is the Deadlands Ember, its NAME alone moved, and every
 // stone a save, a crash record or a stack kept under the old name takes the new one. bible/11-Multiplayer/
 // World-Bosses.md section 19 A.
+import { fileURLToPath } from 'node:url';
 import '../../modsOff.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -32,7 +33,7 @@ import { addItem } from '../../../src/systems/inventory.js';
 import { restorePlayer, snapshotPlayer } from '../../../src/systems/save/save.js';
 import { cardOf } from '../../heraldCards.mjs';   // HERALD-CARDS: a post read as its card
 
-const ROOT = new URL('../../../', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 const OLD = /Oblivion Gate|Sigil Stone/i;
 

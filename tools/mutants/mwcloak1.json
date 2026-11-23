@@ -43,8 +43,8 @@
   {
     "name": "MWCLOAK1-the-cloak-a-robe-again",
     "file": "src/formats/morrowind/mwItemMap.js",
-    "old": "      const cloak = ownCloakFor({ ...piece, name });",
-    "new": "      const cloak = null;",
+    "old": "      const cloak = ownCloakFor(\n        { ...piece, name },",
+    "new": "      const cloak = false && ownCloakFor(\n        { ...piece, name },",
     "tests": [
       "test/tooling/mwcloak1.test.js",
       "test/formats/nudeflats.test.js"
@@ -135,7 +135,7 @@
   {
     "name": "MWCLOAK1-the-build-fits-nothing",
     "file": "src/combat/fpArm.js",
-    "old": "    const cloakFit = fitThirdPersonCloak(arm, new Set([...skinRows, ...worn.adds].map((row) => row.slot)));   // MW-CLOAK1",
+    "old": "    const cloakFit = await fitUnpublishedCloak(arm, new Set(cloakUnderRows.map((row) => row.slot)));   // MW-CLOAK1",
     "new": "    const cloakFit = { notes: [] };   // MW-CLOAK1",
     "tests": [
       "test/tooling/mwcloak1.test.js"

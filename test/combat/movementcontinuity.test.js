@@ -33,14 +33,14 @@ test('GUARD-CONTINUITY: only enabled stance-weapon locomotion chooses the accept
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'walkforward2c', true).group, 'walkforward2c');
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'walkforward');
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'runforward2c', true).group, 'runforward2c');
-  // SHIELD-RUN-LEGS: a shield takes no stance off the worked gait; its upper body is the armed clip's, laid over it
+  // A shield takes no stance off the worked gait; its upper body is the armed clip's, laid over it
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'runforward');
   assert.deepEqual(armedUpperPlan({ on: true, shield: true, type: MW_WEAPON_TYPE.LongBladeOneHand, base: 'runforward', moving: true }), { kind: 'movement', base: 'runforward', stance: 'drawn', still: false, rigOrder: true, sway: 0, hold: 0.55 });
   for (const o of [{ shield: false }, { attacking: true }, { on: false }, { type: MW_WEAPON_TYPE.LongBladeTwoHand }, { base: 'runback' }]) assert.equal(armedUpperPlan({ on: true, shield: true, type: MW_WEAPON_TYPE.LongBladeOneHand, base: 'runforward', moving: true, ...o }), null, JSON.stringify(o));
 });
 
 
-import { readFileSync } from 'node:fs';
+import { installedClip, overhaulClip } from '../fixtures/mw/animationClip.mjs';
 import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
 import { extractTracks, collectTextKeys, normalizeTextKeys, resetClip, sampleTrack, advanceClip, animVelocity } from '../../src/formats/morrowind/mwAnim.js';
 import { buildSkeleton, poseSkeleton, skeletonSpaceMatrices, accumRootRef, GRAPH_ROOT } from '../../src/formats/morrowind/mwSkin.js';
@@ -50,7 +50,7 @@ import { retailSkeleton } from '../fixtures/mw/retailRig.mjs';
 
 test('GUARD-CONTINUITY: the actual pose compositor preserves the live movement legs during a whole-body weapon fade', () => {
   const sk = buildSkeleton(parseNif(retailSkeleton()));
-  const nif = parseNif(readFileSync(new URL('../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/Xbase_anim.kf', import.meta.url)));
+  const nif = installedClip(overhaulClip);
   const keys = normalizeTextKeys(collectTextKeys(nif)), trackMap = extractTracks(nif), source = { keys, trackMap };
   const movement = resetClip(keys, 'runforward');
   assert.ok(movement.ok);
@@ -73,7 +73,7 @@ test('GUARD-CONTINUITY: the actual pose compositor preserves the live movement l
 
 
 test('GUARD-CONTINUITY: the layer transfers real MAO support phase and advances the outgoing clip during a walk/run crossfade', () => {
-  const nif = parseNif(readFileSync(new URL('../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/Xbase_anim.kf', import.meta.url)));
+  const nif = installedClip(overhaulClip);
   const keys = normalizeTextKeys(collectTextKeys(nif)), trackMap = extractTracks(nif), source = { keys, trackMap };
   const sampled = [];
   const tracked = (track, time) => { sampled.push(time); return sampleTrack(track, time); };
@@ -100,7 +100,7 @@ import { createBodyWeight } from '../../src/characters/bodyMotion/bodyWeight.js'
 import { createBodyMotion, motionWord } from '../../src/characters/bodyMotion/bodyMotion.js';
 
 test('RUNNING-BLOW-PIPELINE: real moving legs stay identical with and without repeated upper-body attacks', () => {
-  const nif = parseNif(readFileSync(new URL('../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/Xbase_anim.kf', import.meta.url)));
+  const nif = installedClip(overhaulClip);
   const keys = normalizeTextKeys(collectTextKeys(nif)), trackMap = extractTracks(nif), source = { keys, trackMap };
   const attackStart = keys.find((k) => k.text === 'weapontwohand: chop start');
   assert.ok(attackStart, 'the fixture uses a real two-handed attack window');

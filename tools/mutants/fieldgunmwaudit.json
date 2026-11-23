@@ -110,7 +110,7 @@
   {
     "name": "MW2-own-arm-removed",
     "file": "src/combat/fpArm.js",
-    "old": "  const own = ownWeaponModelFor(weapon);\n  if (own) {\n    const path = `meshes/${own.model}`;",
+    "old": "  const own = pick ? null : ownWeaponModelFor(weapon);\n  if (own) {\n    const path = `meshes/${own.model}`;",
     "new": "  const own = null;\n  if (own) {\n    const path = `meshes/${own.model}`;",
     "tests": [
       "test/formats/morrowind/fieldgunmw.test.js"

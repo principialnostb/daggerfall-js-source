@@ -4,10 +4,7 @@ import { readFileSync } from 'node:fs';
 import { CUFF_FIT, wristFrame, wristRing, fitPoint, fitCuffsToHand, cuffEnd, armGirth, clearOfArm, handStart, trimToCuff } from '../../../src/formats/morrowind/mwCuffFit.js';
 import { isDonorCuffShape } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
-// CUFF-FIT (2026-10-26, Mac: "the new hand and the armour past the wrist live apart - keep the new hand with its armour
-// texture, the worn armour past the wrist vanilla, but as one piece"). Measured on retail (Morrowind.bsa, the
-// first-person skeleton, Robert's iron donor): the iron cuff's wrist end stood at radius 2.45 round a donor wrist of
-// 1.5-1.9, its end weighted to the forearm; a 40-degree twist of the hand moved the seam 0.37 units, fitted 0.08-0.11.
+// Check the donor hand fits inside the original gauntlet cuff without changing its texture.
 
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const FORE = 1, HAND = 2;
@@ -182,8 +179,7 @@ test('CUFF-FIT: the worn cuff is kept clear of the arm\'s own skin under it - it
 });
 
 test('CUFF-FIT: the worn gauntlet is cut by where the donor hand begins, not by its weights - its cuff and wrist band whole, a hand shape\'s stray left out', () => {
-  // (Mac: "a pale stripe down the leather glove in every pose"; "gaps either side of the plate's wrist") - a cuff's wrist
-  // end rides the hand as much as the arm: by weights retail's netch cuff lost a wedge down its length
+  // Measure both sides of the wrist ring to catch exposed skin around the cuff.
   const rest = ctxWith(0);
   assert.ok(Math.abs(handStart([donor()], rest, frame) - -0.4) < 1e-6, 'the donor hand\'s first vertex');
   assert.equal(handStart([], rest, frame), null);

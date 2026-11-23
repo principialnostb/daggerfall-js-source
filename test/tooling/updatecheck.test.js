@@ -7,11 +7,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { parseReleaseTag, parseVersion, isNewerRelease } = require('../../app/lib/updateCheck.cjs');
-const root = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 test('DA6/REL1/REL3: the release\'s number is ONE variable - the tag and the stamp both read it, and the committed version is only the base', () => {
   // THE NAG THIS FILE EXISTS TO PREVENT: app-v0.1.3 was cut from a
@@ -94,13 +95,13 @@ test('DA6: the wiring pins - one API, two gates, and probes never touch the netw
   // at every launch, beside the check and behind its two gates, for the
   // launcher's news panel; still read-only, still the repo's releases,
   // still nothing else.
-  assert.ok(main.includes("'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases/latest'"),
+  assert.ok(main.includes("'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases/latest'"),
     'the check asks the releases API');
   const apis = [...main.matchAll(/'(https:\/\/api\.github\.com\/[^']*)'/g)].map((m) => m[1]).sort();
   assert.deepEqual(apis, [
-    'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases/latest',
     'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases/tags/',
-    'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases?per_page=20',
+    'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases/latest',
+    'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases?per_page=20',
   ], 'and nothing else');
   // the private server's pinned release, read by its tag (hostingGame) - still the repo's own releases
   assert.equal((main.match(/net\.fetch\(RELEASES_TAG_API \+ HOSTING_PIN,/g) ?? []).length, 1);
@@ -114,7 +115,7 @@ test('DA6: the wiring pins - one API, two gates, and probes never touch the netw
   assert.match(door, /if \(typeof url !== 'string' \|\| !url\.startsWith\(`\$\{RELEASES_URL\}\/download\/`\)\) return Promise\.reject\(/, 'the release\'s own download links, and nothing else');
   assert.match(door, /return net\.fetch\(url, init\);/);
   assert.equal((main.match(/net\.fetch\(url, init\)/g) ?? []).length, 1, 'the one door');
-  assert.equal(require('../../app/lib/downloads.cjs').RELEASES_URL, 'https://github.com/Lattymoy/daggerfall-js-source/releases');
+  assert.equal(require('../../app/lib/downloads.cjs').RELEASES_URL, 'https://github.com/principialnostb/daggerfall-js-source/releases');
   // The two gates on the launch check: the config checkbox (default
   // ON, off is `updateCheck: false`) and the probe env.
   assert.match(main, /loadConfig\(\)\.updateCheck !== false && !process\.env\.DAGGER_NO_UPDATE_CHECK/,
@@ -122,11 +123,11 @@ test('DA6: the wiring pins - one API, two gates, and probes never touch the netw
   // DA8: the launch check is the LAUNCHER's, and silent - an error is "offline" (AUDIT INSTALL L2-1: or, under a
   // download, "failed") and the player plays on
   // AUDIT INSTALL R2-A2: the CHECK's own promise says it - the error event cannot tell a check's failure from a download's
-  assert.match(main, /askUpdater\(\)\s*\.then\(\(r\) => \{ if \(!r\) launcherDispatch\(\{ type: 'check-failed' \}\); \}\)\s*\.catch\(\(\) => launcherDispatch\(\{ type: 'check-failed' \}\)\);/, 'and the launch check is the silent one');
+  assert.match(main, /askUpdater\(\)\s*\.then\(\(r\) => \{ if \(!r && !access\?\.aborted\) launcherDispatch\(\{ type: 'check-failed' \}\); \}\)\s*\.catch\(\(error\) => \{\s*if \(!access\?\.aborted\) launcherDispatch\(\{ type: 'check-failed', http: TEST_ACCESS \? error\?\.statusCode : undefined \}\);/, 'the silent check reports live errors and ignores a cancelled session');
   // The probe sets the env, so a green probe never depended on GitHub.
   const probe = fs.readFileSync(path.join(root, 'tools', 'appShellProbe.mjs'), 'utf8');
   assert.match(probe, /DAGGER_NO_UPDATE_CHECK: '1'/, 'the shell probe opts out of the check');
   // Download opens the BROWSER - no download or code application here.
-  assert.match(main, /if \(response === 0\) shell\.openExternal\(latest\.download\);/,
+  assert.match(main, /if \(response === 0\) openTestSetupOrLink\(latest\.download\);/,
     'the notice hands the player their browser, never bytes');
 });

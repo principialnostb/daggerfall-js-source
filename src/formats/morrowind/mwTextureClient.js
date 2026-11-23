@@ -44,11 +44,11 @@ import { modDiagnostics } from '../../systems/modDiagnostics.js';
  *  at once; past a few the cores are the limit, not the pool. */
 export const TEXTURE_WORKERS_MAX = 4;
 
-/** AUDIT MW-TEXTHREAD F6: how long a pool with nothing to do keeps its
+/** How long a pool with nothing to do keeps its
  *  workers - past one build's gaps (a parse, a read) between its bursts. */
 export const TEXTURE_IDLE_MS = 5000;
 
-/** LOAD-HOLD: how long a worker may hold one job before it is let go and the job decodes on this thread. */
+/** How long a worker may hold one job before it is let go and the job decodes on this thread. */
 export const DECODE_TIMEOUT_MS = 20000;
 
 /** The escape hatch, read once per pool (the ?terrainthread=off shape). */
@@ -104,10 +104,10 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
   let dead = !factory;
   let opened = 0;
   let nextId = 1;
-  let pumpRef = () => {}; // LOAD-STALL 3: the queue's pump, defined below the workers it feeds
+  let pumpRef = () => {}; // The queue's pump, defined below the workers it feeds
   const stats = { offThread: 0, onThread: 0, workers: 0 };
 
-  // AUDIT MW-TEXTHREAD F6: every job answered, the workers go after idleMs of quiet - a new job restarts the quiet
+  // Every job answered, the workers go after idleMs of quiet - a new job restarts the quiet
   // (wake), and a worker with a job in hand is never among them. A retired worker is not a dead one: `opened` gives
   // its place back, so the next decode opens it again (pick).
   let idle = null;
@@ -151,7 +151,7 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
       here(j.path, j.bytes, j.levels).then(j.resolve, j.reject);
     }
     slot.jobs.clear();
-    Promise.resolve().then(() => pumpRef()); // LOAD-STALL 3: what waited for it goes to the rest, or here when none are left
+    Promise.resolve().then(() => pumpRef()); // What waited for it goes to the rest, or here when none are left
     if (!slots.length && opened >= size) {
       dead = true;
       console.warn('[mw textures] workers unavailable; decoding on the main thread -', why);

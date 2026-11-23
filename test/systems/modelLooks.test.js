@@ -1,4 +1,4 @@
-// MODEL-LOOKS (systems/modelLooks.js, systems/modelLookSource.js): the 3D look of a piece on the player's own body - the
+// The 3D look of a piece on the player's own body - the
 // Morrowind record it is drawn as - armour in its family's weight class, clothing of its type, a weapon of its type;
 // no duplicates; the player's pieces alone; independent of the 2D card look.
 import test from 'node:test';

@@ -1,4 +1,4 @@
-// FIST-LEGS: the real hand-to-hand group on the retail rig - held at the stance below the waist while a standing punch plays.
+// The real hand-to-hand group on the retail rig - held at the stance below the waist while a standing punch plays.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

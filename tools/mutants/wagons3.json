@@ -428,8 +428,8 @@
   {
     "name": "WAGONS3-the-eye-left-at-the-puller",
     "file": "src/scenes/world.js",
-    "old": "    if (_driverSeat) cam.pos = [_driverSeat.feet[0], _driverSeat.feet[1] + SEATED_EYE_HEIGHT, _driverSeat.feet[2]];\n    if (hccActionPressed",
-    "new": "    if (hccActionPressed",
+    "old": "    if (_driverSeat) cam.pos = [_driverSeat.feet[0], _driverSeat.feet[1] + SEATED_EYE_HEIGHT, _driverSeat.feet[2]];",
+    "new": "",
     "tests": [
       "test/player/wagons3.test.js"
     ]

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { CLICK_ATTACK_DIRECTIONS, CLICK_REPEAT_MAX, clickFamilyOf, rollClickDirection } from '../../src/characters/weaponStates.js';
 import { PlayerWeapon } from '../../src/combat/playerWeapon.js';
 
-// CLICK-VARIETY (2026-10-26, Mac: "one animation five times is not an interesting pool, it is strange combat"): the
+// The
 // click's roll never shows one blow more than CLICK_REPEAT_MAX times running; the gesture's drag is never touched.
 
 test('CLICK-VARIETY: the families - the three downward strikes one chop, the two sides one slash, up the thrust', () => {

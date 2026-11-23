@@ -1,4 +1,4 @@
-// LOOP-SEAM (MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md): a looping clip whose stop pose is not its start pose
+// A looping clip whose stop pose is not its start pose
 // is carried over its last window to the start, so the wrap is not seen; a clean clip samples as it was.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -64,12 +64,12 @@ test('CLIP-SMOOTH: a corner in the curve of a clip is rounded over its h either 
 });
 
 
-import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
+import { installedClip, overhaulClip } from '../fixtures/mw/animationClip.mjs';
 import { extractTracks, collectTextKeys, normalizeTextKeys, resetClip, sampleTrack as sampleMwTrack } from '../../src/formats/morrowind/mwAnim.js';
 import { loopWindow } from '../../src/combat/leftArmLayer.js';
 
 test('GUARD-STEP-LOOP: the actual smoothed walking sampler meets across the MAO loop without reading neighbouring groups', () => {
-  const nif = parseNif(readFileSync(new URL('../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/Xbase_anim.kf', import.meta.url)));
+  const nif = installedClip(overhaulClip);
   const source = { keys: normalizeTextKeys(collectTextKeys(nif)), trackMap: extractTracks(nif) };
   const state = resetClip(source.keys, 'walkforward'), win = loopWindow(state, source.keys);
   setPref('mwClipSmooth', true);

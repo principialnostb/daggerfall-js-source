@@ -54,7 +54,7 @@ function fakeRig(name = 'rig') {
 const batch = () => ({ castOnly: undefined });
 
 test('STAND-HORSE the law\'s numbers, and which flat is a horse: TEXTURE.201\'s two records RMBLayout\'s animal sound names a horse - no cow, pig, cat or dog, no other archive (mutants: STAND-HORSE-any-animal)', () => {
-  assert.deepEqual([STANDING_HORSES_MAX, STANDING_HORSE_RANGE, STANDING_HORSE_HOLD], [8, 60, 1.15]);
+  assert.deepEqual([STANDING_HORSES_MAX, STANDING_HORSE_RANGE, STANDING_HORSE_HOLD], [8, Infinity, 1.15]);
   assert.deepEqual([...Array(12).keys()].filter((r) => isStandingHorseFlat(201, r)), [0, 1]);
   assert.equal(isStandingHorseFlat(182, 0), false);
   assert.equal(isStandingHorseFlat(210, 1), false);
@@ -83,22 +83,23 @@ test('STAND-HORSE the cut: the nearest STANDING_HORSES_MAX within STANDING_HORSE
   own.offer('y', [2, 0, 0], 0, 0, batch());
   own.end(0);
   assert.equal(own.draw({}, { proj: null, view: null, eye: [0, 0, 0] }), 2);
-  assert.deepEqual(binds, ['begin', 'flush']);
+  assert.deepEqual(binds, [], 'world-space horses draw directly into the scene');
   const draw = rig.draw;
   rig.draw = () => { throw new Error('a lost context'); };
   assert.throws(() => own.draw({}, { proj: null, view: null, eye: [0, 0, 0] }));
   rig.draw = draw;
-  assert.deepEqual(binds, ['begin', 'flush', 'begin', 'flush'], 'flushed though the draw threw');
+  assert.deepEqual(binds, [], 'a failed world draw never leaves a sprite target bound');
   own.begin(rig, [0, 0, 0]);
   own.end(0);
   own.draw({}, { proj: null, view: null, eye: [0, 0, 0] });
-  assert.equal(binds.length, 4, 'nothing standing: no bind');
+  assert.equal(binds.length, 0, 'nothing standing: no bind');
   // the range: one past it stands as its billboard, cap or no cap
-  const far = createStandingHorses({ max: 99 });
+  const range = 60;
+  const far = createStandingHorses({ max: 99, range });
   const fb = batch(), nb = batch();
   far.begin(rig, [0, 0, 0]);
-  far.offer('near', [STANDING_HORSE_RANGE - 0.5, 0, 0], 0, 0, nb);
-  far.offer('far', [STANDING_HORSE_RANGE + 0.5, 0, 0], 0, 0, fb);
+  far.offer('near', [range - 0.5, 0, 0], 0, 0, nb);
+  far.offer('far', [range + 0.5, 0, 0], 0, 0, fb);
   assert.equal(far.end(0), 1);
   assert.deepEqual([nb.castOnly, fb.castOnly], [true, false]);
   // off the lane (no rig): every billboard drawn, no horse made
@@ -214,7 +215,7 @@ test('STAND-HORSE the Stable\'s horses: offered where they stand and the way the
 
 test('STAND-FLAT the streamed world by source: a town horse and a person no StaticNPC holds leave the shared groups (the block\'s and a site\'s) for a batch of their own - a person\'s picture the clothed stand-in - in the pixel\'s list; the near rings\' offered (the horses to the standing horses, the people on the street\'s lane read as a figure); the horses ended and drawn after the people, before the flats; let go indoors; the Stables\' horses and the boats\' crews offered (mutants: STAND-FLAT-block-grouped, STAND-FLAT-site-grouped, STAND-FLAT-nude, STAND-HORSE-walk-unoffered, STAND-FLAT-crew-unoffered)', () => {
   const w = hostText('src/scenes/world.js');
-  ordered(w, ['if (npcFlatSet.has(flat)) continue;', 'if (flat.editor) continue;', 'if (isStandFlat(flat.archive, flat.record)) { pixelStandFlats.push(', 'addFlat(flat.archive, flat.record, fx,'], 'the block\'s flats');
+  ordered(w, ['if (npcFlatSet.has(flat)) continue;', 'if (flat.editor || flat.hiddenStreetLantern) continue;', 'if (isStandFlat(flat.archive, flat.record)) { pixelStandFlats.push(', 'addFlat(flat.archive, flat.record, fx,'], 'the block\'s flats');
   ordered(w, ['if (f.scale.x === 1 && f.scale.y === 1 && isStandFlat(f.archive, f.record)) pixelStandFlats.push({ archive: f.archive, record: f.record, x: f.base[0], y: f.base[1], z: f.base[2] });',
     'else if (f.scale.x === 1 && f.scale.y === 1) addFlat(f.archive, f.record, f.base[0], f.base[1], f.base[2]);'], 'a site\'s');
   ordered(w, ['for (const { archive, record, scale, centers } of scaledGroups.values()) {', 'for (const sf of pixelStandFlats) {',

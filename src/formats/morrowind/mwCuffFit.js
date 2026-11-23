@@ -1,26 +1,5 @@
-// CUFF-FIT (2026-10-26, Mac: "the new hand and the armour past the wrist live apart from each other - keep the new hand
-// with its armour texture, draw the worn armour past the wrist as vanilla does, but as one piece with the new hand"):
-// THE VANILLA CUFF, SAT ON THE DONOR HAND.
-//
-// The first-person gauntlet is two files (combat/fpArm.js, the Robert's gauntlet substitution): the donor's hands and
-// fingers (Robert's Bodies Based Gauntlets, one mesh for every gauntlet, the worn one's texture laid on it) and the
-// worn gauntlet's own cuff (mwFirstPerson.js armWeightedTriangles). The cuff was modelled round the RETAIL hand - a
-// wider, shorter wrist, weighted the retail way - so where it met the donor's wrist it stood off it, and when the hand
-// turned in a blow the two came apart: two transforms agree in one pose at most (mwSkinTransfer.js says why).
-//
-// So the cuff's wrist end is fitted to the donor's, in the rest pose the skins are solved in, and the cuff fades back
-// to its own shape over CUFF_FIT.reach towards the elbow:
-//   - where the donor's hand begins, the cuff stands CUFF_FIT.clearance outside it, angle by angle;
-//   - and its own end goes CUFF_FIT.bury INTO the hand, CUFF_FIT.clearance under the hand's surface there (drawn on or
-//     back to reach it, from within CUFF_FIT.reach of the wrist) - so the hand closes over the cut. Mac's screenshot
-//     (2026-10-26, the netch gauntlet looked up at): a low-poly cuff's end sat round the hand left a gap at each of
-//     its few corners, and the forearm's grey skin showed through;
-//   - a cuff that flares OVER the hand (daedric, indoril: past the wrist by more than CUFF_FIT.flare) keeps its flare and
-//     is only pushed out of the hand;
-//   - its wrist end takes the donor wrist's bones and weights (nearest donor vertex), so it turns with the hand;
-// and each moved vertex is solved through its new skin so that skinning puts it where the fit wants it (the
-// "copy bone weights" of mwSkinTransfer.js, by the same measured affines). The textures, UVs and triangles are the
-// cuff's own; the bound batch is never written - a copy is answered.
+// Fit the original gauntlet cuff to the donor hand in the forearm frame. Preserve the cuff's material and its
+// open edge.
 
 import { affineMul } from './mwAffine.js';
 import { affineInverse } from './mwParticles.js';
@@ -126,10 +105,7 @@ export function trimToCuff(batch, ctx, frame, limit, { least = 0 } = {}) {
 
 /** Where the fit puts one cuff vertex at frame coordinates `c` (along, across x, across y), its weight `f`. */
 export function fitPoint(c, ring, { a1, flared, aStart = a1 - CUFF_FIT.reach }) {
-  // the cuff's own end goes CUFF_FIT.bury into the hand - drawn on or drawn back, the whole way, the draw spread evenly
-  // from its far end (`aStart`, the elbow's) to its own: drawn over its last reach alone, a short cuff's last band of
-  // texture stretched to tearing (Mac's screenshot, 2026-10-26, the netch cuff drawn 1.9 at the wrist); never one
-  // ending up the arm, never a flare
+  // Seat the cuff inside the wrist ring, tapering the displacement along the cuff.
   const ends = !flared && a1 > ring.a0 - CUFF_FIT.reach;
   const span = Math.max(1e-6, a1 - aStart);
   const da = ends ? (ring.a0 + CUFF_FIT.bury - a1) * Math.min(1, Math.max(0, (c[0] - aStart) / span)) : 0;
@@ -147,12 +123,7 @@ export function fitPoint(c, ring, { a1, flared, aStart = a1 - CUFF_FIT.reach }) 
   return { c: [a, ring.cx + x * k, ring.cy + y * k], f, moved: true };
 }
 
-/**
- * Where the cuff ENDS along the forearm: its last RING - the farthest point with CUFF_FIT.ringVerts of its vertices
- * within CUFF_FIT.ringSpan behind it - not its farthest vertex. Retail's netch cuff ends in a ring of seven 2 units short
- * of the wrist, one tongue vertex alone reaching it; taking the tongue for the end left the ring where it was and the
- * donor's shorter hand a gap away (Mac's screenshot, 2026-10-26). A cuff of fewer vertices: its farthest.
- */
+/** A ring requires multiple nearby vertices. A single projecting point does not define the end of the cuff. */
 export function cuffEnd(along) {
   const a = [...along].sort((x, y) => x - y);
   for (let i = a.length - 1; i >= CUFF_FIT.ringVerts - 1; i--) {
@@ -162,7 +133,7 @@ export function cuffEnd(along) {
 }
 
 /**
- * CUFF-FIT: `cuffs` (skinned batches, the worn gauntlet's cuff of one side) fitted to `donors` (the donor hand's
+ * `cuffs` (skinned batches, the worn gauntlet's cuff of one side) fitted to `donors` (the donor hand's
  * batches of that side) in `ctx`'s pose ({ skeleton, pose, mats, skinBatch } - the rest pose), about the wrist `frame`
  * (wristFrame). Answers the cuffs in order - a fitted copy, or the batch itself where nothing moved.
  */
@@ -182,13 +153,7 @@ export function fitCuffsToHand(cuffs, donors, ctx, frame, { flare = true, skins 
   return cuffs.map((batch, i) => fitOne(batch, cuffRest[i], ring, { a1, flared, aStart, arm }, ctx, frame));
 }
 
-/**
- * THE ARM'S GIRTH under the cuff (Mac's screenshots, 2026-10-26: "the arm shows through the glove"): Robert's Bodies'
- * forearm is a fuller arm than the retail one every cuff was modelled round, and its skin came out through the cuff
- * - a pale stripe down the netch leather, a pink fleck at the plate's elbow end. Its skin vertices (`skins`, posed at
- * rest) read about the forearm's axis in slices CUFF_FIT.girthSlice long and CUFF_FIT.bins angles: `radius(a, x, y)`
- * - the skin's outermost there - or null where the arm has no skin.
- */
+/** Measure the donor forearm under the cuff so the skin remains covered when the wrist turns. */
 export function armGirth(skins, frame) {
   const K = CUFF_FIT.bins, slices = new Map();
   const binOf = (x, y) => Math.floor(((Math.atan2(y, x) / (2 * Math.PI)) + 1) * K) % K;
@@ -337,7 +302,7 @@ function fitOne(batch, rest, ring, shape, ctx, frame) {
     positions[v * 3] = inv[0] * g[0] + inv[1] * g[1] + inv[2] * g[2];
     positions[v * 3 + 1] = inv[3] * g[0] + inv[4] * g[1] + inv[5] * g[2];
     positions[v * 3 + 2] = inv[6] * g[0] + inv[7] * g[1] + inv[8] * g[2];
-    if (normals && rest.n) {   // MW-SMOOTH: the normal it was lit by at rest, through the new skin
+    if (normals && rest.n) {   // The normal it was lit by at rest, through the new skin
       const N = [rest.n[v * 3], rest.n[v * 3 + 1], rest.n[v * 3 + 2]];
       const o = [inv[0] * N[0] + inv[1] * N[1] + inv[2] * N[2], inv[3] * N[0] + inv[4] * N[1] + inv[5] * N[2], inv[6] * N[0] + inv[7] * N[1] + inv[8] * N[2]];
       const l = Math.hypot(o[0], o[1], o[2]) || 1;

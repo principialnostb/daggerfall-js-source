@@ -1,5 +1,4 @@
-// TRUNK-SKIN and LEG-CLOCK (2026-11-06, bible/05-Combat/Motion-Doctrine.md; the owner's 19-47-18 recording: running
-// with a two-hander the shoulder sinks into the chest, and the trunk and the arms move apart from the legs).
+// Measure the trunk, arms and leg phase on the same drawn body.
 import { readFileSync, existsSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -121,8 +120,7 @@ function realRun(weapon, group, frames = 240) {
   return { sk, body, frames: out };
 }
 
-/** How deep (rig units) each arm's skin stands in the posed Better Bodies trunk - its Tri Chest on the spine, as a
- *  polar profile about the chest bone: probe of 2026-11-06, the same measure the recording's fault was found by. */
+/** Measure arm penetration in rig units against the Better Bodies chest profile in its current pose. */
 function skinDepth(run) {
   const { sk, body } = run, part = bindPart(sk, parseNif(readFileSync(new URL(SKIN, root))));
   const pick = (name) => part.skinned.find((b) => b.name === name);

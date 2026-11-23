@@ -144,7 +144,7 @@
   {
     "name": "AUDITBR5-the-launcher-wordmark-type-again",
     "file": "app/launcher/index.html",
-    "old": "<h1 class=\"wordmark\"><img src=\"dfo-online.png\" alt=\"DFO Online\" width=\"1232\" height=\"1034\"></h1>",
+    "old": "<h1 class=\"wordmark\"><img src=\"daggerfall-online.png\" alt=\"Daggerfall Online\" width=\"2103\" height=\"748\"></h1>",
     "new": "<h1 class=\"wordmark\">DFO<small>Online</small></h1>",
     "tests": [
       "test/ui/brand.test.js"
@@ -154,8 +154,8 @@
   {
     "name": "AUDITBR5-the-launcher-csp-refuses-it",
     "file": "app/launcher/index.html",
-    "old": "font-src 'self' data:; img-src 'self'\">",
-    "new": "font-src 'self' data:\">",
+    "old": "img-src 'self' https://avatars.githubusercontent.com",
+    "new": "img-src https://avatars.githubusercontent.com",
     "tests": [
       "test/tooling/da8_launcher.test.js"
     ],

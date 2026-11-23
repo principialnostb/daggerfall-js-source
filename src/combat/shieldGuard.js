@@ -1,6 +1,6 @@
 import { modGroupEnabled } from '../systems/enhancedModResources.js';
 // @ts-check
-// SHIELD-GUARD (2026-10-26): THE FISTS BEHIND A SHIELD. Morrowind's hand-to-hand clips raise both fists, the shield
+// THE FISTS BEHIND A SHIELD. Morrowind's hand-to-hand clips raise both fists, the shield
 // arm's too, so a shield worn with no weapon hung from a boxer's guard, and a blow its clip threw with the left hand had
 // nothing to throw. Here the fists behind a shield stand as a one-hander does (the stance), hold the shield where a
 // one-hander's strafe holds it (the guard - combat/fpArm.js lays the strafe's left arm over the clip), and a blow the
@@ -26,16 +26,10 @@ export const carriesShield = (r) => !!r?.ok && !!r.arm?.pieces?.some((p) => /^sh
 /** The shield in the HAND, not the stow copy on the back. */
 export const isHandShieldSlot = (slot) => /^shield\b/.test(slot ?? '') && !/^shield-back\b/.test(slot ?? '');
 
-/** THE BASH, per view, in arm lengths along the body's facing: drawn `back` over the wind-up, driven out to `reach` on
- *  the machine's hit (melee.js U.hit - where Daggerfall deals the damage) and brought home over the follow; `rise`
- *  lifts the shield as it goes out and `out` carries it to the left, away from the middle of the picture. The third
- *  person throws the trunk behind it (Mac: "more hip, more arm"): the chest turned `yaw` degrees on the hit (negative:
- *  the left shoulder forward), wound `wind` the other way over the wind-up, leaning `lean` into it. The first person's
- *  trunk is the camera's (the eye hangs off the neck), so it keeps it - and a somewhat shorter reach, straight out into
- *  the picture: the bash is seen, the guard's shield (not the fists' clip) is what kept half the screen clear. */
+/** The shield moves forward on the melee hit. Distances are in arm lengths and use the current view. */
 export const BASH = Object.freeze({
   third: Object.freeze({ back: 0.14, reach: 0.46, rise: 0.1, out: 0, yaw: -24, wind: 9, lean: 7 }),
-  // (Mac: "in the first person the bash is not seen at all" - 0.22 out and to the side was lost at the picture's edge)
+  // Keep the first-person bash in the camera's field of view.
   first: Object.freeze({ back: 0.1, reach: 0.38, rise: 0.06, out: 0, yaw: 0, wind: 0, lean: 0 }),
 });
 const SECTION_OF = Object.freeze({ AttackWindUp: 'windup', AttackRelease: 'release', AttackEnd: 'follow' });

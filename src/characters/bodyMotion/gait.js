@@ -525,7 +525,7 @@ function rebase(sw, to = null, stride = 0) {
  */
 export function stepGait(state, input, body, dt) {
   const s = state;
-  if (!finite(dt) || dt < 0) dt = 0; // AUDIT BODY-MOTION GAIT-16: a NaN frame is no frame - it poisoned the state for good
+  if (!finite(dt) || dt < 0) dt = 0; // A NaN frame is no frame - it poisoned the state for good
   const L = body.leg;
   const uH = finite(input.unitsPerM) && input.unitsPerM > 0 ? input.unitsPerM : 1;
   const uV = finite(input.unitsPerMz) && input.unitsPerMz > 0 ? input.unitsPerMz : uH;
@@ -623,7 +623,7 @@ export function stepGait(state, input, body, dt) {
   const accel = dt > 0 ? (s.speed - s.lastSpeed) / dt : 0;
   s.lastSpeed = s.speed;
   if (snap)
-    s.yawRate = 0; // AUDIT BODY-MOTION RIG-5: a snap is no turn - read as one, it banked a body 8 degrees
+    s.yawRate = 0; // A snap is no turn - read as one, it banked a body 8 degrees
   else if (dt > 0) s.yawRate = ease(s.yawRate, dYaw / dt, 0.1, dt);
   s.lean = ease(s.lean, clamp(accel * 0.012, -0.12, 0.16) * s.move, GAIT_EASE.lean, dt);
   s.bank = ease(s.bank, clamp(s.yawRate * s.speed * 0.022, -0.2, 0.2) * s.move, GAIT_EASE.lean, dt);

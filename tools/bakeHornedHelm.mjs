@@ -1,25 +1,6 @@
-// THE HORNED STEEL HELM, baked in one command.
-//
-//     node tools/bakeHornedHelm.mjs [--sheet]
-//         take the helm's committed source (SOURCE) and painting (PAINTING) and write the shipped NIF and DDS
-//
-// MW-HORN1 (2026-10-27, the owner: "вместо стального сета дефолтного попытаться сделать адаптацию как стальной сет с
-// рогами"). The Steel Helm switch's third style.
-//
-// MW-HORN4 (2026-10-27, the owner on the helm built from numbers here: "слабо похож ... огромные проблемы с величиной
-// текстурой ... ощущение полной инородности", and Blender installed for it). A fan replica of Skyrim's horned iron helm
-// for the owner's personal, non-commercial fork, modelled by eye from screenshots - nothing of Bethesda's files - and
-// now MADE IN BLENDER by tools/blender/hornedHelm.py: the low mesh it ships, its painting baked in Cycles from a bevelled,
-// riveted copy, lit from above and in front, at the set's own 128x128 (Mac's helm pictures' size). That script writes
-// the source and the painting; this bake takes them the way bakeSteelPlate takes Mac's exports - the scene's placement,
-// one object held to the box it was read at - and skins the helm the closed helm's way (PLATE_RIG helm_closed: the head
-// bone alone), filling the hair slot and hiding the head.
-//
-// MW-HORN5 (tools/skyrim/importIronHelmet.mjs): the source is now Skyrim's iron helmet, made from the owner's install.
-// It is open under the mask - in Skyrim the wearer's chin and mouth show there - so, worn hiding the head as the closed
-// helm is, it showed nothing under the mask but the body's neck (the owner: "там вообще типо головы нет совсем"). It is
-// an OPEN helm now (ownArmorModels.js helmHorned: no `hides`), and so it is raised onto the game's head by HELM_LIFT
-// as Mac's open helm is - the game's head stands that much higher up the head bone than the scene's it was fitted on.
+// Bake the horned helm with node tools/bakeHornedHelm.mjs [--sheet] after importing the owner's Skyrim helmet
+// and painting. Skin it to the head bone and retain the wearer's visible face beneath the open mask. Generated
+// Skyrim assets stay local and are ignored by Git.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { readFbx } from './fbxRead.mjs';

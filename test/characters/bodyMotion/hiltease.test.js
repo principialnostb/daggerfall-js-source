@@ -1,4 +1,4 @@
-// HILT-EASE: the left hand eases from the clip's hold to the carry's grip by the layer's weight - no frame's jump.
+// The left hand eases from the clip's hold to the carry's grip by the layer's weight - no frame's jump.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';

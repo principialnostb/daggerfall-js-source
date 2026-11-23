@@ -1,4 +1,4 @@
-// GUARD-ELBOWS (2026-11-07, src/characters/bodyMotion/guardElbows.js): the fists' guard keeps its elbows under its fists
+// The fists' guard keeps its elbows under its fists
 // - each arm swung about its shoulder-to-wrist line, the fist where the clip holds it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

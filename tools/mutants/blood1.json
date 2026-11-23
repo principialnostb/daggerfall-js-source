@@ -1223,8 +1223,8 @@
   {
     "name": "AUDIT3-the-dungeon-clears-its-splash-pool-below-the-hand-off-list",
     "file": "src/scenes/dungeonContext.js",
-    "old": "      hitEffects.clear();\n      for (const b of billboardBatches) renderer.destroyBatch(b);\n",
-    "new": "      for (const b of billboardBatches) renderer.destroyBatch(b);\n      hitEffects.clear();\n",
+    "old": "      hitEffects.clear();\n      for (const b of closeDungeonPropPreviews(billboardBatches)) renderer.destroyBatch(b);",
+    "new": "      for (const b of closeDungeonPropPreviews(billboardBatches)) renderer.destroyBatch(b);\n      hitEffects.clear();",
     "tests": [
       "test/combat/blood1_decals.test.js"
     ]

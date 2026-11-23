@@ -5,6 +5,7 @@
 // picture - its sex FLATS.CFG's, its role FLATS.CFG's caption's, its race the region's, its seed its piece's id
 // (characters/peopleBodies.js figureLook) - and offered on its host's people lane (scenes/decor/decorRoom.js
 // offerDecorFigures): the rooms' (worldModes.js) and the yards' (world.js, through homeYards.js).
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -15,7 +16,7 @@ import { wornByRole, WARDROBE_ROLES } from '../../src/characters/wardrobe.js';
 import { decorIsFigure } from '../../src/net/decorLaw.js';
 import { hostText, hostOf } from '../hostText.mjs';   // HOST-SPLIT 2: the world host whole
 
-const ROOT = new URL('../../', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const rd = (p) => readFileSync(join(ROOT, p), 'utf8');
 const walk = (dir) => readdirSync(join(ROOT, dir)).flatMap((n) => {
   const p = `${dir}/${n}`;

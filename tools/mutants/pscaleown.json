@@ -2,8 +2,8 @@
   {
     "name": "PSCALEOWN-mine-unshared",
     "file": "src/scenes/dungeonContext.js",
-    "old": "    return isRoomFoe(f) || f._ownFrom != null || ownRides(f);   // REST-SYNC",
-    "new": "    return isRoomFoe(f) || f._ownFrom != null;   // REST-SYNC",
+    "old": "    return isRoomFoe(f, index) || f._ownFrom != null || ownRides(f);   // REST-SYNC: and a rest's encounter, which the room now shares; PSCALE-OWN: and a shared quest's, on the own lane; SUMMON-SYNC: and a loose stand",
+    "new": "    return isRoomFoe(f, index) || f._ownFrom != null;   // REST-SYNC: and a rest's encounter, which the room now shares; PSCALE-OWN: and a shared quest's, on the own lane; SUMMON-SYNC: and a loose stand",
     "tests": [
       "test/scenes/quest/pscaleown.test.js"
     ]
@@ -11,8 +11,8 @@
   {
     "name": "PSCALEOWN-puppet-unshared",
     "file": "src/scenes/dungeonContext.js",
-    "old": "    return isRoomFoe(f) || f._ownFrom != null || ownRides(f);   // REST-SYNC",
-    "new": "    return isRoomFoe(f) || ownRides(f);   // REST-SYNC",
+    "old": "    return isRoomFoe(f, index) || f._ownFrom != null || ownRides(f);   // REST-SYNC: and a rest's encounter, which the room now shares; PSCALE-OWN: and a shared quest's, on the own lane; SUMMON-SYNC: and a loose stand",
+    "new": "    return isRoomFoe(f, index) || ownRides(f);   // REST-SYNC: and a rest's encounter, which the room now shares; PSCALE-OWN: and a shared quest's, on the own lane; SUMMON-SYNC: and a loose stand",
     "tests": [
       "test/scenes/quest/pscaleown.test.js"
     ]

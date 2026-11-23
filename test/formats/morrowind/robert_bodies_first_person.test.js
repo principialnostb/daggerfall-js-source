@@ -4,7 +4,7 @@ import { robertBodiesFirstPersonAssetPaths } from '../../../src/formats/morrowin
 
 test('Robert Bodies + Better Hands paths are resolved for the selected race and sex', () => {
   const nord = robertBodiesFirstPersonAssetPaths({ race: 'Nord', female: false });
-  // BETTER-HANDS: the arm comes from the whole body - Robert's .1st carries hands alone
+  // The arm comes from the whole body - Robert's .1st carries hands alone
   assert.equal(nord.bodyModelPath, "Robert's bodies/Data Files/Meshes/bbr/no_m.nif");
   assert.equal(nord.bodyTexturePath, "Robert's bodies/Data Files/Textures/bbr/no_m.dds");
   assert.equal(nord.handModelPath, 'Better Hands/Meshes/b/b_n_Nord_m_hands.1st.nif');

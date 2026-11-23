@@ -1,4 +1,4 @@
-// LAB2 (bible/05-Combat/Proving-Ground.md): THE BODY ITSELF, in the booted page - found among the frame's posed
+// THE BODY ITSELF, in the booted page - found among the frame's posed
 // assemblies, its meshes read where the pose put them (stretch, one piece through another), and its pose and its
 // pieces' fit edited through the game's one seam (formats/morrowind/mwPoseLab.js). Laid in beside the kit.
 const mod = (p) => import(p);
@@ -514,9 +514,7 @@ window.__labKit = {
     const prefs = await mod('/src/systems/uiPrefs.js');
     if (prefs.getPref('survival') !== false) prefs.setPref('survival', false);
     if (Array.isArray(e.activeEffects)) for (let i = e.activeEffects.length - 1; i >= 0; i--) if (e.activeEffects[i]?.kind === 'survival') e.activeEffects.splice(i, 1);
-    // ENCUMBRANCE OFF FOR A RUN. Roleplay Realism's fold takes its penalty from the live Speed its own last penalty
-    // already lowered (rrInstall.js encumbranceOf), so one worn set walks at Speed 45 and 11 by turns, a fold each -
-    // measured here, 2026-11-11 (`fold`). A run under it is two fighters; the lab's fighter has the permanent Speed.
+    // Disable encumbrance during the controlled run so the same fighter uses a stable movement speed.
     const rr = await mod('/src/systems/roleplayRealism/rrRealism.js'), settings = await mod('/src/systems/modSettings.js');
     if (settings.modSetting(rr.RR_VENDOR, 'encumbranceEffects') === true) settings.setModSetting(rr.RR_VENDOR, 'encumbranceEffects', false);
     (await mod('/src/systems/entityMods.js')).computeEntityMods(e);
@@ -567,7 +565,7 @@ window.__labKit = {
     const list = Array.isArray(e.items) ? e.items : Object.values(e.items), done = [], used = new Set();
     for (const want of names) {
       const words = String(want).toLowerCase().split('|').map((w) => w.trim()).filter(Boolean);
-      const free = list.filter((x) => !used.has(x));   // DUAL-RUN: a name asked twice takes a second item
+      const free = list.filter((x) => !used.has(x));   // A name asked twice takes a second item
       const it = free.find((x) => words.includes(String(x?.name ?? '').toLowerCase())) ?? free.find((x) => words.some((w) => String(x?.name ?? '').toLowerCase().includes(w)));
       if (!it) { done.push({ want, found: false }); continue; }
       used.add(it);

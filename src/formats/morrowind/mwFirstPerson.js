@@ -3,7 +3,7 @@ import { bindElbowSkin } from '../../characters/bodyMotion/elbowSkin.js';
 import { configureEquipmentFit, poseEquipmentMorph } from './mwEquipmentFit.js';
 import { preserveOwnedPose } from './mwPoseContinuity.js';
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
-// MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
+// THE DIAGNOSTIC, and it deliberately draws nothing.
 //
 // The Morrowind import arc was reverted whole on 2026-08-28 after three
 // "fixes" that all failed. Every one failed the same way: a rule was
@@ -172,18 +172,18 @@ export { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import FACE_TABLE from '../mwFaceTable.json' with { type: 'json' };
 import { GRAPH_ROOT, ACCUM_ROOT_NAMES, blendPoseMaps } from './mwSkin.js';
-import { editPose, fitPieces } from './mwPoseLab.js';   // POSE-LAB: the Animation Lab's seam, off in the game
-import { CUFF_FIT, fitCuffsToHand, handStart, trimToCuff, wristFrame } from './mwCuffFit.js';   // CUFF-FIT: the worn cuff sat on the donor hand
-import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance, equipmentBoneSide } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
+import { editPose, fitPieces } from './mwPoseLab.js';   // The Animation Lab's seam, off in the game
+import { CUFF_FIT, fitCuffsToHand, handStart, trimToCuff, wristFrame } from './mwCuffFit.js';   // The worn cuff sat on the donor hand
+import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance, equipmentBoneSide } from './mwSkinTransfer.js';   // A worn model skinned from the body under it; MW-BRIG3: and fitted onto it
 import { rebuildNormals } from './mwCloakPhysics.js';
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
-import { batchMoves, posePartBatch, nodeAffineAt, nodeClockAt, clockFor } from './mwPartClock.js';   // MW-BOW1: a part's own clock
-import { applyClimbRig } from '../../combat/climbRig.js';   // CLIMB6: the climb's pose on the rig's own bones
+import { batchMoves, posePartBatch, nodeAffineAt, nodeClockAt, clockFor } from './mwPartClock.js';   // A part's own clock
+import { applyClimbRig } from '../../combat/climbRig.js';   // The climb's pose on the rig's own bones
 import { garmentSideBatch } from './mwGarmentMaterials.js';
-import { applyMirrorRig, limbSkeleton, offWeaponBoneAddon, WEAPON_BONE_LEFT_SOURCE, mirrorBindSources } from '../../combat/twoHands/mirrorRig.js';   // TWO-HANDS: the second hand - an arm, or the body, in the mirror; the left hand's weapon bone   // MIRROR-BIND: the skins it is mirrored by
+import { applyMirrorRig, limbSkeleton, offWeaponBoneAddon, WEAPON_BONE_LEFT_SOURCE, mirrorBindSources } from '../../combat/twoHands/mirrorRig.js';   // The second hand - an arm, or the body, in the mirror; the left hand's weapon bone   // MIRROR-BIND: the skins it is mirrored by
 import { normalizeVfsPath } from './mwTexture.js';
-import { OWN_HEADS, ownFacePools } from '../../characters/ownModels/ownHeadModels.js';   // MW-HEADS1: the port's own heads and hairs - a race's pools where it has them
+import { OWN_HEADS, ownFacePools } from '../../characters/ownModels/ownHeadModels.js';   // The port's own heads and hairs - a race's pools where it has them
 
 /** The four parts allowed to fall back to a third-person mesh when the
  *  first-person record is missing (rule 3 / npcanimation.cpp:1217-1253).
@@ -191,7 +191,7 @@ import { OWN_HEADS, ownFacePools } from '../../characters/ownModels/ownHeadModel
  *  this and so rendered nothing else. */
 export const ARM_PARTS = Object.freeze(['hand', 'wrist', 'forearm', 'upperarm']);
 
-// MW-LOAD: every record reader below is ONE record off the walk, so the
+// Every record reader below is ONE record off the walk, so the
 // per-kind extractors and extractArmRecords (one pass, every kind)
 // cannot disagree - they call the same function on the same bytes.
 function readBodyPart(bytes, rec) {
@@ -202,12 +202,12 @@ function readBodyPart(bytes, rec) {
     else if (sub.name === 'FNAM') e.race = zstr(bytes, sub.start, sub.len).toLowerCase();
     else if (sub.name === 'BYDT' && sub.len >= 4) {
       e.part = bytes[sub.start];
-      e.vampire = bytes[sub.start + 1] !== 0;   // MWNPC14: BYDT's second byte, the vampire flag (getVampireHead reads it)
+      e.vampire = bytes[sub.start + 1] !== 0;   // BYDT's second byte, the vampire flag (getVampireHead reads it)
       const flags = bytes[sub.start + 2];
       e.female = (flags & 1) !== 0;            // BPF_Female = 1
       e.playable = (flags & 2) === 0;          // BPF_NotPlayable = 2
       e.skin = bytes[sub.start + 3] === 0;     // MT_Skin = 0
-      e.bodyKind = bytes[sub.start + 3];       // IG3: the raw MeshType - getShieldMesh gates on MT_Armor (2)
+      e.bodyKind = bytes[sub.start + 3];       // The raw MeshType - getShieldMesh gates on MT_Armor (2)
     }
   }
   e.slot = MW_BODY_PARTS[e.part] ?? `#${e.part}`;
@@ -223,7 +223,7 @@ export function bodyParts(bytes) {
   return out;
 }
 
-/** MW-D32: the RACE records the build needs - the beast flag decides
+/** The RACE records the build needs - the beast flag decides
  *  the skeleton column (getActorSkeleton) and the height/weight pairs
  *  scale the rig (npc.cpp's race scaling). RADT is 140 bytes
  *  (loadrace.hpp:50-70): 7 skill pairs (56) + 8x2 attributes (64), then
@@ -257,7 +257,7 @@ export function raceRecords(bytes) {
 }
 
 /**
- * MW-D9: THE WEAPON RECORDS.
+ * THE WEAPON RECORDS.
  *
  * ESM::Weapon::Type, read off components/esm3/loadweap.hpp - explicit
  * values, every one of them, including the four NEGATIVE pseudo-types
@@ -336,33 +336,8 @@ export const DF_STRIKE_TO_MW_ATTACK = Object.freeze({
   StrikeUp: 'thrust',
 });
 
-/**
- * MS1 - THE BACKHAND (Mac, 2026-09-12: "classic Daggerfall has a swing
- * animation for left and right while Morrowind only has the animation
- * that swings right to left. Could we insert a mirrored swing so you're
- * able to swing all directions?" - and, of a mirror that changed hands,
- * "There must be a way to keep it correctly in the correct hand.").
- *
- * Morrowind's slash is ONE motion: the weapon hand sweeps from the
- * actor's right across to the left. A mirror would send it the other
- * way, but a mirror swaps hands. What keeps the sword in the right hand
- * and sends it left-to-right is the SAME clip run BACKWARDS: the
- * follow-through reversed is a wind-up that carries the arm across the
- * body to the left, the release reversed sweeps the blade from left to
- * right, and the wind-up reversed settles the arm from its cocked side
- * back to rest. That is a backhand - the stroke a right-hander actually
- * makes to swing left-to-right - on the right arm, with the sword where
- * it is. StrikeLeft is Morrowind's own slash (the blade comes from
- * screen-right and crosses to the left); StrikeRight is the backhand.
- * The chops and the thrust have no side a reversal would honour (a chop
- * backwards is an uppercut), and a shot is one draw.
- *
- * SHIELD-GUARD (2026-10-26): NOR A FIST. Hand-to-hand's slash is a hook, and backwards it is a punch pulled: its
- * reversed follow-through throws the right fist 45 units forward before the release (0.53 s, up to 784 units/s), and
- * the reversed release - where the blow lands - snaps it back 59 units, the left fist thrown out 26 (retail
- * xbase_anim.kf, "handtohand"; the first person's .1st clip pulls its right fist back 37 units the same way). The
- * fists' StrikeRight is their own hook, played forward.
- */
+/** Reverse the chosen Morrowind strikes to provide the alternating backhand required by the Daggerfall attack
+ * directions. */
 export const REVERSED_STRIKES = Object.freeze(['StrikeRight']);
 export const strikeReversed = (strike, weaponType = null) => REVERSED_STRIKES.includes(strike) && weaponType !== MW_WEAPON_TYPE.HandToHand;
 
@@ -396,7 +371,7 @@ export function attackKeys(attackType, strength = 0, { reversed = false } = {}) 
   const follow = shoot
     ? { start: `${attackType} follow start`, stop: `${attackType} follow stop` }
     : { start: `${attackType} ${word} follow start`, stop: `${attackType} ${word} follow stop` };
-  // MS1: THE BACKHAND is the forward sections in reverse order, each
+  // THE BACKHAND is the forward sections in reverse order, each
   // played backwards - the key PAIRS stay in file order (resetClip
   // wants start before stop) and the clip state carries `reversed`,
   // which the pose reads as startTime + stopTime - time. A shot never
@@ -705,7 +680,7 @@ export function composeStanceGroup(base, type, hasGroup) {
  * the player's own first-person rig.
  */
 /**
- * MW-D26: THE MOVEMENT STATE - refreshCurrentAnims' movestate ladder
+ * THE MOVEMENT STATE - refreshCurrentAnims' movestate ladder
  * (character.cpp:2297-2330) minus the swim family (deferred with the
  * port's swim animations; recorded, not faked). The strafe test is the
  * reference's own 2:1 (character.cpp:2085 - mIsStrafing when the side
@@ -729,7 +704,7 @@ export function movementAnimState({
 }
 
 /**
- * MW-D26: the movement group's WEAPON suffix and its fallbacks
+ * The movement group's WEAPON suffix and its fallbacks
  * (refreshMovementAnims, character.cpp:674-708). The suffix ladder is
  * fallbackShortWeaponGroup's, which composeStanceGroup already IS
  * (asked short, then the 2c/1h fallback for real weapons, then the
@@ -764,7 +739,7 @@ export function composeMovementGroup(base, type, hasGroup) {
 }
 
 /**
- * MW-D39: THE JUMP STATE - update()'s in-air derivation
+ * THE JUMP STATE - update()'s in-air derivation
  * (character.cpp:2195-2296), the ANIMATION half only. The same block's
  * fall damage, Acrobatics progression, knockdown and landing sounds
  * are DFU's own laws in this port (fallwater/footsteps own them; the
@@ -934,7 +909,7 @@ function readWeapon(bytes, rec) {
     else if (sub.name === 'ENAM') e.enchanted = true;
     else if (sub.name === 'WPDT') {
       if (sub.len < 32) continue;   // refused, not read past
-      // MW-D22: mType is at byte EIGHT. loadweap.hpp's WPDTstruct is
+      // mType is at byte EIGHT. loadweap.hpp's WPDTstruct is
       // float mWeight (0-3), int32 mValue (4-7), int16 mType (8-9),
       // uint16 mHealth (10-11), ... - 32 bytes. MW-D9 recorded "byte
       // 10" (4+4 does not make 10), the reader read 10, and the
@@ -947,7 +922,7 @@ function readWeapon(bytes, rec) {
       // wearing bytes.
       const dv = new DataView(bytes.buffer, bytes.byteOffset + sub.start, 32);
       e.type = dv.getInt16(8, true);
-      // MW-D28: mSpeed at byte 12 (loadweap.hpp:70, after mHealth's
+      // mSpeed at byte 12 (loadweap.hpp:70, after mHealth's
       // uint16 at 10-11). It is the ONLY record field that changes an
       // attack's played speed: character.cpp:1326 reads it for the
       // drawn weapon and :1718/:1786/:1811 pass it as the speedmult of
@@ -959,11 +934,11 @@ function readWeapon(bytes, rec) {
   return e.id && e.model ? e : null;
 }
 
-/** MWNPC9: a CREA record's FLAG bits (OpenMW components/esm3/loadcrea.hpp `enum Flags`, at openmw-0.48.0; the
+/** A CREA record's FLAG bits (OpenMW components/esm3/loadcrea.hpp `enum Flags`, at openmw-0.48.0; the
  *  reader keeps the low byte, `mFlags = flags & 0xFF` - loadcrea.cpp). */
 export const CREA_FLAG = Object.freeze({ Bipedal: 0x01, Respawn: 0x02, Weapon: 0x04, Base: 0x08, Swims: 0x10, Flies: 0x20, Walks: 0x40, Essential: 0x80 });
 
-/** MWNPC9: the CREA records - what a creature's body is built from: its id, its model (MODL, the path as the WEAP
+/** The CREA records - what a creature's body is built from: its id, its model (MODL, the path as the WEAP
  *  reader keeps one), its name, its flags (FLAG's low byte) and its scale (XSCL, 1 when absent - loadcrea.cpp). */
 function readCreature(bytes, rec) {
   const e = { id: '', model: '', name: '', flags: 0, scale: 1 };

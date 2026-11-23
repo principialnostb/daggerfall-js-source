@@ -24,22 +24,26 @@ parts whose slot moved); the port rebuilds the actor.
 - **STANCE-FIRST** - the swap of the hand is async (its meshes and pictures load), and a rebuild in flight holds it
   queued (`pendingWeapon`), while the game's weapon changes at once: a blow started in the gap was the new weapon's,
   thrown in the old stance. Two halves:
+
   - the pack handed the rig the worn table BEFORE the hand, so a weapon that bumps the shield started a whole
     rebuild carrying the OLD hand and queued the new one behind it for the length of that build; the hand now goes
     first (`enhancedInventory.js:"// STANCE-FIRST (the owner, 2026-10-28"`), as the frame's tick already did
     (`handArm` before `setWorn`);
+
   - the rig records the hand the game ASKED for (`wantKey`, every frame through `handArm`) and answers
     `handSettled` (`fpArm.js:"    handSettled() {"`); while it is false the arm draws no blow and leads none, so the
     game's blow lands on its own clock. True with no standing arm, for the wolf and for a swap the rig refused.
     MECHANICS-UNTOUCHED (the owner, the same day: "графическая сборка ... влияния на механики игры не должно быть"):
     the first cut held the SWING itself while the arm loaded (`armCannotSwing`), a picture deciding when the player
     may strike; it was taken back, and the picture alone waits (`05-Combat/Equip-Window.md`, section 2).
+
 - **APPLY-NOW** - the editor's Done saved the identity and said in a comment that the live body is not rebuilt from
   it; but every player build reads the saved identity (`build`, `playerAppearance`), so the body changed at the next
   equip. A changed identity (`appearanceEditor.js:"export function identityChanged(saved, next) {"`) now rebuilds the
   body at Done (`applyAppearanceIdentity`, not awaited - the old body stands until the new one), and both of the
   editor's events drop the pack's cached figure (its key - pieces, skeleton, yaw - moves with neither a morph nor a
   face).
+
 - **BB-ONCE** - Better Bodies' bytes were handed out as a fresh copy every call
   (`fpArm.js:"async function loadBetterBodiesAssetBytes"`), so `parseNifOnce`'s identity memo never matched: the whole
   body NIF (and Robert's first-person arms and Better Hands' hands) were parsed again on every equip and every NPC
@@ -48,6 +52,7 @@ parts whose slot moved); the port rebuilds the actor.
   (`fpArm.js:"function preparedBetterBodiesBytes(url, rawBytes, fromStem, toStem) {"`), and the picture dropped only
   when the registered bytes moved. A latent defect goes with it: the rewrite wrote INTO the shared buffer, so a second
   race's body searched a stem the first had already rewritten.
+
 - **LOAD-CLOCK** - the build's console line (`[mw] arm built in ...`) carried the third-person body inside `meshes`;
   it is its own span now, `third`.
 
@@ -145,11 +150,15 @@ the workers, the queues), and the swap now says where in its own line.
 102187 ms - archives 203, meshes 36508, textures 65357, third 118` (the next, Longsword: 1,471 ms). A minute and a half
 of waiting for a few files: every archive read went out at once - the street's bodies' meshes and pictures, the
 warm-up's, the sword's - into the browser's six connections to the dev server (the packs' files) and its own line for
-the store (the `.bsa` ranges, the loose files). Every read now goes through one queue
+the store (the `.bsa` ranges, the loose files).
+
+Every read now goes through one queue
 (`fpArm.js:"export function archiveRead(read, urgent = false) {"`): at most four ordinary reads at once and six in all,
 so an urgent read always finds a place, and the urgent line is served first. The player's builds (`urgent`) and the
 rig's swaps (`playerAppearance`) mark theirs - sixteen reads of `loadFromArchives` - and everything else (the NPCs',
-the portraits', the icons', the warm-up's) waits in the ordinary line. The pictures' `<img>` loads (the Eye of the
+the portraits', the icons', the warm-up's) waits in the ordinary line.
+
+The pictures' `<img>` loads (the Eye of the
 Beholder's sprites) still share the connections outside it. The owner, in the game: "действительно теперь все четко".
 
 **TEXTURE-HEAL - a picture that did not come is asked for again** (the owner: "проверь не только скорость а качество

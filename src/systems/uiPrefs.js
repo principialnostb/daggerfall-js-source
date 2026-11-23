@@ -9,13 +9,13 @@
 // 171) and would put a port-invented preference into a file whose
 // whole point is that it is DFU's. Separate shelf, separate key.
 const STORAGE_KEY = 'dagger.ui.v1';
-/** PREF1: the shelf's own revision, so a shelf written before the fix
+/** The shelf's own revision, so a shelf written before the fix
  *  can be told from one written after it. Bumping it does NOT re-run
  *  the adoption below - that reads the stamp's ABSENCE. */
 const SHELF_STAMP = '_rev';
-/** HB-LYCFREE: rev 2 is the shelf written since the hotbar became the default - see loadPrefs. */
+/** Rev 2 is the shelf written since the hotbar became the default - see loadPrefs. */
 const SHELF_REV = 2;
-/** PREF1: the keys whose default the port changed after shelves had
+/** The keys whose default the port changed after shelves had
  *  already materialised the old one, adopted once on an unstamped
  *  shelf. A key joins this list only when the old stored value cannot
  *  honestly be read as the player's answer - see loadPrefs. */
@@ -198,16 +198,9 @@ export const PREF_DEFAULTS = Object.freeze({
   // PROF1 (bible/06-Systems/Professions-Arc.md 5.1, 22): GENTLE ACTS - an accessibility choice, the port's own: every
   // profession's act completes at a plain result, with no clean bonus and no bruise. Set on the Professions page.
   gentleActs: false,
-  showToTravellers: true, // TV3: off - the region's travellers do not see where I am (my party always does)
-  // MWA4 (2026-09-25): `mwArms` (MWA1's arms switch) is retired - the attached Morrowind files are the switch, and
-  // Remove data the off (combat/weapon/weaponRig.js autoBuildArms, ui/enhanced/enhancedMenu.js morrowindCard). A stored value is
-  // read by nothing.
-  // 2026-09-17 (per-request): a peer without a Morrowind body is drawn as their class's animated sprite by default
-  // (net/remotePlayers.js classMobileType/_syncMobilePeer) - the same billboard a hostile Warrior/Mage/etc. already
-  // is, puppeted by their pose instead of AI. Off returns to the flat paperdoll every peer used to be drawn as.
-  // Defaults ON: this needs no attached data and no build step, so there is nothing to opt INTO the way Morrowind
-  // assets are - only a look a player might prefer to opt OUT of.
-  // MW-TP-ONLY: keep Morrowind's NIF body in third person while the first-person view uses the classic arm/sprite path.
+  showToTravellers: true, // Attached Morrowind resources enable the body. The third-person-only preference keeps the classic first-person
+  // arm. Peers without a Morrowind body can use an animated class sprite. Hiding location from regional
+  // travellers still shares it with the party.
   morrowindThirdPersonOnly: false,
   enhancedCampfire: true,
   enhancedPonds: true,

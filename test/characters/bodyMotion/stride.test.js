@@ -1,6 +1,4 @@
-// STRIDE and FOOT-SPEED (MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md): Daggerfall's speeds share their ratio
-// between the clip's cadence and the legs' swing, the legs lengthen about their cycle's mean without lifting the planted
-// foot, and the clip's pace is its planted foot's, not its root's.
+// Match movement speed through cadence and stride length while keeping the planted foot on the ground.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

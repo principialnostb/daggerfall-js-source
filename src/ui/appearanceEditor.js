@@ -6,7 +6,7 @@ import { charPixelRows } from '../render/charPixelLayer.js';
 import { CHAR_PIXEL_TIERS } from '../systems/charPixel.js';
 import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, getUnderwearEnabled, setUnderwearEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 
-// BODY-SHAPE: the groups follow the fields' own zones, the figure's curves first
+// The groups follow the fields' own zones, the figure's curves first
 const GROUPS = [
   { id: 'overall', title: 'Общее', description: 'Силуэт целиком и голова', keys: ['bodyWidth', 'bodyFullness', 'headScale'] },
   { id: 'chest', title: 'Грудь', description: 'Объём, выступ, подъём и расстановка', keys: ['breastSize', 'breastProjection', 'breastLift', 'breastSpacing'] },
@@ -15,7 +15,7 @@ const GROUPS = [
   { id: 'legs', title: 'Бёдра, икры и постановка ног', description: 'Полнота бёдер и икр, расстановка ног', keys: ['thighThickness', 'calfThickness', 'legGap'] },
   { id: 'upper', title: 'Плечи, грудная клетка и руки', description: 'Плечевой пояс, грудная клетка, руки', keys: ['shoulderWidth', 'ribcageWidth', 'armThickness'] },
 ];
-// EDITOR-B: figure presets - a starting point the sliders then refine; a value not named is 0
+// Figure presets - a starting point the sliders then refine; a value not named is 0
 const PRESETS = [
   {
     id: 'hourglass', title: 'Обычная',
@@ -263,7 +263,7 @@ const STYLE = `
 @media(prefers-reduced-motion:reduce){#mw-appearance-editor .mw-btn{transition:none}}
 `;
 
-/** APPLY-NOW: does the editor's pick differ from the saved identity the live body wears? A missing head/hair is the
+/** Does the editor's pick differ from the saved identity the live body wears? A missing head/hair is the
  *  race's default, and a missing sex is the entity's own - compared as null. */
 export function identityChanged(saved, next) {
   const norm = (v) => ({
@@ -529,7 +529,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   // Body sliders are draft state, just like race/face. Do not mutate the live
   // actor or persistent settings until the user confirms with Done.
   let draftMorphs = { ...initial };
-  let activeZone = GROUPS[0].id;   // EDITOR-B: one zone at a time, as tabs
+  let activeZone = GROUPS[0].id;   // One zone at a time, as tabs
   const zoneButtons = new Map();
   for (const zone of GROUPS) {
     const button = makeButton(zone.title);
@@ -576,7 +576,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     group.append(groupHead, fields); controlList.append(group);
   }
 
-  // EDITOR-B: the whole draft at once - a preset, or the reset (every slider back to 0)
+  // The whole draft at once - a preset, or the reset (every slider back to 0)
   function setDraft(values) {
     draftMorphs = Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, clamp(Number(values[key]) || 0)]));
     for (const [key, input] of inputs) {
@@ -660,7 +660,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   });
   footerActions.append(reset, done); footer.append(footerNote, footerActions);
 
-  // EDITOR-B: three columns - the look and the presets, the model, the body's zones as tabs
+  // Three columns - the look and the presets, the model, the body's zones as tabs
   const identityCol = document.createElement('section'); identityCol.className = 'mw-identity-col';
   identityCol.append(controlsHead, presets);
   const bodyHead = document.createElement('div'); bodyHead.className = 'mw-body-head';

@@ -1,4 +1,4 @@
-// ARM-CLEARANCE (MOTION-DOCTRINE 7c): an elbow the clip leaves inside the trunk swings out about the shoulder-wrist line,
+// An elbow the clip leaves inside the trunk swings out about the shoulder-wrist line,
 // the hand where it was; an arm already clear is untouched; heavier armour clears wider.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -89,7 +89,7 @@ test('ARM-CLEARANCE: a turned two-handed neutral guard keeps both grips and clea
     const turns = clearArms(sk, pose, GRAPH_ROOT, sm, { armor: 1 });
     expected ??= turns;
     for (const side of ['L', 'R']) {
-      // CLEAR-SMOOTH: the turn is refined by halvings, so a turned chest finds it to the refinement's own tolerance (a
+      // The turn is refined by halvings, so a turned chest finds it to the refinement's own tolerance (a
       // thousandth of a radian, fifty times under the grid's step), not to the bit
       assert.ok(Math.abs(turns[side] - expected[side]) < 1e-3, 'clearance follows the turned chest ' + (turns[side] - expected[side]));
       const after = sm(sk, pose, GRAPH_ROOT), hand = body.bones[side].hand;
@@ -99,12 +99,7 @@ test('ARM-CLEARANCE: a turned two-handed neutral guard keeps both grips and clea
   }
 });
 
-// GRIP-ANATOMY (2026-10-29, the owner's video: the left hand sinks into the body at rest and walking, the run's elbow
-// pressed to the chest; then the owner's drawing: the point raised so the elbows bend): the guard - its point raised to
-// the waist, the walk's a little higher - held with the left fist against
-// the right, the trunk turned and leant under it; the left arm bent and its forearm clear of a full cuirass, standing,
-// walking and running. (Its pins of 2026-10-28 - the blade up, the right elbow bent 60 to 120 - were the upright guard's,
-// withdrawn with it.)
+// Check the left forearm clears the cuirass while the grip and blade stay in guard through movement.
 test('GRIP-ANATOMY: the two-handed carry\'s left forearm clears the cuirass, bent, standing, walking and running', () => {
   const scenes = {
     stand: { weapon: MW_WEAPON_TYPE.LongBladeTwoHand },

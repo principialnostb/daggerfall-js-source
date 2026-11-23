@@ -63,40 +63,40 @@ import { openAppearanceEditor } from '../appearanceEditor.js';
 // inventory slice's first job.
 // ═══════════════════════════════════════════════════════════════════
 
-import { isRestItem } from '../../systems/rest/restItems.js';   // REST6: the seven's card lines
-import { getPref, setPref } from '../../systems/uiPrefs.js';   // PLUS7: getPref, the hover card's switch; PACK-PHONE: setPref, the phone's Body
-import { USE_PENDING, powersRows, INFO_TEXT_POWERS } from '../native/nativeInventory.js';   // PLUS10: the Info box's powers record
-import { itemInfoRows, questLetterName } from '../../systems/item/itemInfo.js';   // PLUS10: the classic Info popup's own text
-import { magicPowersLines } from '../../systems/item/itemPowers.js';   // PLUS10: %mpw
-import { itemIsIdentified } from '../../systems/tradeModes.js';   // PLUS10: MagicPowers' identified arm
-import { PACK_PAGES, PAGE_IDS, pageOf, filterByPage } from '../packPages.js';   // PX31: the pack's nine pages (the classic keeps DFU's four)
-import { isCardBinder, isIliacCard, binderDecks } from '../../systems/iliac/iliacItems.js';   // CARDS8: the binder holds the cards
-import { isWalletItem, walletContents, walletLedger, refreshWalletSilver, letterWorthGold, walletKg } from '../../systems/walletItem.js';   // WALLET1: the wallet's sheet; WALLET-UI: its ledger; WALLET-WEIGHT: what it holds weighs
-import { useItem, isLightSource, usableItem, isPotionRecipe, toggleHood, HOOD_TEXT, nextDrape, drapeCount, DRAPE_TEXT } from '../../systems/useItem.js';   // PLUS10: isPotionRecipe, a recipe's second Info box   // HT2: the light source's own act; Mac: Use only where the law has an arm   // HOOD-SAID: the hood's button and its lines   // CLOAK-DRAPE: the drape's
-// QS2: the quickslot model (systems/quickslots.js). This screen is the ONE
+import { isRestItem } from '../../systems/rest/restItems.js';   // The seven's card lines
+import { getPref, setPref } from '../../systems/uiPrefs.js';   // getPref, the hover card's switch; PACK-PHONE: setPref, the phone's Body
+import { USE_PENDING, powersRows, INFO_TEXT_POWERS } from '../native/nativeInventory.js';   // The Info box's powers record
+import { itemInfoRows, questLetterName } from '../../systems/item/itemInfo.js';   // The classic Info popup's own text
+import { magicPowersLines } from '../../systems/item/itemPowers.js';   // %mpw
+import { itemIsIdentified } from '../../systems/tradeModes.js';   // MagicPowers' identified arm
+import { PACK_PAGES, PAGE_IDS, pageOf, filterByPage } from '../packPages.js';   // The pack's nine pages (the classic keeps DFU's four)
+import { isCardBinder, isIliacCard, binderDecks } from '../../systems/iliac/iliacItems.js';   // The binder holds the cards
+import { isWalletItem, walletContents, walletLedger, refreshWalletSilver, letterWorthGold, walletKg } from '../../systems/walletItem.js';   // The wallet's sheet; WALLET-UI: its ledger; WALLET-WEIGHT: what it holds weighs
+import { useItem, isLightSource, usableItem, isPotionRecipe, toggleHood, HOOD_TEXT, nextDrape, drapeCount, DRAPE_TEXT } from '../../systems/useItem.js';   // isPotionRecipe, a recipe's second Info box   // HT2: the light source's own act; Mac: Use only where the law has an arm   // HOOD-SAID: the hood's button and its lines   // CLOAK-DRAPE: the drape's
+// The quickslot model (systems/quickslots.js). This screen is the ONE
 // place a slot is filled - Mac's own words, "in the enhanced menu through the
 // tooltip to slot 1/2" - and it fills one by naming the item's KIND, which is
 // all a slot ever holds.
 import { isQuickConsumable, canSwapTo, quickslotOf, assignQuickslot, clearQuickslot } from '../../systems/quickslots.js';
-// HB1: the hotbar - one more drop target for the drag this pane already
+// The hotbar - one more drop target for the drag this pane already
 // owns, and the click path beside it. The bar is up under this window
 // only while the player has chosen it over the diamond.
 import { setHotbarDropMode, hotbarSlotNode, hotbarTakesItem, hotbarDropItem, hotbarMode, toggleHotbarItem, hotbarKeyOf, setHotbarDragging,
-  hotbarShownSlotOf, setHotbarPick } from './enhancedHotbar.js';   // DIAMOND-HB: the slot among the ones shown; point and press
-import { registerQuickAct } from '../plus/plusPad.js';   // PADPLUS5: the pad's X on a row
+  hotbarShownSlotOf, setHotbarPick } from './enhancedHotbar.js';   // The slot among the ones shown; point and press
+import { registerQuickAct } from '../plus/plusPad.js';   // The pad's X on a row
 import { EQUIP_SLOTS } from '../../characters/paperdoll/paperdoll.js';
 import { dfWornEquipment } from '../../formats/morrowind/mwItemMap.js';   // PX25
 import { lookVariantsOf, lookVariantLabel, lookChoices, setLookVariant, rebuildForLook } from '../../systems/lookVariants.js';   // LOOK-VARIANTS, LOOK-THUMBS
 import { hasDaggerfallArrows } from '../../combat/fpArm.js';   // PX26
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';   // PX25
-import { inventoryItemImage, inventoryItemModel, templateByIndex, isAmmunition, templateLore } from '../../systems/item/itemTemplates.js';   // WEAR-UI: isAmmunition, spent not worn; GUN-LORE: a template's own words
+import { inventoryItemImage, inventoryItemModel, templateByIndex, isAmmunition, templateLore } from '../../systems/item/itemTemplates.js';   // isAmmunition, spent not worn; GUN-LORE: a template's own words
 import { lookLine } from '../../systems/appearances.js';   // APPEARANCES: the Info box says a worn look
 import { requestIcon, loadIcon, paperDollDataUrl, requestFittedPicture, requestFittedIcon, iconName, fittedImg } from '../textureCanvas.js';
 import { CLOAK_TEMPLATES } from '../../characters/ownModels/wolfCloak.js';
 import { isShieldTemplate } from '../../characters/ownModels/shieldLooks.js';
 import { isPaperdollHelmet, helmetPaperdollVariant } from '../../systems/helmetPaperdollLooks.js';
 import { helmetAppearancePicker, fitHelmetThumbnail } from './helmetAppearancePicker.js';
-import { paperdollAppearancePicker } from './paperdollAppearancePicker.js';   // PAPERDOLL-LOOKS: the 2D look of any piece
+import { paperdollAppearancePicker } from './paperdollAppearancePicker.js';   // The 2D look of any piece
 import { paperdollLookChoices } from '../../systems/paperdollLooks.js';
 import { modelLookRow } from './modelLookRow.js';   // MODEL-LOOKS: the 3D tab's Morrowind records
 import { setModelLook } from '../../systems/modelLooks.js';

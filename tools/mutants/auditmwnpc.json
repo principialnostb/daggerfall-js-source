@@ -275,8 +275,8 @@
   {
     "name": "AUDITMWNPC-D6-creature-walk-unordered",
     "file": "src/combat/fpArm.js",
-    "old": "    const esmNames = esmLoadOrder((await d.storedMorrowindNames()).filter((n) => /\\.esm$/i.test(n)));   // AUDIT MW-NPC D6",
-    "new": "    const esmNames = (await d.storedMorrowindNames()).filter((n) => /\\.esm$/i.test(n));   // AUDIT MW-NPC D6",
+    "old": "    const esmNames = await morrowindRecordLoadOrder(d);   // AUDIT MW-NPC D6",
+    "new": "    const esmNames = (await d.storedMorrowindNames()).filter(n => /\\.esm$/i.test(n));   // AUDIT MW-NPC D6",
     "tests": [
       "test/characters/mwnpc_audit.test.js"
     ]

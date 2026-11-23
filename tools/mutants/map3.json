@@ -337,8 +337,8 @@
   {
     "name": "armsDrawn-from-active",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "      _armDrewLast = !eotbHidesWeapon() && fpArm.active();   // MAP3: the two lines below draw the arm exactly when this is true\n",
-    "new": "",
+    "old": "        _armDrewLast = drew;",
+    "new": "        _armDrewLast = fpArm.active();",
     "tests": [
       "test/combat/map3_heldpose.test.js"
     ]
@@ -683,8 +683,8 @@
   {
     "name": "MAP-WEAPON-the-gate-stands-above-the-arm-branch",
     "file": "src/combat/weapon/weaponRig.js",
-    "old": "      if (fpArm.active()) { fpArm.draw(c); return; }",
-    "new": "      if (sheetWindowUp()) return;\n      if (fpArm.active()) { fpArm.draw(c); return; }",
+    "old": "      if (armActive) {\n        const drew = !!fpArm.draw(c);",
+    "new": "      if (sheetWindowUp()) return;\n      if (armActive) {\n        const drew = !!fpArm.draw(c);",
     "tests": [
       "test/combat/map3_heldpose.test.js"
     ]

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { assembleFirstPersonArm, poseAssembly, bindPartsInto } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { ARMOR_MATERIAL } from '../../../src/systems/armorMaterials.js';
 import {
-  CLOAK_FIT_POSES, CLOAK_PUSH_LIMIT, FOLLOW, SLUNG_MOVE_LIMIT,
+  CLOAK_FIT_POSES, CLOAK_STILL_POSES, CLOAK_PUSH_LIMIT, FOLLOW, SLUNG_MOVE_LIMIT,
   fitCloakOver, fitStowedGear, followCloak, applyCloakFollow, cloakSheet, sheetCellKey,
 } from '../../../src/formats/morrowind/mwCloakFit.js';
 import { fitThirdPersonCloak } from '../../../src/combat/fpArm.js';
@@ -43,7 +43,7 @@ function boxPart(asm, bone, slot, [min, max]) {
 }
 
 test('AUDIT MW-CLOAK: fit 1 holds the cloak over the poses - the rest, a stride each way with both arms back, and (MW-CAPE-RIGID) the chest leant back - so no piece of the ebony plate comes through it in any pose of the sweep; fitted at rest alone, an arm swung back still brought a pauldron through, and without the lean, leaning back brought the tassets through', async () => {
-  assert.equal(CLOAK_FIT_POSES.length, 7);
+  assert.equal(CLOAK_FIT_POSES.length, 4);
   assert.deepEqual(CLOAK_FIT_POSES[0], {}, 'the rest first');
   assert.deepEqual(CLOAK_FIT_POSES[3], { 'bip01 spine2': ['z', -10] }, 'the chest leant back as far as the sweep leans it');
   for (const pose of CLOAK_FIT_POSES.slice(1, 3)) {
@@ -67,13 +67,15 @@ test('AUDIT MW-CLOAK: fit 1 holds the cloak over the poses - the rest, a stride 
     assert.ok(through(asm, isUnder) <= 1e-3, `${name}: nothing stands behind the sheet`);
   }
   // Regression: forward arm sweeps used by attacks were missing from the fit envelope.
-  for (const [i, turns] of CLOAK_FIT_POSES.slice(4).entries()) {
+  fitCloakOver(asm, { isCloak, isUnder, poses: CLOAK_STILL_POSES });
+  assert.equal(CLOAK_STILL_POSES.length, 11);
+  for (const [i, turns] of CLOAK_STILL_POSES.slice(4, 7).entries()) {
     poseAssembly(asm, turned(asm, turns));
     assert.ok(through(asm, isUnder) <= 1e-3, `forward attack fit pose ${i + 1}: nothing stands behind the sheet`);
   }
 });
 
-test('AUDIT MW-CLOAK: the stowed gear GOES WITH the cloak - the addon\'s greatsword, bow, longsword and crossbow, fitted at rest, come through it leaning back (MW-CAPE-RIGID: the legs no longer swing it); tied to it, none does in any pose, the rest moves nothing, slung gear rides the cloak\'s own bone, and the frame\'s work reuses its arrays', async () => {
+test('only eligible hip gear follows the cloak and the back-mounted bow and greatsword keep their bone poses', async () => {
   const asm = await body(ARMOR_MATERIAL.Steel, GEAR);
   fitCloakOver(asm, { isCloak, isUnder });
   fitStowedGear(asm, { isCloak, isGear });
@@ -85,9 +87,9 @@ test('AUDIT MW-CLOAK: the stowed gear GOES WITH the cloak - the addon\'s greatsw
   assert.deepEqual(unfollowed, ['leanBack5', 'leanBack10'], 'fitted at rest alone, the gear comes through leaning back, and only then');
   const follow = followCloak(asm, { isCloak, isGear });
   assert.equal(typeof asm.afterPose, 'function');
-  assert.deepEqual(follow.groups.map((g) => g.pieces[0].bone), GEAR.map(([, b]) => b));
+  assert.deepEqual(follow.groups.map((g) => g.pieces[0].bone), GEAR.slice(2).map(([, b]) => b));
   assert.ok(follow.groups.every((g) => g.contacts > 10), 'each tied at its contacts');
-  assert.deepEqual(follow.groups.map((g) => g.slide), [true, true, false, false], 'slung gear may slide off the back; hip gear only turns');
+  assert.deepEqual(follow.groups.map((g) => g.slide), [false, false], 'hip gear only turns');
   // the rest is where the rest fit put it: a pose the cloak keeps clear moves nothing
   poseAssembly(asm);
   asm.pieces.filter(isGear).forEach((p, i) => {
@@ -96,24 +98,23 @@ test('AUDIT MW-CLOAK: the stowed gear GOES WITH the cloak - the addon\'s greatsw
     assert.ok(worst < 1e-3, `${p.bone} at rest unmoved (${worst})`);
   });
   assert.deepEqual(sweep(asm, isGear), [], 'tied to the cloak, no stowed piece through it in any pose of the sweep');
-  // MW-CAPE-RIGID: slung gear hangs from the cloak's own bone (retail's slung holsters are Bip01 Spine2's), so cloak and
-  // gear are one rigid body - in no pose of the sweep does the follow turn or slide it (the steel longbow's slide,
-  // leaning back, was needed while the cloak hung over the spine and the thighs)
-  const sk = asm.skeleton;
-  for (const g of follow.groups.slice(0, 2)) assert.equal(sk.nodes.get(sk.nodes.get(sk.byName.get(g.pieces[0].bone.toLowerCase())).parent).name, 'Bip01 Spine2', `${g.pieces[0].bone} hangs from the chest`);
+  const rigid = asm.pieces.filter(piece => GEAR.slice(0, 2).some(([, bone]) => bone === piece.bone));
+  for (const [, bone] of GEAR.slice(0, 2)) assert.ok(rigid.some(piece => piece.bone === bone));
   for (const [name, turns] of Object.entries(SWEEP)) {
-    poseAssembly(asm, Object.keys(turns).length ? turned(asm, turns) : {});
-    for (const g of follow.groups.slice(0, 2)) {
-      const t = Math.acos(Math.min(1, (g.R[0] + g.R[4] + g.R[8] - 1) / 2));
-      assert.ok(t < 1e-6 && Math.hypot(g.tr[0], g.tr[1], g.tr[2]) < 1e-6, `${name}: ${g.pieces[0].bone} moved by the follow`);
-    }
+    const hook = asm.afterPose;
+    asm.afterPose = null;
+    poseAssembly(asm, turned(asm, turns));
+    const mounted = rigid.map(piece => Float32Array.from(piece.positions));
+    asm.afterPose = hook;
+    poseAssembly(asm, turned(asm, turns));
+    rigid.forEach((piece, index) => assert.deepEqual(piece.positions, mounted[index], name + ': ' + piece.bone));
   }
   // it turns the least that keeps the gap - leaning back swings the hem forward onto the longsword's tip, within the cap
   poseAssembly(asm, turned(asm, SWEEP.leanBack10));
   const turnOf = (g) => Math.acos(Math.min(1, (g.R[0] + g.R[4] + g.R[8] - 1) / 2));
-  assert.ok(turnOf(follow.groups[2]) > 0.05, `the longsword turned ${(turnOf(follow.groups[2]) * 180 / Math.PI).toFixed(1)} degrees`);
+  assert.ok(turnOf(follow.groups[0]) > 0.05, `the longsword turned ${(turnOf(follow.groups[0]) * 180 / Math.PI).toFixed(1)} degrees`);
   // and never past the cap: uncapped, the crossbow would turn 30 degrees here (it turns 20.5)
-  for (const g of follow.groups.slice(2)) assert.ok(turnOf(g) <= FOLLOW.maxTurn + 1e-6, `${g.pieces[0].bone} turned ${(turnOf(g) * 180 / Math.PI).toFixed(1)} degrees`);
+  for (const g of follow.groups) assert.ok(turnOf(g) <= FOLLOW.maxTurn + 1e-6, `${g.pieces[0].bone} turned ${(turnOf(g) * 180 / Math.PI).toFixed(1)} degrees`);
   // the frame's work allocates nothing of its own: the same scratch, frame after frame
   const scratch = follow.groups.map((g) => [g.A, g.R, g.cons, g.at]);
   poseAssembly(asm, turned(asm, SWEEP.walkR)); applyCloakFollow(asm, follow);
@@ -139,12 +140,13 @@ test('AUDIT MW-CLOAK: the stowed gear GOES WITH the cloak - the addon\'s greatsw
   assert.equal(bare.afterPose, null);
 });
 
-test('AUDIT MW-CLOAK: the third-person build\'s fits whole (fitThirdPersonCloak) on the ebony plate with every kind of stowed gear, then a weapon swap\'s new holster tied in its place - nothing through the cloak in any pose, before or after', async () => {
+test('third-person hip scabbards clear worn plate and cloak through leans before and after a weapon swap', async () => {
   const asm = await body(ARMOR_MATERIAL.Ebony, GEAR);
   const under = new Set(asm.pieces.filter((p) => !isGear(p)).map((p) => p.slot));
   const fitted = fitThirdPersonCloak(asm, under);
   assert.deepEqual(fitted.notes, []);
-  assert.ok(fitted.cloak.pushed > 0 && fitted.follow.groups.length === 4);
+  assert.ok(fitted.cloak.pushed > 0);
+  assert.deepEqual(fitted.follow.groups.map(g => g.pieces[0].bone), ['Bip01 MarksmanCrossbow']);
   assert.deepEqual(sweep(asm, (p) => !isCloak(p)), [], 'neither the plate nor the gear through the cloak');
   // the swap: the longsword out, the crystal longsword in (fpArm's own order - bind, then fit with no cover to redo)
   asm.pieces = asm.pieces.filter((p) => !(isGear(p) && p.bone === 'Bip01 LongBladeOneHand'));
@@ -152,7 +154,7 @@ test('AUDIT MW-CLOAK: the third-person build\'s fits whole (fitThirdPersonCloak)
   const swapped = fitThirdPersonCloak(asm, null);
   assert.equal(swapped.cloak, null, 'the cloak is not fitted again');
   assert.deepEqual(swapped.notes, []);
-  assert.ok(swapped.follow.groups.some((g) => g.pieces.some((p) => p.bone === 'Bip01 LongBladeOneHand')), 'the new holster tied');
+  assert.deepEqual(swapped.follow.groups.map(g => g.pieces[0].bone), ['Bip01 MarksmanCrossbow']);
   assert.deepEqual(sweep(asm, (p) => !isCloak(p)), [], 'after the swap, nothing through the cloak in any pose');
 });
 

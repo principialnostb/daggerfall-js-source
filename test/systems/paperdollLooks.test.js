@@ -1,4 +1,4 @@
-// PAPERDOLL-LOOKS (systems/paperdollLooks.js, ui/enhanced/paperdollAppearancePicker.js): the 2D card look of every
+// The 2D card look of every
 // piece - armour in its own material, clothing styles, a weapon or shield drawn as another of its class - local and
 // cosmetic, no duplicate choices, and one scale for every card.
 import test from 'node:test';

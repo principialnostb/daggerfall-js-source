@@ -1,6 +1,4 @@
-// HAND-FINGERS and FISTS-GUARD (2026-11-06, bible/05-Combat/Motion-Doctrine.md; the owner's
-// screenshots and 22-13-15 recording: the fists' fingers half open like claws, a hilt walked in an open hand, the fist
-// beside a shield raised to the breast, the free hand hanging woodenly at rest).
+// Check the hand poses for fists, held hilts, shields and relaxed arms.
 import { readFileSync, existsSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

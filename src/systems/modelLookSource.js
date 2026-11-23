@@ -1,5 +1,5 @@
 // @ts-check
-// MODEL-LOOKS: the door between systems/modelLooks.js and the Morrowind resolvers (formats/morrowind/mwItemMap.js,
+// The door between systems/modelLooks.js and the Morrowind resolvers (formats/morrowind/mwItemMap.js,
 // mwFirstPerson.js, combat/fpArm.js). A LEAF with no imports, so either side may load first and nothing cycles.
 // The resolvers are shared by the player's body, every peer's and every townsperson's: the reader registered here
 // answers a look only for a piece the PLAYER holds (systems/modelLooks.js isPlayersOwn) - a peer or an NPC wearing the

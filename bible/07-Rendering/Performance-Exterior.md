@@ -109,6 +109,7 @@ default Knightstale start. Use `POV=compare` for first, third and first person i
 and `PEERS=0,2,0` to compare
 a clear view with a small crowd. Set `BROWSER_CHANNEL=chrome ANGLE=d3d11 W=1920 H=952` to use the reported
 backend and viewport. The output records the map pixel, camera mode, heading, GPU and shadow counters.
+
 Use HEAP=0 to capture the WebGL census and CPU profiles without heap sampling. Compare two views from one session
 with node tools/frameAb.mjs --runs online0-first online0-third and the same OUT directory. The table includes local
 character pose, character pixelation and fixture depth readback. The online clock advances between runs. Compare

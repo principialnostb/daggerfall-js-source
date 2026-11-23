@@ -1,17 +1,4 @@
-// THUMB-FIST (2026-10-26, Mac: "Robert's hands are better everywhere - the fingers, where they sit, how the hand meets
-// the arm - all but the THUMB IN A CLENCHED FIST, with gauntlets and without"): A FIST'S CORRECTIVE FOR THE THUMB.
-//
-// The hand stays one mesh - Better Hands' (or the donor gauntlet hand built on it, combat/fpArm.js) - with its own
-// shape, texture and skin. The first cut laid its thumb onto Better Bodies' surface (Mac: "a very strange thumb -
-// copying the vanilla one whole does not fit; correct Robert's own"). Measured in each thumb bone's own frame (the
-// meshes share the skeleton, so the frames are one), the two thumbs are the same length - the tip 2.08 against 2.04 -
-// but Better Hands' flesh rides 0.4-0.5 off each phalanx's axis, the same way on all three, its base the bulkier: in
-// the fist the thumb stands out from the fingers, long-looking and oddly bent. So each phalanx of Better Hands' thumb
-// is MOVED - its own shape kept - by how far its flesh's centre stands from Better Bodies' in that bone's frame
-// (never outward along the bone: the thumb is not lengthened), the phalanges' moves blended by the skin's own weights
-// so the joints stay closed, and solved back through the skin (mwSkinTransfer.js measureAffines) in the fists' pose
-// into a second set of bind positions. A gauntlet hand on the same bones takes the same moves, bone by bone. The rig
-// eases between the two sets by the fists' stance (createThumbFist): the authored thumb in every other pose.
+// Correct the donor hand's thumb during fist closure while keeping its mesh and joint weights.
 
 import { influencesOf, invert33, measureAffines } from './mwSkinTransfer.js';
 import { bindPartsInto } from './mwFirstPerson.js';

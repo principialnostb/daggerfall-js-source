@@ -1,4 +1,3 @@
-import './cosmeticsMenu.css';
 import { emcText } from './emcLanguage.js';
 import { getPref, setPref } from '../../systems/uiPrefs.js';
 import { normalizeCosmeticsUrl } from '../../net/cosmetics/endpoint.js';

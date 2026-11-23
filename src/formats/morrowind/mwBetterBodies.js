@@ -56,7 +56,7 @@ const highResolutionFemaleHandTextureUrls = IN_BROWSER
       eager: true, query: '?url', import: 'default',
     }))
   : {};
-// HD-BODY: the high-resolution female pack is a MESH and texture pair - its chest and groin are its own topology
+// The high-resolution female pack is a MESH and texture pair - its chest and groin are its own topology
 // (707/321 vertices against Better Bodies' 518/155), so its 2048px skin never fits the Better Bodies UVs. Selected
 // together, behind HighResolutionBetterBodyFemaleTexturesSource = 2; the underwear is painted in its texture.
 const highResolutionFemaleBodyModelUrls = IN_BROWSER
@@ -98,7 +98,7 @@ const compactRaceName = (race) => String(
   race && typeof race === 'object' ? (race.name ?? race.race ?? race.id ?? '') : (race ?? ''),
 ).toLowerCase().replace(/[^a-z]/g, '');
 
-// BETTER-HANDS: the whole body - its wrist, forearm and upper arm are the first-person arm (its .1st carries hands alone)
+// The whole body - its wrist, forearm and upper arm are the first-person arm (its .1st carries hands alone)
 const robertBodyModelUrls = IN_BROWSER
   ? modResourceGlob("../../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif", import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif", {
       eager: true, query: '?url', import: 'default',
@@ -138,7 +138,7 @@ export function robertBodiesFirstPersonAssetPaths({ race = 'Nord', female = fals
   return Object.freeze({
     raceKey,
     genderKey,
-    bodyModelPath: `Robert's bodies/Data Files/Meshes/bbr/${raceKey}_${genderKey}.nif`,   // BETTER-HANDS: the arm's, the whole body's mesh
+    bodyModelPath: `Robert's bodies/Data Files/Meshes/bbr/${raceKey}_${genderKey}.nif`,   // The arm's, the whole body's mesh
     bodyTexturePath: `Robert's bodies/Data Files/Textures/bbr/${raceKey}_${genderKey}.dds`,
     handModelPath: `Better Hands/Meshes/b/${handName}`,
     handTexturePath: `Better Hands/Textures/bbr/${raceKey}_${genderKey}.dds`,
@@ -194,7 +194,7 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   // Better Bodies skin/underwear texture, but only its own female mesh is used.
   const dmraEnabled = female && modSetting('morrowind-textures', 'SeamlessDMRASource') === 2;
   const dmraModel = dmraEnabled ? findUrl(dmraFemaleBodyModelUrls, modelStem, 'nif') : null;
-  // HD-BODY: the pack's own mesh with its own skin, both or neither (DMRA's geometry wins where both are chosen)
+  // The pack's own mesh with its own skin, both or neither (DMRA's geometry wins where both are chosen)
   const highResolution = female && !dmraModel && modSetting('morrowind-textures', 'HighResolutionBetterBodyFemaleTexturesSource') === 2;
   const highResolutionTextureTable = underwear ? highResolutionFemaleBodyTextureUrls.underwear
     : bodyHair ? highResolutionFemaleBodyTextureUrls.bodyHair : highResolutionFemaleBodyTextureUrls.nude;
@@ -225,7 +225,7 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
     }
   }
   if (!model || !texture) return null;
-  // NUDITY-SYNC: the skin's runtime name is the VARIANT's own (betterBodiesTextureStem) - every variant ships one name,
+  // The skin's runtime name is the VARIANT's own (betterBodiesTextureStem) - every variant ships one name,
   // bb_skin<sex>_<race>, and an archive ahead of the registered skin (the bundled mods, a player's loose files) answered
   // that name with ITS texture: the nude mesh came up in the underwear skin. The NIF is rewritten to the same name.
   const runtimeTextureStem = betterBodiesTextureStem({ genderKey, raceKey: textureRaceKey, variant });
@@ -237,11 +237,7 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   });
 }
 
-// BEASTS (Gleb, 2026-10-27: "the beasts are the weakest place now"): Better Bodies 3.2 "Better Beasts" - a whole
-// seamless body for the Argonian and the Khajiit, the human bodies' own shapes (Tri Chest, Tri Groin, the legs, the
-// arms) with a tail and the beast's feet, skinned to retail's beast skeleton (base_animkna). Underwear is the pack's
-// smoothed mesh, nude its anatomical one; the scales and fur carry no painted underwear. Its skins name retail's own
-// files (TX_B_N_Argonian_F_F...), so they are given names of their own at load (fpArm) and no archive answers them.
+// Better Beasts supplies a continuous body mesh for beast races.
 const beastBodyModelUrls = IN_BROWSER
   ? Object.freeze({
       underwear: modResourceGlob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Underwear/Meshes/bb/*.nif', import.meta.glob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Underwear/Meshes/bb/*.nif', {

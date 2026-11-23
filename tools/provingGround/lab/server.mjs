@@ -7,7 +7,7 @@ export function createLabPlugin() {
   let driver, bootPage, attached = null;
   const pending = new Set();
   const here = (name) => readFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)));
-  /** LAB2: THE LAB AS IT STANDS ON DISK NOW, the game left running - the page's kits laid in again and a fresh driver
+  /** THE LAB AS IT STANDS ON DISK NOW, the game left running - the page's kits laid in again and a fresh driver
    *  over fresh scenario and reading modules. A boot costs minutes; a reload costs none. The run and the edits end. */
   const reload = async () => {
     if (!attached) throw new Error('Game is still loading');

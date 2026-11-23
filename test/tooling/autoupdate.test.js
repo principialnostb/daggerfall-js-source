@@ -21,11 +21,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { updateTransport } = require('../../app/lib/autoUpdate.cjs');
-const root = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
 test('DA7: the transport table - an installed NSIS or AppImage copy updates in place; macOS, the portable exe and an unpackaged run keep the notice', () => {
@@ -51,8 +52,8 @@ test('DA7: the shell - the updater downloads on its own, installs on quit, never
     'the live facts: packaged, the platform, the portable launcher\'s mark, whether the copy carries update metadata at all (AUDIT INSTALL L3-4) - and whether it runs as its AppImage (R2-A10)');
   const cfg = main.slice(main.indexOf('function autoUpdater()'), main.indexOf('async function checkForUpdatesViaUpdater'));
   assert.match(cfg, /require\('electron-updater'\)/, 'loaded lazily - a copy on the notice never loads it');
-  assert.match(cfg, /au\.autoDownload = true;/, 'the download starts on its own');
-  assert.match(cfg, /au\.autoInstallOnAppQuit = true;/, 'and installs when the app quits - the player does nothing');
+  assert.match(cfg, /au\.autoDownload = !TEST_ACCESS;/, 'the download starts on its own');
+  assert.match(cfg, /au\.autoInstallOnAppQuit = !TEST_ACCESS;/, 'and installs when the app quits - the player does nothing');
   assert.match(cfg, /au\.allowPrerelease = false;/);
   assert.match(cfg, /au\.allowDowngrade = false;/);
   assert.match(cfg, /au\.on\('error', \(\) => onUpdaterEvent\('error'\)\);/, 'a launch error goes to whoever is listening');
@@ -67,13 +68,13 @@ test('DA7: the shell - the updater downloads on its own, installs on quit, never
   assert.doesNotMatch(/if \(kind === 'error'\) \{[\s\S]*?\n {2}\}/.exec(routed)?.[0] ?? '', /'check-failed'|'download-failed'/, 'the error branch dispatches neither');
   assert.doesNotMatch(routed, /dialog\./, 'no dialog rides the automatic path');
   // THE LAUNCH (DA8: the launcher's): the same two gates DA6 had, then the transport fork - both arms inside them
-  assert.match(main, /const updateChecksEnabled = \(\) => loadConfig\(\)\.updateCheck !== false && !process\.env\.DAGGER_NO_UPDATE_CHECK;/);
+  assert.match(main, /const updateChecksEnabled = \(\) => !!TEST_ACCESS \|\| \(loadConfig\(\)\.updateCheck !== false && !process\.env\.DAGGER_NO_UPDATE_CHECK\);/);
   // DA10: the launch check, the news (the check's own request) and the hourly re-check - all inside the gates
   const run = main.slice(main.indexOf('function runLauncher()'), main.indexOf('// The launcher\'s two words.'));
   assert.match(run, /const checkEnabled = updateChecksEnabled\(\);/, 'the launcher checks only inside the gates');
   assert.match(run, /if \(checkEnabled\) \{\s*startLaunchCheck\(\);\s*fetchNews\(\);\s*startRechecks\(\);\s*\}/);
   const launch = main.slice(main.indexOf('function startLaunchCheck()'), main.indexOf('function runLauncher()'));
-  assert.match(launch, /if \(currentUpdateTransport\(\) === 'updater'\) \{[\s\S]*?askUpdater\(\)\s*\.then\(\(r\) => \{ if \(!r\) launcherDispatch\(\{ type: 'check-failed' \}\); \}\)\s*\.catch\(\(\) => launcherDispatch\(\{ type: 'check-failed' \}\)\);\s*return;\s*\}\s*noticeCheck\(\)/,
+  assert.match(launch, /if \(currentUpdateTransport\(\) === 'updater'\) \{[\s\S]*?askUpdater\(\)[\s\S]*?if \(!r && !access\?\.aborted\) launcherDispatch\(\{ type: 'check-failed' \}\);[\s\S]*?\.catch\(\(error\) => \{\s*if \(!access\?\.aborted\) launcherDispatch\(\{ type: 'check-failed', http: TEST_ACCESS \? error\?\.statusCode : undefined \}\);[\s\S]*?return;\s*\}\s*noticeCheck\(\)/,
     'the launch forks on the transport - and an updater that declines to check at all (null, no event to come) is said at once, not after the timeout');
   assert.match(main, /if \(recheckTimer \|\| !updateChecksEnabled\(\)\) return;/, 'and the hourly re-check sits inside the same gates');
   // THE MENU: the loud path on either transport
@@ -89,7 +90,7 @@ test('DA7: the shell - the updater downloads on its own, installs on quit, never
 
 test('DA7: the build - a publish PROVIDER (so latest.yml and app-update.yml are written), the updater a RUNTIME dependency, and the workflow attaches the metadata beside the installers', () => {
   const pkg = JSON.parse(read('app/package.json'));
-  assert.deepEqual(pkg.build.publish, [{ provider: 'github', owner: 'Lattymoy', repo: 'daggerfall-js-source' }],
+  assert.deepEqual(pkg.build.publish, [{ provider: 'github', owner: 'principialnostb', repo: 'daggerfall-js-source' }],
     'the provider names the repo the notice already reads; without a provider electron-builder writes no update metadata at all');
   assert.ok(pkg.dependencies?.['electron-updater'], 'a runtime dependency - electron-builder packs `dependencies`, never devDependencies');
   assert.ok(!pkg.devDependencies?.['electron-updater']);
@@ -111,7 +112,7 @@ test('DA7: DA6 stands under it - the notice is the fallback, not a casualty', ()
   // DA8: the notice's launch check is the LAUNCHER's - shown in its window, silent when GitHub does not answer
   const launch = main.slice(main.indexOf('function startLaunchCheck()'), main.indexOf('function runLauncher()'));
   assert.match(launch, /noticeCheck\(\)\.then\(\(r\) => \{\s*if \(!r\) launcherDispatch\(\{ type: 'check-failed' \}\);/, 'the notice still runs for the transports that need it');
-  assert.match(main, /if \(response === 0\) shell\.openExternal\(latest\.download\);/, 'and its Download button still opens the browser - on this copy\'s own file (REL5)');
+  assert.match(main, /if \(response === 0\) openTestSetupOrLink\(latest\.download\);/, 'and its Download button still opens the browser - on this copy\'s own file (REL5)');
   assert.equal((main.match(/net\.fetch\(RELEASES_LATEST_API/g) ?? []).length, 1, 'still one call of its own');
   const probe = read('tools/appShellProbe.mjs');
   assert.match(probe, /DAGGER_NO_UPDATE_CHECK: '1'/, 'the probe opts out of both transports with the one env');

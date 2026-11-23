@@ -1,25 +1,8 @@
 // @ts-check
-// BODY-MOTION (2026-10-18; bible/04-Characters/Body-Motion.md) - THE SOLVE. A whole body's request laid on the skeleton
-// over the clip's pose, in the order a body is built from the ground up:
-//   1. THE HIPS turned to the body-frame turn asked (the pelvis and the bone that carries the thighs, together - the
-//      rest's own build between them kept), then the body moved so the hips' middle stands where it was asked;
-//   2. THE TRUNK: the chest turned to its own body-frame turn, the turn spread up the spine so it bends rather than
-//      kinks; the neck and the collarbones put back on the chest as they stand at rest (the clip's own swings of them -
-//      an attack clip's, a draw's - would carry the shoulders off the arms' requests);
-//   3. THE HEAD turned to its own body-frame turn - level with the world however the trunk sways under it;
-//   4. THE LEGS reached to their ankles (the climb's two-bone solve - combat/climbRig.js solveReach), the knee toward the
-//      foot's way, the foot set to its toe and its sole's up;
-//   5. THE ARMS reached to their wrists the same way, the hand set to its fingers' and its palm's ways - asked AFTER the
-//      trunk is placed, through `arms(ctx)`, because where a hand goes is read off the shoulders it hangs from. The
-//      fingers are the clip's: the stance's own group already shapes the hand (carry.js).
-// A limb is solved off the composed trunk and its three bones' turns carried down to each other by hand, then written as
-// locals - nothing re-composed (poseAssembly composes the skeleton once, after every slot).
-// Every turn is TOWARD the request by the layer's weight `w` from wherever the clip put the bone, so the layer eases in
-// and out over the clip without a pop. Writes new entries into `pose` (never a mutation of the rest's shared ones).
-// Answers a small report, or null when nothing was posed.
+// Solve from the feet up. Shoulder and wrist targets depend on the pelvis and torso already being in place.
 
 import { wristPole, balanceForearm } from './armAnatomy.js';
-import { trunkInside } from './trunkProfile.js'; // TRUNK-SKIN: the held wrist's elbow kept out of the trunk
+import { trunkInside } from './trunkProfile.js'; // The held wrist's elbow kept out of the trunk
 import {
   solveReach,
   rotFrames,
@@ -71,9 +54,7 @@ export function bodyFrames(body, mats) {
   };
 }
 
-/** THE ANKLE'S RANGE (degrees off the rest's own shin-to-toe angle): how far a foot in the air may draw its toes up toward
- *  the shin, and point them away (AUDIT BODY-MOTION GAIT-4: the swing's pitch is the ground's, so a run's mid-swing,
- *  its shin swung back, drew the toes up 82 degrees). A foot on the ground keeps the gait's: it stands on the ground. */
+/** Limit a free ankle relative to its own rest shin-to-toe angle. The planted foot uses the ground angle. */
 export const ANKLE = Object.freeze({ dorsi: 25, plantar: 50 });
 
 const IDENT = Object.freeze([1, 0, 0, 0, 1, 0, 0, 0, 1]);
@@ -145,11 +126,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     for (const ref of new Set([bones.pelvis, body.hipBone]))
       if (ref != null && body.restRot.has(ref)) decide(ref, mul(D, body.restRot.get(ref)));
   }
-  // the trunk: the chest's turn spread up the spine; then the neck and the collarbones as they stand at rest on it (the
-  // clip's own swings of them - an attack clip's, a draw's - would carry the shoulders off the arms' requests)
-  // AUDIT BODY-MOTION RIG-4 / DOC-3 / CARRY-10: the upper body is whoever has the arms' - the layer's chest turn, lean
-  // and collarbones under a bow's arms swung its hand 18.6 units and 38 degrees off the clip's aim, and turned a long
-  // gun's barrel 9 to 14 degrees with the gait's counter-turn
+  // Spread chest rotation up the spine before positioning the neck and collarbones.
   const armL = clamp01(plan.armW?.L ?? 1),
     armR = clamp01(plan.armW?.R ?? 1),
     armAny = Math.max(armL, armR);
@@ -219,11 +196,9 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       if (f) report.feet[side] = poseFoot(skeleton, pose, mats, body, side, f, w);
     }
   }
-  // 5. the arms, asked now the shoulders stand - and where the carry leans the trunk under its weapon (`trunk`), asked on
-  // the trunk as the clip stood it and reached from the trunk leant: the weapon stays where the carry put it, and the
-  // shoulders come to it (GRIP-ANATOMY, 2026-10-29)
+  // Solve the arms after the shoulders and the load-bearing trunk so the grip uses their final placement.
   if (plan.arms) {
-    // GRIP-ANATOMY: `trunk.square` - the share of the clip's own chest turn off the facing taken out before the hands are
+    // `trunk.square` - the share of the clip's own chest turn off the facing taken out before the hands are
     // asked (a two-hander's guard clip, idle2c, stands the chest some 40 degrees to the right: rows laid on that frame put
     // the hilt and both fists against the right flank)
     const sq = plan.trunk?.square ?? 0;
@@ -242,14 +217,10 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
           skelMats,
         );
     }
-    // GRIP-ANATOMY: `trunk.collar` - the collarbones held as they stand at rest on the chest, by that share (the owner's
-    // video, 2026-10-29: walking with the claymore the right pauldron rose and turned every step - the walk clip swings the
-    // right collarbone under hands the carry holds still)
+    // Blend collarbones towards their rest orientation relative to the posed chest.
     if (plan.trunk?.collar > 0)
       mats = holdCollars(skeleton, pose, mats, body, plan.trunk.collar * w, rootRef, skelMats);
-    // ONE-COLLAR (2026-11-07, the owner: running with a one-hander "the shoulder of the sword arm lengthens instead of
-    // keeping its shape"; measured: the run clip turns the right collarbone 20-29 degrees and stands the shoulder 15.6
-    // units off the chest against 14 standing, the left's 13.4-14): the carried arm's collarbone alone held at rest on the
+    // The carried arm's collarbone alone held at rest on the
     // chest - the neck and the clip's other arm (free, or a shield's) left as they are
     if (plan.collarR > 0)
       mats = holdCollars(skeleton, pose, mats, body, plan.collarR * w, rootRef, skelMats, ['R'], false);
@@ -258,11 +229,11 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     if ((req || plan.externalArms) && frames && plan.trunk)
       mats = leanUnder(skeleton, pose, mats, body, frames, plan.trunk, w, rootRef, skelMats);
     if (req) {
-      // HILT-HOLD: a haft held in both hands - the right first, then the left closed on the hilt where the right now
+      // A haft held in both hands - the right first, then the left closed on the hilt where the right now
       // holds it, at full weight. Each eased to its own goal by the layer's weight, they parted mid-blend: a run's
       // ground flicker, a blow's return, a run's stop, and the left hand left the hilt.
       const hold = plan.haft && req.L?.at && req.R?.at && req.R.fingers && req.R.palm;
-      const clipL = hold ? clipHand(mats, body) : null; // HILT-EASE: the left as the clip has it, on the clip's right
+      const clipL = hold ? clipHand(mats, body) : null; // The left as the clip has it, on the clip's right
       for (const side of hold ? ['R'] : ['L', 'R']) {
         const h = req[side];
         if (!h || !h.at) continue;
@@ -283,11 +254,10 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       if (hold) {
         report.armAnatomy = plan.armTwist ? { states: plan.armTwist, weight: w } : null;
         mats = skelMats(skeleton, pose, rootRef);
-        // HILT-EASE (the owner's video, 2026-11-05: the hand held but jerked): the left goes from where the clip holds it
+        // The left goes from where the clip holds it
         // to the carry's grip by the layer's weight, both read on the right hand as it now stands. At full weight on the
         // first frame, it jumped each time the layer came in or went out around a blow.
-        // HILT-FULL (the owner's game, audited 2026-11-05: the left hand 6.4 units off its stance place on the hilt walking, 9
-        // running, 42 in a run after a blow): the hold eased by the layer's own weight alone (`plan.hold`: drawing,
+        // The hold eased by the layer's own weight alone (`plan.hold`: drawing,
         // sheathing), never by the gait's grip share or a blow's return - those mixed in the clip's free arm
         const k = clamp01(plan.hold ?? w);
         let grip = onRightHand(req.L, req.R, mats, body);
@@ -384,7 +354,7 @@ function leanUnder(skeleton, pose, mats, body, frames, trunk, w, rootRef, skelMa
   return skelMats(skeleton, pose, rootRef);
 }
 
-/** GRIP-ANATOMY: each collarbone turned `k` of the way to how it stands at rest on its parent (the chest), and the arm
+/** Each collarbone turned `k` of the way to how it stands at rest on its parent (the chest), and the arm
  *  under it to a hanging arm - the upper arm at rest on the collarbone, swung down along the chest's side, the forearm
  *  straight on it - so the arms' reach starts every frame from the same arm, not the clip's (the owner, 2026-10-29: walking,
  *  the right arm rocked clockwise and back - the reach takes the least turn from the clip's swinging arm, and the
@@ -405,7 +375,7 @@ function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats, sides = [
   /** A bone at rest on its parent standing at `Rp` (rig). */
   const onRest = (ref, parent, Rp) =>
     mul(Rp, mul(transpose(restRotOf(skeleton, body, parent)), restRotOf(skeleton, body, ref)));
-  // SHOULDER-HOLD (2026-10-30, measured on MAO's walk): the collarbones hang from the NECK, which the clip swings - held on it
+  // The collarbones hang from the NECK, which the clip swings - held on it
   // they rode that swing, the shoulders 5 cm back and 6 ahead, the left arm straight and shaking. The neck is laid at rest on
   // its parent first; the head keeps the turn it had in the rig.
   const neck = body.bones.neck,
@@ -591,7 +561,7 @@ function poseFoot(skeleton, pose, mats, body, side, f, w) {
   });
 }
 
-/** HILT-HOLD: the left hand's request `l`, asked against the right's `r`, carried onto where the right hand now stands
+/** The left hand's request `l`, asked against the right's `r`, carried onto where the right hand now stands
  *  (its wrist and its fingers' and palm's ways) - the same place on the hilt, whatever share of its goal the right
  *  reached. The elbow pole is a body-space direction, not a direction attached to the hilt.
  *  Null where the right hand cannot be read. */
@@ -610,7 +580,7 @@ export function onRightHand(l, r, mats, body) {
   return { ...l, at: add(W, apply(M, sub(l.at, r.at))), fingers: dir(l.fingers), palm: dir(l.palm), pole: l.pole };
 }
 
-/** HILT-EASE: the clip's own left hand (`l`: wrist, fingers, palm, elbow's way) and right (`r`) as requests, or null. */
+/** The clip's own left hand (`l`: wrist, fingers, palm, elbow's way) and right (`r`) as requests, or null. */
 function clipHand(mats, body) {
   const side = (s) => {
     const limb = body.bones[s],
@@ -627,7 +597,7 @@ function clipHand(mats, body) {
   return l && r ? { l, r } : null;
 }
 
-/** HILT-EASE: two hand requests mixed by `k` (0 the first, 1 the second). The hand is turned the shorter way as one
+/** Two hand requests mixed by `k` (0 the first, 1 the second). The hand is turned the shorter way as one
  *  body (the owner's game, 2026-11-05: its fingers and palm mixed apart, the wrist wrung after a blow). */
 function blendHand(a, b, k, shoulder = null) {
   const way = (u, v) => (u && v ? norm(lerp3(u, v, k)) : (v ?? u));
@@ -644,11 +614,11 @@ function blendHand(a, b, k, shoulder = null) {
     palm = norm(apply(D, a.palm));
   }
   const at3 = lerp3(a.at, b.at, k);
-  const pole = a.pole && b.pole && shoulder ? swingWay(a.pole, b.pole, sub(at3, shoulder), k) : way(a.pole, b.pole); // ARC-EASE: the elbow swung about the arm's line
+  const pole = a.pole && b.pole && shoulder ? swingWay(a.pole, b.pole, sub(at3, shoulder), k) : way(a.pole, b.pole); // The elbow swung about the arm's line
   return { ...b, at: at3, fingers, palm, pole };
 }
 
-/** ARC-EASE: a joint's way `a` turned toward `b` by `k` ABOUT the limb's own line `axis` (root to its end) - an elbow or
+/** A joint's way `a` turned toward `b` by `k` ABOUT the limb's own line `axis` (root to its end) - an elbow or
  *  a knee swings round its limb, so its way never lies along the limb, where the reach cannot tell its side (turned the
  *  short way between two near-opposite ways, it crossed the line midway and flipped in a frame). */
 export function swingWay(a, b, axis, k) {
@@ -675,7 +645,7 @@ function poseHand(skeleton, pose, mats, body, side, h, w, anatomy = null, shape 
   if (!(k > 0) || !h.at || !S || !E || !W) return null;
   const sw = norm(sub(W, S));
   const clipElbow = norm(sub(E, add(S, scale(sw, dot(sub(E, S), sw)))));
-  // ARC-EASE (the owner's video, 2026-11-05: the elbow wrung at a blow's end, as the layer came back): the elbow's way
+  // The elbow's way
   // and the hand's turn eased along their arcs. Mixed as loose vectors, an elbow asked nearly opposite the clip's passed
   // through nothing and flipped in a frame, and the fingers and the palm, mixed apart, twisted the wrist.
   const ask = h.pole ? norm(h.pole) : null;

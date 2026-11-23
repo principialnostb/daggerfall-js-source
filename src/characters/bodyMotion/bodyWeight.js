@@ -1,21 +1,14 @@
 import { poseElbowSkin } from './elbowSkin.js';
 // @ts-check
-// BODY-WEIGHT (2026-10-27, MOTION-DOCTRINE pilot step 2, bible/05-Combat/Motion-Doctrine.md section 7): THE BODY'S MASS,
-// SHOWN. One number from what the body wears and holds - plate heavier than chain, chain than leather, a two-hander than
-// a one-hander - and the trunk's answer to the body's REAL acceleration (the doctrine's decision: the motion of the
-// character is not changed; the animation reads it): it leans into a start, back against a stop, into a sidestep, and
-// settles - a stiff spring with a little overshoot, so a stop is not a frame's halt but the trunk coming to rest. The
-// heavier the body, the slower and deeper that answer. Laid ADDITIVELY over the clip's trunk (the spine above the bone
-// the thighs hang from), never replacing it: the clip still draws the arc of the arms and the weapon (section 4).
-// Daggerfall Unity draws no body to lean and Morrowind's clips carry no acceleration, so this is the port's own.
+// Combine armour and carried equipment into one mass estimate shared by motion layers.
 
 import { algebra, bodyOf, bodyTurn, turnOf, transpose, mul, clamp, clamp01, ease, at } from './bodyKit.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 import { orthonormal } from '../../combat/climbRig.js';
 import { clearArms } from './armClearance.js';
-import { createGuardElbows } from './guardElbows.js'; // GUARD-ELBOWS: the fists' elbows under the fists
-import { createHandFingers } from './handFingers.js'; // HAND-FINGERS: a fist the game's own, a free hand relaxed   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
-import { createBlowLegs } from './blowLegs.js'; // BLOW-LEGS: the body under a blow struck standing
+import { createGuardElbows } from './guardElbows.js'; // The fists' elbows under the fists
+import { createHandFingers } from './handFingers.js'; // A fist the game's own, a free hand relaxed   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
+import { createBlowLegs } from './blowLegs.js'; // The body under a blow struck standing
 import { createArmouredSword } from './armouredSword.js';
 import { createTravelStride } from './travelStride.js';
 import { createFreshReturn } from './freshReturn.js';
@@ -81,18 +74,8 @@ export const LEAN = Object.freeze({
   limit: 25,
 });
 
-/**
- * THE CARRY OF MASS while the body travels (the owner, 2026-10-27, walking in plate: "I see no difference" - the lean
- * answers only a change of speed, and a steady walk had nothing of the weight): a heavy body leans a little into its
- * travel (`carry` radians, bare to full weight, at a walk's pace and over - back a half of it when backing) and shifts
- * its trunk over the foot it stands on with every step (`roll`, read off the clip's own feet each frame - the lower
- * foot is the one standing - so it is always in step: full at a foot raised `lift` of the leg). Both come on with
- * the travel over `ease` seconds; `pace` m/s is a walk (DFU's walk at Speed 50).
- */
-/** SET ASIDE (2026-10-28, the owner: "the old walk and run were fine in quality ... now everything has gone wooden";
- *  "the character sways strangely walking"): the lean, the carry and the step's sway are no longer laid on the trunk -
- *  procedural motion over the clips read as plastic, the stylised school's life is the clips' own. Kept, measured and
- *  pinned, for a later pass; the slot still clears the elbows (ARM-CLEARANCE). */
+/** The travelling body's load affects its upper-body carry. */
+/** The authored walking and running poses already supply the lean. */
 export const LEAN_ON = false;
 
 export const SWAY = Object.freeze({
@@ -139,7 +122,7 @@ export function createBodyWeight() {
     guard = createGuardElbows();
   const sword = createArmouredSword();
   const travelStride = createTravelStride({ sampleTrack, loopWindow });
-  let strideOn = false; // RUN-STRIDE: last frame's switch, for the movement's rate (read before the frame's step)
+  let strideOn = false; // Last frame's switch, for the movement's rate (read before the frame's step)
   const elbowTurns = { L: 0, R: 0 };
   let frameDt = 0;
   const layer = {
@@ -210,7 +193,7 @@ export function createBodyWeight() {
       bodyKind = word?.kind ?? 'male';
       bodySwing = !!word?.blow?.section;
       fingers.step(dt, !!on && !dead, word);
-      guard.step(dt, !!on && !dead, word); // TRUNK-SKIN: the clearance reads this body's trunk and its blow
+      guard.step(dt, !!on && !dead, word); // The clearance reads this body's trunk and its blow
       freshReturn.step(dt, !!word?.blow?.section, !!on && !dead && !word?.busy && carryClassOf(word ?? {}) === 'two');
       const mv = cam?.move ?? null;
       clearOn = !!on;
@@ -243,7 +226,7 @@ export function createBodyWeight() {
     },
     /** BLOW-LEGS's word, for the rig's status. */
     legs: () => legs.status(),
-    /** RUN-STRIDE: the movement clip's playback rate for the speed ratio `k` (the body's over the clip's) - a run's
+    /** The movement clip's playback rate for the speed ratio `k` (the body's over the clip's) - a run's
      *  capped, its legs lengthened by the rest; any other group's `k`. */
     moveRate: (k, group) => travelStride.rate(k, strideOn, group), // each answers its own groups
     /** The trunk's lean now (radians, bodyTurn's sense: pitch + the front down, roll + the right side down). */
@@ -254,7 +237,7 @@ export function createBodyWeight() {
     /** poseAssembly's `motion` slot with this layer after `inner` (the body-motion layer's): the lean on the trunk. */
     slot(inner) {
       if (slotMemo && slotMemo.inner === inner) return slotMemo.fn;
-      // TEMP POSE-AUDIT: the legs after each stage - never committed
+      // Record the leg pose after each solver stage when diagnosing the motion.
       const cap = (tag, skeleton, pose, rootRef, skelMats) => {
         const A = globalThis.__poseAudit;
         if (!A?.on) return;
@@ -311,7 +294,7 @@ export function createBodyWeight() {
             return r;
           }
         : inner;
-      const strided = travelStride.slot(tapped); // RUN-STRIDE: the run's legs lengthened before the body motion sees them
+      const strided = travelStride.slot(tapped); // The run's legs lengthened before the body motion sees them
       slotMemo = {
         inner,
         fn: (skeleton, pose, rootRef, skelMats) => {
@@ -340,9 +323,9 @@ export function createBodyWeight() {
           }
           if (LEAN_ON) leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
           leanTrunk(skeleton, pose, rootRef, skelMats, sword.pose());
-          if (clearOn) leanTrunk(skeleton, pose, rootRef, skelMats, legs.trunkTurn()); // BLOW-TRUNK: the turn the hips leave
-          if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats); // BLOW-LEGS: a standing blow's hips and feet
-          cap('legs', skeleton, pose, rootRef, skelMats); // TEMP POSE-AUDIT
+          if (clearOn) leanTrunk(skeleton, pose, rootRef, skelMats, legs.trunkTurn()); // The turn the hips leave
+          if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats); // A standing blow's hips and feet
+          cap('legs', skeleton, pose, rootRef, skelMats); // Record the leg stage.
           armCap('legs', skeleton, pose, rootRef, skelMats); // TEMP ARM-TRACE
           freshReturn.apply(skeleton, pose, rootRef, skelMats);
           armCap('fresh', skeleton, pose, rootRef, skelMats); // TEMP ARM-TRACE

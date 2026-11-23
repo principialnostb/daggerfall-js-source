@@ -25,7 +25,7 @@
 //    (`standingHorseYaw` - a billboard has none, and a town of horses all facing one way reads as a sprite's lie).
 //
 // Not a DFU member: Daggerfall's horse is a sprite. Ledger A (COATS3D).
-import { poseWhereSeen } from './horseView.js'; // HORSE-VIEW II: the pool's law
+import { poseWhereSeen } from './horseView.js'; // The pool's law
 import { lensOf } from '../net/peer/peerBodies.js';
 import { ANIMALS_ARCHIVE, ANIMAL_SOUND_BY_RECORD, SOUND } from '../systems/soundClips.js';
 

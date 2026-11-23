@@ -1,4 +1,4 @@
-// LOOK-THUMBS (2026-10-27, the owner: "что б не текстовое название было а превьюшка предмета"): a worn piece's looks
+// A worn piece's looks
 // as the card offers them - each with its name and picture slot, the worn one marked - and a pick puts the piece in it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,7 +29,7 @@ test('LOOK-THUMBS: the steel helm offers every look, the worn one on; a pick wea
 
 test('LOOK-THUMBS: every look of Mac\'s pieces has its committed picture (the horned one is made by its import)', () => {
   for (const l of allLooks()) {
-    if (PLAYER_MADE_STYLES.includes(l.look)) continue;   // MW-HORN5, MW-IRON1: Skyrim's, never committed
+    if (PLAYER_MADE_STYLES.includes(l.look)) continue;   // The Skyrim pieces are generated from the player's own installation.
     assert.ok(existsSync(l.file), `${l.piece} ${l.look}: ${l.file} - run node tools/lookThumbs.mjs`);
   }
 });

@@ -137,8 +137,8 @@
   {
     "name": "MWNPC5-drawthird-drops-fx",
     "file": "src/combat/fpArm.js",
-    "old": "{ center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye);",
-    "new": "{ center, halfW, halfH, anchor, hitFlash, conceal, up, glowLook: padLooks }, proj, view, eye);",
+    "old": "      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes",
+    "new": "      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, anchor, hitFlash, conceal, up, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes",
     "tests": [
       "test/render/mwnpc5_bodyfx.test.js"
     ]

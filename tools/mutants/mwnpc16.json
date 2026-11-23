@@ -452,8 +452,8 @@
   {
     "name": "AUDIT-MWNPC16-18-R2-castThird-ungrown",
     "file": "src/combat/fpArm.js",
-    "old": "      const model = thirdModel(feet, yaw, grow);\n      const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);\n      if (reach &&",
-    "new": "      const model = thirdModel(feet, yaw);\n      const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);\n      if (reach &&",
+    "old": "      const rawModel = thirdModel(feet, yaw, grow);",
+    "new": "      const rawModel = thirdModel(feet, yaw);",
     "tests": [
       "test/render/mwnpc16_bodyshadow.test.js"
     ]

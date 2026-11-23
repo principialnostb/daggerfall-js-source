@@ -45,13 +45,13 @@ import { ITEM_TEMPLATES } from '../systems/item/itemTemplates.js';
 // identity and this file reloads on identity change - AUDIT 23).
 
 import { ImgFile } from '../formats/imgFile.js';
-import { paperdollLookOf, lookedPiece, peerPaperdollLook } from '../systems/paperdollLooks.js';   // PAPERDOLL-LOOKS: the player's 2D card look
+import { paperdollLookOf, lookedPiece, peerPaperdollLook } from '../systems/paperdollLooks.js';   // The player's 2D card look
 import { activeAppearanceIdentity, appearanceDisplayKey, appearanceEditorEnabled } from '../characters/activeAppearance.js';
 import { modGroupEnabled } from '../systems/enhancedModResources.js';
-import { packImgTexture } from './packArt.js';   // OVH2: a worn UI pack's backdrop
-import { racialPaperDollBackground, racialOverrideHeadArt, racialSuppressPaperDollBodyAndItems } from '../systems/vampirism.js';   // V5: the curse art laws, both curses' one switch
+import { packImgTexture } from './packArt.js';   // A worn UI pack's backdrop
+import { racialPaperDollBackground, racialOverrideHeadArt, racialSuppressPaperDollBodyAndItems } from '../systems/vampirism.js';   // The curse art laws, both curses' one switch
 import { CifRciFile } from '../formats/cifRciFile.js';
-import { getBool } from '../systems/settings/settings.js';   // UI3: EnableGeographicBackgrounds; ChildGuard/PlayerNudity gates the welds
+import { getBool } from '../systems/settings/settings.js';   // EnableGeographicBackgrounds; ChildGuard/PlayerNudity gates the welds
 import { isProvinceRegion } from '../formats/mapsTables.js';   // AUDIT TAMRIEL-WIDE C6
 import { EQUIP_SLOTS, equipTableOf, getItemHands, ITEM_HANDS } from '../systems/equip.js';
 import { getTemplate, paperdollOrder } from '../characters/paperdoll/paperdoll.js';
@@ -60,7 +60,7 @@ import { topDownRgba, decodedTextureTopDown, preloadTextureRecord, textureReplac
 import { dfmodCifRciRect, dfmodGeneration, resampleRgba, dfmodCarriesDollArt } from '../systems/dfmodTextures.js';
 import { cifPictureName, hasPlayerPicture, hasPlayerFile, playerPictureNames, playerFileNames, playerPicturesGeneration } from '../systems/replacements/playerPictures.js';
 import { ownOrModImg, ownOrModCifRecord } from '../systems/replacements/ownOrMod.js';   // the player's picture, then a mod's   // DFMOD1: an attached mod's backdrop, body, head and hi-res items   // DW3: GetItemImage's import arm, by the item's dye; AUDIT-DW F1: decoded when the doll asks
-import { itemDyeColor, itemDyeTarget } from '../systems/item/itemDye.js';   // DW3: DaggerfallUnityItem.dyeColor, as the port's items carry it
+import { itemDyeColor, itemDyeTarget } from '../systems/item/itemDye.js';   // DaggerfallUnityItem.dyeColor, as the port's items carry it
 import { ARTIFACT_MALE_TEXTURE_ARCHIVE, ARTIFACT_FEMALE_TEXTURE_ARCHIVE } from '../systems/loot/loot.js';   // ART-DOLL: an artifact's own doll archive
 import { customItemClass } from '../systems/roleplayRealismItems/rriItems.js';   // RRI1: a custom class's own archive and record on the doll
 import { ownItemImage } from '../systems/item/itemTemplates.js';   // THUNDERLOCK-ART: a weapon of the port's own wears its own doll layer

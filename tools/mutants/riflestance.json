@@ -74,8 +74,8 @@
   {
     "name": "RIFLE-STANCE-third-not-held",
     "file": "src/combat/fpArm.js",
-    "old": "            hold: rifleHold('third', t),   // RIFLE-STANCE: the long gun in the hands",
-    "new": "            hold: null,   // RIFLE-STANCE: the long gun in the hands",
+    "old": "            hold: rifleHold('third', t) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash",
+    "new": "            hold: null ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash",
     "tests": [
       "test/combat/riflestance.test.js"
     ]
@@ -92,8 +92,8 @@
   {
     "name": "RIFLE-STANCE-no-attitude-on-the-part",
     "file": "src/combat/fpArm.js",
-    "old": "...(own.attitude ? { preTransform: own.attitude } : {}) });",
-    "new": "});",
+    "old": "      parts.push({ slot: 'weapon', bones: [own.bone], bytes: nifBytes(arc, path), ...(attitude ? { preTransform: attitude } : {}) });",
+    "new": "      parts.push({ slot: 'weapon', bones: [own.bone], bytes: nifBytes(arc, path) });",
     "tests": [
       "test/combat/riflestance.test.js"
     ]

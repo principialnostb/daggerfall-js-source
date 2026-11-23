@@ -56,7 +56,7 @@
   {
     "name": "MWNPC14-rows-ignore",
     "file": "src/formats/morrowind/mwFirstPerson.js",
-    "old": "  const vamp = vampire ? vampireHeadRecord(parts, race, female) : null;",
+    "old": "  const vamp = vampire ? vampireHeadRecord(parts, faceRace, female) : null;",
     "new": "  const vamp = null;",
     "tests": [
       "test/characters/mwnpc14_vampires.test.js"
@@ -65,8 +65,8 @@
   {
     "name": "MWNPC14-rows-always",
     "file": "src/formats/morrowind/mwFirstPerson.js",
-    "old": "  const vamp = vampire ? vampireHeadRecord(parts, race, female) : null;",
-    "new": "  const vamp = vampireHeadRecord(parts, race, female);",
+    "old": "  const vamp = vampire ? vampireHeadRecord(parts, faceRace, female) : null;",
+    "new": "  const vamp = vampireHeadRecord(parts, faceRace, female);",
     "tests": [
       "test/characters/mwnpc14_vampires.test.js"
     ]
@@ -83,8 +83,8 @@
   {
     "name": "MWNPC14-build-unforwarded",
     "file": "src/combat/fpArm.js",
-    "old": "playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });",
-    "new": "playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, walk, has: exists, ownHeads });",
+    "old": "    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId: npcHair?.id ?? appearanceHairId });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them",
+    "new": "    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId: npcHair?.id ?? appearanceHairId });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them",
     "tests": [
       "test/characters/mwnpc14_vampires.test.js"
     ]
@@ -92,8 +92,8 @@
   {
     "name": "MWNPC14-build-dropped",
     "file": "src/combat/fpArm.js",
-    "old": "skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads })",
-    "new": "skin: werewolf ? skin : null, walk: npcFace, ownHeads: !!ownHeads })",
+    "old": "    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, texGen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId, hairColor, remoteBodySkin, remoteCosmetics, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17",
+    "new": "    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, texGen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId, hairColor, remoteBodySkin, remoteCosmetics, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17",
     "tests": [
       "test/characters/mwnpc14_vampires.test.js"
     ]

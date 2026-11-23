@@ -65,8 +65,8 @@
   {
     "name": "LA-AUDIT-A1-8-the-dungeon-asks-for-none",
     "file": "src/scenes/dungeonContext.js",
-    "old": "const staticBuilder = new StaticBatchBuilder({ shadowCell: SHADOW_CELL_SIZE });",
-    "new": "const staticBuilder = new StaticBatchBuilder();",
+    "old": "  const staticBuilder = new StaticBatchBuilder({ shadowCell: SHADOW_CELL_SIZE, viewCell: SHADOW_CELL_SIZE * 2 });   // LA-AUDIT A1: every light's lo map culls the level by cell",
+    "new": "  const staticBuilder = new StaticBatchBuilder({ viewCell: SHADOW_CELL_SIZE * 2 });   // LA-AUDIT A1: every light's lo map culls the level by cell",
     "tests": [
       "test/render/la_audit.test.js"
     ]

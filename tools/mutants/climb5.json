@@ -290,8 +290,8 @@
   {
     "name": "CLIMB5-body-camera-grounded-on-the-wall",
     "file": "src/net/peer/peerBodies.js",
-    "old": "  c.move.grounded = !peerClimbing(shown); // CLIMB5: on the wall the body is off the ground - the in-air pose the local third person takes there",
-    "new": "  c.move.grounded = true; // CLIMB5: on the wall the body is off the ground - the in-air pose the local third person takes there",
+    "old": "  c.move.grounded = !peerClimbing(shown) && shown.mair !== 1;",
+    "new": "  c.move.grounded = true && shown.mair !== 1;",
     "tests": [
       "test/net/climb5.test.js"
     ]
@@ -410,8 +410,8 @@
   {
     "name": "CLIMB5-pose-unsent",
     "file": "src/scenes/world.js",
-    "old": "      ...climbPoseOf(player),   // CLIMB5",
-    "new": "      // CLIMB5",
+    "old": "      ...motionPoseOf(player, riding), ...climbPoseOf(player),   // CLIMB5: my climb and the way my body faces on it, so the others turn me to the wall, pose me off the ground and hear me climb - absent off the wall",
+    "new": "      ...motionPoseOf(player, riding), // CLIMB5: my climb and the way my body faces on it, so the others turn me to the wall, pose me off the ground and hear me climb - absent off the wall",
     "tests": [
       "test/net/climb5.test.js",
       "test/net/mac7.test.js"

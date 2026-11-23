@@ -45,7 +45,7 @@
 // Nothing here touches the DOM: the store and the opener are handed in.
 
 import { openUnityBundle } from '../formats/unity/unityBundleClient.js';
-import { createBundlePool } from '../formats/unity/unityBundlePool.js'; // DFMOD3: a few shared workers, not one per mod
+import { createBundlePool } from '../formats/unity/unityBundlePool.js'; // A few shared workers, not one per mod
 import { resampleRgba } from '../formats/resample.js';
 import {
   textureEntry,

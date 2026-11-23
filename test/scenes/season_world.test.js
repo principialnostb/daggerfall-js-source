@@ -5,6 +5,7 @@
 // the world's bindings by name: the pass's notices, the tremor felt, a fissure built where the law puts it, breathing and
 // humming, its camp stood and shared, cleared and quiet, the Colossus and its Maul once a day, the gate given way to,
 // the map's cards and the rock's clearings; the held map's brass cog; and the world host's wiring. tools/mutants/storefront.json.
+import { fileURLToPath } from 'node:url';
 import '../modsOff.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -122,7 +123,7 @@ test('STOREFRONT the Resonant Maul: a Dwarven warhammer of the Legendary rung, l
   assert.deepEqual([m.templateIndex, m.material, m.rarity, m.legendary, m.name, m.isIdentified], [126, 4, 'legendary', 'resonant-maul', 'The Resonant Maul', true]);
   assert.deepEqual(itemFindings(m), [], 'lawful');
   // the account service's judge loads the item law alone (server-account/src/judge.js): the record must come with it
-  const alone = execFileSync(process.execPath, ['--input-type=module', '-e', "await import('./src/systems/item/itemLaw.js'); const { legendaryById } = await import('./src/systems/loot/lootRarity.js'); process.stdout.write(String(!!legendaryById('resonant-maul')));"], { cwd: new URL('../..', import.meta.url).pathname }).toString();
+  const alone = execFileSync(process.execPath, ['--input-type=module', '-e', "await import('./src/systems/item/itemLaw.js'); const { legendaryById } = await import('./src/systems/loot/lootRarity.js'); process.stdout.write(String(!!legendaryById('resonant-maul')));"], { cwd: fileURLToPath(new URL('../..', import.meta.url)) }).toString();
   assert.equal(alone, 'true', 'the item law brings the record');
   assert.ok(legendariesFor(m).some((l) => l.id === RESONANT_MAUL.id), 'the law knows it');
   const rolls = seeded(11);

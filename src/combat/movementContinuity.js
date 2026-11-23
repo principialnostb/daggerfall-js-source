@@ -1,5 +1,5 @@
 // @ts-check
-// GUARD-CONTINUITY: carry the support-foot interval across walk/run clip changes.
+// Carry the support-foot interval across walk/run clip changes.
 import { loopWindow, strideTime } from './leftArmLayer.js';
 
 /** Footstep markers already belonging to this clip's loop, in file seconds. */
@@ -39,7 +39,7 @@ export function movementPhaseTime(from, fromKeys, to, toKeys) {
   return strideTime(from, fromKeys, to, toKeys);
 }
 
-/** LEG-CLOCK (2026-11-06, the owner's 19-47-18 recording: the trunk and the arms "foreign" to the legs): where the
+/** Where the
  *  movement clip's own legs stand in their stride, 0..1 - 0 at its left foot's contact (`soundgen: left`), 0.5 at its
  *  right's, even between them - or null where the clip marks no two contacts. The body layer's own gait clock
  *  (bodyMotion/gait.js) counted the stride from the ground crossed, and the legs drawn are the clip's: walking it ran

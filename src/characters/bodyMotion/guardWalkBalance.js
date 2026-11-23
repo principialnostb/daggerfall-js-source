@@ -1,5 +1,5 @@
 // @ts-check
-// GUARD-WALK-LEVEL: reduce vertical bounce without moving the stride's ankle targets or changing its clock.
+// Reduce vertical bounce without moving the stride's ankle targets or changing its clock.
 import { bodyOf, algebra, at, apply, ease, clamp01 } from './bodyKit.js';
 import { rotationPart } from '../../combat/climbRig.js';
 import { solveBody } from './bodySolve.js';
@@ -10,7 +10,7 @@ const { add, sub, scale, len, norm } = algebra;
 const GUARD_KNEE_LEAN = 0.08;
 export const GUARD_WALK_LEVEL = Object.freeze({ share: 0.25, mean: 0.18, ease: 0.16, reach: 0.97, settle: 0.035 });
 
-/** GUARD-KNEE-POLE: the knee's way, the clip's, leaning a little toward the toes. Taken alone, knee minus hip on a nearly
+/** The knee's way, the clip's, leaning a little toward the toes. Taken alone, knee minus hip on a nearly
  *  straight leg lies along the hip-to-ankle line, its small remainder can change side, and the solve folds the knee
  *  backward for two frames: a 25 cm leap of the rear knee on the back walk (the owner's 12-36-29 recording). */
 // The hint stays in rig space until solveBody has moved the hip. Flattening it against

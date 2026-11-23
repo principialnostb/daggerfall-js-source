@@ -33,7 +33,7 @@ test('MAO female library inherits shared groups before applying sparse overrides
   assert.deepEqual(animationOverhaulEntries({base,femaleOverride:female}),[base]);
   assert.deepEqual(animationOverhaulEntries({female:true,base}),[base]);
   assert.deepEqual(animationOverhaulEntries({female:true,femaleOverride:female}),[female]);
-  // SHIELD-WALK-UPRIGHT: under a shield the woman keeps her own file alone - the archive's upright strafe arm holds it
+  // Under a shield the woman keeps her own file alone - the archive's upright strafe arm holds it
   assert.deepEqual(animationOverhaulEntries({female:true,shield:true,base,femaleOverride:female}),[female]);
   assert.deepEqual(animationOverhaulEntries({shield:true,base,femaleOverride:female}),[base]);
   const held = selectAnimationFamily({family:'all',animationOverhaul:true,movementOnly:true,bareOnly:true}, base);

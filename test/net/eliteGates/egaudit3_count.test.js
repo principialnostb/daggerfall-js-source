@@ -13,6 +13,7 @@
 //   #6  HUNTER'S MARK AND SPOTTER - an arrow from beyond 12 m (section 21).
 //   #11 THE DOOR'S REACH - one number, the ring's, no pad.
 //   #1  THE WEEK'S SEALING - a Redoubt the service paid already this week turns its circle's Reliquaries into 20 lumen.
+import { fileURLToPath } from 'node:url';
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -442,7 +443,7 @@ test('AUDIT EG III #11 THE DOOR\'S REACH, ONE NUMBER (section 7: `down` "accepte
   assert.equal(egDown(S.B, 'acct-0', S.B.h, at(2.95), S.now()), true, 'inside the ring');
   const calls = [];
   const walk = (dir) => { for (const n of readdirSync(dir)) { const p = join(dir, n); if (statSync(p).isDirectory()) walk(p); else if (/\.m?js$/.test(n)) for (const m of readFileSync(p, 'utf8').matchAll(/egAtDoor\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)) calls.push([p, m[1]]); } };
-  walk(new URL('../../../src', import.meta.url).pathname);
+  walk(fileURLToPath(new URL('../../../src', import.meta.url)));
   // PIN MOVED (THE ASCENT - HEIGHT, LAW 9; Elite-Gates-Ascent.md section 2): the door's law takes the body's FEET after its
   // plan (`egAtDoor(spec, x, z, y)` - a hall that judges by height asks the door's own floor; the laws before ignore it, so
   // their every answer is the same), its pad after them, and still no caller passes a pad: three arguments, or a fourth that

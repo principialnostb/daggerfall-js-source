@@ -1,4 +1,4 @@
-// MOTION-PROBE (2026-11-06, TRUNK-SKIN / LEG-CLOCK - bible/05-Combat/Motion-Doctrine.md): the real third-person pose
+// The real third-person pose
 // pipeline offline - MAO's clips on the retail rig, lowerBodyLayer, body motion and the body-weight slot as fpArm.js
 // composes them - over every carry (none, one-hander, one-hander and shield, two-hander, a torch or a shield with no
 // weapon) by every gait, the gait changes and the blows. Per scenario: how deep each arm's skin stands in Better Bodies'
@@ -111,7 +111,7 @@ function skinDepth(b, pose, mats) {
 }
 // the shield bone's three axes in the chest's frame (its turn on the body)
 const shieldOf = (b, M, F) => { const r = b.sk.byName.get('shield bone'), m = r != null ? M.get(r) : null; if (!m) return null; const a = m.a, col = (j) => [a[j], a[3 + j], a[6 + j]]; return [0, 1, 2].map((j) => { const v = col(j); return [dot(v, F.right), dot(v, F.fwd), dot(v, F.up)]; }); };
-// HAND-FINGERS: each hand's knuckle bend (the hand to finger1 to finger11, degrees, fingers 1 and 2 averaged)
+// Each hand's knuckle bend (the hand to finger1 to finger11, degrees, fingers 1 and 2 averaged)
 const fingersOf = (b, M) => { const out = {}; for (const s of ['l', 'r']) { const p = (n) => M.get(b.sk.byName.get(`bip01 ${s} ${n}`))?.t; const ang = (a, c, d) => { const u = sub(c, a), w = sub(d, c); return Math.acos(Math.max(-1, Math.min(1, dot(u, w) / Math.hypot(...u) / Math.hypot(...w)))) * 180 / Math.PI; }; const h = p('hand'); out[s] = h ? (ang(h, p('finger1'), p('finger11')) + ang(h, p('finger2'), p('finger21'))) / 2 : null; } return out; };
 const local = (b, mats, F, ref) => { const d = sub(mats.get(ref).t, mats.get(b.chest).t); return [dot(d, F.right), dot(d, F.fwd), dot(d, F.up)].map((v) => v / b.arm); };
 const yawOf = (M, ref) => { const a = M.get(ref).a; return Math.atan2(a[3], a[0]); };
@@ -139,7 +139,7 @@ function run(carry, steps, dt0 = 1 / 60) {
     const atk = blow ? (blow.section === 'windup' ? [kt('start'), kt('max attack')] : blow.section === 'release' ? [kt('max attack'), kt('hit')] : [kt('hit'), kt('large follow stop')]) : null;
     const clipTime = atk && atk[0] != null ? atk[0] + (atk[1] - atk[0]) * blow.progress : movement.time;
     if (!!blow !== wasBlow) { from = b.assembly.shownPose ? new Map(b.assembly.shownPose) : null; fade = 0; wasBlow = !!blow; }
-    // LEFT-ARM / SHIELD-RUN-LEGS: the shield's or the free hand's arm, then the armed upper body, as fpArm.js steps them
+    // Step the arm layers in the same order as the in-game rig.
     const moving = g.speed > 0;
     b.leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmModeOf({ view: 'third', type: c.anim ?? c.weapon, shield: !!c.shield }), view: 'third', moving, base: moving ? g.group : null, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement: moving ? movement : null, movementSource: moving ? source : null });
     b.upperBody.step(dt, { plan: armedUpperPlan({ on: true, shield: !!c.shield, type: c.anim ?? c.weapon, base: moving ? g.group : null, moving, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement: moving ? movement : null, movementSource: moving ? source : null });

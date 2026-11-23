@@ -180,19 +180,10 @@
     ]
   },
   {
-    "name": "TWOHANDSMW-climb-or-run",
+    "name": "NATIVE-RUN-climb-loses-the-wall",
     "file": "src/combat/fpArm.js",
-    "old": "        run: firstRun(cam),",
-    "new": "        run: fClimb ? null : firstRun(cam),",
-    "tests": [
-      "test/combat/twohands_mw.test.js"
-    ]
-  },
-  {
-    "name": "TWOHANDSMW-run-dropped-under-the-sheet",
-    "file": "src/combat/fpArm.js",
-    "old": "        run: firstRun(cam),",
-    "new": "        run: held ? null : firstRun(cam),",
+    "old": "        climb: fClimb,",
+    "new": "        climb: null,",
     "tests": [
       "test/combat/twohands_mw.test.js"
     ]
@@ -245,8 +236,8 @@
   {
     "name": "TWOHANDSMW-portrait-left-blade-stale",
     "file": "src/combat/fpArm.js",
-    "old": "else if (r.slot === 'offweapon') r.hidden = !(handsMode === 'dual' && t.offWeapon);",
-    "new": "",
+    "old": "        else if (r.slot === 'offweapon') r.hidden = !(handsMode === 'dual' && t.offWeapon);   // TWO-HANDS AUDIT: the left hand's, while a pair is carried - never the last world frame's flag",
+    "new": "           // TWO-HANDS AUDIT: the left hand's, while a pair is carried - never the last world frame's flag",
     "tests": [
       "test/combat/twohands_mw.test.js"
     ]
@@ -254,8 +245,8 @@
   {
     "name": "TWOHANDSMW-portrait-one-arm-up",
     "file": "src/combat/fpArm.js",
-    "old": "mirror: portraitMirror(),   // TWO-HANDS AUDIT",
-    "new": "mirror: null,",
+    "old": "        bodyProportions: playerAppearance && appearanceEditorEnabled() && modGroupEnabled('bodies') ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : false,   // MWV2-APPEARANCE: editor draft or persisted player proportions\n        mirror: portraitMirror(),   // TWO-HANDS AUDIT",
+    "new": "        bodyProportions: playerAppearance && appearanceEditorEnabled() && modGroupEnabled('bodies') ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : false,   // MWV2-APPEARANCE: editor draft or persisted player proportions\n        mirror: null,",
     "tests": [
       "test/combat/twohands_mw.test.js"
     ]

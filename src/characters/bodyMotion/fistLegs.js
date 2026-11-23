@@ -1,11 +1,5 @@
 // @ts-check
-// FIST-LEGS (ONE-FIGHTER, the owner, 2026-11-12: the fists' legs "about as the others' are" - "a fighting stance is a
-// fighting stance"). A weapon's attack clip stands still below the waist, so BLOW-LEGS anchors its feet and drives its
-// hips. The hand-to-hand clips walk their own legs - a foot 90 cm over the ground without leaving it - and anchored
-// against that the thighs twisted (the repair of 2026-11-09 took the fists out of BLOW-LEGS). So while a standing
-// punch plays, the lower body is HELD at the stance it stood in - the pelvis, the legs, the lower spine, as the clip
-// last posed them with no blow on - and BLOW-LEGS takes the fists as it takes a blade. Above the waist the punch is
-// the clip's own.
+// The hand-to-hand stance contributes its own footwork. Mixing a second strike stance can twist the thighs.
 import { ease, clamp01 } from './bodyKit.js';
 import { orthonormal } from '../../combat/climbRig.js';
 import { carryClassOf } from './carry.js';

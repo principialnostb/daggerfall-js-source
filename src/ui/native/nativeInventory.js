@@ -1,4 +1,4 @@
-// U8d: the NATIVE INVENTORY WINDOW - the classic inventory screen on
+// The NATIVE INVENTORY WINDOW - the classic inventory screen on
 // real art (DFU DaggerfallInventoryWindow, MIT Daggerfall Workshop).
 // INVE00I0.IMG base; INVE01I0.IMG is the SELECTED-state sheet - DFU
 // cuts each active tab/action button as a subtexture of it at the
@@ -55,8 +55,8 @@
 // letter-of-credit arm at all.
 
 import { loadImg, nativeMetrics, drawImg, drawImgSub, drawImgCrop, shadowText, DEFAULT_TEXT_COLOR } from './nativePanel.js';
-import { getBool } from '../../systems/settings/settings.js';   // UI4: EnableInventoryInfoPanel
-import { bindings } from '../input.js';   // KB1: the live registry
+import { getBool } from '../../systems/settings/settings.js';   // EnableInventoryInfoPanel
+import { bindings } from '../input.js';   // The live registry
 import { getBinding } from '../../systems/inputActions.js';   // KB1: the toggle-close binding, GetBinding(Actions.Inventory)
 import { layoutMessageBox, drawMessageBox, messageBoxHit, MB_BUTTONS, fitBoxRows } from '../messageBox.js';   // U25   // SS5: fitBoxRows, a long row wrapped on the screen
 import { useItem, isLightSource, isPotionRecipe, nextVariant, USE_PENDING } from '../../systems/useItem.js';   // U25; AUDIT 64 F49/F50

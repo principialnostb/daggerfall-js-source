@@ -1,6 +1,4 @@
-// LOAD-STALL 1 (the owner, 2026-10-28: "одна глобальная проблема во всех аспектах" - the loads, the freezes on an
-// equip, a two-hander swung from a one-hand stance, the editor's look waiting for the next equip). Phase 1 of
-// bible/07-Rendering/Load-Stalls.md: the stance, the editor, Better Bodies' bytes, the build's clock.
+// Exercise the stance, editor, archive and rig-building paths that load equipment during play.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

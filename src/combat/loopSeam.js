@@ -1,15 +1,9 @@
 // @ts-check
-// LOOP-SEAM (2026-10-27, MOTION-DOCTRINE, CONNECTION; found running every movement clip through the port's own readers,
-// the owner's ask). A looping group plays from its loop start to its loop stop and jumps back, and where a clip's stop
-// pose is not its start pose the body jumps at every wrap: retail's sneakforward2c and sneakforward2w move the left knee
-// 11 units in a frame (Morrowind.bsa xbase_anim.kf), Morrowind Animation Overhaul's turns 2 to 4.6. The reference wraps
-// as the clip is (animation.cpp runAnimation). The port's own: over the last `window` of a loop the sampled pose is
-// carried toward the loop's start, per bone, by the seam's own difference - so the stop arrives where the start is and
-// the wrap is not seen. Only a seam larger than `minAngle` / `minMove` is carried; a clean clip samples as it was.
+// Blend across the wrap of a looping movement clip when its first and final poses differ.
 
 import { getPref } from '../systems/uiPrefs.js';
 
-/** CLIP-SMOOTH's switch, the viewer's - on unless turned off (the owner, 2026-10-29: "combine them, I will check"). */
+/** Use the viewer's clip-smoothing preference. */
 const smoothOn = () => getPref('mwClipSmooth') !== false;
 
 /** `window` seconds (at most `share` of the loop) the seam is carried over; seams under `minAngle` radians and `minMove`
@@ -90,14 +84,7 @@ export function seamSampler(under, sampleTrack, state, source, window) {
 
 /** The rig's door (combat/fpArm.js): the frame's sampler `under`, carried over the seam of `state` when it is a looping
  *  movement or idle clip and the switch is `on`; `loopWindow` leftArmLayer.js's. Memoised on its inputs. */
-/**
- * CLIP-SMOOTH (2026-10-29, Proving-Ground.md; the owner: "my animations are better, but there is no smoothness - much
- * sharpness from the mix of packs"): a clip's keys are joined by straight lines (the reference's interpolation - linear,
- * and slerp for every rotation, MW-D33), so at every key the motion changes speed at once - the pelvis of Morrowind
- * Animation Overhaul's run has one or two position keys a second. The third-person sampler reads the clip at the time
- * asked and `h` seconds either side, weighted 1/4, 1/2, 1/4: the corners of the lines rounded over 2h, the curve's own
- * shape and timing kept. On by default; the viewer's switch is uiPrefs `mwClipSmooth` (false turns it off).
- */
+/** Smooth the sampled pose over a short interval without shifting the clip's playback time. */
 export const CLIP_SMOOTH = Object.freeze({ h: 1 / 60 });
 const nlerpQ = (a, b, w) => {
   const sg = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3] < 0 ? -1 : 1;
@@ -107,7 +94,7 @@ const nlerpQ = (a, b, w) => {
 /** `under` read with its corners rounded (CLIP_SMOOTH). */
 export function smoothSampler(under, h = CLIP_SMOOTH.h, window = null) {
   return (track, time) => {
-    // GUARD-STEP-BASE: a walking loop's neighbours belong to that loop, not the next group's keys.
+    // A walking loop's neighbours belong to that loop, not the next group's keys.
     // Keep entry/exit segments and overlays on their own clocks.
     const span = window ? window.stop - window.start : 0;
     const periodic = span > 0 && time >= window.start && time <= window.stop && !track?.__overlay && !track?.__strikeTrunk;
@@ -128,13 +115,12 @@ export function createLoopSeam({ sampleTrack, loopWindow }) {
   const smoothOf = (under) => { if (!smoothMemo || smoothMemo.under !== under) smoothMemo = { under, fn: smoothSampler(under) }; return smoothMemo.fn; };
   return {
     sampler(under, state, source, on = true) {
-      const smooth = on && smoothOn();   // CLIP-SMOOTH: every clip's corners rounded, a loop's seam carried first
+      const smooth = on && smoothOn();   // Every clip's corners rounded, a loop's seam carried first
       if (!on || !state || !source || !/^(walk|run|sneak|turn|swim|idle)/.test(String(state.group ?? ''))) return smooth ? smoothOf(under) : under;
       if (memo && memo.under === under && memo.state === state && memo.source === source && memo.smooth === smooth) return memo.fn;
       const window = loopWindow(state, source.keys);
       const seam = seamSampler(under, sampleTrack, state, source, window);
-      // CLIP-WRAP (2026-11-07, read in the owner's game: a one-handed stance's left hand twitched for 2-4 frames every
-      // 2.67 s): every loop's neighbours are its own, not only a walk's - idle1h's start read 1/60 s early is idlehh's
+      // Every loop's neighbours are its own, not only a walk's - idle1h's start read 1/60 s early is idlehh's
       // last key in xbase_anim.kf, and the hand took a share of that other guard at each wrap
       memo = { under, state, source, smooth, fn: smooth ? smoothSampler(seam, CLIP_SMOOTH.h, window) : seam };
       return memo.fn;

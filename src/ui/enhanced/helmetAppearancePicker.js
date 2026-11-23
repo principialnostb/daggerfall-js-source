@@ -1,6 +1,6 @@
 import { paperdollAppearancePicker, artBounds } from './paperdollAppearancePicker.js';
 
-// PAPERDOLL-LOOKS (2026-11-08): the helm's picker is the general one now (paperdollAppearancePicker.js) - the 3D tab,
+// The helm's picker is the general one now (paperdollAppearancePicker.js) - the 3D tab,
 // visible-pixel crops and no duplicate cards. The 3D look row's thumbnails still fit here.
 const thumbnails = new Map();
 

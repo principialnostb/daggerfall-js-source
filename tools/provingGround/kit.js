@@ -1,4 +1,4 @@
-// PROVING-GROUND (bible/05-Combat/Proving-Ground.md): THE KIT - the game's own doors, gathered for the script. Laid into
+// THE KIT - the game's own doors, gathered for the script. Laid into
 // the booted page as a module; every call answers plain data. The modules are the ones the game itself loaded (the
 // ground's dev server runs no hot reload, so a path is the game's own instance).
 const mod = (p) => import(p);

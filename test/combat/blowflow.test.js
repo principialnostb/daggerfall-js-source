@@ -10,16 +10,12 @@ import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
 import { buildSkeleton, skeletonSpaceMatrices, GRAPH_ROOT } from '../../src/formats/morrowind/mwSkin.js';
 import { retailSkeleton } from '../fixtures/mw/retailRig.mjs';
 
-// BLOW-FLOW / MW-PACE2 (2026-10-26, Mac: "when the character stops striking the weapon snaps back - sharp, unnatural,
-// instant"; "the blows are jerky - many animations very fast, some at different speeds; better fewer blows, but smooth,
-// calm and in step"; "the shield bash in the pool, in both views"; "crouched with a one-hander the blade to the floor").
+// Check that strike recovery blends continuously into the waiting or travelling pose.
 
 const rd = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 
 test('MW-PACE3: every blow\'s sections at their own speeds - a quick wind-up, a snapped release, the recovery braking', () => {
-  // (Mac: "a toy fight - no sharpness, the overhead blows slow") the clips' wind-up and release, file seconds, measured:
-  // ReAnimation's fists 0.27+0.13, the one-hander's thrust 0.27+0.27, its chop 0.40+0.40, the two-hander's thrust
-  // 0.47+0.20, its chop 0.53+0.33 - and Daggerfall's tick at Speed 50, 0.199 s
+  // Use the measured ReAnimation wind-up and release durations.
   const step = 0.199;
   const clips = [[0.27, 0.13], [0.27, 0.27], [0.4, 0.4], [0.47, 0.2], [0.53, 0.33]];
   const plans = clips.map(([w, r]) => ({ w, r, ...calmBlowPlan({ seconds: 5 * step, hitAt: 2 * step, step }, w, r) }));
@@ -49,7 +45,7 @@ test('MW-PACE3: every blow\'s sections at their own speeds - a quick wind-up, a 
   assert.ok(Math.abs(recoverRate(plan, 1, false) - PACE.recover * PACE.settle) < 1e-12);
   assert.ok(recoverRate(plan, 0.5, false) < recoverRate(plan, 0.2, false), 'braking');
   assert.ok(PACE.settle > 0, 'never a still frame');
-  // SERIES-PACE: a slow series' follow-through is a lone blow's at least; a quick one keeps its own
+  // A slow series' follow-through is a lone blow's at least; a quick one keeps its own
   const series = { ...plan, seriesBase: 0.4 };
   for (const q of [0, 0.3, 0.7, 1]) assert.equal(recoverRate(series, q, true), recoverRate(plan, q, false), 'never slower than a lone blow');
   const quick = { ...plan, seriesBase: 2 };
@@ -136,7 +132,7 @@ test('BLOW-FLOW / MW-PACE2: the rig\'s wiring - the led blow at one speed, its h
   // the player's led blow keeps its one rate through release and follow-through; a peer's is fitted as MW-PACE1 has it
   assert.match(src, /if \(blow\.lead\) return calmBlowPlan\(blow, wind, release\);/);
   assert.match(src, /else if \(blowPlan && !blowPlan\.lead\) blowPlan\.rate = blowRate\(actionState\.stopTime - actionState\.time, blowPlan\.seconds - blowPlan\.clock\);/);
-  // MW-PACE3: the player's release snapped, its follow-through braking frame by frame
+  // The player's release snapped, its follow-through braking frame by frame
   assert.match(src, /else if \(blowPlan\) blowPlan\.rate = blowPlan\.relRate;/);
   assert.match(src, /blowPlan\.seriesBase = driftRate\(actionState\.stopTime - actionState\.startTime, blowPlan\.seconds - blowPlan\.clock, recoverRate\(blowPlan, 0, false\)\);/);
   assert.match(src, /if \(paced && blowPlan\.lead && upper === UPPER_BODY\.AttackEnd\) blowPlan\.rate = recoverRate\(blowPlan, clipCompletion\(actionState\), seriesWanted\);/);
@@ -151,7 +147,7 @@ test('BLOW-FLOW / MW-PACE2: the rig\'s wiring - the led blow at one speed, its h
   assert.match(src, /blowBusy\(\) \{\s+if \(!built \|\| !built\.ok\) return false;\s+return upper === UPPER_BODY\.Equipping \|\| upper === UPPER_BODY\.AttackWindUp \|\| upper === UPPER_BODY\.AttackRelease;\s+\}/,
     'the window is free: a next blow starts from the held pose');
   assert.match(src, /upper === UPPER_BODY\.AttackEnd && blowPlan\?\.lead \? Math\.min\(1, Math\.max\(recoverHeld \/ holdFor\(attackType\), clipCompletion\(actionState\)\)\) : clipCompletion\(actionState\)/, 'the bash\'s shield comes home over the recovery - by its follow-through\'s end or the window\'s');
-  // BASH-EXIT: the stance's right arm held over the fists' clip through the return to the stance, its idle not restarted
+  // The stance's right arm held over the fists' clip through the return to the stance, its idle not restarted
   assert.match(src, /if \(\(\(blowBash && attackingNow\(\)\) \|\| bashExit > 0\) && idle\) \{ req\.limbs = \{ R: \{ clip: idle, side: 'R', mirror: false \} \};/);
   assert.match(src, /if \(blowBash\) \{ blowBash = false; bashExit = BLOW_FLOW\.exit; resetIdleOnAttackEnd = false; refreshWeaponGroup\(\); \}/);
   assert.match(src, /blowSerial\+\+; blowHit = false; bashExit = 0;/, 'a next blow is its own - no bash arm over it');
@@ -215,8 +211,7 @@ test('SNEAK-STANCE: crouched, the drawn stance\'s own crouch where a pack carrie
 });
 
 test('BLOW-RETURN: after a blow the carry takes the weapon back over BLOW_FLOW.exit - never the frame the blow ends', async () => {
-  // (Mac: "the two-hander stays raised after the blow and goes back to neutral instantly") BODY-MOTION steps aside for a
-  // blow, and its weight on the blow's last frame is nothing - so it took the carry's hands back at once
+  // The body layer needs time to resume its carry after a raised two-handed strike.
   const { MOTION_EASE } = await import('../../src/characters/bodyMotion/bodyMotion.js');
   assert.equal(MOTION_EASE.blowReturn, BLOW_FLOW.exit, 'as slowly as the clip goes back');
   const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
@@ -242,8 +237,7 @@ test('BLOW-RETURN: after a blow the carry takes the weapon back over BLOW_FLOW.e
 });
 
 test('BLOW-ENTRY: into a blow the carry lets the weapon go over MOTION_EASE.blowEntry - never in the blow\'s first frame', async () => {
-  // (measured in the owner's game, 2026-10-28: the longsword's blade 0.41 m on the second frame of every blow - BLOW-RETURN's
-  // share read 0 inside a blow, so the entry's ease multiplied nothing)
+  // Compare the blade's world-space position between consecutive frames at blow entry.
   const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
   const sk = buildSkeleton(parseNif(retailSkeleton()));
   const hand = sk.byName.get('bip01 r hand');
@@ -275,7 +269,7 @@ test('SECTION-SEAM: a seam inside one blow - its follow-through keyed past its h
   assert.ok(Math.abs(sectionGap(release, follow) - 0.067) < 1e-9);
   assert.equal(blowBlendSeconds('blow:7', 'blow:7', release, follow), SECTION_SEAM.seconds, 'the longsword\'s 0.067 s past its hit');
   assert.equal(blowBlendSeconds('blow:7', 'blow:7', release, { ...follow, startTime: 314.733, time: 314.733 }), 0, 'joined: one clip');
-  // MS1: a backhand's sections played backwards join where each shows its time - the release's max attack, the wind-up's
+  // A backhand's sections played backwards join where each shows its time - the release's max attack, the wind-up's
   const backRelease = { startTime: 314.5, stopTime: 314.733, time: 314.733, reversed: true };
   const backFollow = { startTime: 314.2, stopTime: 314.5, time: 314.2, reversed: true };
   assert.equal(blowBlendSeconds('blow:7', 'blow:7', backRelease, backFollow), 0);
@@ -307,7 +301,7 @@ test('SERIES-FLOW: the series and its buffer - a press waits SERIES.buffer to be
   assert.equal(s.wanted(), false, 'and ends SERIES.intent after the last press');
   s.step(dt, true); s.consume();
   assert.equal(s.buffered(), false, 'a blow begun spends the press');
-  // SERIES-OWN-PRESS: the press a blow began is no series; held past a click, or pressed again, it is
+  // The press a blow began is no series; held past a click, or pressed again, it is
   s.step(dt, false);
   assert.equal(s.wanted(), false, 'a lone click is no series');
   s.step(dt, true);

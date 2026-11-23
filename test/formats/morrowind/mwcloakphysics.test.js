@@ -63,7 +63,9 @@ test('idle, walking, running, and overhead attacks produce distinct hem poses', 
   const run = poseAfter({ gait: 1, gaitPhase: 0.25, turn: 0, attack: 0 });
   const overhead = poseAfter({ gait: 0, gaitPhase: 0.25, turn: 0, attack: 1, attackProgress: 0.5, attackGroup: 'overhead' });
   assert.ok(run[1] < walk[1] && walk[1] < idle[1], 'running drags the hem farther back than walking and idle');
-  assert.ok(Math.abs(walk[0] - idle[0]) > 0.2, 'walking adds a phase-locked side-to-side swing');
+  const opposite = poseAfter({ gait: 0.55, gaitPhase: 0.75, turn: 0, attack: 0 });
+  assert.ok(opposite[0] < idle[0] && idle[0] < walk[0] && walk[0] - opposite[0] > 0.2,
+    'opposite strides take the hem to opposite sides of the idle pose');
   assert.ok(overhead[1] < idle[1] - 0.8, 'an overhead attack drives the hem back before its inertial return');
 });
 
@@ -85,16 +87,19 @@ test('back shield holds only covered cloak vertices at rest and preserves free h
   assert.equal(held, 3);
   for (let i = 0; i < 3; i++) {
     assert.equal(pos[i * 3], base[i * 3], 'covered vertex keeps fitted X');
-    assert.equal(pos[i * 3 + 1], base[i * 3 + 1] + 1.38, 'covered vertex is moved to the body side of the shield surface with clearance');
+    assert.equal(pos[i * 3 + 1], Math.fround(base[i * 3 + 1] + 1.38), 'covered vertex is moved to the body side of the shield surface with clearance');
     assert.equal(pos[i * 3 + 2], base[i * 3 + 2], 'covered vertex keeps fitted Z');
   }
   assert.deepEqual(Array.from(prev.slice(0, 9)), Array.from(pos.slice(0, 9)), 'covered vertices have no stale Verlet velocity');
+  assert.equal(pos[10], base[10] + 2, 'contact leaves the uncovered hem at its simulated position');
+  assert.equal(prev[10], base[10] + 1, 'contact preserves its incoming velocity');
+  const freeY = pos[10];
   assert.equal(stepCloakPhysics(piece, 1 / 30, 0), true, 'the simulation continues while the shield is stowed');
   for (let i = 0; i < 3; i++) {
-    assert.equal(pos[i * 3 + 1], base[i * 3 + 1] + 1.38, 'the resolved shield clearance survives the next cloth step');
+    assert.equal(pos[i * 3 + 1], Math.fround(base[i * 3 + 1] + 1.38), 'the resolved shield clearance survives the next cloth step');
   }
-  assert.equal(pos[10], base[10] + 2, 'the uncovered hem remains dynamic');
-  assert.equal(prev[10], base[10] + 1, 'the uncovered hem keeps its Verlet history');
+  assert.notEqual(pos[10], freeY, 'the uncovered hem keeps moving');
+  assert.equal(prev[10], freeY, 'the uncovered hem advances its Verlet history');
 });
 
 test('multiple back-sheathed gear surfaces keep the cloak wave from crossing weapon and scabbard', () => {

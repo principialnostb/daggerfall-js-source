@@ -20,8 +20,8 @@
   {
     "name": "SUMMONSYNC-loose-takes-a-quest",
     "file": "src/scenes/dungeonContext.js",
-    "old": "  const ownLoose = (f) => !!f?._loose && f._ownFrom == null && !f.questBehaviour && !isRoomFoe(f);",
-    "new": "  const ownLoose = (f) => !!f?._loose && f._ownFrom == null && !isRoomFoe(f);",
+    "old": "  const ownLoose = (f, index = undefined) => !!f?._loose && f._ownFrom == null && !f.questBehaviour && !isRoomFoe(f, index);",
+    "new": "  const ownLoose = (f, index = undefined) => !!f?._loose && f._ownFrom == null && !isRoomFoe(f, index);",
     "tests": [
       "test/scenes/summonsync.test.js"
     ]
@@ -29,8 +29,8 @@
   {
     "name": "SUMMONSYNC-loose-takes-the-run",
     "file": "src/scenes/dungeonContext.js",
-    "old": "  const ownLoose = (f) => !!f?._loose && f._ownFrom == null && !f.questBehaviour && !isRoomFoe(f);",
-    "new": "  const ownLoose = (f) => !!f?._loose && f._ownFrom == null && !f.questBehaviour;",
+    "old": "  const ownLoose = (f, index = undefined) => !!f?._loose && f._ownFrom == null && !f.questBehaviour && !isRoomFoe(f, index);",
+    "new": "  const ownLoose = (f, index = undefined) => !!f?._loose && f._ownFrom == null && !f.questBehaviour;",
     "tests": [
       "test/scenes/summonsync.test.js"
     ]
@@ -38,8 +38,8 @@
   {
     "name": "SUMMONSYNC-never-rides",
     "file": "src/scenes/dungeonContext.js",
-    "old": "      if (!qt && !ownLoose(f)) continue;   // SUMMON-SYNC",
-    "new": "      if (!qt) continue;   // SUMMON-SYNC",
+    "old": "      if (!qt && !ownLoose(f, index)) continue;   // SUMMON-SYNC: a shared quest's foe, or a loose stand - nothing else past the run",
+    "new": "      if (!qt) continue;   // SUMMON-SYNC: a shared quest's foe, or a loose stand - nothing else past the run",
     "tests": [
       "test/scenes/summonsync.test.js"
     ]
@@ -155,8 +155,8 @@
   {
     "name": "SUMMONSYNC-unweighed",
     "file": "src/scenes/dungeonContext.js",
-    "old": "    return isRoomFoe(f) || f._ownFrom != null || ownRides(f);",
-    "new": "    return isRoomFoe(f) || f._ownFrom != null || !!ownQuestTag(f);",
+    "old": "    return isRoomFoe(f, index) || f._ownFrom != null || ownRides(f);   // REST-SYNC: and a rest's encounter, which the room now shares; PSCALE-OWN: and a shared quest's, on the own lane; SUMMON-SYNC: and a loose stand",
+    "new": "    return isRoomFoe(f, index) || f._ownFrom != null || !!ownQuestTag(f);   // REST-SYNC: and a rest's encounter, which the room now shares; PSCALE-OWN: and a shared quest's, on the own lane; SUMMON-SYNC: and a loose stand",
     "tests": [
       "test/scenes/summonsync.test.js"
     ]

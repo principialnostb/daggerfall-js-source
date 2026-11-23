@@ -1,5 +1,4 @@
-// CLOAK-CONTACT / CLOAK-BODY / SHIELD-SEAT: the port's own steel body and cloak - the cloth meets the worn pieces' own
-// posed surface, stays by its fit standing, lets no leg through it in a stride, and a stowed shield presses it steadily.
+// Check the animated steel cloak against the posed armour and the back-mounted shield.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -62,7 +61,7 @@ test('CLOAK-BODY: every cloak is fitted to the eleven poses; standing, the cloth
 });
 
 test('CLOAK-BODY: in a walk and a stride, moving, no leg, tasset or arm comes through the cloak', async () => {
-  // the owner, 2026-11-13: legs and armour came through it; measured with the capsules, 30 and 8 edges a stride
+  // Use full stride cycles to catch intersections that appear only between the standing poses.
   const cycle = (amp, knee) => (ph) => {
     const s = Math.sin(ph * 2 * Math.PI);
     return { 'bip01 r thigh': amp * s, 'bip01 l thigh': -amp * s, 'bip01 l calf': s > 0 ? knee * s : 0, 'bip01 r calf': s < 0 ? -knee * s : 0,
@@ -101,7 +100,10 @@ test('SHIELD-SEAT: a stowed steel shield over the animated cloak is drawn in, st
   const onDisk = (p) => new Uint8Array(readFileSync(new URL(`../../../${p}`, import.meta.url)));
   const worn = composeWornArmor({ pieces: [...set(ARMOR_MATERIAL.Steel), CLOAK], armors: [], bodyPool: [], helmStyle: 'open' });
   const parts = worn.adds.map((x) => ({ slot: x.slot, partName: x.partName, bones: x.bones, bytes: onDisk(`src/assets/mw/meshes/${x.model}`) }));
-  parts.push({ slot: 'shield (steel)', bones: ['Shield Bone'], bytes: onDisk('src/assets/mw/meshes/shield_sky_steel.nif') });
+  const shieldBytes = process.env.DFO_TEST_STEEL_SHIELD
+    ? new Uint8Array(readFileSync(process.env.DFO_TEST_STEEL_SHIELD))
+    : onDisk('src/assets/mw/meshes/shield_sky_steel.nif');
+  parts.push({ slot: 'shield (steel)', bones: ['Shield Bone'], bytes: shieldBytes });
   const seatOf = async (pressed) => {
     const a = await assembleFirstPersonArm({ skeletonBytes: retailSkeleton(), parts });
     assert.ok(a.ok, a.error);

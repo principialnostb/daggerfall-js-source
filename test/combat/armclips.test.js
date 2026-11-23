@@ -1,5 +1,4 @@
-// ARM-REST, ARM-SIDES, ARM-FADE and FISTS-ARMS (2026-11-06, bible/05-Combat/Motion-Doctrine.md; the owner: every free arm
-// "as the free hand beside a sword" - the game's own movements, not angles).
+// Sample the standing and moving arm poses at both sides of a transition.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createLeftArmLayer, leftArmPlan, mirrorMask, ARM_HOLD, ARM_FADE } from '../../src/combat/leftArmLayer.js';

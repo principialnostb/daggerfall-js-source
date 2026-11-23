@@ -121,8 +121,8 @@
   {
     "name": "AUDIT1003-W4-MERGE-REMAPPED",
     "file": "src/scenes/dungeonContext.js",
-    "old": "staticBuilder.add(cpu, matrix, climateFree ? ownTexKey : resolveTexKey);",
-    "new": "staticBuilder.add(cpu, matrix, resolveTexKey);",
+    "old": "      if (cpu.normals && cpu.uvs) configureDungeonFurnitureDraw(drawList[drawList.length - 1], staticBuilder, collider, p.modelIdNum, cpu, matrix, climateFree ? ownTexKey : resolveTexKey);   // AUDIT PRE-MERGE 1003 W4",
+    "new": "      if (cpu.normals && cpu.uvs) configureDungeonFurnitureDraw(drawList[drawList.length - 1], staticBuilder, collider, p.modelIdNum, cpu, matrix, resolveTexKey);   // AUDIT PRE-MERGE 1003 W4",
     "tests": [
       "test/world/audit1003_world.test.js",
       "test/scenes/perf5.test.js"

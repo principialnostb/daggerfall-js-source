@@ -1,13 +1,6 @@
 import { modelDyeOf, modelDyeMips } from '../systems/modelDye.js';
-// LOOK-THUMBS-MW (BLOODBATH, 2026-11-08; systems/modelLooks.js, ui/enhanced/modelLookRow.js): A MORROWIND RECORD'S
-// PICTURE FOR THE 3D TAB, drawn as the own looks' are (render/lookThumbRaster.js) from the player's own archives.
-//
-// A worn piece is drawn AS WORN, not as its ground mesh (the owner: "сапоги и перчатки нужно парными сделать"): every
-// body part its record names (the BODY record's mesh - a skinned file's own shapes for the part's bone, a rigid mesh
-// placed at its bone with the left side mirrored, mwFirstPerson.js rule 13 placeAtBone) on the skeleton at rest. So a
-// pair of boots stands as two boots and a pair of gauntlets is both hands, drawn side by side rather than an arm's span
-// apart. A weapon and a shield are their ground mesh - a blade turned on the diagonal, a shield stood up - as is any
-// piece whose parts the archives do not answer.
+// Draw the selected model's thumbnail from the player's attached archives using the same rasterizer as the
+// locally authored looks.
 import { parseNif } from '../formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../formats/morrowind/mwNifMesh.js';
 import { buildSkeleton, skeletonSpaceMatrices, skinBatch, GRAPH_ROOT } from '../formats/morrowind/mwSkin.js';

@@ -77,7 +77,7 @@ function dungeon({ foes, stand = async (t, p) => ({ mobileType: t, feet: p }) })
   const tex = { getSize: () => ({ width: 64, height: 40 }), getScale: () => ({ width: 0, height: 0 }), recordCount: 30, getFrameCount: () => 1 };
   const state = {
     foes, _layoutFoes: foes.length, _authority: true, _ctxDead: false, _locationKey: 'dungeon:7',
-    _wallNow: () => null, roomBodyBorn: () => {}, floorLanding: (c, p) => p, collider: null,
+    _wallNow: () => null, roomBodyBorn: () => {}, corpseFloorLanding: (_collider, feet) => feet, collider: null,
     getTexture: async () => tex, uploadRecord: () => {}, uploadRecordFrame: () => {},
     billboardSize: () => ({ w: 1.5, h: 0.6 }), eliteCorpseSize, isEliteCorpse, markEliteCorpseBatch,
     armFlatAnim: () => {}, flatAnims: { remove: (b) => log.unclocked.push(b) },

@@ -112,22 +112,28 @@ race- and sex-specific. The hair list combines installed playable records of the
 selected sex across races, excluding Argonian and Khajiit hair slots. Matching
 mesh paths or matching rendered geometry collapse to one entry, including
 texture variants of the same haircut. Saved aliases reopen on that entry. The hair palette contains
-natural swatches and the original color. Previously saved colors outside the palette fall back to the original. The chosen color
+natural swatches and the original color.
+
+Previously saved colors outside the palette fall back to the original. The chosen color
 is stored with the local appearance and used on the 3D body and head portrait.
 Some Morrowind hair-slot meshes contain ears. The tint skips explicit skin,
 head and ear materials as well as separately textured pins, wraps and bands.
 The editor splits identifiable ear batches from the selected hair and binds the
 ear batches of the race's face-derived default hair in a separate untinted slot.
+
 The split uses material metadata and the side-band bounds of retail ear shapes. The donor contributes only lateral triangles so its nape cannot cover the selected hair.
 A single batch with inseparable hair and ear geometry still needs asset authoring.
 The haircut list compares the remaining triangles independently of vertex and
 batch order. Binding drops coincident surfaces repeated between hair batches.
+
 Hair meshes with no remaining triangles share a single bald choice and keep
 their old record IDs as aliases. The random NPC palette excludes that choice.
 Male palettes check the BODY flag, record and model names, and the rendered
 hair material for female markers. The actor keeps its own ear geometry.
 Tinting anchors each texture to the palette using its alpha-weighted mean
-luminance, with gradual compression of shadows and highlights and the original alpha. Saved
+luminance, with gradual compression of shadows and highlights and the original alpha.
+
+Saved
 light blond and the two former white swatches resolve to their muted replacements. This extends
 DFU's classic `FaceDetails.faceIndex` portrait selection with independent 3D parts
 and a local color override.

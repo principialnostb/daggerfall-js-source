@@ -2,8 +2,8 @@
   {
     "name": "MWFIT1-the-steel-left-pauldron-bare",
     "file": "src/characters/ownModels/ownArmorModels.js",
-    "old": "      parts: [part('left pauldron', 'steel_plate_pauldron_left.nif', ['left upper arm'])],",
-    "new": "      parts: [part('left pauldron', 'steel_plate_pauldron_left.nif')],",
+    "old": "  const left = Object.freeze([part('left pauldron', 'steel_plate_pauldron_left.nif', ['left upper arm'])]);",
+    "new": "  const left = Object.freeze([part('left pauldron', 'steel_plate_pauldron_left.nif')]);",
     "tests": [
       "test/formats/morrowind/mwfit1.test.js"
     ],
@@ -22,8 +22,8 @@
   {
     "name": "MWFIT1-the-pauldron-hides-the-other-arm",
     "file": "src/characters/ownModels/ownArmorModels.js",
-    "old": "      parts: [part('right pauldron', 'steel_plate_pauldron_right.nif', ['right upper arm'])],",
-    "new": "      parts: [part('right pauldron', 'steel_plate_pauldron_right.nif', ['left upper arm'])],",
+    "old": "  const right = Object.freeze([part('right pauldron', 'steel_plate_pauldron_right.nif', ['right upper arm'])]);",
+    "new": "  const right = Object.freeze([part('right pauldron', 'steel_plate_pauldron_right.nif', ['left upper arm'])]);",
     "tests": [
       "test/formats/morrowind/mwfit1.test.js"
     ]
@@ -84,8 +84,8 @@
   {
     "name": "MWFIT1-the-hide-under-nothing",
     "file": "src/formats/morrowind/mwItemMap.js",
-    "old": "            add,\n          );",
-    "new": "          );",
+    "old": "          deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: add });",
+    "new": "          deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: null });",
     "tests": [
       "test/formats/morrowind/mwfit1.test.js",
       "test/tooling/mwebony1.test.js"

@@ -1,5 +1,4 @@
-// MW-PACE1 (2026-10-07, Mac: "Morrowind attack animations don't scale with attack speed/multiple attacks when attack
-// speed is high"): THE MORROWIND BLOW IS PACED BY DAGGERFALL'S.
+// THE MORROWIND BLOW IS PACED BY DAGGERFALL'S.
 //
 // The classic machine owns every blow (characters/weaponStates.js; rule 24's note in Morrowind-Rules.md: the hit
 // frame is FPSWeapon's, not the .kf's). The Morrowind arm drew each blow at its WEAP record's pace and refused a strike
@@ -367,7 +366,7 @@ test('MW-PACE1: the rig hands the arm the MACHINE\'s schedule at the strike\'s f
       assert.equal(calls.length, 1, 'the arm is told once');
       const { blow } = calls[0].opts;
       assert.ok(blow, 'with the blow\'s schedule');
-      // PIN MOVED (MW-PACE2, combat/blowFlow.js): and the player's melee blow is LED by its arm
+      // And the player's melee blow is LED by its arm
       assert.deepEqual(blow, { ...r.playerWeapon.strikeSchedule(1 / 60), lead: true }, 'the machine\'s own, at the frame\'s dt, led by the arm');
       return blow;
     };
@@ -512,7 +511,7 @@ test('SERIES-FLOW: while the series goes on the led blow does not freeze after i
   assert.equal(arm.attack('StrikeDown', { blow }), 'chop');
   for (let i = 0; i < 400 && arm.status().upper !== UPPER_BODY.AttackEnd; i++) arm.update(dt);
   assert.equal(arm.status().upper, UPPER_BODY.AttackEnd);
-  // SERIES-PACE (the owner's game, 2026-11-04: a series' follow-through fell to 0.17x): never slower than a lone blow's,
+  // Never slower than a lone blow's,
   // so the arm is done before the machine's second is - it waits there, and the next blow takes it from there
   const drift = arm.status().blow.rate;
   assert.ok(drift >= PACE.recover - 1e-9, `no slower than a lone blow (${drift.toFixed(2)})`);
@@ -564,7 +563,7 @@ test('BLOW-FLOW: a thrust holds its window the shorter - a jab\'s straight arm c
   Math.random = () => 0.95;   // a full-strength blow: the fixture's large follow-through (its weaker ones have none)
   try {
     assert.equal(endedAt('StrikeUp', between), true, 'a thrust past its window: the stance at once');
-    // SERIES-PACE: a series no longer drifts - a cut's recovery inside its own window is pinned by windowOf below
+    // A series no longer drifts - a cut's recovery inside its own window is pinned by windowOf below
     assert.equal(endedAt('StrikeDown', BLOW_FLOW.hold + 0.05), true, 'a cut past it: the stance at once');
   } finally { Math.random = random; }
   const chop = windowOf('StrikeDown'), thrust = windowOf('StrikeUp');

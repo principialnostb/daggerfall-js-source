@@ -1,4 +1,4 @@
-// MW-SKY-AXE-FIT: measured complete retail meshes, not a sword-length guess.
+// Measured complete retail meshes, not a sword-length guess.
 // Reference: meshes/w/w_steel_battleaxe.nif from the player's Morrowind.bsa.
 // Skyrim keeps its proportions; match the axe head's width and the lower-hand reach.
 export const BATTLEAXE_REFERENCE = Object.freeze({

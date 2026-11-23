@@ -301,7 +301,7 @@
   {
     "name": "ONE-RUN-the-old-row",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
+    "old": "      R: row(-6, 21, 30, -4, 0.15, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
     "new": "      R: row(16, -3, 46, -42, 0.35, { blade: dir(0.54, -0.51, -0.67), edge: dir(-0.21, 0.69, -0.69) }),",
     "tests": [
       "test/characters/bodyMotion/fb1026c_mwbody.test.js"
@@ -310,8 +310,8 @@
   {
     "name": "ONE-RUN-out-to-the-side",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
-    "new": "      R: row(8, 21, 16, -4, 0.35, { blade: dir(0.54, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
+    "old": "      R: row(-6, 21, 30, -4, 0.15, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
+    "new": "      R: row(-6, 21, 30, -4, 0.15, { blade: dir(0.54, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
     "tests": [
       "test/characters/bodyMotion/fb1026c_mwbody.test.js"
     ]
@@ -319,8 +319,8 @@
   {
     "name": "ONE-RUN-twisted",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
-    "new": "      R: row(8, 21, 16, -42, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
+    "old": "      R: row(-6, 21, 30, -4, 0.15, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
+    "new": "      R: row(-6, 21, 30, -42, 0.15, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),",
     "tests": [
       "test/characters/bodyMotion/fb1026c_mwbody.test.js"
     ]
@@ -346,7 +346,7 @@
   {
     "name": "TWO-CLEAR-guard-at-the-hip",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(36, -3, 10, 52, 0, { blade: dir(-0.34, 0.89, -0.29), edge: dir(-0.41, -0.42, -0.81) }),",
+    "old": "      R: row(45, 3.5, 21, 70, 0, { blade: dir(-0.32, 0.95, -0.01), edge: dir(-0.19, -0.07, -0.98) }),",
     "new": "      R: row(29, 7, 10, 42, 0, { blade: dir(-0.3, 0.89, -0.35), edge: dir(-0.08, -0.39, -0.92) }),",
     "tests": [
       "test/characters/bodyMotion/fb1026c_mwbody.test.js"
@@ -355,17 +355,17 @@
   {
     "name": "TWO-CLEAR-walk-guard-at-the-hip",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(40, -7, 11, 11, 0.12, { blade: dir(-0.34, 0.94, -0.1), edge: dir(-0.35, -0.22, -0.91) }),",
+    "old": "      R: row(40, 14.5, 42.5, 60, 0, { blade: dir(-0.52, 0.83, 0.2), edge: dir(-0.05, 0.2, -0.98) }),",
     "new": "      R: row(40, -5, 7, 56, 0.12, { blade: dir(-0.52, 0.84, -0.15), edge: dir(0.13, -0.1, -0.99) }),",
     "tests": [
       "test/characters/bodyMotion/fb1026c_mwbody.test.js"
     ]
   },
   {
-    "name": "TWO-CLEAR-sneak-guard-old",
+    "name": "TWO-CLEAR-sneak-grip-inside-the-thigh",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      R: row(52, -2, 11, 52, 0.1, { blade: dir(-0.26, 0.95, 0.17), edge: dir(-0.21, 0.12, -0.97) }),",
-    "new": "      R: row(51, 2, 7, 22, 0.1, { blade: dir(-0.34, 0.94, 0.09), edge: dir(-0.1, 0.06, -0.99) }),",
+    "old": "R: row(51, 2, 7, 22, 0.1, { blade: dir(-0.34, 0.94, 0.09), edge: dir(-0.1, 0.06, -0.99) })",
+    "new": "R: row(0, -18, 0, 22, 0.1, { blade: dir(-0.34, 0.94, 0.09), edge: dir(-0.1, 0.06, -0.99) })",
     "tests": [
       "test/characters/bodyMotion/fb1026c_mwbody.test.js"
     ]
@@ -373,8 +373,8 @@
   {
     "name": "TWO-CLEAR-haft-elbow-back",
     "file": "src/characters/bodyMotion/carry.js",
-    "old": "      haf.pole = norm(add(scale(F.right, -0.55), add(scale(F.up, -0.75), scale(F.fwd, 0.45)))); // TWO-CLEAR: the elbow before the chest (back, it folded into it)",
-    "new": "      haf.pole = norm(add(scale(F.right, -0.55), add(scale(F.up, -0.75), scale(F.fwd, -0.2)))); // TWO-CLEAR: the elbow before the chest (back, it folded into it)",
+    "old": "            scale(F.fwd, lerp(0.8, lerp(0.1, 0.3, walkShare), still)),",
+    "new": "            scale(F.fwd, -0.2),",
     "tests": [
       "test/characters/bodyMotion/fb1026c_mwbody.test.js"
     ]

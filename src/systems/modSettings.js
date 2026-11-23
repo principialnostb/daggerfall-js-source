@@ -18,13 +18,13 @@ import {
   isOnlinePage,
   rollingAsTheRoom,
   ONLINE_ROOM_MOD_KEYS,
-} from './online/onlineLane.js'; // MODS-ONLINE-2: online, the room's ground is forced and every other switch is the player's; REALM P0.2: and the balance mods whole
-import { FOOT_SKIN_COUNT, CLASS_SKINS, classSkinLabel } from '../player/classSkins.js'; // SKIN2: the class skins past the mod's sixteen
-import { t, localizedText } from './textManager.js'; // L10N4: every setting's description and option names in the player's language, read when they are read; DFU's own key where it has the same word
+} from './online/onlineLane.js'; // Online, the room's ground is forced and every other switch is the player's; REALM P0.2: and the balance mods whole
+import { FOOT_SKIN_COUNT, CLASS_SKINS, classSkinLabel } from '../player/classSkins.js'; // The class skins past the mod's sixteen
+import { t, localizedText } from './textManager.js'; // Every setting's description and option names in the player's language, read when they are read; DFU's own key where it has the same word
 
 const STORE_KEY = 'dfjs-mod-settings';
 
-/** L10N4: A LIST OF WORDS, READ IN THE PLAYER'S LANGUAGE. A MultipleChoiceKey's option names (and a slider's labels)
+/** A LIST OF WORDS, READ IN THE PLAYER'S LANGUAGE. A MultipleChoiceKey's option names (and a slider's labels)
  *  are indexed by the value a setting stores, so the list stays one frozen array whose length and order are the
  *  mod's; each entry is a getter over its own text-core call - read when the pane reads it, never at module load - and
  *  a plain string (a key's own name) stands as it is. */
@@ -58,7 +58,7 @@ const EOTB_VIEWS = lazyWords(
  *  `author` is the manifest's ModAuthor (Basic Roads: its README's),
  *  and the Mods pane puts it IN THE TITLE (Mac, 2026-09-08: "place each
  *  creator's name in the mod title").
- *  L10N4: every key's `description` is a getter over `t('mods.<vendor>.<Key>.description', ...)` and every list of
+ *  Every key's `description` is a getter over `t('mods.<vendor>.<Key>.description', ...)` and every list of
  *  option names (or labels) a `lazyWords`, so each reads in the player's language at the moment it is read - the
  *  English is the mod's own, byte for byte. Titles and authors are names, and stay as they are.
  *  PLAIN-TEXT (2026-10-19, the owner: "Remove overexplaining text and replace it with proper palatable descriptions"):
@@ -66,7 +66,7 @@ const EOTB_VIEWS = lazyWords(
  *  True") is reworded for a player - an inert key says "Has no effect" and why. A description that already read plainly
  *  is still the mod's own; the tests pin each reworded one by its words. */
 export const MOD_SETTINGS = Object.freeze({
-  // DS1: DYNAMIC SKIES 2.3.4 (BadLuckBurt and carademono). Its own two
+  // DYNAMIC SKIES 2.3.4 (BadLuckBurt and carademono). Its own two
   // sections, names and descriptions as modsettings.json ships them
   // (FogDensity/densitySetting; SnowSizeAndNumberOfParticles/*), plus
   // `Enabled`, which is the port's: DFU enables a mod by listing it, and
@@ -138,7 +138,7 @@ export const MOD_SETTINGS = Object.freeze({
       }),
     }),
   }),
-  // WORLD-HOVER: WORLD TOOLTIPS 1.1 (jefetienne). The mod ships exactly
+  // WORLD TOOLTIPS 1.1 (jefetienne). The mod ships exactly
   // ONE key, and its description is the author's own word for word -
   // it exists so the main quest's puzzles are not given away by a
   // label on the thing you are meant to find for yourself.
@@ -169,7 +169,7 @@ export const MOD_SETTINGS = Object.freeze({
       }),
     }),
   }),
-  // RSH1: READIED SPELLCASTING HANDS 1.3 (jefetienne, the World Tooltips author). The mod ships no modsettings - it is
+  // READIED SPELLCASTING HANDS 1.3 (jefetienne, the World Tooltips author). The mod ships no modsettings - it is
   // on when it is listed - so `Enabled` is the port's alone (MO1: on by default), and its description is written here.
   'readied-spellcasting-hands': Object.freeze({
     title: 'Readied Spellcasting Hands',
@@ -256,7 +256,7 @@ export const MOD_SETTINGS = Object.freeze({
       }),
     }),
   }),
-  // WOD1: WORLD OF DAGGERFALL 2.0 (Kamer). No modsettings of its own -
+  // WORLD OF DAGGERFALL 2.0 (Kamer). No modsettings of its own -
   // `Enabled` alone (DFU enables a mod by listing it), the Meaner
   // Monsters precedent. Read once, at the world's mount: the loader's
   // instance list is built for the life of the world (LocationLoader.cs
@@ -1207,7 +1207,7 @@ export const MOD_SETTINGS = Object.freeze({
       }),
     }),
   }),
-  // MM1: MEANER MONSTERS 1.5.2 (Ralzar). No modsettings of its own -
+  // MEANER MONSTERS 1.5.2 (Ralzar). No modsettings of its own -
   // `Enabled` alone (DFU enables a mod by listing it). Listed BEFORE
   // the overhaul because the overhaul names it as a dependency and so
   // Awakes after it in DFU.
@@ -1229,7 +1229,7 @@ export const MOD_SETTINGS = Object.freeze({
       }),
     }),
   }),
-  // PCO1: PHYSICAL COMBAT AND ARMOR OVERHAUL 1.44 (Kirk.O). Its seven
+  // PHYSICAL COMBAT AND ARMOR OVERHAUL 1.44 (Kirk.O). Its seven
   // Modules keys, names and descriptions as modsettings.json ships them
   // (all seven on, as shipped), plus the port's `Enabled` (DFU enables
   // a mod by listing it). MM1 (Mac: "there shouldn't be compatibility
@@ -1322,7 +1322,7 @@ export const MOD_SETTINGS = Object.freeze({
       }),
     }),
   }),
-  // UL1: UNLEVELED LOOT 1.1.2 (Ralzar). Its one section, MaterialSwitching,
+  // UNLEVELED LOOT 1.1.2 (Ralzar). Its one section, MaterialSwitching,
   // ten MultipleChoiceKeys named for the ten materials, each defaulting
   // to itself, as modsettings.json ships them, plus the port's `Enabled`.
   // Listed AFTER the overhaul: its manifest orders it after Roleplay
@@ -1348,7 +1348,7 @@ export const MOD_SETTINGS = Object.freeze({
             name,
             Object.freeze({
               default: i,
-              // L10N4: the names are Daggerfall's own materials, DFU's keys; the key names in front stay the mod's
+              // The names are Daggerfall's own materials, DFU's keys; the key names in front stay the mod's
               options: lazyWords(
                 () => localizedText('iron', 'Iron'),
                 () => localizedText('steel', 'Steel'),

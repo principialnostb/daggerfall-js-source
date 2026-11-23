@@ -76,13 +76,17 @@ Fist-series geometry diagnostics found adjacent shell vertices carried by differ
 Those bones turn independently during a punch, stretching the metal plate. The first cuirass shape now follows
 `Bip01 Spine2` as one shell; the second shape, the separate waist band, retains its articulated joint weights
 (tools/bakeSteelPlate.mjs:"export function pieceRig"). The NIF is regenerated from the committed
-source, not corrected at runtime. Other pieces and source geometry are unchanged.
+source, not corrected at runtime.
+
+Other pieces and source geometry are unchanged.
 This is the port's own armour rig, continuing MW-STEEL4's departure from DFU's sprite presentation. OpenMW's
 [`RigGeometry::cull`](https://github.com/OpenMW/openmw/blob/master/components/sceneutil/riggeometry.cpp) remains the
 skinning reference: inverse bind times animated bone, weighted then post-transformed.
 No change to that law or weight normalization is made. The regression in test/formats/morrowind/mwsteel4.test.js
 turns spine and shoulder bones independently and measures every shell triangle edge; the byte-for-byte bake check
-in test/tooling/mwsteel1.test.js also passes. This does not certify the underlying body or every other garment.
+in test/tooling/mwsteel1.test.js also passes.
+
+This does not certify the underlying body or every other garment.
 **THE ROW IS GONE (2026-10-27, the owner: "the same helms open, closed, horned still hang in the settings ... remove
 what is no longer current").** A helm's look is turned on the worn piece in the inventory (LOOK-VARIANTS,
 `04-Characters/Look-Bench.md` section 2), which writes the same pref, `mwSteelHelm`, and rebuilds the body itself

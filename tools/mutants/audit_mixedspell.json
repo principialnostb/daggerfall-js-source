@@ -383,8 +383,8 @@
   {
     "name": "AUDITMS-L3-5-carry-blind-to-the-spell-hand",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "        const want = hands && !(side === 'L' && (input.torch || shieldArm || input.spellHand)) ? 1 : 0; // AUDIT SPELL-HAND L3-5: and the spell hand's left arm, as a torch's",
-    "new": "        const want = hands && !(side === 'L' && (input.torch || shieldArm)) ? 1 : 0; // AUDIT SPELL-HAND L3-5: and the spell hand's left arm, as a torch's",
+    "old": "          !(side === 'L' && (input.torch || shieldArm || freeArm || input.spellHand)) &&",
+    "new": "          !(side === 'L' && (input.torch || shieldArm || freeArm)) &&",
     "tests": [
       "test/characters/bodyMotion/bodymotion_audit.test.js"
     ]
@@ -547,8 +547,8 @@
   {
     "name": "AUDITMS-L4-3-peer-strike-hand-dropped",
     "file": "src/net/peer/peerBodies.js",
-    "old": "        if (\n          b.rig.attack?.(b.pending.strike, {\n            hold: b.pending.hold,\n            blow: b.pending.blow ?? null,\n            roll: b.swing,\n            hand: b.pending.hand ?? null,\n          })\n        ) {",
-    "new": "        if (b.rig.attack?.(b.pending.strike, { hold: b.pending.hold, blow: b.pending.blow ?? null, roll: b.swing })) {",
+    "old": "            hand: b.pending.hand ?? null,\n            peerPlayer: this._buildOpts === playerBuildOpts,",
+    "new": "            peerPlayer: this._buildOpts === playerBuildOpts,",
     "tests": [
       "test/net/mixedspell_peers.test.js"
     ]

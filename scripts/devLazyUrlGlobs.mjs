@@ -1,4 +1,4 @@
-// LOAD-STALL 3 (bible/07-Rendering/Load-Stalls.md section 5): THE DEV SERVER'S URL GLOBS, LAZY.
+// THE DEV SERVER'S URL GLOBS, LAZY.
 //
 // Every `import.meta.glob(<patterns>, { eager: true, query: '?url', import: 'default' })` in src/ becomes, on the dev
 // server alone, `devGlobUrls(import.meta.glob(<patterns>, { query: '?url', import: 'default' }), '<module path>')`:

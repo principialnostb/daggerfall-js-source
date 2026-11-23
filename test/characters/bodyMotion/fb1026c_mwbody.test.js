@@ -153,13 +153,19 @@ test('TWO-CLEAR THE TWO-HANDED GUARD BEFORE THE BODY: a claymore\'s, a staff\'s 
     if (worst.depth >= 3) bad.push(`${name} ${g}: the ${worst.where} ${worst.depth.toFixed(1)} units into the trunk`);
   }
   assert.deepEqual(bad, []);
+});
+
+test('the claymore guard holds the hands forward of the belly and follows the 13.11 idle blade direction', () => {
   play({ weapon: W.LongBladeTwoHand, hands: 'single' }, 1.5, (m, t) => {
     if (t < 1.4) return;
     const b = bladeOf(m), F = bodyFrames(body, m);
     const C = [(F.shoulder.L[0] + F.shoulder.R[0]) / 2, (F.shoulder.L[1] + F.shoulder.R[1]) / 2, (F.shoulder.L[2] + F.shoulder.R[2]) / 2];
     // the left hand 0.26 of an arm before the shoulders (it stood 0.08 - beside the right hip)
     for (const s of ['l', 'r']) assert.ok(dot(sub(pt(m, `bip01 ${s} hand`), C), F.fwd) / A > 0.18, `the ${s} hand before the belly`);
-    assert.ok(b[1] > 0.5 && b[2] < -0.3, 'a low guard: the blade forward and down');
+    // Direction measured on the equipped retail skeleton in the published 13.11 branch.
+    const target = [-0.478925, 0.870642, 0.112308];
+    const expected = [0, 1, 2].map(i => F.right[i] * target[0] + F.fwd[i] * target[1] + F.up[i] * target[2]);
+    assert.ok(ang(b, expected) < 1, 'idle blade differs from its 13.11 guard by ' + ang(b, expected).toFixed(2) + ' degrees');
   });
 });
 

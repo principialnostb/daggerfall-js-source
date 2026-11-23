@@ -2,12 +2,13 @@
   {
     "name": "AUDITCC-UI-S1-the-row-on-one-line",
     "file": "src/ui/enhanced/enhancedInventory.js",
-    "old": "  plaques.style.gridArea = '1 / 2 / 2 / 3';",
-    "new": "  plaques.style.gridArea = '1 / 2';",
+    "old": "  dollFrame.append(plaques);",
+    "new": "  map.append(plaques);",
     "why": "the row on '1 / 2' - an absolutely placed grid child's unnamed end lines run to the map's edge, and the Felt plaque stood on the R-Weapon panel",
     "tests": [
       "test/systems/auditcc_ui.test.js"
-    ]
+    ],
+    "note": "Placing the plaques on the equipment grid lets them extend beyond the figure."
   },
   {
     "name": "AUDITCC-UI-S1-the-felt-plaque-first",

@@ -1,4 +1,4 @@
-// LOAD-STALL 3 (bible/07-Rendering/Load-Stalls.md section 5): the player's body before the street's - the texture
+// The player's body before the street's - the texture
 // pool's queue with the player's jobs first, the body queue held while the player's rig works - and the dev server's
 // URL globs without a module request per file.
 import { test } from 'node:test';

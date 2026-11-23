@@ -1,4 +1,4 @@
-// BLOW-LEGS (MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md 7f): a blow struck standing loads, drives and recovers
+// A blow struck standing loads, drives and recovers
 // with the whole body - the hips back and turned away, then forward, down and through; the lead foot steps (lifted,
 // never slid) on a thrust and a chop and steps home; both feet stand where the stance put them.
 import { test } from 'node:test';
@@ -14,7 +14,7 @@ import { MW_WEAPON_TYPE as T } from '../../../src/formats/morrowind/mwFirstPerso
 
 const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
-/** LEG-DRIVE: where a foot stands on the ground - the ball of the foot (it turns on it, the heel going out), its ankle
+/** Where a foot stands on the ground - the ball of the foot (it turns on it, the heel going out), its ankle
  *  plus BLOW_PIVOT.ball of the leg along its toe's way, level. */
 function ballOf(m, body, side) {
   const a = m.get(body.bones[side].foot).a, s = Math.hypot(a[0], a[3], a[6]), f = body.footAxes[side].fwd;
@@ -72,7 +72,7 @@ function strike(type, opts = {}) {
       frames.push({ section, air: legs.status().air, pelvis: [...m.get(names.pelvis).t], L: ballOf(m, body, 'L'), R: ballOf(m, body, 'R') });
     }
   };
-  run('windup', 20); run('release', 12); run('follow', 30); run(null, 60);   // STEP-HOP: home BLOW_LEGS_TIME.rest after the blow
+  run('windup', 20); run('release', 12); run('follow', 30); run(null, 60);   // Home BLOW_LEGS_TIME.rest after the blow
   return { frames, body, legs };
 }
 const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
@@ -144,7 +144,7 @@ test('BLOW-LEGS: a slash keeps both feet where they stand and turns the hips thr
   const legs = createBlowLegs();
   for (let i = 0; i < 30; i++) legs.step(1 / 60, true, { on: true, grounded: true, speed: 0, blow: blow('chop', 'release', 0.5) }, 0);
   assert.ok(legs.weight() > 0.99);
-  // BLOW-MOVE: moving, the layer keeps a share of the hips over the stride's feet (its own test below); no blow, none
+  // Moving, the layer keeps a share of the hips over the stride's feet (its own test below); no blow, none
   for (let i = 0; i < 60; i++) legs.step(1 / 60, true, { on: true, grounded: true, speed: 3, blow: null }, 0);
   assert.ok(legs.weight() < 0.01, 'moving with no blow: the stride\'s (LOWER-BODY)');
   for (let i = 0; i < 60; i++) legs.step(1 / 60, false, { on: true, grounded: true, speed: 0, blow: blow('chop', 'release', 0.5) }, 0);
@@ -219,7 +219,7 @@ test('STOP-UNDER-A-BLOW: stopped under a held blow, the layer waits for the stan
     legs.step(1 / 60, true, { on: true, grounded: true, speed: 0, blow: blow('slash', 'windup', 1) }, 0);   // the button held
     const pose = new Map(i < 8 ? half : []);   // LOWER-BODY hands the stride back to the clip over its first frames
     legs.apply(sk, pose, GRAPH_ROOT, sm);
-    if (onAt == null && legs.status().anchored) onAt = i;   // BLOW-MOVE: until then the stride's own feet
+    if (onAt == null && legs.status().anchored) onAt = i;   // Until then the stride's own feet
     m = sm(sk, pose, GRAPH_ROOT);
   }
   assert.ok(onAt != null && onAt / 60 >= BLOW_LEGS_TIME.after - 1 / 60, `the feet were anchored only once the body stood (${onAt} frames)`);
@@ -329,7 +329,7 @@ test('BLOW-MOVE: a blow struck walking keeps the stride\'s feet exactly where it
     prev = now;
   }
   assert.ok(worst < 0.3, `walking, the feet on the stride's own (off by ${worst.toFixed(2)} at most)`);
-  // GUARD-WALK: the stride sunk into a fighting walk under the blow, the blow's own drop over it
+  // The stride sunk into a fighting walk under the blow, the blow's own drop over it
   assert.ok(deepest > (BLOW_MOVE.crouch[0] + 0.5 * BLOW_MOVE.share * BLOW_LEGS.chop.hit.drop) * body.leg, `walking, the hips sank into the chop (${deepest.toFixed(2)})`);
   assert.ok(leap < 0.06 * body.leg, `stopping, no foot leapt (${leap.toFixed(2)} a frame at most)`);
 });
@@ -392,7 +392,7 @@ test('BLOW-LEGS: wired - the motion word to the weight layer, the hips and feet 
   const legsAt = bw.indexOf('if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);');
   const clearAt = bw.indexOf('clearArms(skeleton, pose, rootRef, skelMats,');
   assert.ok(legsAt >= 0 && clearAt > legsAt, 'the leg solve precedes arm clearance');
-  assert.match(rd('src/combat/fpArm.js'), /thirdBuilt\?\.mwType, dead, motion\.word\(\)[,)]/);   // RUN-STRIDE: the movement clip passed after the word
+  assert.match(rd('src/combat/fpArm.js'), /thirdBuilt\?\.mwType, dead, motion\.word\(\)[,)]/);   // The movement clip passed after the word
   assert.match(rd('src/characters/bodyMotion/bodyMotion.js'), /word: \(\) => input,/);
 });
 

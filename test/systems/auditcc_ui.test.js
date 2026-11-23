@@ -199,8 +199,10 @@ test('AUDIT C&C S1: THE PACK\'S TWO PLAQUES STAND IN ONE ROW ON THE FIGURE\'S FI
     try {
       const row = host.querySelector('.wornplaques');
       assert.ok(row, 'the plaques\' row');
-      assert.ok(row.parent.classList.contains('wornmap'), 'a cell of the worn map');
-      assert.equal(row.style.gridArea, '1 / 2 / 2 / 3', 'the figure\'s first cell, named whole');
+      assert.ok(row.parent.classList.contains('wornmap-doll'), 'both plaques are anchored to the figure');
+      assert.ok(row.parent.parent.classList.contains('inventory-doll-column'));
+      assert.equal(row.parent.parent.style.gridArea, '1 / 2 / span 5 / auto');
+      assert.equal(row.style.gridArea, 'auto');
       assert.deepEqual(row.children.map((c) => c.className), ['wornac-total', 'worntemp-total'], 'the Armour plaque, then the Felt one');
       assert.deepEqual(row.children.map((c) => c.style.gridArea ?? ''), ['', ''], 'neither placed alone');
     } finally { view.unmount(); globalThis.window = was; }

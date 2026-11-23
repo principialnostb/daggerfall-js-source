@@ -23,26 +23,26 @@
 // optional environment-attack ray (interiors: bash/Receive on action
 // objects; open exteriors have nothing in reach).
 
-import { PlayerWeapon, WEAPON_REACH, setWeaponPoseProbe, weaponPoseOf, USING_RIGHT_HAND_TEXT, handDesc } from '../playerWeapon.js';   // RR1: the rig's drawn state and weapon type, for laws that ask off-rig
-import { eotbBody } from '../../player/eyeOfTheBeholder/eotbBody.js';   // EOTB5: the sprite body, for a player with no Morrowind data
+import { PlayerWeapon, WEAPON_REACH, setWeaponPoseProbe, weaponPoseOf, USING_RIGHT_HAND_TEXT, handDesc } from '../playerWeapon.js';   // The rig's drawn state and weapon type, for laws that ask off-rig
+import { eotbBody } from '../../player/eyeOfTheBeholder/eotbBody.js';   // The sprite body, for a player with no Morrowind data
 import { eotbCamera } from '../../player/eyeOfTheBeholder/eotbCamera.js';
-import { racialFpsWeapon } from '../../systems/lycanthropy.js';   // V4: the transformed rig's claws
+import { racialFpsWeapon } from '../../systems/lycanthropy.js';   // The transformed rig's claws
 import { EQUIP_SLOTS, equipTableOf, fillEquipTable } from '../../systems/equip.js';   // AUDIT 17e F17; MW-D32 the worn read; MW-EARLY: a save's worn set
 import { noteModelLookPlayer } from '../../systems/modelLooks.js';   // MODEL-LOOKS
-import { drawnEquipTable } from '../../systems/capeShown.js';   // CAPE-TOGGLE: the worn read as the body is drawn
-import { swapPace } from './swapPace.js';   // SWAP-PACE: the swap pause's drain, halved outside the open PvP zone
-import { setItemFields } from '../../systems/item/itemTemplates.js';   // MW-EARLY: a save's items as the restore reads them
+import { drawnEquipTable } from '../../systems/capeShown.js';   // The worn read as the body is drawn
+import { swapPace } from './swapPace.js';   // The swap pause's drain, halved outside the open PvP zone
+import { setItemFields } from '../../systems/item/itemTemplates.js';   // A save's items as the restore reads them
 import { dfWornEquipment } from '../../formats/morrowind/mwItemMap.js';   // MW-D32
-import { ownWerewolfSkin } from '../../systems/ownGlyphs.js';   // SHADOW-FANG: the skin my own werewolf wears
+import { ownWerewolfSkin } from '../../systems/ownGlyphs.js';   // The skin my own werewolf wears
 import { ARMOR_ENUM } from '../enemyEquipment.js';   // MW-D32
 import { loadFpsWeaponArt, drawFpsWeapon, fpsWeaponQuad, weaponTypeForItem, WEAPON_TYPES, fpLightingOn, WEAPON_FILE, plainWeaponType, isGunType, isPistoletType } from '../fpsWeapon.js';
-import { isHandWraps } from '../../characters/handWrapsIds.js';   // HAND-WRAPS: the fists' weapon
-import { spriteGlow, meshGlow, fistGlow } from '../../systems/weaponGlow.js';   // WEAPON-GLOW1: the held weapon's element, as each hand shows it
+import { isHandWraps } from '../../characters/handWrapsIds.js';   // The fists' weapon
+import { spriteGlow, meshGlow, fistGlow } from '../../systems/weaponGlow.js';   // The held weapon's element, as each hand shows it
 import { loadThunderlockArt } from '../thunderlockArt.js';
 import { THUNDERLOCK_NUM_FRAMES } from '../../characters/weaponStates.js';   // THUNDERLOCK-ART2's audit: the cycle's length, never a literal six
 import { loadPistoletArt } from '../gun/pistoletArt.js';   // PISTOLET: the second gun's strip
-import { createPistolLane } from '../gun/pistolLane.js';   // PISTOL-PORT: one Pistolet or a pair on the pistol lab's own frame, the module the rig wires (HOST-SPLIT)
-import { createRecoil, GUN_FEEL, PISTOLET_FEEL, gunPitch, muzzleGlow, MUZZLE_CURVE, THUNDERLOCK_MUZZLE_CURVE, GUN_TICK_SECONDS, armGunPose, RELOAD_CLOSE_LEAD } from '../gun/gunFeel.js';   // AUDIT FIELD-GUN-MW F1: the flash's own clock under the arm; MW-GUN-FEEL: the arm's kick and reload
+import { createPistolLane } from '../gun/pistolLane.js';   // One Pistolet or a pair on the pistol lab's own frame, the module the rig wires (HOST-SPLIT)
+import { createRecoil, GUN_FEEL, PISTOLET_FEEL, gunPitch, muzzleGlow, MUZZLE_CURVE, THUNDERLOCK_MUZZLE_CURVE, GUN_TICK_SECONDS, armGunPose, RELOAD_CLOSE_LEAD } from '../gun/gunFeel.js';   // The flash's own clock under the arm; MW-GUN-FEEL: the arm's kick and reload
 import { createGunRig, gunRigStep, gunWidgetSettings, gunMotion, gunFrameRect } from '../gun/gunViewmodel.js';   // FIELD-GUN12: the PROTOTYPE's frame, run rather than resembled
 import { readWidgetSettings } from './weaponWidgetMotion.js';   // FIELD-GUN8: the mod's own reader, so the Thunderlock's Inertia rides its multipliers   // FIELD-GUN6: the lab's own feel, in the game at last
 import { betterAmbience } from '../../systems/betterAmbience.js';   // FIELD-GUN6: the ONE camera shaker in the port, already wired through all four hosts

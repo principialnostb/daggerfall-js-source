@@ -1,5 +1,5 @@
 // @ts-check
-// BODY-MOTION (2026-10-18; bible/04-Characters/Body-Motion.md) - THE CARRY. How the arms hold what is in them while the
+// THE CARRY. How the arms hold what is in them while the
 // body stands, walks, runs and creeps - one row per weapon class, per gait, per arm - in place of Morrowind's single
 // pose per weapon group, whose arms the walk only bobbed.
 //
@@ -68,7 +68,7 @@ export function carryClassOf({ mwType = MW_WEAPON_TYPE.None, shown = false, hand
 
 /** Does the class hold its weapon in BOTH hands (the left on the haft)? Where on the haft (arm lengths along the blade
  *  from the right hand's grip: - toward the pommel, + toward the point) the left hand closes. */
-export const TWO_HAND_GRIP = Object.freeze({ two: -0.4, wide: 0.5, spear: 0.55 }); // AUDIT BODY-MOTION CARRY-1: the two-hander's left a fifth of an arm down sat inside the right forearm
+export const TWO_HAND_GRIP = Object.freeze({ two: -0.4, wide: 0.5, spear: 0.55 }); // The two-hander's left a fifth of an arm down sat inside the right forearm
 /** How far along the haft (arm lengths from the right hand's grip, as TWO_HAND_GRIP) the left hand may slide to where
  *  its arm reaches: a two-hander's hilt, a staff's and a spear's shaft (AUDIT BODY-MOTION MELEE-9: held at its one
  *  point, a staff's and a spear's left hand fell 0.2 to 0.54 arm lengths short of the haft through a blow). */
@@ -77,16 +77,16 @@ export const TWO_HAND_HAFT = Object.freeze({
   wide: Object.freeze([0.15, 1.1]),
   spear: Object.freeze([0.2, 1.0]),
 });
-/** GRIP-ANATOMY (2026-10-29, the owner's video: "the hand sinks into the body"): where a two-hander's left hand closes in
+/** Where a two-hander's left hand closes in
  *  the CARRY - against the right fist, as a sword's hilt is held (a fifth of an arm, some 11 cm, a hand's width). Two
  *  fifths down, toward the pommel - and the pommel stands back toward the body in every carry row - the left hand stood
  *  at the right hip 4 cm in front of the chest's middle, its arm straight across the cuirass. A blow keeps TWO_HAND_GRIP. */
 export const TWO_HAND_CLOSE = Object.freeze({ two: -0.2 });
-/** GRIP-ANATOMY (the owner, 2026-10-29: the fists sat together high on the hilt): in the still gaits the left fist closes
+/** In the still gaits the left fist closes
  *  at the pommel end - 0.35 of an arm (some 17 cm) below the right at the guard, of the claymore's 31 cm from the right
  *  fist to the pommel's end; the run keeps TWO_HAND_CLOSE. */
 export const TWO_HAND_STILL = Object.freeze({ two: -0.35 });
-/** GRIP-ANATOMY: how far (degrees, about the blade) a two-hander's left fist turns round the hilt off the right's mirror in
+/** How far (degrees, about the blade) a two-hander's left fist turns round the hilt off the right's mirror in
  *  the still gaits - its knuckles toward the left, so the forearm comes to it from outside the body. */
 export const LEFT_FIST_ROLL = Object.freeze({ idle: -70, walk: -70, run: -70 });
 
@@ -116,10 +116,9 @@ export const CARRY = Object.freeze({
   one: Object.freeze({
     // FREE-HAND-REST's left (the owner, 2026-11-06: lowered "it hangs as a stick" - "a small bend at the elbow"): down by
     // the side, the elbow eased 25 degrees, the hand a little before the thigh
-    // ONE-OFF-THIGH (2026-11-07, the owner: "the hand by the thigh with the one-hander - a little farther from the thigh"):
+    // 
     // the sword arm held 5 degrees farther out, standing and walking; the rest of the hold as it was
-    // ONE-ARM-HELD (2026-11-07, the owner's 20-07-38 recording: "the arm is not an arm but a dangling limb"; "a small natural
-    // bend at the elbow, the upper arm a little back"): the elbow eased from 3-8 degrees to 20-22, the upper arm 3-4 behind
+    // The elbow eased from 3-8 degrees to 20-22, the upper arm 3-4 behind
     // the body's line rather than 5 before it, and walking the stride's pendulum halved (0.3 to 0.15)
     idle: {
       R: row(-4, 26, 22, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }),
@@ -129,13 +128,12 @@ export const CARRY = Object.freeze({
       R: row(-3, 27, 20, -1, 0.15, { blade: dir(0.23, 0.81, -0.53), edge: dir(-0.39, -0.42, -0.82) }),
       L: row(2, 8, 12, 6, 1, { gaitElbow: 1 }),
     },
-    // ONE-RUN (feature-feedback via Mac, 2026-10-26: "Running and sprinting with one-handed weapon looks off, because hand
-    // is in twisted position pointing weapon to the side unnaturally"): the stand's own format at a run - the arm low and
+    // The stand's own format at a run - the arm low and
     // out, nearly straight, swinging with the stride, the blade forward and a little down. The blade had trailed behind,
     // down and out to the right, the forearm turned 64 to 74 degrees off its elbow's hinge to hold it there; a bent elbow
     // with the blade still forward and down asked the wrist for 40 to 95 degrees of ulnar deviation. And no `via`: the
     // trailing blade's way round, back and up, swung the new one 11 degrees a frame between a stand and a run.
-    // ONE-ARM-HELD (the owner: running, "the shoulder of the sword arm lengthens instead of keeping its shape"): the run's
+    // The run's
     // straight arm swung 0.35 of the stride drew the shoulder's skin long at the back of its swing - the elbow now bent 30,
     // the upper arm a little back, the pendulum 0.15; the blade's ways as ONE-RUN set them
     run: {
@@ -149,16 +147,7 @@ export const CARRY = Object.freeze({
     stand: { feet: { L: [0, 0.05], R: [0.02, -0.03] }, hipYaw: -6 },
   }),
   two: Object.freeze({
-    // the guard as it stood before the 2026-10-28 reshaping (the owner, 2026-10-29: back to it), its blade and edge kept;
-    // GRIP-ANATOMY (the owner's video, 2026-10-29: the left hand sinks into the body): the hilt 6 cm nearer the middle,
-    // 6 ahead and 4 down (row [29, 7, 10, 42] held it at the right hip, the left arm straight across the cuirass); the
-    // walk's 3 nearer the middle (from [40, -5, 7, 56]); the run's 6 cm off the belt (from [-15, 19, 70, 30]). Then (the
-    // owner's drawing: the point raised, the elbows bent) the guard's and the walk's point raised 20 degrees about the
-    // blade's level line, the hilt 8 cm up to the belt; then (the fists apart, TWO_HAND_STILL) the hilt 8 cm further out,
-    // 4 walking, so the left fist stands a fist ahead of the cuirass at the middle, as a middle guard's (with the point low
-    // a bent right elbow cocked the wrist past its range - 17 degrees of bend, 60 ulnar; the audit's limit 40)
-    // the walk's hilt 8 cm to the right, to the body's middle (the owner's video, 2026-10-29: walking, the right forearm lay
-    // across the chest to a hilt left of the middle)
+    // Keep the idle guard's blade direction and edge alignment.
     idle: {
       R: row(45, 3.5, 21, 70, 0, { blade: dir(-0.32, 0.95, -0.01), edge: dir(-0.19, -0.07, -0.98) }),
       L: row(0, 0, 0, 0, 0, { grip: true }),
@@ -176,15 +165,15 @@ export const CARRY = Object.freeze({
     sneak: {
       R: row(51, 2, 7, 22, 0.1, { blade: dir(-0.34, 0.94, 0.09), edge: dir(-0.1, 0.06, -0.99) }),
       L: row(0, 0, 0, 0, 0, { grip: true }),
-    }, // AUDIT BODY-MOTION CARRY-3: the guard raised to level - the chest's lean tipped the low guard's blade into the ground and the right thigh
+    }, // The guard raised to level - the chest's lean tipped the low guard's blade into the ground and the right thigh
     stand: { feet: { L: [-0.02, 0.15], R: [0.04, -0.09] }, hipYaw: -16, lean: 3 },
-    // RUN-STOP (the owner's video, 2026-10-29: the turn after a run "bends wrong"): round the right side and back - over the
+    // Round the right side and back - over the
     // head, up and back, bent the wrists 17 to 19 degrees past their held pose (the right to 122, the left to 88); round the
     // side, under 1
     via: dir(0.7, -0.3, 0.65),
     runTurn: -32,
     runLean: 10,
-    // GRIP-ANATOMY: the trunk under the weapon, [yaw (+ the left), pitch (+ forward)] degrees, the weapon held where the
+    // The trunk under the weapon, [yaw (+ the left), pitch (+ forward)] degrees, the weapon held where the
     // row puts it - turned toward the hilt at the right so the left shoulder comes forward to it, and leant over it: the
     // guard's left elbow bends 5 to 40 degrees, the walk's 12 to 44, the run's stands off the breastbone
     // the third, `square`: the share of the clip's own chest turn taken out first (the owner's second video, 2026-10-29:
@@ -271,12 +260,12 @@ export const CARRY = Object.freeze({
   }),
 });
 
-/** HELD-STEADY: the share of the stride's counter-turn and counter-drop an arm's row rides - an empty arm's swing share,
+/** The share of the stride's counter-turn and counter-drop an arm's row rides - an empty arm's swing share,
  *  none for a hand that holds a blade (carryHands' head). */
 export const rideOf = (r) => (r.blade ? 0 : clamp01(r.swing));
 
 /**
- * HELD-STEADY: the share of the stride's counter-turn and counter-drop the CHEST takes under a class's carry at the
+ * The share of the stride's counter-turn and counter-drop the CHEST takes under a class's carry at the
  * gait's `shares` - all of it, but as far as the left hand closes on the right's haft (`armWL` how far the layer has
  * that arm): a weapon in both hands binds the shoulders to it, and its blade is held still. With the right held steady
  * while the left's shoulder rode the chest, the two-hander's left hand fell 3.2 units off its hilt at a run and a
@@ -286,7 +275,7 @@ export function strideRide(cls, shares, armWL = 1) {
   return 1 - clamp01(blendRow(cls, 'L', shares).grip) * clamp01(armWL);
 }
 
-/** GRIP-ANATOMY: the turn a class lays on the trunk under its weapon at the gait's `shares` - { yaw, pitch } radians
+/** The turn a class lays on the trunk under its weapon at the gait's `shares` - { yaw, pitch } radians
  *  (bodySolve.js leanUnder), none for a class without a `trunk`. Pure. */
 export function trunkOf(cls, shares) {
   const t = CARRY[cls]?.trunk;
@@ -529,7 +518,7 @@ export function hafHand(rightReq, rightGrip, Rblade, along, arm, slide = null) {
   return { ...req, at: add(req.at, scale(b, a * arm)), along: a };
 }
 
-/** TWO-CLEAR: how far along `fwd` the haft hand's wrist `at` must move to stand `clear` off the trunk's line (`a` the
+/** How far along `fwd` the haft hand's wrist `at` must move to stand `clear` off the trunk's line (`a` the
  *  pelvis, `c` the neck) - 0 where it already does. */
 export function trunkPush(at, a, c, fwd, clear) {
   const ab = sub(c, a),
