@@ -31,8 +31,8 @@
   {
     "name": "GRASS2-the-shader-is-told-the-PREFIX-count-so-it-thins-over-the-wrong-denominator",
     "file": "src/render/labGrass.js",
-    "old": "      gl.uniform1f(this.u.uSlotN, m);   // the fraction is over the CELL (or its half), not over the prefix",
-    "new": "      gl.uniform1f(this.u.uSlotN, budget);   // the fraction is over the CELL (or its half), not over the prefix",
+    "old": "this._slotUniforms(slot, m);",
+    "new": "this._slotUniforms(slot, budget);",
     "tests": [
       "test/render/perf2.test.js"
     ],

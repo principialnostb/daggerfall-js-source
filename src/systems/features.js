@@ -41,7 +41,7 @@ import { ALL_KEYS } from './settings/settings.js';
 import { MOD_SETTINGS } from './modSettings.js';
 import { declareOnlinePrefs } from './online/onlineLane.js';   // The lane learns its answers from the rows
 import { t, localizedText } from './textManager.js';
-import {WORLD_PIXEL_DEFAULTS,WORLD_PIXEL_KEYS} from './worldPixelConfig.js';
+import {LANDSCAPE_PIXEL_TIERS,WORLD_PIXEL_DEFAULTS,WORLD_PIXEL_KEYS} from './worldPixelConfig.js';
 import { CHAR_PIXEL_INITIAL, CHAR_PIXEL_TIERS } from './charPixel.js';   // CHAR-PIX1   // L10N4: the screen's words in the player's language, read as they are read
 
 /** The three kinds, in label order. `label` is what the row wears and
@@ -351,13 +351,14 @@ export const modDials = (vendor) =>
  *  lane a condensed row takes its tiers/default/read/write from. */
 export const FEATURES = Object.freeze([
   ...[['objects','world-pixel-objects','Pixelated objects and decor','Separate 3D props, including the entire campfire (stones, wood and flame) and classic furniture.'],
+    ['landscape','world-pixel-landscape','Landscape pixelation','Grass and meadow shrubs use Light. Ponds and shoreline details use Medium.'],
   ].map(([kind,id,title,note])=>Object.freeze({
     id,group:'world',
     get title(){return t(`features.${WORLD_PIXEL_KEYS[kind]}.title`,title);},
     get note(){return t(`features.${WORLD_PIXEL_KEYS[kind]}.note`,note);},
     get effect(){return t('features.effect.atOnce','Takes effect at once.');},
     kinds:Object.freeze(['enhanced']),
-    control:Object.freeze({store:'prefs',key:WORLD_PIXEL_KEYS[kind],initial:WORLD_PIXEL_DEFAULTS[kind],online:'player',tiers:CHAR_PIXEL_TIERS}),
+    control:Object.freeze({store:'prefs',key:WORLD_PIXEL_KEYS[kind],initial:WORLD_PIXEL_DEFAULTS[kind],online:'player',tiers:kind==='landscape'?LANDSCAPE_PIXEL_TIERS:CHAR_PIXEL_TIERS}),
   })),
   // FT1 (2026-09-14): SMALLER DUNGEONS - DFU's Experimental/SmallerDungeons,
   // ported 1:1 at AUDIT 28 W4 (world/smallerDungeons.js). Mac's first

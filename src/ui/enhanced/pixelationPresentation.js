@@ -14,6 +14,10 @@ const COPY = {
     ['NPC и животные', 'NPCs and animals'],
     ['Настраивает пикселизацию NPC, врагов и животных, включая лошадей.', 'Adjusts pixelation of NPCs, enemies and animals, including horses.'],
   ],
+  'world-pixel-landscape': [
+    ['Пикселизация ландшафта', 'Landscape pixelation'],
+    ['Трава и луговые кусты используют Light. Пруды и детали берега используют Medium.', 'Grass and meadow shrubs use Light. Ponds and shoreline details use Medium.'],
+  ],
   'world-pixel-objects': [
     ['Предметы и декор', 'Objects and decor'],
     ['Настраивает пикселизацию поддерживаемых предметов и декора в игровом мире. Не зависит от связки тел и рук.', 'Adjusts pixelation of supported world objects and decor. Independent of the bodies and hands group.'],

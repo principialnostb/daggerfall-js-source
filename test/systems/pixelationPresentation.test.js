@@ -6,7 +6,8 @@ import { CATEGORIES } from '../../src/ui/settings/settingsMap.js';
 
 test('every visible Pixelation control has complete RU/EN copy', () => {
  const ids = CATEGORIES.find(tab => tab.id === 'pixelation').sections.flatMap(section => section.items).map(id => id.slice(5));
- assert.equal(ids.length, 4);
+ assert.equal(ids.length, 5);
+ assert.ok(ids.includes('world-pixel-landscape'));
  try {
   for (const id of ids) {
    setEmcLanguage('ru'); const ru = pixelationCopy(id);

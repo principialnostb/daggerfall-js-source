@@ -206,7 +206,7 @@ test('GRASS-LIT2: the vertex stage still fits the vectors WebGL2 promises every 
     for (const v of names.split(',')) vectors += Number(v.match(/\[(\d+)\]/)?.[1] ?? 1) * (type === 'mat4' ? 4 : 1);
   }
   assert.ok(vectors <= 256, `${vectors} vectors at most`);
-  assert.equal(vectors, 222, 'the count the docs quote');   // FLICKER-FIX: 212 with eight casters - uPointShadowParams and uShadowIndex are twelve now (+8); MEADOW1: 221, the meadow's switch (+1); OW-HORIZON: 222, the cloud block's far law (+1 - never told here, so the grass reads (0, 0): the map to its edge, as before)
+  assert.equal(vectors, 223, 'the grass uniforms including the village meadow bounds');   // FLICKER-FIX: 212 with eight casters - uPointShadowParams and uShadowIndex are twelve now (+8); MEADOW1: 221, the meadow's switch (+1); OW-HORIZON: 222, the cloud block's far law (+1 - never told here, so the grass reads (0, 0): the map to its edge, as before)
   // the two const face tables are 12 more if a driver keeps a dynamically indexed const array in uniform storage
   assert.ok(vectors + 12 <= 256);
   assert.ok(GAME_GRASS_VS.includes(`uniform vec4 uPointLights[${GRASS_MAX_LIGHTS}];`) && GAME_GRASS_VS.includes(`uniform vec3 uPointColors[${GRASS_MAX_LIGHTS}];`));
@@ -367,8 +367,8 @@ test('GRASS-LIT2: the host reads the slope off the near grid\'s normals it keeps
   // AUDIT GRASS-LIT2 B2: the means are the UPLOADED layers' - taken beside the upload, not asked of the door again
   // AUDIT PRECIP GROUND-2 (PIN MOVED): the set's OWN layers' means - never its twin's winter half
   assert.ok(gs.includes('if (labGrass) groundDrawnMeans.set(groundArchive, own.modLayers ? own.modLayers.map(tileMeanColour) : null);'));
-  assert.ok(gs.indexOf('const layers = winter == null ? own.layers : twinLayers(') < gs.indexOf('await stepsBreathing(renderer.uploadTileArraySteps(key, layers), breathe);')
-    && gs.indexOf('await stepsBreathing(renderer.uploadTileArraySteps(key, layers), breathe);') < gs.indexOf('if (labGrass) groundDrawnMeans.set('), 'PIN MOVED (OW-HITCH): uploaded a few layers a breath, then the means');
+  assert.ok(gs.indexOf('const layers = winter == null ? own.layers : twinLayers(') < gs.indexOf('await stepsBreathing(renderer.uploadTileArraySteps(key, layers, turf), breathe);')
+    && gs.indexOf('await stepsBreathing(renderer.uploadTileArraySteps(key, layers, turf), breathe);') < gs.indexOf('if (labGrass) groundDrawnMeans.set('), 'PIN MOVED (OW-HITCH): uploaded a few layers a breath, then the means');
   assert.ok(learn.includes('grassRecords.set(groundArchive, grassRecordsOf(layers));'), 'which records are grass stays the classic file\'s question');
   // a mod's big tile is read every k-th texel, k odd - a two-texel pattern (the blue here) is read on both its phases; a classic tile whole
   const big = { width: 1024, height: 1024, colors: new Uint8Array(1024 * 1024 * 4) };
@@ -701,7 +701,9 @@ test('AUDIT GRASS-LIT2 C10: the ground the lanterns are held to IS the terrain p
   const tfs = r.slice(at, r.indexOf('`;', at));
   assert.ok(tfs.includes('    float att = clamp(1.0 - d / uPointLights[i].w, 0.0, 1.0);\n    pointAcc += att * att * max(dot(n, L / max(d, 1e-4)), 0.0) * uPointColors[i];\n'), 'the classic lane: (1 - d/r)^2 on n.L');
   assert.ok(tfs.includes('lit += tex * pointAcc;'), 'on the albedo');
-  assert.ok(EL_TERRAIN_FS.includes('    if (d >= uPointLights[i].w) continue;') && EL_TERRAIN_FS.includes('    float att = sh * elAttenuation(d, uPointLights[i].w);\n    acc += att * (max(dot(n, Ln), 0.0) + spec) * uPointColors[i];\n'), 'the lane: elAttenuation on n.L (the spec set aside, as groundLanterns says)');
+  assert.ok(EL_TERRAIN_FS.includes('    if (d >= uPointLights[i].w) continue;') && EL_TERRAIN_FS.includes('float facing = dot(n, Ln);')
+    && EL_TERRAIN_FS.includes('return elPointLitWet(wp, n, wet, glint, 0.0);')
+    && EL_TERRAIN_FS.includes('    float att = sh * elAttenuation(d, uPointLights[i].w);\n    acc += att * (mix(max(facing, 0.0), 0.24 + 0.76 * abs(facing), twoSided) + spec * (1.0 - twoSided)) * uPointColors[i];\n'), 'the lane: elAttenuation on n.L (the spec set aside, as groundLanterns says)');
   assert.ok(EL_TERRAIN_FS.includes('elPointLitWet(vWorldPos, n, wetG, wetGlint)'), 'and the lane\'s terrain reads it');   // the wet variant - its diffuse is elPointLit's, the wet's glint is added beside it
 });
 

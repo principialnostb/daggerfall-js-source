@@ -40,13 +40,13 @@ export const seasonPictureKey = (record, installedSeason) => `${record}#season${
  * `lookup(archive, record)`, `installedSeason`), else null; `renderer` (uploadTexture) and `uploadRecord(a, r)` the
  * pipeline's. Answers `{ key, size, plain, sib, proto, far }` - `sib` the season's lookup (or null), `proto` and `far` Low
  * Poly Trees' prototype and far picture (or null; the far picture is not yet held).
- * @param {{ door?: any, seasons?: any, renderer: any, uploadRecord: (archive: number, record: number) => any }} deps
+ * @param {{ village?: boolean, door?: any, seasons?: any, renderer: any, uploadRecord: (archive: number, record: number) => any }} deps
  * @param {any} t @param {number} archive @param {number} record
  */
-export async function naturePicture({ door = null, seasons = null, renderer, uploadRecord }, t, archive, record) {
+export async function naturePicture({ village = false, door = null, seasons = null, renderer, uploadRecord }, t, archive, record) {
   const sib = seasons?.lookup?.(archive, record) ?? null;
   const plain = sib ? sib.size : billboardSize(t, record);
-  const proto = door && LPT_ARCHIVES.includes(archive) && (await door.load()) ? door.proto(archive, record) : null;
+  const proto = door && LPT_ARCHIVES.includes(archive) && (await door.load()) ? door.proto(archive, record, village) : null;
   const far = proto ? await door.farPicture(proto) : null;
   if (far) return { key: far.record, size: far.size, plain, sib, proto, far };
   if (sib) {

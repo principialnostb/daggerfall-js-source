@@ -38,8 +38,8 @@
   {
     "name": "DISC20-A-the-host-hands-no-fog",
     "file": "src/scenes/world.js",
-    "old": "{ fog: { mode: renderer._fogMode, density:",
-    "new": "{ fog: null, _f: { mode: renderer._fogMode, density:",
+    "old": "villageOrigin, fog: { mode: renderer._fogMode,",
+    "new": "villageOrigin, fog: null, unusedFog: { mode: renderer._fogMode,",
     "tests": [
       "test/systems/disc20.test.js"
     ]

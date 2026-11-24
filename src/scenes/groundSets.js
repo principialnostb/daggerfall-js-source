@@ -21,11 +21,13 @@
 // What it makes is what it made; TESA-LANDS' `lands:<zone>:<archive>` key dresses it (bible/03-World/Tamriel-Lands.md).
 // ═══════════════════════════════════════════════════════════════════
 import { dfmodGroundLayers } from '../systems/dfmodTextures.js';   // GROUND1: an attached mod's terrain tile set
-import { grassRecordsOf, floorRecordsOf, tileMeanColour } from '../render/labGrass.js';
+import { hasGrassBase, grassRecordsOf, floorRecordsOf, tileMeanColour } from '../render/labGrass.js';
 import { markPuddleWaterSteps, carryPuddleMaskSteps, stepsBreathing } from '../world/puddleMask.js';   // WATER-PUDDLE: the puddle is the art's
 import { twinKey, twinLayers } from './snowCoverHost.js';   // PRECIP4
 import { setExposure, CLASS_RECORDS } from '../world/tamriel/groundDress.js';   // TESA-LANDS: a zone's dress of the set
 import { dressClient } from '../world/tamriel/groundDressClient.js';   // TESA-LANDS (AUDIT): dressed on its own worker
+import { tamrielLandsOn } from '../systems/landsSwitch.js';
+import { reliefLayer, helbernar } from '../world/tamriel/helbernar.js';
 import { LANDS, parseGroundSetKey } from '../world/tamriel/tamrielLands.js';
 
 /** TESA-LANDS (AUDIT): each dressed set's records' mean colours, by key - the module's, so they outlive the scene as the
@@ -44,8 +46,9 @@ const DRESSED_MEANS = new Map();
 export function createGroundSets({ renderer, getTexture: archiveTexture, labGrass, breathe, grassRecords, floorRecords, groundPuddles, groundMeanColour, groundDrawnMeans, dresser = dressClient }) {
   /** TESA-LANDS: a set key's archive (a zone's dress's own, or the key itself), its zone's land and dress (null for an
    *  archive's own), its texture file (the archive's) and its classic records */
+  const landscape = tamrielLandsOn();
   const fileOf = (key) => parseGroundSetKey(key)?.archive ?? key;
-  const landOf = (key) => { const k = parseGroundSetKey(key); return k ? /** @type {any} */ (LANDS)[k.zone] ?? null : null; };
+  const landOf = (key) => { const k = parseGroundSetKey(key); return k?.zone === 'helbernar' ? helbernar : k ? /** @type {any} */ (LANDS)[k.zone] ?? null : null; };
   const dressOf = (key) => landOf(key)?.ground ?? null;
   const getTexture = (key) => archiveTexture(fileOf(key));
   const classicOf = (tex) => { const l = []; for (const r of CLASS_RECORDS) if (r < tex.recordCount) l[r] = tex.getColor32(tex.getDFBitmap(r, 0), 0); return l; };   // the exposure's records alone
@@ -68,14 +71,18 @@ export function createGroundSets({ renderer, getTexture: archiveTexture, labGras
     // TESA-LANDS: a zone's dress over the layers as they are drawn, at the pack's exposure against the classic records, on
     // the dress's worker (else a band of a record a breath) - and the set drawn is the dress (its grass's colours are its
     // own, below and DRESSED_MEANS)
-    const dress = dressOf(groundArchive);
+    const regionalDress = dressOf(groundArchive);
+    const groundDetail = landscape && fileOf(groundArchive) % 100 === 2;
+    const turf = groundDetail && landOf(groundArchive)?.blades !== false && hasGrassBase(own.layers);
+    const dress = groundDetail && regionalDress ? { ...regionalDress, surfaceDetail: true } : regionalDress;
     if (dress) {
       own.layers = await dresser().dress(own.layers, dress, own.modLayers ? setExposure(own.modLayers, classicOf(groundTex)) : 1, breathe);
       own.modLayers = own.layers;
       DRESSED_MEANS.set(groundArchive, own.layers.map(tileMeanColour));
     }
+    if (groundDetail && !dress) own.layers = own.layers.map((layer, record) => reliefLayer(layer, record));
     const layers = winter == null ? own.layers : twinLayers(own.layers, (await groundLayersOf(winter, await getTexture(winter))).layers);
-    await stepsBreathing(renderer.uploadTileArraySteps(key, layers), breathe);   // OW-HITCH: a few layers a breath
+    await stepsBreathing(renderer.uploadTileArraySteps(key, layers, turf), breathe);   // OW-HITCH: a few layers a breath
     // AUDIT GRASS-LIT2 B2: the grass's colours off THESE layers - the ones drawn - and not a second ask of the mod
     // door, whose cache a mod indexed mid-session empties (another decode, maybe another mod's tiles than these)
     if (dress) groundDrawnMeans.set(groundArchive, DRESSED_MEANS.get(groundArchive));   // TESA-LANDS: a dress's colours are its own whatever the grass - and no mod door is asked of a key that names none (the second audit: the means taken once, above, never again off the same layers)

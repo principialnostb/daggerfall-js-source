@@ -511,9 +511,9 @@ test('PERF-EXT13: the list draws what the pixels drew one by one - draw for draw
   }
 });
 
-test('the pond follows the Objects tier live in both rendering lanes', async () => {
+test('the pond follows the Landscape tier live in both rendering lanes', async () => {
   const { getPref, setPref } = await import('../../src/systems/uiPrefs.js');
-  const key = 'worldPixelObjects', saved = getPref(key);
+  const key = 'worldPixelLandscape', saved = getPref(key);
   try {
     for (const lane of [false, true]) {
       const { H, r, rows, wu } = waterScene(lane);
@@ -526,7 +526,7 @@ test('the pond follows the Objects tier live in both rendering lanes', async () 
       rows[0][0] = r.createWaterSheet(new Uint32Array([0, 1, 2]), {
         positions: new Float32Array([0, 0, 0, 0, 0, 1, 1, 0, 0]), depths: new Float32Array(3), pond: true,
       });
-      for (const [tier, expected] of [[270, 4], [540, 2], [0, 1]]) {
+      for (const [tier, expected] of [[270, 3], [0, 1], [540, 3]]) {
         setPref(key, tier);
         H.reset();
         draw(); draw();

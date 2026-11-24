@@ -49,8 +49,8 @@
   {
     "name": "GRASS-PATH1-a-blade-stands-on-a-painted-tile-again",
     "file": "src/scenes/world.js",
-    "old": "        if (p.paths?.[ti]) return null;",
-    "new": "",
+    "old": "(!village && p.paths?.[ti]) || p.waterSourceGrass",
+    "new": "p.waterSourceGrass",
     "tests": [
       "test/world/terrain/grasspath.test.js"
     ]
@@ -58,7 +58,7 @@
   {
     "name": "GRASS-WET1-a-blade-stands-in-the-water-again",
     "file": "src/scenes/world.js",
-    "old": "        if (waterCorners(byte, WATER_DRAW_MASK_TABLE)) {\n          const puddle = PUDDLE_RECORDS.includes(rec) ? groundPuddles.get(ga)?.[rec] : null;\n          if (!puddle || puddleWetAt(puddle, byte, lx / 6.4 - tx, lz / 6.4 - tz)) return null;\n        }",
+    "old": "        if (!(village && villageGrassBank(rec)) && waterCorners(byte, WATER_DRAW_MASK_TABLE)) {\n          const puddle = PUDDLE_RECORDS.includes(rec) ? groundPuddles.get(ga)?.[rec] : null;\n          if (!puddle || puddleWetAt(puddle, byte, lx / 6.4 - tx, lz / 6.4 - tz)) return null;\n        }",
     "new": "",
     "tests": [
       "test/world/terrain/grasspath.test.js"
@@ -67,8 +67,8 @@
   {
     "name": "GRASS-WET1-the-grass-asks-the-FEET-question-instead-of-the-eyes",
     "file": "src/scenes/world.js",
-    "old": "        if (waterCorners(byte, WATER_DRAW_MASK_TABLE)) {",
-    "new": "        if (waterCorners(byte)) {",
+    "old": "&& waterCorners(byte, WATER_DRAW_MASK_TABLE)) {",
+    "new": "&& waterCorners(byte)) {",
     "tests": [
       "test/world/terrain/grasspath.test.js"
     ]

@@ -39,6 +39,18 @@ Laws for any change to this lane's shaders or GL:
 7. The grass shaders are the prototype's (`grass-proto.html`) verbatim, sliced out and compared at test time; the game
    adds only where a blade may stand (grass tiles, not roads or water, not in winter) (Mac).
 
+### Meadow undergrowth and turf
+
+With Tamriel Lands enabled, on eligible grass surfaces throughout the world, meadow grasses grow as instanced solid meshes. Each blade has two triangular cross-sections, a central ridge and an opaque surface. Lanterns and the player’s torch shade each blade primarily by its outward bend, with a smaller contribution from the ridge faces. The nearest tuft has twelve blades. Six and three of those same blades form its middle and distant silhouettes. The short cover spreads low and the flowering tufts carry small polygonal heads. `src/render/villageGrass.js` builds the mesh and `src/render/labGrass.js` places it. DFU's `TerrainNature.LayoutNature` selects nature replacements and distant flats. The solid grass at all three distances is a local art direction for this prototype.
+
+The regional meadow uses the three plants authored in `src/assets/grass/helbenar/Helbenar Shrubs.blend`. The meadow form spreads along low canes, the roadside form branches densely and the wall form climbs on upright leaders. Each shoot carries opaque leaves with a raised midrib and a separate underside. The Blender exporter in `tools/blender/helbenar_shrubs.py` writes three geometry levels per form and their shared botanical texture. The field batches shrub roots by form per visible cell and uses the Landscape pixelation pass. Mapped shrub record 504:1 and its winter archive 505 use these meshes throughout its native range. Their recorded roots are grouped in small cells to keep the classic distant picture beyond 60 metres. The Light grid controls both leaf colour and silhouette. A block covered at least halfway by foliage draws opaque at its nearest covered depth.
+
+The meadow fills gaps between tufts with creeping clover, short swards, broadleaf rosettes and occasional pink flowers from the approved Blender study. The local patch pattern leaves openings between colonies. Cover uses eligible grass roots, checks clearance at its edges, and shares the grass pass, lighting, slope and Light pixel scale. Each form has two authored shapes and three geometry levels. The smallest plants retire individually over 16 to 32 metres.
+
+The final lighting pass compares the visible depth with the depth saved before the grass draw. A nearer leaf keeps its colour across a foundation shadow. Grass and shrubs allow clearance around placed foundations and fence rails, including the town fabric’s yard edges. This local art departs from DFU's climate nature flats (StreamingWorld.UpdateTerrainNature).
+
+The opaque blades and flower heads carry indexed pixel patterns in their local UVs. The Landscape pixelation setting groups the grass field, including meadow cards, smooth blades, pixel tufts and jungle ground cover, into screen blocks using the world's colour and depth compositor. Each block takes the mean grass colour and nearest grass depth if at least half of its samples contain grass. HD draws the original contours. Thin textured blades use the atlas mip chain across their projected width and height. Landscape pixelation applies Light to vegetation and Medium to pond surfaces and shoreline meshes. HD disables both. Existing profiles with any enabled landscape tier use this pairing.
+
 ## Code and tests
 
 - `src/world/outdoors.js` - the three-way tile: `OUTDOORS_TIERS`, `outdoorsRead`, `outdoorsWrite`

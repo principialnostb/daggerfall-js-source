@@ -1,4 +1,5 @@
 // @ts-check
+import { helbernar, isHelbernar } from './helbernar.js';
 // TESA-LANDS (bible/03-World/Tamriel-Lands.md): THE LANDS PAST THE BAY - the seven provinces' thirty-three zones (not
 // Cyrodiil's, Valenwood's or Blackwood's) each their own land, read off the lore: GROUND its dress (groundDress.js),
 // BLADES whether the enhanced grass grows, FLORA Daggerfall's own nature flats of any climate in its own share of woods
@@ -966,7 +967,7 @@ export function landsNine(px, py) {
     const x = px + (k % 3) - 1,
       y = py - (Math.floor(k / 3) - 1);
     const key = climateNeighbourIn(px, py, x, y) ? landKeyAt(x, y) : landKeyAt(px, py);
-    const land = key ? /** @type {any} */ (LANDS)[key] : null;
+    const land = k === 4 && isHelbernar(px, py) ? helbernar : key ? /** @type {any} */ (LANDS)[key] : null;
     out[k] = land ? Object.freeze({ key, flora: land.flora ?? null, props: land.props ?? [] }) : null;
   }
   return out;

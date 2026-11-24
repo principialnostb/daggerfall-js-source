@@ -9,6 +9,7 @@
 // 171) and would put a port-invented preference into a file whose
 // whole point is that it is DFU's. Separate shelf, separate key.
 const STORAGE_KEY = 'dagger.ui.v1';
+import {WORLD_PIXEL_DEFAULTS} from './worldPixelConfig.js';
 /** The shelf's own revision, so a shelf written before the fix
  *  can be told from one written after it. Bumping it does NOT re-run
  *  the adoption below - that reads the stamp's ABSENCE. */
@@ -313,6 +314,7 @@ export function loadPrefs() {
       const p = JSON.parse(raw);
       if (p && typeof p === 'object') {
         _prefs = { ...PREF_DEFAULTS, ...p, open: { ...(p.open ?? {}) } };
+        if (p.worldPixelLandscape == null && p.worldPixelObjects != null) _prefs.worldPixelLandscape = p.worldPixelObjects;
         // PREF1: A SHELF WRITTEN BEFORE THE FIX carries the defaults of
         // its own day as if they were answers, and nothing in it says
         // which were which - the information was destroyed at save
@@ -455,10 +457,13 @@ export function getPref(k) {
   const forced = onlineForcedPref(k); // OL1: online is the enhanced lane, whole - a forced switch reads forced and the shelf is not written
   if (forced !== undefined) return forced;
   if (_prefs === null) loadPrefs();
-  return _prefs[k] ?? PREF_DEFAULTS[k];
+  const value = _prefs[k] ?? PREF_DEFAULTS[k];
+  if (k === 'worldPixelLandscape') return Number(value ?? WORLD_PIXEL_DEFAULTS.landscape) === 0 ? 0 : WORLD_PIXEL_DEFAULTS.landscape;
+  return value;
 }
 export function setPref(k, v) {
   if (_prefs === null) loadPrefs();
+  if (k === 'worldPixelObjects') _prefs.worldPixelLandscape ??= _prefs.worldPixelObjects ?? WORLD_PIXEL_DEFAULTS.landscape;
   _prefs[k] = v;
   return savePrefs();
 } // SKIN-CARRY: the store's word comes back - a refused write is the caller's to carry another way

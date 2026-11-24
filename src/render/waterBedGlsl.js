@@ -10,6 +10,7 @@
 // and cooled to silt. A puddle record keeps its art (WATER-PUDDLE: its water is its picture's).
 // Both terrain programs take this text: renderer.js TERRAIN_FS and the lane's EL_TERRAIN_FS (enhancedLighting.js).
 // ═══════════════════════════════════════════════════════════════════
+import { mixedBankTest } from './mixedBankMaterial.js';
 import { bankFinishMix } from './pondBankMaterial.js';
 import { PUDDLE_RECORDS } from '../world/puddleMask.js';
 
@@ -25,6 +26,7 @@ export const WET_MUD_SHARE = 0.8;
 export const WATER_BED_GLSL = `
 in float vBankDepth;
 in float vBankFinish;
+uniform bool uVillageTurf;
 uniform float uWaterBed;       // WATER-NEXT 2: 1 where the enhanced water lies over this ground
 uniform uvec4 uBedMask[8];     // the draw's water corners, packed as the water's own uWaterMask
 // SHORE-SILT: tl/gx/gy the ground's own texel of this tile (its layer, turned) - a shore's art paints its water past
@@ -37,6 +39,8 @@ uniform uvec4 uBedMask[8];     // the draw's water corners, packed as the water'
 vec2 bedCover(uint data, vec2 f, vec2 p, vec3 tl, vec2 gx, vec2 gy, float snowC, bool blended) {
   if (uWaterBed < 0.5) return vec2(0.0);
   uint rec = data >> 2u;
+  int layer = int(rec);
+  if (uVillageTurf && (${mixedBankTest})) blended = true;
   if (${PUDDLE_RECORDS.map((r) => `rec == ${r}u`).join(' || ')}) return vec2(0.0);
   uvec4 v = uBedMask[data >> 5u];
   uint j = (data >> 3u) & 3u;

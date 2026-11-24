@@ -4,6 +4,14 @@ Low Poly Trees (SquidKamer's LowpolyTrees 5 for Daggerfall Unity) replaces the w
 low-poly 3D trees. We ship it on by default. Near the player each nature flat stands as the mod's 3D tree; farther out
 it stands as a picture of the same tree, so the woods look the same to the horizon and the draw distance is unchanged.
 
+## Regional woodland
+
+Tamriel Lands supplies two oaks and two spruces from the editable Blender tree library. Near trees use opaque bark and foliage geometry. The far pictures are drawn from those same meshes. All provinces resolve these forms by climate archive and tree record, including the Iliac Bay.
+
+The town tests the full spread of each crown against roof bounds, foundations and fence segments before it groups the trees for drawing. A blocked authored tree may move up to 12 metres onto clear ground. Open grassy plots can receive additional trees, up to two total per town block, with at least 17 metres between a new planting and its neighbours. Roads and pond beds stay clear. The local placement and the asset bindings are in `src/world/tamriel/villageTrees.js`.
+
+With Tamriel Lands and Low Poly Trees enabled, the remaining nature tree records use the editable collection in `src/assets/trees/helbenar/Helbenar Woodland.blend`. Open pines, spreading broadleaf trees, palms, snags and broken trunks follow their original climate and record. Some winter records use the bare form of their summer branches. The collection shares one cutout atlas per season and the renderer builds its distant pictures from the same meshes. The generator and record bindings are in `tools/blender/helbenar_woodland.py`.
+
 ## How it works
 
 - **The mod.** 253 prefabs named `ARCHIVE_RECORD`, one for each nature record of archives 500 to 511 (winter sets

@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   LPT_ORIENTATIONS, orientedSize, orientedSource, orientedStep, synthTop, tileCrop, fitRecord, fillCells, fillPicture, LPT_FILL_CELL,
@@ -72,7 +72,7 @@ test('LPT1 the vendored data: 253 prototypes over the twelve nature archives, 11
     const s = LPT.atlases[name];
     assert.deepEqual([s.blits.length, s.fills?.length ?? 0, s.blits[0].slice(0, 6)], [1, 0, [a, r, 0, 0, 0, 0]], name);
   }
-  const files = readdirSync(join(ROOT, 'vendor/low-poly-trees'), { recursive: true }).map(String).filter((f) => /\.\w+$/.test(f)).sort();
+  const files = readdirSync(join(ROOT, 'vendor/low-poly-trees'), { recursive: true }).map((f) => String(f).split(sep).join('/')).filter((f) => /\.\w+$/.test(f)).sort();
   assert.deepEqual(files, ['README.md', 'Trees/atlases.bin', 'Trees/trees.bin', 'Trees/trees.json', 'lowpolytrees.dfmod.json'].sort());
   // the geometry's length is what the index says - vertices, then every submesh's u16 indices (padded to four)
   const idx = JSON_.meshes.reduce((n, m) => n + m.subs.reduce((k, s) => k + s[1], 0), 0);
@@ -712,7 +712,7 @@ const fakeTexture = (archive, records = 40) => ({
   archive, recordCount: records, palette: { getRed: (i) => i, getGreen: (i) => i * 2 % 256, getBlue: () => 9 },
   getDFBitmap: (record) => ({ width: 32, height: 48, data: new Uint8Array(32 * 48).fill(1 + record) }),
 });
-function door({ seasonal = null, records = 40, onAtlas = null } = {}) {
+function door({ seasonal = null, records = 40, onAtlas = null, villageTrees = false } = {}) {
   const { gl, calls } = recordingGl();
   const uploads = [], released = [], frames = [], atlases = [], rows = [], freed = [];
   const clock = { t: 0 };
@@ -725,8 +725,8 @@ function door({ seasonal = null, records = 40, onAtlas = null } = {}) {
   };
   let breaths = 0;
   const lpt = createLowPolyTrees({
-    renderer, getTexture: async (a) => { gets++; return fakeTexture(a, records); }, seasonal,
-    fetchBytes: async (url) => bytes(`${V}/${url.split('/').pop()}`), breathe: async () => { breaths++; }, warn: () => {}, now: () => clock.t,
+    renderer, getTexture: async (a) => { gets++; return fakeTexture(a, records); }, seasonal, villageTrees,
+    fetchBytes: async (url) => url.includes('/assets/trees/helbenar/') ? new Uint8Array(readFileSync(new URL(url))) : bytes(`${V}/${url.split('/').pop()}`), breathe: async () => { breaths++; }, warn: () => {}, now: () => clock.t,
   });
   return { lpt, gl, calls, uploads, released, frames, atlases, rows, freed, clock, breaths: () => breaths, gets: () => gets };
 }
@@ -1008,4 +1008,14 @@ test('LPT1 the mod\'s row: Low Poly Trees, SquidKamer, on by default - a switch 
 
 test('LPT1 runSteps: a step generator\'s answer, whole', () => {
   assert.equal(runSteps((function* () { yield; yield; return 7; })()), 7);
+});
+
+test('Tamriel Lands selects additional tree forms by climate outside Helbenar and resolves the approved trees across climates', async () => {
+  const { lpt } = door({ villageTrees: true });
+  await lpt.load();
+  assert.equal(lpt.proto(501, 30)?.key, '501_30_helbenar');
+  assert.equal(lpt.proto(506, 11)?.key, '506_11_helbenar');
+  assert.notEqual(lpt.proto(506, 15)?.mesh, lpt.proto(507, 15)?.mesh);
+  assert.equal(lpt.proto(510, 12)?.key, '510_12_helbenar');
+  assert.equal(lpt.proto(510, 12, true)?.key, '510_12_helbenar');
 });

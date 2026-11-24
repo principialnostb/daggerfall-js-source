@@ -89,7 +89,7 @@ test('GR1: grass records come from the archive\u2019s own texels - none for road
   // border the neighbour's set the ground's border gives it there
   // PIN MOVED (BANTHA2): the keep is the jungle floor's too - its own records (grass and dirt) when asked for it, the meadow's
   // grass records otherwise, and no meadow blade where the floor claims the point
-  assert.match(w, /const g = ga === p\.groundArchive \? grass : grassRecords\.get\(ga\);\n\s*if \(rec === 0 \|\| !\(floor \? floorRecords\.get\(ga\) : g\)\?\.has\(rec\) \|\| \(!floor && jungleFloor\?\.claims\(x, z\)\)\) return null;/, 'a water record or a non-grass record: no blade');
+  assert.match(w, /const g = ga === p\.groundArchive \? grass : grassRecords\.get\(ga\);\n\s*const village = [^\n]+;\n\s*if \(rec === 0 \|\| !\(village \? villageGrassAt\(byte, lx \/ 6\.4, lz \/ 6\.4, p\.paths\?\.\[ti\], g, p\.plantClearance\) : \(floor \? floorRecords\.get\(ga\) : g\)\?\.has\(rec\)\) \|\| \(!floor && jungleFloor\?\.claims\(x, z\)\)\) return null;/, 'a water record or a non-grass record: no blade');
   assert.match(w, /if \(h <= sea\) return null;/, 'under the sea plane: no blade');
   // GR5: the field follows the eye by CELLS now - filled at the leading
   // edge, freed at the trailing one - rather than re-scattering whole

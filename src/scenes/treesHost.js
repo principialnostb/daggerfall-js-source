@@ -35,7 +35,7 @@ export function createTreesHost({ renderer, getTexture, seasons = null, seasonsA
   // tree's far picture beyond it, out to the land view's whole reach at a flat's own cost. Seasons of the Iliac Bay's
   // seasonal pictures, while the mod stands a season, paint the trees' atlases, so they take the season the flats take
   const lowPolyTrees = lowPolyTreesOn ? createLowPolyTrees({
-    renderer, getTexture,
+    renderer, getTexture, villageTrees: landsOn,
     // AUDIT LPT C2/B3: a prototype is painted under the season only when the mod re-skins ITS OWN archive now (its flats
     // turn, so must it), keyed by the install - and under the classic records while an install is refilling the cache
     seasonal: seasons ? {

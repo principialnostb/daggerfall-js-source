@@ -7,6 +7,7 @@ import { FOUNTAIN_WATER_GLSL } from './fountainWaterGlsl.js';
 import { rememberCampfireBatch, releaseCampfireBatch, drawCampfireBillboards } from './campfireBillboards.js';
 import { acquireTreasureModel, drawTreasurePiles, releaseTreasureModel, releaseTreasurePile } from './treasurePiles.js';
 import { drawGroundLoot, releaseLootModel } from './groundLootModels.js';
+import { drawVillageShrubFlat, releaseVillageShrubFlat } from './villageShrubFlats.js';
 import { drawPlacedFurnishings, releasePlacedFurnishing } from './furnishingMorrowind.js';
 // WebGL2 renderer for world geometry. Presentation layer - ours, not DFU's
 // (Port-Doctrine). Semantics it must honor from the data side:
@@ -26,7 +27,7 @@ import { BAYER_GLSL, DISSOLVE_GLSL } from './orderedDither.js';   // SHIP-FADE: 
 import { pixelFadeShare } from './pixelFade.js';   // MID-RING: a just-built pixel's tint, eased out (a leaf)
 import { fitToTextureLimit } from '../formats/resample.js';   // a picture past the device's texture limit, shrunk to fit
 import { LPT_FS_HEAD, LPT_FS_KEEP, LPT_FS_TEXEL } from './lowPolyTreesGlsl.js';   // LPT1: a low-poly tree's fragment half, both lanes' billboard shaders
-import { LPT_IMPOSTOR_LIGHT } from '../world/lowPolyTrees.js';   // FLORA-GROUND: the sky's light a tree's faces take (a leaf: no imports of its own)
+import { LPT_IMPOSTOR_LIGHT, SPRUCE_LIGHT } from '../world/lowPolyTrees.js';   // FLORA-GROUND: the sky's light a tree's faces take (a leaf: no imports of its own)
 import { FOG_GLSL } from './fogGlsl.js';
 import { WINDFALL_SWAY_GLSL, windfallLawOn, swayShare } from './windfallSway.js';   // WINDFALL1: Windfall's vertex wind - the flora's lean while the mod is on
 import { COLUMN_GLSL } from './columnGlsl.js';   // DW-F: the water column's share - a foe under Iliac Puddle No More's sea is in the depth texture its top reads   // AUDIT 68 S17-fog-glsl-dup: fogFactorAt's one home, for all seven world programs
@@ -608,6 +609,7 @@ layout(location=3) in vec4 aInst;
 layout(location=4) in float aScale;
 uniform float uMesh;
 uniform vec3 uMeshScale;
+uniform float uSpruceFoliage; // UV layout of the spruce needle cards
 uniform vec3 uMeshColor;
 uniform float uMeshAlpha;
 uniform vec4 uLptCut;
@@ -698,6 +700,7 @@ void main() {
     float tc = cos(aInst.w), tsn = sin(aInst.w);
     vec3 p = aCenter * uMeshScale * aScale;
     vec3 nm = normalize(aNormal / uMeshScale);
+
     world = vec3(tc * p.x + tsn * p.z, p.y, -tsn * p.x + tc * p.z) + aInst.xyz;
     vec3 wn = vec3(tc * nm.x + tsn * nm.z, nm.y, -tsn * nm.x + tc * nm.z);
     if (uSway > 0.0 && windfallLaw()) {   // WINDFALL1: the mod's lean, as the tree's far picture takes it - up the tree linearly, as up its quad
@@ -721,6 +724,13 @@ void main() {
     // light following the player round every 3D tree, bush and stump - a reflective sheen on the flora by night
     float faceSky = clamp(0.72 + 0.28 * dot(wn, vec3(${LPT_IMPOSTOR_LIGHT.map((v) => v.toFixed(4)).join(', ')})), 0.5, 1.0);
     float faceSun = clamp(0.72 + 0.28 * dot(wn, uLptSun.xyz), 0.5, 1.0);
+    // Needle sprays take diffuse light on both sides. Keep the bark's solid face response.
+    bool needles = uSpruceFoliage == 1.0 ? aCorner.y >= 0.75 : uSpruceFoliage == 2.0 && aCorner.x >= 0.375;
+    if (needles) {
+      float facing = dot(wn, uLptSun.xyz);
+      faceSky = ${SPRUCE_LIGHT.sky} + ${SPRUCE_LIGHT.skyFacing} * abs(wn.y);
+      faceSun = ${SPRUCE_LIGHT.sun} + ${SPRUCE_LIGHT.sunFacing} * abs(facing) + ${SPRUCE_LIGHT.sunFront.toFixed(2)} * max(facing, 0.0);
+    }
     vShade = uMeshColor * mix(faceSky, faceSun, uLptSun.w);
     vAlpha = uMeshAlpha;
     vFade = uLptCut.w > 0.0 ? 3.0 - clamp((distance(aInst.xz, uLptCut.xz) - uLptCut.w) / max(uLptBand, 1e-3), 0.0, 1.0) : 3.0;
@@ -1575,7 +1585,7 @@ const BED_MASK = packWaterMask(WATER_DRAW_MASK_TABLE);
 export const BB_SURFACE_UNIT = 6;
 /** @type {Readonly<Record<string, WebGLUniformLocation | null>>} */
 const NO_COLUMN_LOCS = Object.freeze({});
-const NO_LPT_LOCS = Object.freeze({ uMesh: null, uMeshScale: null, uMeshColor: null, uMeshAlpha: null, uLptCut: null, uLptBand: null, uLptSun: null, uSunLift: null });   // LPT1: a set bound before the trees declares none
+const NO_LPT_LOCS = Object.freeze({ uMesh: null, uSpruceFoliage: null, uMeshScale: null, uMeshColor: null, uMeshAlpha: null, uLptCut: null, uLptBand: null, uLptSun: null, uSunLift: null });   // LPT1: a set bound before the trees declares none
 /** LPT1 (AUDIT LPT A2): the sun scale at which a 3D tree's faces take the sun's light whole - below it they cross to the
  *  far picture's own light, which is all they take at night. */
 export const LPT_SUN_FULL = 0.25;
@@ -2640,6 +2650,7 @@ export class Renderer {
     this.tUTileArr = gl.getUniformLocation(this.terrainProgram, 'uTileArr');
     this.tUTilemap = gl.getUniformLocation(this.terrainProgram, 'uTilemap');
     this.tUTileSize = gl.getUniformLocation(this.terrainProgram, 'uTileSize');
+    this.tUVillageTurf = gl.getUniformLocation(this.terrainProgram, 'uVillageTurf');
     this.tUWaterBed = gl.getUniformLocation(this.terrainProgram, 'uWaterBed');   // WATER-NEXT 2: the bed under the water
     this.tUBedMask = gl.getUniformLocation(this.terrainProgram, 'uBedMask');
     this.tURoadEdge = gl.getUniformLocation(this.terrainProgram, 'uRoadEdge');   // ROAD-LOOK: the road's edge blended (render/roadEdgeGlsl.js)
@@ -2706,7 +2717,7 @@ export class Renderer {
     this.bbUWindfallAxis = gl.getUniformLocation(this.bbProgram, 'uWindfallAxis');   // WINDFALL1
     this.bbUTip = gl.getUniformLocation(this.bbProgram, 'uTip');   // PROF4: a felled tree's fall
     // LPT1: a low-poly tree's mesh mode and the far pictures' handover (BB_VS)
-    this.bbLpt = Object.fromEntries(['uMesh', 'uMeshScale', 'uMeshColor', 'uMeshAlpha', 'uLptCut', 'uLptBand', 'uLptSun', 'uSunLift'].map((n) => [n, gl.getUniformLocation(this.bbProgram, n)]));   // AUDIT BANTHA1 TREE-2: uSunLift, the lane's (null on the classic set)
+    this.bbLpt = Object.fromEntries(['uMesh',  'uSpruceFoliage', 'uMeshScale', 'uMeshColor', 'uMeshAlpha', 'uLptCut', 'uLptBand', 'uLptSun', 'uSunLift'].map((n) => [n, gl.getUniformLocation(this.bbProgram, n)]));   // AUDIT BANTHA1 TREE-2: uSunLift, the lane's (null on the classic set)
     // DW-F: COLUMN_GLSL's (both lanes' flats declare it)
     this.bbColumn = Object.fromEntries(['uColumnOn', 'uSurfaceTex', 'uDwCamFwd', 'uSeaY', 'uTopColor', 'uTopVision', 'uSurfaceScroll', 'uPixelOrigin'].map((n) => [n, gl.getUniformLocation(this.bbProgram, n)]));
     // EL1: the lane's own uniforms, per program (null on the classic set, which never declares them)
@@ -7515,6 +7526,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       _box: undefined, sway: undefined, windfall: undefined, tip: undefined, conceal: undefined, hitFlash: undefined, eliteGlow: undefined, eliteTime: undefined, elitePad: undefined, glint: undefined, dissolve: undefined, crack: undefined, tint: undefined, dye: undefined, noShadow: undefined, ghost: undefined, selfCard: undefined, pondRack: false, _dead: undefined, _moveScratch: undefined, dwColumn: undefined,
       castOnly: undefined,
       _bbKey: undefined, _bbKeyId: undefined, _bbKeyRecord: undefined, _bbKeyFrame: undefined, _bbKeyArchive: undefined,
+      villageShrubs: null,
       _shGen: undefined, _shAx: NaN, _shAy: NaN, _shAz: NaN, _shSeen: undefined, _shOx: NaN, _shOy: NaN, _shOz: NaN, _shFrame: undefined,
       _shRec: undefined, _shFlip: undefined, _shDyn: undefined, _shSway: undefined, _shMovedAt: undefined, _shId: undefined,
       _shAnim: undefined, _shIdler: undefined,
@@ -7599,6 +7611,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   destroyBillboardBatch(batch) {
     const gl = this.gl;
     if (!batch) return;
+    if (batch.villageShrubs) releaseVillageShrubFlat(this,batch);
     releaseCampfireBatch(batch);
     releaseTreasurePile(this, batch);
     releasePlacedFurnishing(this, batch, releaseTreasureModel);
@@ -7650,6 +7663,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
 
   /** Release a billboard batch's GPU resources. */
   destroyBatch(batch) {
+    if (batch.villageShrubs) releaseVillageShrubFlat(this,batch);
     releaseCampfireBatch(batch);
     releaseTreasurePile(this, batch);
     releasePlacedFurnishing(this, batch, releaseTreasureModel);
@@ -7898,13 +7912,14 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   }
 
   /** Upload a 128x128 tilemap byte texture (R8UI, NEAREST). */
-  uploadTilemapTexture(bytes, dim) {
+  uploadTilemapTexture(bytes, dim, rootMap = null) {
     const gl = this.gl;
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     this._tex0Bound = null;   // PERF-TEX3: this path owns unit 0 - the shadow may not speak for it
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, dim, dim, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, bytes);
+    if (rootMap) (this._rootMaps ??= new WeakMap()).set(tex, rootMap);
+    gl.texImage2D(gl.TEXTURE_2D, 0, rootMap ? gl.RGBA8UI : gl.R8UI, dim, dim, 0, rootMap ? gl.RGBA_INTEGER : gl.RED_INTEGER, gl.UNSIGNED_BYTE, rootMap ?? bytes);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -7920,7 +7935,9 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     gl.bindTexture(gl.TEXTURE_2D, tex);
     this._tex0Bound = null;   // PERF-TEX3: this path owns unit 0 - the shadow may not speak for it
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, dim, dim, gl.RED_INTEGER, gl.UNSIGNED_BYTE, bytes);
+    const roots = this._rootMaps?.get(tex);
+    if (roots) for (let i = 0; i < bytes.length; i++) roots[i * 4] = bytes[i];
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, dim, dim, roots ? gl.RGBA_INTEGER : gl.RED_INTEGER, gl.UNSIGNED_BYTE, roots ?? bytes);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
   }
   /** Upload/cache a ground archive as a 64x64 TEXTURE_2D_ARRAY. */
@@ -7934,7 +7951,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    *  scenes/groundSets.js), the array registered only once every layer and its mips stand, so nothing draws a half
    *  array. A Vanilla Enhanced twin is 112 layers of 256 texels, 29 MB, that went up inside one build. Each step binds
    *  the array again: a frame between two steps binds what it draws. uploadTileArray runs it to its end. */
-  *uploadTileArraySteps(archive, layers) {
+  *uploadTileArraySteps(archive, layers, landscapeTurf = false) {
     if (this.tileArrays.has(archive)) return this.tileArrays.get(archive);
     const gl = this.gl;
     const tex = gl.createTexture();
@@ -7997,6 +8014,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     if (!this._retroMips) gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAX_LEVEL, 0);   // RETRO1: loaded under retro mode without mip maps (_applyRetroMips)
+    if (addSoil && landscapeTurf) (this._villageTurfArrays ??= new WeakSet()).add(tex);
     this.tileArrays.set(archive, tex);
     this._tileDims.set(archive, [w, h, layers.length]);   // PRECIP4
     this._arrLayers.set(tex, layers.length);   // AUDIT PRECIP GROUND-1: a twin's winter half is the texture's own fact
@@ -8414,6 +8432,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     if (this._tArrayTex !== arrayTex) {
       this._activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrayTex);
+      gl.uniform1i(this.tUVillageTurf, this._villageTurfArrays?.has(arrayTex) ? 1 : 0);
       this._tArrayTex = arrayTex;
       this.stats.texBinds++;
     }
@@ -8716,7 +8735,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       const row = rows[i], surface = row[0], arrayTex = row[2], tilemapTex = row[3], snow = row[4] && this._snowFrame && this._snowTex ? row[4] : null;
       if (surface.pond) {
         const height = this._worldViewportPx?.[3] ?? gl.drawingBufferHeight;
-        const block = blockPixels(height, worldPixelRows('objects'));
+        const block = blockPixels(height, worldPixelRows('pond'));
         if (block !== L.lastPondBlock) {
           gl.uniform1f(L.pondBlock, block);
           L.lastPondBlock = block;
@@ -8850,8 +8869,6 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     const gl = this.gl, L = this.bbLpt ?? NO_LPT_LOCS;
     gl.uniform1f(L.uMesh, 1);
     this._uploadLptCut(f);   // BANTHA1: this slot's eye, radius and band
-    const sl = f.sunLift ?? 0;   // AUDIT BANTHA1 TREE-2: and where its trees read their sun - the jungle's at their crowns, as their far pictures
-    if (sl !== this._bbSunLiftOn) { if (L.uSunLift) gl.uniform1f(L.uSunLift, sl); this._bbSunLiftOn = sl; }
     const ld = this._lightDir;   // the sun's direction, toward it (the mesh path's uLightDir); its share by its scale (AUDIT LPT A2)
     const sun = this._clockLit ? Math.min(1, Math.max(0, (this._sunScale ?? 0) / LPT_SUN_FULL)) : 0;
     gl.uniform4f(L.uLptSun, ld?.[0] ?? 0, ld?.[1] ?? 1, ld?.[2] ?? 0, sun);
@@ -8863,6 +8880,11 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     for (const run of f.runs) {
       if (!run.drawCount) continue;
       f.gpu.pointInstances(run.drawStart);
+      const proto = run.run?.handle?.proto;
+      const spruce = proto?.spruceFoliage ?? 0;
+      if (L.uSpruceFoliage) gl.uniform1f(L.uSpruceFoliage, spruce);
+      const sl = spruce ? SPRUCE_LIGHT.height : f.sunLift ?? 0;
+      if (sl !== this._bbSunLiftOn) { if (L.uSunLift) gl.uniform1f(L.uSunLift, sl); this._bbSunLiftOn = sl; }
       gl.uniform3f(L.uMeshScale, run.scale[0], run.scale[1], run.scale[2]);
       gl.uniform2f(this.bbUSize, run.size[0], run.size[1]);
       gl.uniform1f(this.bbUSway, swayShare(run, windfallLawOn(this._windfall)));   // WINDFALL1: the mod's mask under its law (the far picture's)
@@ -9001,6 +9023,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   // Opaque timbers belong in the colour and depth the water will refract.
   // Ordinary flats, disabled replacements and shadow-only batches keep their queue.
   queueExteriorFlat(queue, batch, shadowOnly = false) {
+    if (batch.villageShrubs && drawVillageShrubFlat(this,batch,shadowOnly)) return;
     if (!shadowOnly && batch.pondRack && batch.pondRack()) {
       const left = drawPlacedFurnishings(this, [batch], acquireTreasureModel, releaseTreasureModel);
       if (!left.length) return;
@@ -9234,7 +9257,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       if (ck || this._bbCrackOn) { gl.uniform2f(this.bbUCrack, ck ? ck[0] : 0, ck ? ck[1] : 0); this._bbCrackOn = !!ck; }
       const tn = b.tint;   // ARENA5: a batch's wash ([r, g, b]); every other batch white - sent when a washed batch comes or goes
       if (tn || this._bbTintOn) { gl.uniform3f(this.bbUBatchTint, tn ? tn[0] : 1, tn ? tn[1] : 1, tn ? tn[2] : 1); gl.uniform1f(this.bbUBatchDye, tn ? b.dye ?? 0 : 0); this._bbTintOn = !!tn; }   // VEIN-HUE: its dye with it
-      const sl = b.sunLift ?? 0;   // AUDIT BANTHA1 TREE-2: a jungle far picture's sun at its crown
+      const sl = b.lptProto?.proto?.spruceFoliage ? SPRUCE_LIGHT.height : b.sunLift ?? 0;
       if (sl !== this._bbSunLiftOn) { if (this.bbLpt?.uSunLift) gl.uniform1f(this.bbLpt.uSunLift, sl); this._bbSunLiftOn = sl; }
       const lc = b.lptProto ? this._lptFrameOf(b.lptProto) : null;   // LPT1: a far picture gives way to its 3D tree near the eye - sent when that changes between batches; BANTHA1: its own slot's
       if (lc !== this._bbLptCutOn) { this._uploadLptCut(lc); this._bbLptCutOn = lc; }

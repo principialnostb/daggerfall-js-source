@@ -31,6 +31,7 @@ import {
 import { toColor32 } from '../formats/color32Order.js';
 import { classicRecordRgba } from '../formats/derivedTexture.js';
 import { LowPolyTreesGpu } from '../render/lowPolyTreesRender.js';
+import { addVillageTreeLibrary, TREE_LIBRARY_URL, TREE_STUDY_URL, WOODLAND_MESH_URL, WOODLAND_INK_URL, unpackWoodlandMesh, VILLAGE_TREE_ATLAS, villageTreePicture } from '../world/tamriel/villageTrees.js';
 import { BUILD_RETRY_MS } from '../world/streamingWorld.js'; // AUDIT BANTHA1 TREE-6: a failed load's re-asks
 
 export const LPT_TREES_JSON_URL = new URL('../../vendor/low-poly-trees/Trees/trees.json', import.meta.url).href;
@@ -93,7 +94,7 @@ export const lptAlphaOf = (sub) => (sub.opaque ? 0 : 0.5 / Math.max(1e-3, sub.cu
  *   seasonal?: { key: (archive:number) => string, picture: (archive:number, record:number) => any, generation?: () => number } | null,
  *   fetchBytes?: (url:string) => Promise<Uint8Array>, breathe?: () => Promise<void>, warn?: (m:string) => void, now?: () => number,
  *   treeSet?: { load: () => Promise<any>, picture: (atlas:string) => Promise<{width:number,height:number,data:Uint8Array}|null> } | null,
- *   slot?: number, scaleMax?: number, label?: string, sunLift?: number }} deps
+ *   villageTrees?: boolean, slot?: number, scaleMax?: number, label?: string, sunLift?: number }} deps
  *   `seasonal.key(archive)` - the source a prototype of that archive is painted under ('' the classic records);
  *   `seasonal.picture(archive, record)` - the season's texture for a record it re-skins now (`image` in the port's
  *   order), or null; `seasonal.generation()` - the install, so a paint a new install overtook is never kept.
@@ -113,13 +114,14 @@ export function createLowPolyTrees({
   warn = (m) => console.warn(m),
   now = () => performance.now(),
   treeSet = null,
+  villageTrees = false,
   slot = 0,
   scaleMax = LPT_SCALE_MAX,
   label = 'low-poly-trees',
   sunLift = 0,
 }) {
   /** @type {ReturnType<typeof readLowPolyTrees>|null} */
-  let lpt = null;
+  let lpt = null, studyPixels = null, woodlandPixels = null;
   /** @type {Promise<any>|null} */
   let loading = null;
   let shown = 0; // TREE-9: the instances the last frame uploaded
@@ -193,6 +195,10 @@ export function createLowPolyTrees({
   /** The atlas's CPU picture, painted (again, if it was let go) - BANTHA1: or a set's own picture, decoded. */
   async function paintPic(entry) {
     if (entry.pic) return entry.pic;
+    if (entry.name.startsWith(VILLAGE_TREE_ATLAS)) {
+      entry.picAt = now();
+      return entry.pic = villageTreePicture(entry.name, studyPixels, woodlandPixels);
+    }
     entry.painting ??= (async () => {
       if (treeSet) {
         const pic = await treeSet.picture(entry.name);
@@ -326,7 +332,25 @@ export function createLowPolyTrees({
               fetchBytes(LPT_TREES_BIN_URL),
               fetchBytes(LPT_ATLASES_BIN_URL),
             ]);
-            lpt = readLowPolyTrees(JSON.parse(new TextDecoder().decode(j)), tb, ab);
+            const index = JSON.parse(new TextDecoder().decode(j));
+            if (villageTrees) {
+              try {
+                const [meshes, study, additional] = await Promise.all([
+                  fetchBytes(TREE_LIBRARY_URL), fetchBytes(TREE_STUDY_URL),
+                  Promise.all([fetchBytes(WOODLAND_MESH_URL).then(unpackWoodlandMesh), fetchBytes(WOODLAND_INK_URL)]).catch((err) => {
+                    warn('[trees] Additional Helbenar woodland unavailable: ' + err);
+                    return null;
+                  }),
+                ]);
+                woodlandPixels = additional?.[1];
+                const extended = addVillageTreeLibrary(index, tb, meshes, additional?.[0]);
+                studyPixels = study;
+                lpt = readLowPolyTrees(extended.json, extended.data, ab);
+              } catch (err) {
+                warn('[trees] Helbenar library unavailable: ' + err);
+              }
+            }
+            lpt ??= readLowPolyTrees(index, tb, ab);
           }
           gpu = new LowPolyTreesGpu(renderer.gl, lpt.json, lpt.treesBin);
         } catch (e) {
@@ -346,7 +370,11 @@ export function createLowPolyTrees({
       return !!lpt;
     },
     /** The prototype standing for (archive, record), or null. */
-    proto: (archive, record) => lptProto(lpt, archive, record),
+    proto(archive, record) {
+      const custom = lpt?.protos.get(`${archive}_${record}_helbenar`);
+      if (custom) return custom;
+      return lptProto(lpt, archive, record);
+    },
     /** The source a prototype is painted under now. */
     sourceOf,
     /**
@@ -400,7 +428,7 @@ export function createLowPolyTrees({
           const pic = await stepped(impostorSteps(lpt, proto, (n) => pics.get(n) ?? null));
           if (source && generation() !== gen) return null; // a new install overtook the paint (AUDIT LPT B3): never kept
           if (handles.get(key) !== e) return null;
-          const record = `${proto.record}#lpt${source}`;
+          const record = `${proto.record}#lpt${String(proto.key).endsWith('_helbenar') ? 'helbenar-' : ''}${source}`;
           renderer.uploadTexture(proto.archive, record, toColor32(pic));
           e.handle = {
             proto,

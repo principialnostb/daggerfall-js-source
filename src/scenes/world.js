@@ -287,9 +287,10 @@ import { createJungleHost } from './jungleHost.js';   // BANTHA1: Bantha's jungl
 import { canopyLight, canopyKey, canopyMoon } from '../world/jungle/jungleCanopy.js';   // VALENWOOD-CANOPY: the light under a closed canopy
 import { createJungleFloorHost, floorPictures } from './jungleFloorHost.js';   // BANTHA2: the jungle's floor - a second field of the grass
 import { createSnowCoverHost } from './snowCoverHost.js';
+import { villageGrassAt, villageGrassBank, updateVillageMeadow } from '../world/tamriel/helbernar.js';
 import { createGroundSets } from './groundSets.js';   // OW-HITCH: a ground set made and uploaded a breath at a time (HOST-SPLIT)   // PRECIP4: the snow the ground keeps, about the player
 import { realForestsOn, roadVergesOn, climateBlendOn, jungleOn, jungleHazeOn } from './shared.js';   // FOREST1: the Real forests switch, and the places the woods hide; VERGE1: the clear roadsides' switch; ECOTONE1: the blended climates'
-import { landformsOn, tamrielLandOn, tamrielTraceOn, etherSeaOn, etherCrossOutOn, arenaPlacesOn } from './shared.js';   // LANDFORM1-3: the Landforms switch; TAMRIEL2: the land beyond the Bay's; TAMRIEL3: the trace's door; ETHER-SEA: the Eltheric Ocean's
+import { tamrielLandsOn, landformsOn, tamrielLandOn, tamrielTraceOn, etherSeaOn, etherCrossOutOn, arenaPlacesOn } from './shared.js';   // LANDFORM1-3: the Landforms switch; TAMRIEL2: the land beyond the Bay's; TAMRIEL3: the trace's door; ETHER-SEA: the Eltheric Ocean's
 import { preloadTamrielTrace } from '../ui/tamrielTrace.js';   // TAMRIEL3: Daggerfall's own map of Tamriel, off the player's two files
 import { tamrielLandVersion } from '../world/tamriel/tamrielLand.js';   // WW2: which picture a theatre's gate scan read
 import { keptBayFit } from '../world/tamriel/bayFitKept.js';   // TAMRIEL3: where the Bay stands on it; FIRST-VISIT: kept across launches
@@ -2760,6 +2761,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const grassDensity = Math.max(0, Math.min(1, Number(getPref('grassDensity')) || 0)) * LAB_GRASS.density;
   const labGrass = isEnhanced() && getPref('enhancedEnvironments') && grassDensity > 0 && pageParam('grass') !== 'off'
     ? new LabGrassRenderer(renderer.gl, { provoke: pageParam('provoke') !== 'last' }) : null;   // GRASS-ON: `?provoke=last` draws the field under GL's own convention, to time it both ways (render/labGrass.js)
+  const landscapePlants = tamrielLandsOn();
   let labGrassField = null;   // GR5: the world-anchored field, filled a cell or two a frame
   if (labGrass) discSlotCount(LAB_GRASS.span);   // PERF-EXT20: the field's one sweep, paid here behind the loading screen - every createGrassField after reads the memo
   const grassNormalScratch = [0, 1, 0];   // GRASS-LIT2: the slope's answer, one array for every blade (the placer copies it)
@@ -32575,7 +32577,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
       const _bare = riteHost?.clearing() ?? starfall?.clearing() ?? passSeason?.clearing() ?? null;   // AUDIT WB12d (G2): the faithful's burned earth, this frame; STAR4: or a star's crater (a star never falls beside the gate)
       const keep = (x, z, floor = false) => {   // BANTHA2: `floor` the jungle floor's keep - its records (grass and dirt), and the meadow kept out of every point it claims
         const hit = pieceAt(x, z);
-        if (!hit || hit.p.waterSourceGrass?.(x - hit.t[0], z - hit.t[2])) return null;
+        if (!hit) return null;
         const { p, t, grass } = hit;
         const lx = x - t[0]; const lz = z - t[2];
         const tx = Math.floor(lx / 6.4); const tz = Math.floor(lz / 6.4);
@@ -32585,14 +32587,15 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         // ECOTONE1: at a climate border the root stands in the climate the ground's border gives it - its grass, its puddles
         const ga = p.ecoGround ? borderGround(p, lx, lz) : p.groundArchive;
         const g = ga === p.groundArchive ? grass : grassRecords.get(ga);
-        if (rec === 0 || !(floor ? floorRecords.get(ga) : g)?.has(rec) || (!floor && jungleFloor?.claims(x, z))) return null;
+        const village = !floor && landscapePlants && !!g?.has(2);
+        if (rec === 0 || !(village ? villageGrassAt(byte, lx / 6.4, lz / 6.4, p.paths?.[ti], g, p.plantClearance) : (floor ? floorRecords.get(ga) : g)?.has(rec)) || (!floor && jungleFloor?.claims(x, z))) return null;
         // GRASS-PATH1 (2026-09-19, Mac: "Grass shouldnt be on dirt
         // paths"): the road painter's own mask. A track across grass
         // writes 10/11/12/51 - the SAME records the natural dirt-grass
         // marching squares write - so the record cannot tell a path from
         // a field's edge and the placer grew a lawn straight down every
         // track. The painter knows, and now says (world/road/roadPainter.js).
-        if (p.paths?.[ti]) return null;
+        if ((!village && p.paths?.[ti]) || p.waterSourceGrass?.(lx, lz)) return null;
         // WOD2: and not across a World of Daggerfall site - DFU keeps its
         // nature off the loader's locationRect, and the grass is this
         // lane's nature underfoot; a camp's floor or a rock field's
@@ -32613,7 +32616,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         // WATER-PUDDLE (2026-09-25): a puddle record is wet only where
         // its own art is water - the pass draws it so now, and a blade
         // refused the whole tile left its dry ground bald.
-        if (waterCorners(byte, WATER_DRAW_MASK_TABLE)) {
+        if (!(village && villageGrassBank(rec)) && waterCorners(byte, WATER_DRAW_MASK_TABLE)) {
           const puddle = PUDDLE_RECORDS.includes(rec) ? groundPuddles.get(ga)?.[rec] : null;
           if (!puddle || puddleWetAt(puddle, byte, lx / 6.4 - tx, lz / 6.4 - tz)) return null;
         }
@@ -32654,7 +32657,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         return surfaceNormalAt(p.groundNormals, x - t[0], z - t[2], grassNormalScratch);
       };
       if (!labGrassField) labGrassField = jungleFloor ? jungleFloor.pair(createGrassField(labGrass, { keep, ground, slope, density: grassDensity })) : createGrassField(labGrass, { keep, ground, slope, density: grassDensity });   // PERF1: the pref's fraction of the lab's field; BANTHA2: the floor's paired with it
-      labGrassField.update(ex, ez, keep, ground, slope);
+      const villageOrigin = updateVillageMeadow(labGrass, pieceAt, () => { labGrassField.update(ex, ez, keep, ground, slope); }, landscapePlants, state, keep);
       jungleFloor?.update(ex, ez, (x, z) => keep(x, z, true), ground, slope);   // BANTHA2: the jungle's floor, where it claims
       window.__grassStats = () => ({ blades: labGrass.count, drawn: labGrass.drawn, vertsPerBlade: labGrass._meadow ? labGrass.vertsCards : labGrass._oneQuad ? labGrass.vertsFar : labGrass.verts, nearPixels: nearPieces().length, cells: labGrassField?.live.size ?? 0, slots: labGrassField?.slots ?? 0,   // GRASS AUDIT 1: `verts` below is the near blade's; `vertsPerBlade` is the frame's (MEADOW1: a near tuft's cards in the meadow). PERF-URL: `cells` and `slots` had been swallowed by this comment - the hook answered without them
         perCell: labGrass.perCell, range: LAB_GRASS.range, height: LAB_GRASS.height, verts: labGrass.verts,
@@ -32676,7 +32679,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         // SCALE is what sets with the sun, and the moon is what is left
         // when it has. The same fields render/renderer.js hands its own
         // programs.
-        { fog: { mode: renderer._fogMode, density: renderer._fogDensity, range: renderer._fogRange, color: renderer._fogColor, camPos: renderer._camPos, dw: renderer._dwFog, haze: renderer._haze },   // DISC20-A: the fog the ground took this frame, from the view's own eye; DW-C: and the sea's
+        { worldRenderer: renderer, villageOrigin, fog: { mode: renderer._fogMode, density: renderer._fogDensity, range: renderer._fogRange, color: renderer._fogColor, camPos: renderer._camPos, dw: renderer._dwFog, haze: renderer._haze },   // DISC20-A: the fog the ground took this frame, from the view's own eye; DW-C: and the sea's
           sunDir: renderer._lightDir, amb: renderer._ambient, sunCol: renderer._sunColor,
           // GRASS-LIT (render/labGrass.js): no weather dim - the ambient and the sun above are weathered already
           // (exteriorAmbient, the sun's scale x wxNow.sun), and the lab's LAB_DIM on top darkened a rainy field a

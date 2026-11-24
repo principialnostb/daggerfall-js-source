@@ -485,6 +485,7 @@ export const CATEGORIES = Object.freeze([
       'feat:char-pixel-player',
       'feat:char-pixel-npc',
       'feat:world-pixel-objects',
+      'feat:world-pixel-landscape',
     ]),
   ]),
 ]);

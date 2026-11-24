@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { bakeMeadow, spriteOf, SOURCES, OUT, MEADOW_ALPHABET as BAKE_ALPHABET } from '../../tools/bakeMeadow.mjs';
 import { readPng } from '../../tools/pngIO.mjs';
+import { tuftMesh, TUFT_BLADES } from '../../src/render/villageGrass.js';
 import { MEADOW_SPRITES, MEADOW_ALPHABET } from '../../src/render/meadowArt.js';
 import { buildMeadowAtlas, buildMeadowMips, downsampleMeadow, slotCoverage, meadowPick, meadowCardCorners, meadowCardIndices, meadowGrass, meadowTexel, meadowArtGround, meadowSpriteMean,
   meadowSpriteBox, MEADOW_SLOTS, MEADOW_CELL, MEADOW_CARDS, MEADOW_CARDS_FAR, MEADOW_NEAR_AT, MEADOW_NEAR_BAND, MEADOW_BLADES_PER_TUFT, MEADOW_VARIANTS, MEADOW_SHARES, MEADOW_LUSH,
@@ -464,6 +465,23 @@ test('MEADOW1: the owner\'s colours on any ground - the fragment stage\'s own te
     assert.ok(Math.abs(lod - Math.log2(Math.max(Math.max(Math.abs(ddx), Math.abs(ddy)) * MEADOW_CELL, 1))) < 1e-12, `the step ${ddx}, ${ddy}: level ${lod}`);
     assert.equal(flat, 0, 'the meadow never samples at the GPU\'s own level');
   }
+  // On the solid blade and bloom the Objects grid samples the block centre.
+  // A subpixel blade holds its own UV and the last mip belonging to its slot.
+  for (const slot of [5,6]) {
+    function samples(block,width) {
+      const taps=[];
+      fs(leaf, VE, artGround, {
+        vVar:slot, vUV:[.5,.5], gl_FragCoord:[4.5,4.5,0,1], uPxVariants:16, uVillagePixelBlock:block,
+        dFdx:v=>Array.isArray(v)?[width,0]:0, dFdy:v=>Array.isArray(v)?[0,.01]:.01,
+        textureLod:(name,uv,lod)=>{ if(name==='uPxSheet') taps.push([...uv,lod]); return [...leaf,1]; },
+      });
+      return taps;
+    }
+    const native=samples(1,.01), chunky=samples(4,.01), thin=samples(4,4);
+    assert.equal(native[0][0],(slot+.5)/16);
+    assert.ok(Math.abs(chunky[0][0]-(slot+.515)/16)<1e-8);
+    assert.deepEqual(thin,[[ (slot+.5)/16,.5,6 ],[ (slot+.5)/16,.5,6 ]]);
+  }
   let pxLod = null;
   fs(leaf, VE, artGround, { uArt: 0, textureLod: () => { pxLod = 'read'; return [...leaf, 1]; } });
   assert.equal(pxLod, null, 'the pixel style\'s billboard keeps the GPU\'s level - it faces the eye, and is never squeezed');
@@ -757,4 +775,104 @@ test('MEADOW1: the meadow\'s edits land once each over the four lists before the
   const probe = read('tools/meadowProbe.mjs');
   for (const s of ["shot('eye', ", "shot('eye-pixel', ", "shot('close', ", "shot('high', ", "shot('dusk', ", "shot('horizon', ", "shot('lane', ", "shot('lane-pixel', ", "shot('wind', ", "shot('grazing', "]) assert.ok(probe.includes(s), `the probe's ${s}`);
   assert.ok(probe.includes('const COUNT_FS = '), 'the fragment count');
+});
+
+
+test('Helbenar composites cards, solid triangles and their depth on the landscape grid', () => {
+  const { gl, calls } = stubGl();
+  const field = new LabGrassRenderer(gl);
+  field.allocSlots(49,1);
+  field.writeSlot(0,cellPlaced(0,1,49));
+  const eye = [0,12,0], view = lookAt(eye,[0,12,1],[0,1,0]);
+  const proj = mirrorProjectionX(perspective(Math.PI/3,16/9,.2,6000));
+  const target = {viewport:[0,0,1920,1080],framebuffer:null};
+  const worldRenderer = {gl, _proj:proj, _clearColor:[0,0,0,1], _worldFixtureDestination:target,
+    _use:p=>gl.useProgram(p), _bindVao:v=>gl.bindVertexArray(v), markForeignPass:()=>gl.bindVertexArray(null)};
+  const draw = (style='meadow', villageOrigin=[0,0,0]) => {
+    calls.length=0;
+    field.draw(proj,view,new Float32Array(eye),0,{...LIGHT,worldRenderer,villageOrigin},WIND,300,style);
+    return calls.filter(c=>c[0]==='drawElementsInstanced').map(c=>[c[2],c[4]]);
+  };
+  const {farCount}=tuftMesh();
+  assert.deepEqual(draw(),[[farCount,0]]);
+  assert.ok(calls.some(c=>c[0]==='drawArrays' && c[3]===3),'screen-space depth composite');
+  for (const style of ['meadow','pixel','smooth']) {
+    draw(style,null);
+    assert.ok(calls.some(c=>c[0]==='drawArrays' && c[3]===3),style+' uses the landscape grid outside Helbenar');
+  }
+  target.viewport[3]=120;
+  assert.deepEqual(draw(),[[farCount,0]]);
+  assert.ok(!calls.some(c=>c[0]==='drawArrays'));
+});
+
+test('Helbenar leaves are closed solids with positive volume and a shared LOD silhouette', () => {
+  const {vertices,farCount,middleCount}=tuftMesh();
+  function leaves(count) {
+    const faces=[];
+    for (let v=0;v<count;v+=3) {
+      if (vertices[v*9+2]!==8) continue;
+      faces.push([0,1,2].map(i=>[...vertices.slice((v+i)*9+3,(v+i)*9+6)]));
+    }
+    return faces;
+  }
+  const near=leaves(vertices.length/9);
+  assert.equal(near.length,12*TUFT_BLADES);
+  for (let i=0;i<near.length;i+=12) {
+    const edges=new Map();
+    let volume=0;
+    for (const [a,b,c] of near.slice(i,i+12)) {
+      for (const [p,q] of [[a,b],[b,c],[c,a]]) {
+        const edge=[p.join(','),q.join(',')].sort().join('/');
+        edges.set(edge,(edges.get(edge)??0)+1);
+      }
+      volume+=a[0]*(b[1]*c[2]-b[2]*c[1])+a[1]*(b[2]*c[0]-b[0]*c[2])+a[2]*(b[0]*c[1]-b[1]*c[0]);
+    }
+    assert.equal(edges.size,18);
+    assert.ok([...edges.values()].every(n=>n===2));
+    assert.ok(volume>0.00001,'each leaf encloses space with outward winding');
+  }
+  for (const [count,n] of [[farCount,3],[middleCount,6]]) {
+    const subset=leaves(count);
+    assert.deepEqual(subset,near.slice(0,12*n));
+    assert.equal(Math.max(...subset.flat().map(p=>p[1])),Math.max(...near.flat().map(p=>p[1])));
+  }
+});
+
+test('a Helbenar bush reads its Blender UVs and retains its world-space size', () => {
+  const vs = vertexStage(), attrs = {uVillageMeadow:[0,0,819.2], aPB:[.5,.5,.5,0],
+    aCorner:[.14,.86], aLeafPos:[.22,.52,.19], aLeafNormal:[1,0,0]};
+  for (let material=7; material<=14; material++) {
+    const run = distance => vs.run({...attrs, uEye:[15+distance,1,15], aCard:16+material});
+    assert.equal(run(2).vVar,material);
+    assert.deepEqual([...run(2).gl_Position],[...run(35).gl_Position]);
+    assert.deepEqual([...run(2).vUV].map(v=>Math.round(v*100)),[14,86]);
+  }
+  assert.deepEqual([...vs.run({...attrs,aCard:8}).gl_Position],[2,2,2,1]);
+});
+
+test('the local grass renders opaque mesh material at fixed world scale through an approach', () => {
+  const vs=vertexStage(), attrs={uVillageMeadow:[0,0,819.2],aPA:[.5,.5,0,LEVEL],aPB:[.5,.5,.5,.6],
+    aLeafPos:[.26,.84,.12],aLeafNormal:[.9,.1,.2],aCorner:[.5,.84]};
+  const run=(distance,part)=>vs.run({...attrs,aCard:part,uEye:[15+distance,1,15]});
+  const far=run(20,8);
+  assert.equal(far.vVar,5);
+  const position=[...far.gl_Position];
+  assert.deepEqual([...run(2,8).gl_Position],position);
+  assert.deepEqual([...run(2,0).gl_Position],[2,2,2,1],'no sprite under the solid blades');
+});
+
+test('the meadow pigments retain the Blender UVs and fixed scale until the root retires', () => {
+  const vs = vertexStage();
+  const attrs = { uVillageMeadow: [0,0,819.2], aPA: [.5,.5,0,LEVEL], aPB: [.5,.5,.5,.6],
+    aCorner: [.18,.76], aLeafPos: [.12,.16,.10], aLeafNormal: [.4,.8,.2] };
+  for (let pigment = 15; pigment <= 26; pigment++) {
+    const run = distance => vs.run({ ...attrs, aCard: pigment + 16, uEye: [15+distance,1,15] });
+    const near = run(2);
+    assert.equal(near.vVar, pigment);
+    assert.deepEqual([...near.vUV].map(v => Math.round(v*100)), [18,76]);
+    const position = [...near.gl_Position];
+    assert.notDeepEqual(position, [2,2,2,1]);
+    assert.deepEqual([...run(14).gl_Position], position);
+    assert.deepEqual([...run(34).gl_Position], [2,2,2,1]);
+  }
 });

@@ -12,14 +12,20 @@ import {Renderer} from '../../src/render/renderer.js';
 test('objects use shared tiers and saved environment preferences are ignored',()=>{
  resetPrefs();
  try {
-  for(const [kind,key] of [['objects', WORLD_PIXEL_KEYS.objects]]){
+  for(const [kind,key] of Object.entries(WORLD_PIXEL_KEYS)){
    const row=FEATURES.find(r=>r.id==='world-pixel-'+kind);
-   assert.ok(row);assert.deepEqual(checkFeature(row),[]);assert.equal(row.control.key,key);assert.equal(row.control.tiers,CHAR_PIXEL_TIERS);
+   assert.ok(row);assert.deepEqual(checkFeature(row),[]);assert.equal(row.control.key,key);if(kind==='objects')assert.equal(row.control.tiers,CHAR_PIXEL_TIERS);
+   else assert.deepEqual(row.control.tiers.map(([v])=>v),[0,540]);
   }
   assert.equal(worldPixelRows('environment'),0);assert.equal(worldPixelRows('objects'),540);
   setPref('worldPixelEnvironment',200);setPref(WORLD_PIXEL_KEYS.objects,0);
   assert.equal(worldPixelRows('environment'),0);assert.equal(worldPixelRows('objects'),0);
+  setPref(WORLD_PIXEL_KEYS.landscape,360);
   setPref(WORLD_PIXEL_KEYS.objects,270);
+  for (const saved of [540,360,270,200,0]) {
+   setPref(WORLD_PIXEL_KEYS.landscape,saved);
+   assert.deepEqual([worldPixelRows('landscape'),worldPixelRows('pond')],saved ? [540,360] : [0,0]);
+  }
   assert.equal(worldPixelRows('environment'),0);assert.equal(worldPixelRows('objects'),270);
   setPref(WORLD_PIXEL_KEYS.objects,123);assert.equal(worldPixelRows('objects'),540);
   assert.equal(worldPixelRows('effect'),0);

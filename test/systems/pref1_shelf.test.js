@@ -47,6 +47,20 @@ const fresh = () => { store = new Map(); P._resetForTests(); };
 const withShelf = (blob) => { store = new Map([[KEY, JSON.stringify(blob)]]); P._resetForTests(); P.loadPrefs(); };
 const reload = () => { P._resetForTests(); P.loadPrefs(); };
 
+test('landscape inherits legacy object pixelation once, including HD', () => {
+  for (const rows of [0, 270]) {
+    withShelf({ worldPixelObjects: rows });
+    assert.equal(P.getPref('worldPixelLandscape'), rows ? 540 : 0);
+    P.setPref('worldPixelObjects', 360);
+    reload();
+    assert.equal(P.getPref('worldPixelLandscape'), rows ? 540 : 0);
+    P.setPref('worldPixelLandscape', 200);
+    reload();
+    assert.equal(P.getPref('worldPixelObjects'), 360);
+    assert.equal(P.getPref('worldPixelLandscape'), 540);
+  }
+});
+
 test('PREF1: a value equal to the default is NOT written - the shelf holds overrides and its own map', () => {
   fresh();
   P.setPref('showFps', P.PREF_DEFAULTS.showFps);   // "changing" a pref to what it already is

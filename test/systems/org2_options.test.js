@@ -142,7 +142,7 @@ test('ORG2: Graphics leads, with the preset at its head, and the tabs a player l
   assert.equal(whereIs('feat:mw-npc-bodies')?.tab.id, 'mods');
   assert.equal(whereIs('feat:mw-billboard-look')?.tab.id, 'mods');
   assert.deepEqual(CATEGORIES.find(t => t.id === 'pixelation').sections[0].items,
-    ['feat:char-pixel-fp', 'feat:char-pixel-player', 'feat:char-pixel-npc', 'feat:world-pixel-objects']);
+    ['feat:char-pixel-fp', 'feat:char-pixel-player', 'feat:char-pixel-npc', 'feat:world-pixel-objects', 'feat:world-pixel-landscape']);
   const g = CATEGORIES[0];
   assert.deepEqual(g.sections[0].items, ['preset:graphics'], 'Quality first, the preset alone in it');
   for (const id of PRESET_ROWS) assert.equal(whereIs(`feat:${id}`)?.tab.id, 'graphics', `${id}, a row the preset sets, is on the same tab`);

@@ -329,7 +329,7 @@ test('TESA-LANDS THE DRESS OFF THE PAGE\'S THREAD (AUDIT): the worker answers dr
   const one = scene();
   await one.sets.loadGroundSet(key, { tileArray() {} });
   assert.equal(reads, 2 * 56, 'the set made: its records read for its marks and its grass\'s, the key\'s puddles its file\'s - never marked again');
-  assert.deepEqual(dressed, [LANDS.morrowindAshlands.ground], 'dressed once, in its zone\'s dress');
+  assert.deepEqual(dressed, [{ ...LANDS.morrowindAshlands.ground, surfaceDetail: true }], 'dressed once, in its zone\'s dress');
   assert.equal(one.maps.grassRecords.get(key).size, 0, 'the ash grows no blades (its grass records none)');
   const means = tileArrays.get(key).map(tileMeanColour);
   assert.deepEqual(one.maps.groundMeanColour.get(key), means, 'the grass\'s colours the dress\'s');
@@ -424,9 +424,9 @@ test('TESA-LANDS THE DOORS: the ground sets\' module dresses a zone\'s key a rec
   assert.match(gs, /if \(landOf\(groundArchive\)\?\.blades === false\) grassRecords\.set\(groundArchive, new Set\(\)\);/);
   const pb = read('src/scenes/pixelBuild.js');
   assert.match(pb, /const lands = tamrielLandsOn\(\);/);
-  assert.match(pb, /const groundArchive = landSetOf\(px, py, snowCover \?/);
+  assert.match(pb, /const regionalGround = landSetOf\(px, py, snowCover \?/);
   assert.match(pb, /return climateNeighbourIn\(px, py, x, y\) \? landSetOf\(x, y, archive\) : landSetOf\(px, py, archive\);/);
-  assert.match(pb, /near\.map\(\(c, k\) => neighbourSet\(px, py, k,/);
+  assert.match(pb, /near\.map\(\(c, k\) => localGround && k === 4 \? groundArchive : neighbourSet\(px, py, k,/);
   const sh = read('src/systems/landsSwitch.js');
   assert.match(sh, /if \(pageParam\('lands', search\) === 'off' && !isOnlinePage\(search\)\) return false;/);
   assert.match(sh, /const row = onlineForcedPref\('tamrielLands', search\) \?\? getPref\('tamrielLands'\);\n\s+return !!row && \(isOnlinePage\(search\) \|\| isEnhanced\(search\)\);/);
@@ -434,4 +434,19 @@ test('TESA-LANDS THE DOORS: the ground sets\' module dresses a zone\'s key a rec
   const feats = read('src/systems/features.js');
   assert.match(feats, /id: 'tamriel-lands'/);
   assert.match(feats, /control: Object\.freeze\(\{ store: 'prefs', key: 'tamrielLands', initial: true, online: true \}\)/);
+});
+
+test('Helbenar replaces the centre recipe only inside its map pixel', async () => {
+  const { helbernar, reliefLayer } = await import('../../src/world/tamriel/helbernar.js');
+  for (let x = 3268; x <= 3270; x++) for (let y = 542; y <= 544; y++) {
+    assert.deepEqual(landsNine(x, y).map((zone, i) => zone?.flora === helbernar.flora ? i : -1).filter(i => i >= 0),
+      x === 3269 && y === 543 ? [4] : []);
+  }
+  const source = { width: 64, height: 64, colors: new Uint8Array(64 * 64 * 4).fill(100) };
+  for (const r of [1, 2, 3]) {
+    const layer = reliefLayer(source, r);
+    assert.ok(layer.colors.some(value => value !== 100));
+    assert.ok(layer.colors.every((value, index) => index % 4 !== 3 || value === 100));
+  }
+  assert.strictEqual(reliefLayer(source, 0), source);
 });

@@ -60,6 +60,6 @@ export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null){
 }
 
 export function pixelWorldMesh(r,mesh,m,remap,options){
- if(options.translucent>0||mesh?.pixelKind!=='objects')return false;
- return pixelWorldDraw(r,'objects',mesh,m,()=>r.drawMesh(mesh,m,remap,options));
+ if(options.translucent>0||(mesh?.pixelKind!=='objects' && mesh?.pixelKind!=='landscape' && mesh?.pixelKind!=='pond'))return false;
+ return pixelWorldDraw(r,mesh.pixelKind,mesh,m,()=>r.drawMesh(mesh,m,remap,options));
 }

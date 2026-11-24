@@ -98,10 +98,25 @@ test('GRASS-PATH1: the mask is null on a roadless pixel and the painter is uncha
 
 test('GRASS-PATH1 / GRASS-WET1: the host keeps no blade on a painted tile or a tile with a water corner', () => {
   const w = hostText('src/scenes/world.js');
-  assert.match(w, /if \(p\.paths\?\.\[ti\]\) return null;/, 'a painted tile grows nothing');
-  assert.match(w, /if \(waterCorners\(byte, WATER_DRAW_MASK_TABLE\)\) \{\n\s+const puddle = [^\n]*\n\s+if \(!puddle \|\| [^\n]*\) return null;\n\s+\}/, 'nor does a tile with any corner in water - save a puddle record\'s dry ground (WATER-PUDDLE, test/world/waterpuddle.test.js)');
+  assert.match(w, /if \(\(!village && p\.paths\?\.\[ti\]\) \|\| p\.waterSourceGrass\?\.\(lx, lz\)\) return null;/, 'painted paths stay clear outside the village material mask');
+  assert.match(w, /if \(!\(village && villageGrassBank\(rec\)\) && waterCorners\(byte, WATER_DRAW_MASK_TABLE\)\) \{\n\s+const puddle = [^\n]*\n\s+if \(!puddle \|\| [^\n]*\) return null;\n\s+\}/, 'nor does a tile with any corner in water - save a puddle record\'s dry ground (WATER-PUDDLE, test/world/waterpuddle.test.js)');
   assert.match(w, /import \{ waterCorners, WATER_DRAW_MASK_TABLE \} from '\.\.\/world\/water\/waterCorners\.js';/, 'from the one table that owns the question');
   assert.match(w, /^\s+paths,\s+\/\/ GRASS-PATH1/m, 'the mask rides the built pixel');
+});
+
+test('Helbenar plants only the green side of a rotated path or upper bank', async () => {
+  const { villageGrassAt } = await import('../../../src/world/tamriel/helbernar.js');
+  const { groundKindsOf } = await import('../../../src/world/terrain/groundEdge.js');
+  const records = new Set([2]);
+  for (const record of [10, 11, 12, 20, 21, 22]) for (let turn=0; turn<4; turn++) {
+    const byte = record*4+turn, edge = groundKindsOf(byte);
+    if (!edge) continue;
+    for (let i=0; i<4; i++) {
+      const kind = edge.mask & (1 << i) ? edge.b : edge.a;
+      assert.equal(villageGrassAt(byte, 21.01 + .98*(i%2), 63.01 + .98*(i>>1), true, records), kind === 2);
+    }
+  }
+  for (const bare of [0,1,3,46,47,55]) assert.equal(villageGrassAt(bare*4,.5,.5,true,records),false);
 });
 
 test('GRASS-WET1: the shore records a stream writes over grass are mostly-grass by texel, which is why the record alone let blades into the water', () => {
@@ -311,7 +326,7 @@ test('WATER-DRAW1: the draw and the feet ask different questions, and only the d
   assert.match(read('src/player/exteriorSurface.js'), /import \{ waterCorners, waterCoverage \} from '\.\.\/world\/water\/waterCorners\.js';/, 'the feet keep the default, which is the law’s');
   assert.match(read('src/world/city/cityNavigation.js'), /WATER_MASK_TABLE\[\(record << 2\) \| t\]/, 'and so does the town’s navigation');
   // the grass asks the EYE's question - a blade in a puddle is a picture
-  assert.match(hostText('src/scenes/world.js'), /if \(waterCorners\(byte, WATER_DRAW_MASK_TABLE\)\) \{\n\s+const puddle = /);
+  assert.match(hostText('src/scenes/world.js'), /if \(!\(village && villageGrassBank\(rec\)\) && waterCorners\(byte, WATER_DRAW_MASK_TABLE\)\) \{\n\s+const puddle = /);
 });
 
 test('WATER-DRAW1: the tile probe names the record under the player', () => {

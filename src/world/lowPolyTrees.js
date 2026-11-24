@@ -484,6 +484,7 @@ export function readLowPolyTrees(json, treesBin, atlasesBin) {
       archive,
       record,
       mesh: p.mesh,
+      spruceFoliage: p.spruceFoliage ?? 0,
       scale: p.scale,
       subs,
       size: { w: reach * 2, h: Math.max(0.5, m.max[1] * sy) },
@@ -516,6 +517,7 @@ export const LPT_IMPOSTOR_MAX = 256;
  *  `#pragma surface surf Lambert`, no specular, no view term in its albedo) - so the light is the sky's, a world's
  *  direction, and the far picture is drawn under the same. */
 export const LPT_IMPOSTOR_LIGHT = Object.freeze([0, 1, 0]);
+export const SPRUCE_LIGHT = Object.freeze({ sky: .76, skyFacing: .21, sun: .73, sunFacing: .16, sunFront: .10, height: .55 });
 const lptShade = (n0, n1, n2) => {
   const l = LPT_IMPOSTOR_LIGHT,
     len = Math.hypot(n0, n1, n2) || 1;
@@ -610,7 +612,8 @@ export function* impostorSteps(lpt, proto, atlasPic) {
           const ty = Math.min(pic.height - 1, Math.max(0, Math.floor((1 - (vv - Math.floor(vv))) * pic.height))); // uv's v=0 is the picture's bottom
           const s = (ty * pic.width + tx) * 4;
           if (!sub.opaque && pic.data[s + 3] < cut) continue;
-          const sh = lptShade(
+          const needles = proto.spruceFoliage === 1 ? vv >= .75 : proto.spruceFoliage === 2 && u >= .375;
+          const sh = needles ? SPRUCE_LIGHT.sky + SPRUCE_LIGHT.skyFacing * Math.abs(f[v0 + 4]) : lptShade(
             b0 * f[v0 + 3] + b1 * f[v1 + 3] + b2 * f[v2 + 3],
             b0 * f[v0 + 4] + b1 * f[v1 + 4] + b2 * f[v2 + 4],
             b0 * f[v0 + 5] + b1 * f[v1 + 5] + b2 * f[v2 + 5],

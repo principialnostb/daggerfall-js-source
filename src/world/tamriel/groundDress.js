@@ -1,4 +1,5 @@
 // @ts-check
+import { reliefLayer } from './helbernar.js';
 // TESA-LANDS (bible/03-World/Tamriel-Lands.md, "The ground"): THE GROUND'S DRESS - a zone's own colours laid over the
 // ground set the game draws (the classic records, or the pack worn over them), keeping the set's grain, its tiles' shapes
 // and its transitions. A texel's class (DFU's four bases and the town's paving) is read off THIS set's solid records,
@@ -468,6 +469,7 @@ export function* dressLayersSteps(layers, dress, exposure = 1) {
   const light = DRESS_DIALS.albedo * exposure;
   for (let r = 0; r < layers.length; r++) {
     out[r] = yield* dressRecordSteps(layers[r], r, mats, protos, light);
+    if (dress.surfaceDetail) out[r] = reliefLayer(out[r], r);
     yield;
   }
   return out;

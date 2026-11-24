@@ -149,8 +149,8 @@
   {
     "name": "GRASSPX-the-sheet-rides-the-zero-fields-unit",
     "file": "src/render/labGrass.js",
-    "old": "      gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, meadow ? this.meadowSheet : this.pxSheet);\n      gl.uniform1i(u.uPxSheet, 4);",
-    "new": "      gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, meadow ? this.meadowSheet : this.pxSheet);\n      gl.uniform1i(u.uPxSheet, 3);",
+    "old": "gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, village ? this.villageSheet : meadow ? this.meadowSheet : this.pxSheet);\n      gl.uniform1i(u.uPxSheet, 4);",
+    "new": "gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, village ? this.villageSheet : meadow ? this.meadowSheet : this.pxSheet);\n      gl.uniform1i(u.uPxSheet, 3);",
     "tests": [
       "test/render/grasspx.test.js"
     ],
@@ -251,8 +251,8 @@
   {
     "name": "AUDIT-GRASSPX-the-step-counts-are-gated-so-smooth-is-NaN",
     "file": "src/render/labGrass.js",
-    "old": "    gl.uniform1f(u.uPxVariants, meadow ? MEADOW_SLOTS : this.pxVariants);\n    gl.uniform1f(u.uPxSteps, PX_RAMP_STEPS);\n    gl.uniform1f(u.uPxTintBands, PX_TINT_BANDS);\n    if (pixel) {",
-    "new": "    if (pixel) {\n    gl.uniform1f(u.uPxVariants, meadow ? MEADOW_SLOTS : this.pxVariants);\n    gl.uniform1f(u.uPxSteps, PX_RAMP_STEPS);\n    gl.uniform1f(u.uPxTintBands, PX_TINT_BANDS);",
+    "old": "gl.uniform1f(u.uPxSteps, PX_RAMP_STEPS);",
+    "new": "if (pixel) gl.uniform1f(u.uPxSteps, PX_RAMP_STEPS);",
     "tests": [
       "test/render/grasspx.test.js"
     ],
@@ -270,8 +270,8 @@
   {
     "name": "AUDIT-GRASSPX-the-cell-submits-every-blade-in-pixel",
     "file": "src/render/labGrass.js",
-    "old": "      const m = this._oneQuad ? Math.ceil(n / (this._meadow ? MEADOW_BLADES_PER_TUFT : PX_BLADES_PER_TUFT)) : n;",
-    "new": "      const m = n;",
+    "old": "const m = this._oneQuad ? Math.ceil(this._meadow ? n * meadowShare : n / PX_BLADES_PER_TUFT) : n;",
+    "new": "const m = n;",
     "tests": [
       "test/render/grasspx.test.js"
     ],
@@ -280,8 +280,8 @@
   {
     "name": "AUDIT-GRASSPX-the-fade-fraction-is-over-the-whole-cell-not-the-half",
     "file": "src/render/labGrass.js",
-    "old": "      gl.uniform1f(this.u.uSlotN, m);",
-    "new": "      gl.uniform1f(this.u.uSlotN, n);",
+    "old": "this._slotUniforms(slot, m);",
+    "new": "this._slotUniforms(slot, n);",
     "tests": [
       "test/render/grasspx.test.js"
     ]
