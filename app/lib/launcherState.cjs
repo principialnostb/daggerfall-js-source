@@ -445,7 +445,11 @@ const GENERATED_RE = /^(##\s*What['’]s Changed\b|\*\*Full Changelog\*\*|##\s*N
 
 /** A release body as a player reads it: the patch notes, without the list. */
 function playerNotes(body) {
-  const text = String(body ?? '').replace(/\r\n/g, '\n');
+  const text = String(body ?? '').replace(/\r\n/g, '\n')
+    .replace(/<details\b[^>]*>[ \t\n]*<summary>[ \t]*Download setup[ \t]*<\/summary>[\s\S]*?<\/details>/gi, '')
+    .replace(/^<(?:Test build from [a-f0-9]+|Download setup)[ \t]*\n(?:(?!^<)[\s\S])*?^!--[ \t]*setup-tag:[^\n]*?-->/gim, '')
+    .replace(/^[ \t]*(?:[-*][ \t]+)?\[Download setup\]\([^\n]*\)[ \t]*$/gim, '')
+    .replace(/<!--[ \t]*setup-tag:[^\n]*?-->/gi, '');
   const cut = text.search(GENERATED_RE);
   return (cut < 0 ? text : text.slice(0, cut)).trim();
 }
@@ -462,22 +466,27 @@ const isPlaceholder = (t) => /^fixes and improvements\.?$/i.test(String(t).trim(
  * so); the installer's version stays what is compared.
  *
  * @param {Array<{ tag_name?: string, name?: string, body?: string, published_at?: string, draft?: boolean, prerelease?: boolean }>} releases
- * @returns {Array<{ version: string, date: string, text: string, update?: string }>}
+ * @returns {Array<{ version: string, date: string, title?: string, text: string, update?: string }>}
  */
 function newsFrom(releases) {
   if (!Array.isArray(releases)) return [];
   return releases
     .filter((r) => r && !r.draft && !r.prerelease)
-    .map((r) => ({ v: parseReleaseTag(r.tag_name), date: typeof r.published_at === 'string' ? r.published_at : '', text: playerNotes(r.body), update: updateOfName(r.name) }))
+    .map((r) => ({ v: parseReleaseTag(r.tag_name), date: typeof r.published_at === 'string' ? r.published_at : '', text: playerNotes(r.body), ...releaseTitle(r.name) }))
     .filter((r) => r.v)
     .sort((a, b) => cmpV(b.v, a.v))
-    .map((r) => ({ version: r.v.join('.'), date: r.date, text: r.text, ...(r.update ? { update: r.update } : {}) }));
+    .map(({ v, ...r }) => ({ version: v.join('.'), ...r }));
 }
 
 /** REL8: a release's name that is a player's update - `Update 0.0.1` - and its number; anything else names none. */
 const UPDATE_NAME_RE = /^Update (\d+\.\d+\.\d+)$/;
 /** REL8: an update number as news.json keeps one. */
 const UPDATE_NUMBER_RE = /^\d+\.\d+\.\d+$/;
+function releaseTitle(name) {
+  const title = typeof name === 'string' ? name.trim() : '';
+  const update = updateOfName(title);
+  return update ? { update } : title ? { title } : {};
+}
 function updateOfName(name) {
   return UPDATE_NAME_RE.exec(String(name ?? '').trim())?.[1] ?? null;
 }
@@ -488,7 +497,7 @@ function cachedNews(json) {
   const items = Array.isArray(json?.items) ? json.items : [];
   return items
     .filter((n) => n && parseVersion(n.version) && typeof n.text === 'string')
-    .map((n) => ({ version: String(n.version).trim(), date: typeof n.date === 'string' ? n.date : '', text: n.text, ...(UPDATE_NUMBER_RE.test(n.update) ? { update: n.update } : {}) }))
+    .map((n) => ({ version: String(n.version).trim(), date: typeof n.date === 'string' ? n.date : '', text: playerNotes(n.text), ...releaseTitle(n.title), ...(UPDATE_NUMBER_RE.test(n.update) ? { update: n.update } : {}) }))
     .sort((a, b) => cmpV(parseVersion(b.version), parseVersion(a.version)));
 }
 
@@ -519,8 +528,8 @@ function newsView(s) {
   const items = s.news.items
     .map((n) => ({ n, v: parseVersion(n?.version) }))
     .filter((x) => x.v)
-    .map(({ n, v }) => ({ version: v.join('.'), date: dateLabel(n.date), text: String(n.text ?? ''), badge: badge(v), ...(UPDATE_NUMBER_RE.test(n.update) ? { update: n.update } : {}) }));
-  const said = items.filter((n) => n.badge || (n.text && !isPlaceholder(n.text)));
+    .map(({ n, v }) => ({ version: v.join('.'), date: dateLabel(n.date), text: String(n.text ?? ''), badge: badge(v), ...releaseTitle(n.title), ...(UPDATE_NUMBER_RE.test(n.update) ? { update: n.update } : {}) }));
+  const said = items.filter((n) => n.badge || (n.text ? !isPlaceholder(n.text) : n.title));
   const list = (said.length ? said : items.slice(0, 1)).slice(0, NEWS_MAX);
   return { items: list, note: list.length ? '' : NEWS_NOTE[s.news.status] ?? '' };
 }

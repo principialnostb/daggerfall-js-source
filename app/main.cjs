@@ -557,13 +557,8 @@ function handleDagger(req) {
 // Update; on the notice transport the offer is a direct download of this
 // copy's own file (REL5), never a page of eleven.
 //
-// DA10: THE NEWS. The one other request the shell makes of its own is the
-// same API's recent-release list: the launcher's news panel, the patch
-// notes of the latest releases (electron-updater's own fullChangelog
-// cannot read app-v tags: it takes versions as semver). It is the update
-// check's own request - asked beside it at launch, under its two gates -
-// and its answer is kept in news.json, so the panel is never empty while
-// the next one is asked for, or when GitHub does not answer.
+// Fetch the current release text independently of the installer's update check.
+// GitHub edits can change the title or body without publishing new artifacts.
 const TEST_EMC = TEST_CONFIG ? require('./lib/emcReleasePack.cjs').emcStore(path.join(app.getPath('userData'), 'EMC'), net, { requireFaces: true, onProgress: emcProgressChanged }) : null;
 const TEST_ACCESS = TEST_CONFIG
   ? require('./lib/publicTestChannel.cjs').publicTestChannel({
@@ -801,13 +796,29 @@ function publishReleaseNews(releases) {
 /** The recent releases' patch notes, for the launcher's news panel: kept,
  *  and handed to the launcher; the cached list stays up when GitHub does
  *  not answer. */
-async function fetchNews() {
+let newsRequest;
+function fetchNews() {
+  newsRequest ??= refreshReleaseNews().finally(() => { newsRequest = undefined; });
+  return newsRequest;
+}
+
+async function refreshReleaseNews() {
   try {
-    const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };
-    const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LIST_API, options));
+    const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, cache: 'no-cache', signal: AbortSignal.timeout(8000) };
+    const res = await (TEST_RELEASES && !TEST_CONFIG.public
+      ? TEST_RELEASES.releases(options)
+      : net.fetch(RELEASES_LIST_API, options));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    publishReleaseNews(await res.json());
-  } catch { launcherDispatch({ type: 'news-failed' }); }
+    const rows = await res.json();
+    if (!Array.isArray(rows) || (TEST_RELEASES && !testRelease(rows))) throw new Error('No test releases on the first page');
+    publishReleaseNews(rows);
+  } catch {
+    if (TEST_CONFIG?.public && !launcher?.state.news.items.length) {
+      const rows = await TEST_RELEASES.staticIndex();
+      if (rows) { publishReleaseNews(rows); return; }
+    }
+    launcherDispatch({ type: 'news-failed' });
+  }
 }
 
 /** An update, told to the game: a HUD line (app/preload.cjs keeps it for a
@@ -1127,17 +1138,17 @@ async function fetchLatestRelease() {
     if (TEST_ACCESS && !testSession) return null;
     const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };
     const access = testSession?.signal;
+    const releaseSignal = access ? AbortSignal.any([access, options.signal]) : options.signal;
     const res = TEST_RELEASES
       ? await retryGitHub(() => TEST_RELEASES.releases({
-        ...options, cache: 'no-store',
-        signal: access ? AbortSignal.any([access, AbortSignal.timeout(10000)]) : options.signal,
-      }), { signal: access })
+        ...options, cache: 'no-cache', signal: releaseSignal,
+      }), { signal: releaseSignal })
       : await net.fetch(RELEASES_LATEST_API, options);
     if (TEST_ACCESS) testReleaseHttp = res.ok ? undefined : res.status;
     if (!res.ok) return null;
     const data = await res.json();
     access?.throwIfAborted();
-    if (TEST_ACCESS) publishReleaseNews(data);
+    if (TEST_ACCESS && !TEST_CONFIG.public) publishReleaseNews(data);
     const json = TEST_RELEASES ? testRelease(data) : data;
     const tag = typeof json?.tag_name === 'string' ? json.tag_name : null;
     const url = typeof json?.html_url === 'string' && /^https:\/\/github\.com\//.test(json.html_url)
@@ -1442,7 +1453,9 @@ let recheckTimer = null;
 function startRechecks() {
   if (recheckTimer || !updateChecksEnabled()) return;
   recheckTimer = setInterval(async () => {
-    if (!updateChecksEnabled() || (TEST_ACCESS && (!testSession || Date.now() - lastVerifiedAccess > 45000))) return;
+    if (!updateChecksEnabled()) return;
+    if (launcher) fetchNews();
+    if (TEST_ACCESS && (!testSession || Date.now() - lastVerifiedAccess > 45000)) return;
     // DA13: the game's own channel first; the installer's path answers only what it cannot carry
     if (await askGame() !== 'installer') return;
     if (currentUpdateTransport() === 'updater') {
@@ -2249,6 +2262,12 @@ function runLauncher() {
   };
   buildMenu();
   if (TEST_ACCESS) {
+    if (TEST_CONFIG.public) {
+      TEST_RELEASES.staticIndex().then((rows) => {
+        if (rows && launcher && !launcher.state.news.items.length) publishReleaseNews(rows);
+      });
+      fetchNews();
+    }
     launcher.win.on('focus', refreshTestPlay);
     refreshTestPlay();
   } else if (checkEnabled) {

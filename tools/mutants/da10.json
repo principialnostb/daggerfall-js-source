@@ -79,7 +79,7 @@
   {
     "name": "DA10-9-placeholder-releases-flood-the-news",
     "file": "app/lib/launcherState.cjs",
-    "old": "  const said = items.filter((n) => n.badge || (n.text && !isPlaceholder(n.text)));\n",
+    "old": "  const said = items.filter((n) => n.badge || (n.text ? !isPlaceholder(n.text) : n.title));\n",
     "new": "  const said = items.filter((n) => n.text);\n",
     "tests": [
       "test/tooling/da10_launcher.test.js"
@@ -88,7 +88,7 @@
   {
     "name": "DA10-10-the-players-own-version-is-hidden-when-its-notes-are-bare",
     "file": "app/lib/launcherState.cjs",
-    "old": "  const said = items.filter((n) => n.badge || (n.text && !isPlaceholder(n.text)));\n",
+    "old": "  const said = items.filter((n) => n.badge || (n.text ? !isPlaceholder(n.text) : n.title));\n",
     "new": "  const said = items.filter((n) => n.text && !isPlaceholder(n.text));\n",
     "tests": [
       "test/tooling/da10_launcher.test.js"

@@ -31,6 +31,23 @@ const behind = (p) => {
 };
 const ready = (over) => run(fresh(over), { type: 'check-none' }, { type: 'news', items: NOTES });
 
+test('the GitHub release title and edited description appear without setup metadata', () => {
+  const tag_name = 'app-v13.11.36';
+  const name = '11.13.36 - Launcher fixes';
+  const setup = '[Download setup](https://example.com/setup.exe)\n\n<!-- setup-tag: dfo-1311-v13.11.36 -->';
+  const initial = L.newsFrom([{ tag_name, name, body: 'Original description.\n\n' + setup }]);
+  const edited = L.newsFrom([{ tag_name, name, body: 'Edited description.\n\n<details>\n<summary>Download setup</summary>\n\n' + setup + '\n</details>' }]);
+  assert.deepEqual(L.cachedNews({ items: initial }), initial);
+  const state = run(fresh({ current: '13.11.36', news: initial }), { type: 'check-none' });
+  const page = bootLauncher();
+  page.show(view(state));
+  assert.deepEqual([page.$('hero-title').textContent, page.$('hero-text').textContent], [name, 'Original description.']);
+  page.show(view(run(state, { type: 'news', items: edited })));
+  assert.deepEqual([page.$('hero-title').textContent, page.$('hero-text').textContent], [name, 'Edited description.']);
+  assert.equal(page.doc.querySelector('#news .release h4').textContent, name);
+  assert.equal(page.doc.querySelector('#news .release p').textContent, 'Edited description.');
+});
+
 // ---- the window ----------------------------------------------------------------------------------------------------
 
 test('LAUNCHER-FACE: the window takes its full size where the screen has room, the screen\'s room where it has not, and never less than the page holds together at', () => {

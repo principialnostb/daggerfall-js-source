@@ -41,9 +41,7 @@
   const BADGE = { new: 'New', update: 'Update' };
   const HERO_KIND = { new: 'New since you last played', update: 'In the next update' };
 
-  /** The headline: the newest release's title (its first heading, "Patch Notes:" taken off) and its first point. Notes
-   *  with no title give their first point as the title and their second as the line. Code blocks are skipped: the
-   *  patch notes beside it hold the whole of it. */
+  /** Use the GitHub title when available. Older cached notes can supply a heading or first point instead. */
   function drawHero(note) {
     if (!note) return;
     let title = null, fenced = false;
@@ -53,15 +51,15 @@
       if (/^(```|~~~)/.test(line)) { fenced = !fenced; continue; }
       if (fenced || !line) continue;
       const heading = /^#{1,6}\s+(.*)$/.exec(line);
-      if (heading) { title ??= heading[1].replace(/^Patch Notes:?\s*/i, ''); continue; }
-      said.push(plain(line.replace(/^[-*]\s+/, '')));
+      if (heading && !note.title) { title ??= heading[1].replace(/^Patch Notes:?\s*/i, ''); continue; }
+      said.push(plain((heading?.[1] ?? line).replace(/^[-*]\s+|^Patch Notes:\s*/i, '')));
       if (said.length === 2) break;
     }
-    if (!title) title = said.shift() ?? '';
+    if (!note.title && !title) title = said.shift() ?? '';
     const name = note.update ? `Update ${note.update}` : `v${note.version}`;
     $('hero-kind').textContent = Object.hasOwn(HERO_KIND, note.badge) ? HERO_KIND[note.badge] : 'Latest update';
     $('hero-when').textContent = note.date ? `${name} - ${note.date}` : name;
-    $('hero-title').textContent = plain(title) || name;
+    $('hero-title').textContent = note.title || (title && plain(title)) || name;
     $('hero-text').textContent = said[0] ?? '';
   }
 
@@ -78,6 +76,7 @@
     if (note.date) head.append(el('span', 'date', note.date));
     if (Object.hasOwn(BADGE, note.badge)) head.append(el('span', `badge ${note.badge}`, BADGE[note.badge]));
     box.append(head);
+    if (note.title) box.append(el('h4', null, note.title));
     // the open lists, outermost first, each with the indent its bullets stand at (AUDIT INSTALL R2-E8: notes
     // nest their bullets, and flattened the sub-points read as points of their own)
     let lists = [];

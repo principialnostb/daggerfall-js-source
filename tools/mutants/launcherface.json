@@ -65,8 +65,8 @@
   {
     "name": "LAUNCHER-FACE-8-the-headline-takes-the-last-heading",
     "file": "app/launcher/launcher.js",
-    "old": "if (heading) { title ??= heading[1]",
-    "new": "if (heading) { title = heading[1]",
+    "old": "if (heading && !note.title) { title ??= heading[1]",
+    "new": "if (heading && !note.title) { title = heading[1]",
     "tests": [
       "test/tooling/launcher_face.test.js"
     ]

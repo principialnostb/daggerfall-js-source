@@ -247,8 +247,8 @@
   {
     "name": "AUDIT-INSTALL-L5-7-a-switch-turned-off-still-asks-hourly",
     "file": "app/main.cjs",
-    "old": "    if (!updateChecksEnabled() || (TEST_ACCESS && (!testSession || Date.now() - lastVerifiedAccess > 45000))) return;",
-    "new": "    if ((TEST_ACCESS && (!testSession || Date.now() - lastVerifiedAccess > 45000))) return;",
+    "old": "    if (!updateChecksEnabled()) return;",
+    "new": "    if (false) return;",
     "tests": [
       "test/tooling/audit_install.test.js"
     ]

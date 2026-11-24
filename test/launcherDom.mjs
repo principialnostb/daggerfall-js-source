@@ -150,10 +150,14 @@ export function bootLauncher({ now } = {}) {
   doc.createElement = (t) => new El(t, doc);
   doc.createTextNode = (t) => new Text_(t);
   doc.addEventListener = (t, f) => (doc.listeners[t] ??= []).push(f);
+  doc.dispatchEvent = (event) => {
+    for (const listen of doc.listeners[event.type] ?? []) listen(event);
+    return !event.defaultPrevented;
+  };
   const sent = [];
   let onView = null;
   const bridge = { onView: (cb) => { onView = cb; }, act: (action, arg) => sent.push(arg === undefined || arg === null ? [action] : [action, arg]) };
-  const ctx = vm.createContext({ window: { daggerLauncher: bridge }, document: doc, JSON, String, Object, Math, Map, Number, Symbol, ...(now ? { Date: { now } } : {}) });
+  const ctx = vm.createContext({ window: { daggerLauncher: bridge }, document: doc, CustomEvent, JSON, String, Object, Math, Map, Number, Symbol, ...(now ? { Date: { now } } : {}) });
   vm.runInContext(readFileSync(new URL('../app/launcher/launcher.js', import.meta.url), 'utf8'), ctx, { filename: 'launcher.js' });
   return { doc, $: (id) => doc.getElementById(id), sent, show: (v) => onView(v) };
 }

@@ -60,26 +60,37 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
     return response.json();
   }
 
-  // Only the publisher calls the releases API. The static index keeps the same
-  // release rows so both game-only and shell updates use their existing checks.
+  // The static index avoids the API rate limit for game and shell updates.
   const indexUrl = 'https://raw.githubusercontent.com/' + repository + '/' + branch + '/test-channel/13.11-releases.json';
   let lastIndex;
-  async function releaseIndex(options) {
-    options?.signal?.throwIfAborted();
-    if (lastIndex && Date.now() - lastIndex.time < 15000) return Response.json(lastIndex.rows);
+  let indexRequest;
+  async function readStaticIndex() {
     try {
-      const response = await net.fetch(indexUrl, { ...options, headers: { Accept: 'application/json' }, cache: 'no-store' });
+      const response = await net.fetch(indexUrl, {
+        headers: { Accept: 'application/json' }, cache: 'no-cache', signal: AbortSignal.timeout(2500),
+      });
       if (response.ok) {
         const rows = await response.json();
         if (Array.isArray(rows) && testRelease(rows)) {
           lastIndex = { rows, time: Date.now() };
-          return Response.json(rows);
+          return rows;
         }
       }
-    } catch (error) {
-      if (options?.signal?.aborted) throw error;
-    }
-    // Retain the previous route if only the static host is unavailable.
+    } catch { /* GitHub's releases API can answer when the static host fails. */ }
+    return null;
+  }
+
+  function staticIndex() {
+    if (lastIndex && Date.now() - lastIndex.time < 15000) return Promise.resolve(lastIndex.rows);
+    indexRequest ??= readStaticIndex().finally(() => { indexRequest = undefined; });
+    return indexRequest;
+  }
+
+  async function releaseIndex(options) {
+    options?.signal?.throwIfAborted();
+    const rows = await staticIndex();
+    options?.signal?.throwIfAborted();
+    if (rows) return Response.json(rows);
     return net.fetch(api + '?per_page=100', options);
   }
 
@@ -332,6 +343,7 @@ function publicTestChannel({ userData, net, safeStorage, copy, emc, clientId, op
 
   return {
     action, authorizeUpdate, installDeveloperEmc, repository, page: 'https://github.com/' + repository + '/releases',
+    staticIndex,
     async releases(options) {
       const response = await releaseIndex(options);
       if (response.ok) {

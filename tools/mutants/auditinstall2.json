@@ -607,8 +607,8 @@
   {
     "name": "AUDIT-INSTALL-R2-E-06-the-news-keeps-githubs-order",
     "file": "app/lib/launcherState.cjs",
-    "old": "    .sort((a, b) => cmpV(b.v, a.v))\n    .map((r) => ({ version: r.v.join",
-    "new": "    .map((r) => ({ version: r.v.join",
+    "old": "    .sort((a, b) => cmpV(b.v, a.v))\n    .map(({ v, ...r }) => ({ version: v.join",
+    "new": "    .map(({ v, ...r }) => ({ version: v.join",
     "tests": [
       "test/tooling/audit_install2.test.js",
       "test/tooling/da10_launcher.test.js",
@@ -987,8 +987,8 @@
   {
     "name": "AUDIT-INSTALL-R2-E-41-the-news-waits-on-a-silent-github-for-ever",
     "file": "app/main.cjs",
-    "old": "    const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(10000) };\n    const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LIST_API, options));",
-    "new": "    const options = { headers: { 'User-Agent': 'daggerfall-js-app', Accept: 'application/vnd.github+json' } };\n    const res = await (TEST_RELEASES ? TEST_RELEASES.releases(options) : net.fetch(RELEASES_LIST_API, options));",
+    "old": "cache: 'no-cache', signal: AbortSignal.timeout(8000)",
+    "new": "cache: 'no-cache'",
     "tests": [
       "test/tooling/audit_install2.test.js",
       "test/tooling/da10_launcher.test.js",
@@ -1001,8 +1001,8 @@
   {
     "name": "AUDIT-INSTALL-R2-E-42-a-rate-limited-answer-wipes-the-kept-news",
     "file": "app/main.cjs",
-    "old": "    if (!res.ok) throw new Error(`HTTP ${res.status}`);\n    publishReleaseNews(await res.json());",
-    "new": "    publishReleaseNews(await res.json());",
+    "old": "    if (!res.ok) throw new Error(`HTTP ${res.status}`);\n    const rows = await res.json();\n    if (!Array.isArray(rows) || (TEST_RELEASES && !testRelease(rows))) throw new Error('No test releases on the first page');",
+    "new": "    const rows = await res.json();",
     "tests": [
       "test/tooling/audit_install2.test.js",
       "test/tooling/da10_launcher.test.js",
