@@ -14,6 +14,9 @@ import { readFileSync } from 'node:fs';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../../../src/formats/morrowind/mwNifMesh.js';
 import { assembleFirstPersonArm } from '../../../src/formats/morrowind/mwFirstPerson.js';
+import { getPref, setPref } from '../../../src/systems/uiPrefs.js';
+import { MOD_PACKS } from '../../../src/systems/enhancedModCatalog.js';
+import { modResourceGlob } from '../../../src/systems/enhancedModResources.js';
 import { fitGarmentClearance } from '../../../src/formats/morrowind/mwSkinTransfer.js';
 import { composeWornArmor, fpWornAdds } from '../../../src/formats/morrowind/mwItemMap.js';
 import { ARMOR_MATERIAL } from '../../../src/systems/armorMaterials.js';
@@ -74,13 +77,13 @@ test('MW-FIT1: a pauldron is a sleeve - in both sets every ray out of the upper 
   }
 });
 
-test('MW-FIT1: so each pauldron hides its upper arm in the third person - and not in the first, which draws no pauldron; what the first person does draw (a gauntlet) hides there too, and a robe\'s reserve is both persons\'', () => {
+test('MW-FIT1: each worn pauldron sleeves and hides the corresponding upper arm in both views; a gauntlet hides its own skin, and a robe\'s reserve is both persons\'', () => {
   for (const metal of ['Steel', 'Ebony']) {
     const left = compose([piece(T.Left_Pauldron, metal)]);
     const right = compose([piece(T.Right_Pauldron, metal)]);
     assert.deepEqual([left.shadows, right.shadows], [['upperarm:left'], ['upperarm:right']], `${metal}: each pauldron its own side's upper arm`);
-    assert.deepEqual([left.fpShadows, right.fpShadows], [[], []], `${metal}: the first person keeps the upper arm`);
-    assert.deepEqual(fpWornAdds([...left.adds, ...right.adds]), [], 'the first person draws no pauldron');
+    assert.deepEqual([left.fpShadows, right.fpShadows], [left.shadows, right.shadows]);
+    assert.deepEqual(fpWornAdds([...left.adds, ...right.adds]), [...left.adds, ...right.adds], 'both sleeves draw in first person');
     // a gauntlet is drawn in the first person, so what it hides is hidden there as well
     const hands = compose([piece(T.Gauntlets, metal)]);
     assert.deepEqual(hands.fpShadows, hands.shadows);
@@ -96,7 +99,15 @@ test('MW-FIT1: so each pauldron hides its upper arm in the third person - and no
   assert.match(fp, /let skinRows = shadowSkinRows\([\s\S]{0,200}?worn\.shadows\);/);
 });
 
-test('MW-FIT1: a closed helm is the head - the steel plate\'s closed helm and the ebony helm hide it, as retail\'s closed helmets fill its slot; the open helm shows the face and keeps it; each takes the hair', () => {
+test('MW-FIT1: a closed helm is the head - the steel plate\'s closed helm and the ebony helm hide it, as retail\'s closed helmets fill its slot; the open helm shows the face and keeps it; each takes the hair', (t) => {
+  for (const pack of MOD_PACKS.filter((entry) => entry.group === 'bodies')) {
+    modResourceGlob('../../Mods/**/*', { [`../../Mods/${pack.folder}/test.nif`]: 'test-url' });
+  }
+  for (const key of ['modelCustomization', 'extraArmorLooks']) {
+    const saved = getPref(key);
+    setPref(key, true);
+    t.after(() => setPref(key, saved));
+  }
   const steelHelm = [piece(T.Helm, 'Steel')];
   assert.deepEqual(STEEL_HELM_STYLES, ['closed', 'open', 'horned']);
   assert.deepEqual(compose(steelHelm).shadows, ['head', 'hair'], 'the closed steel helm, the default');
@@ -141,7 +152,8 @@ test('MW-FIT1: the closed helms stand where Mac fitted them on the body - in ret
     }
   }
   assert.ok(covered['Ebony 0'].slice(0, 6).every((n) => n === 36), `the ebony coif round the neck from 110 to 115: ${covered['Ebony 0']}`);
-  assert.ok(covered['Steel 0'].every((n) => n >= 26), `the steel visor and breastplate round most of the neck at every height: ${covered['Steel 0']}`);
+  // The breastplate follows Spine2 as one shell. Pin its coverage with the closed visor at each sampled height.
+  assert.deepEqual(covered['Steel 0'], [36, 36, 36, 36, 36, 22, 29, 34]);
   assert.ok(covered[`Ebony ${HELM_LIFT}`].some((n) => n < 30), `raised, the ebony coif leaves the neck bare: ${covered[`Ebony ${HELM_LIFT}`]}`);
   assert.ok(covered[`Steel ${HELM_LIFT}`].some((n) => n < 10), `raised, the steel helm leaves a band of neck: ${covered[`Steel ${HELM_LIFT}`]}`);
 });

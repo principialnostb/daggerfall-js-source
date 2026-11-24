@@ -430,11 +430,17 @@ test('MW-STEEL4: a written skin reads back as the reader reads retail\'s - insta
   assert.throws(() => skinnedMeshesToNif([{ mesh, weights: [[['zz', 1]], [['b1', 1]], [['b1', 1]]] }], { bones: [{ name: 'b1', bind: { a: turn, t: [0, 0, 0] } }] }), /"zz", which is not one of the part's bones/);
 });
 
-test('MW-STEEL4: the plate is a part like any retail part - its adds carry nothing for a runtime solve, the build hands the binder its mesh alone, and MW-STEEL1-3\'s fit and bind solve are gone', () => {
+test('MW-STEEL4: the plate is a part like any retail part - its baked weights survive rigid fitting to the wearer, and MW-STEEL1-3\'s fit and bind solve are gone', () => {
   const worn = composeWornArmor({ pieces: SET, armors: [], bodyPool: [], helmStyle: 'open' });
   for (const a of worn.adds) {
     for (const k of ['skinFrom', 'fitTo', 'fit', 'fitFrom', 'solvePose']) assert.equal(k in a, false, `${a.slot} carries no ${k}`);
-    assert.deepEqual(ownBodyPart(a, [{ slot: 'chest', record: { model: 'c.nif' } }], () => ({ get: () => Uint8Array.of(1) })), {}, `${a.slot}: the binder gets its mesh alone`);
+    const chest = [{ slot: 'chest', record: { model: 'c.nif' } }];
+    const fit = ownBodyPart(a, chest, () => ({ get: () => Uint8Array.of(1) }));
+    assert.equal(fit.fitMode, 'rigid');
+    const expected = a.fitBodySlots.includes('chest')
+      ? [{ slot: 'chest', path: 'meshes/c.nif', bytes: Uint8Array.of(1) }] : [];
+    assert.deepEqual(fit.fitSources, expected);
+    assert.equal('skinFrom' in fit, false, 'the plate keeps its baked weights');
   }
   for (const own of OWN_MW_ARMOR.filter((o) => o.id.startsWith('daggerfall_steel_'))) {
     assert.deepEqual(Object.keys(own).sort(), ['id', 'material', 'name', 'parts', 'templateIndex', ...(own.styles ? ['styles'] : [])].sort(), `${own.id} is its parts`);
@@ -443,11 +449,15 @@ test('MW-STEEL4: the plate is a part like any retail part - its adds carry nothi
   const brig = composeWornArmor({ pieces: [{ templateIndex: 520, material: STEEL }], armors: [], bodyPool: [] }).adds[0];
   assert.deepEqual([[...brig.skinFrom], brig.fitTo], [['chest', 'groin', 'upperleg', 'knee'], 'chest']);
   const transfer = sourceText('src/formats/morrowind/mwSkinTransfer.js');
-  assert.deepEqual([...transfer.matchAll(/^export function (\w+)/gm)].map((m) => m[1]), ['sourceSkin', 'fitLift', 'liftBatch', 'transferSkin']);
+  assert.deepEqual([...transfer.matchAll(/^export function (\w+)/gm)].map((m) => m[1]), [
+    'sourceSkin', 'fitLift', 'liftBatch', 'influencesOf', 'invert33', 'measureAffines', 'transferSkin',
+    'fitGarmentClearance', 'equipmentBoneSide', 'garmentFitSurfaces', 'fitGarmentToSurfaces',
+  ]);
   const binder = sourceText('src/formats/morrowind/mwFirstPerson.js');
   for (const gone of ['solvePose', 'solveOn', 'bindPoseMats', 'skeletonBindSkins', 'fitShift', 'rebindSkin', 'skeletonNif']) assert.equal(binder.includes(gone), false, `mwFirstPerson.js: no ${gone}`);
   const fp = sourceText('src/combat/fpArm.js');
   for (const gone of ['tpSkeletonBytes', 'ownFp', 'fitFrom', 'solvePose']) assert.equal(fp.includes(gone), false, `fpArm.js: no ${gone}`);
   // PIN MOVED (MWNPC3): the bytes are the archive's one copy (nifBytes), as every part's now are
-  assert.match(fp, /partBytes\.push\(\{ slot: add\.slot, partName: add\.partName, bones: add\.bones, bytes: nifBytes\(arc, path\) \}\);/, 'the first person\'s adds go to the binder as retail\'s do');
+  assert.match(fp, /const originalBytes = nifBytes\(arc, path\);/);
+  assert.match(fp, /partBytes\.push\(\{ slot: add\.slot, partName: add\.partName, bones: add\.bones, bytes: originalBytes \}\);/, 'the first person\'s adds go to the binder as retail\'s do');
 });

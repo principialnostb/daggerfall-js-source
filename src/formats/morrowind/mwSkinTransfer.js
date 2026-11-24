@@ -290,7 +290,16 @@ export function transferSkin(garment, sources, ctx) {
  * collision solver: callers must supply the actual target body surfaces in
  * the same rest-pose coordinate frame as the garment.
  */
-function closestPointTriangle(p, a, b, c) {
+function setTriangleHit(hit, x, y, z, wa, wb, wc) {
+  hit.x = x;
+  hit.y = y;
+  hit.z = z;
+  hit.wa = wa;
+  hit.wb = wb;
+  hit.wc = wc;
+}
+
+function closestPointTriangle(p, a, b, c, hit) {
   const abx = b[0] - a[0];
   const aby = b[1] - a[1];
   const abz = b[2] - a[2];
@@ -302,113 +311,237 @@ function closestPointTriangle(p, a, b, c) {
   const apz = p[2] - a[2];
   const d1 = abx * apx + aby * apy + abz * apz;
   const d2 = acx * apx + acy * apy + acz * apz;
-  if (d1 <= 0 && d2 <= 0) return { point: a, bary: [1, 0, 0] };
+  if (d1 <= 0 && d2 <= 0) return setTriangleHit(hit, a[0], a[1], a[2], 1, 0, 0);
   const bpx = p[0] - b[0];
   const bpy = p[1] - b[1];
   const bpz = p[2] - b[2];
   const d3 = abx * bpx + aby * bpy + abz * bpz;
   const d4 = acx * bpx + acy * bpy + acz * bpz;
-  if (d3 >= 0 && d4 <= d3) return { point: b, bary: [0, 1, 0] };
+  if (d3 >= 0 && d4 <= d3) return setTriangleHit(hit, b[0], b[1], b[2], 0, 1, 0);
   const vc = d1 * d4 - d3 * d2;
   if (vc <= 0 && d1 >= 0 && d3 <= 0) {
     const v = d1 / (d1 - d3);
-    return { point: [a[0] + v * abx, a[1] + v * aby, a[2] + v * abz], bary: [1 - v, v, 0] };
+    return setTriangleHit(hit, a[0] + v * abx, a[1] + v * aby, a[2] + v * abz, 1 - v, v, 0);
   }
   const cpx = p[0] - c[0];
   const cpy = p[1] - c[1];
   const cpz = p[2] - c[2];
   const d5 = abx * cpx + aby * cpy + abz * cpz;
   const d6 = acx * cpx + acy * cpy + acz * cpz;
-  if (d6 >= 0 && d5 <= d6) return { point: c, bary: [0, 0, 1] };
+  if (d6 >= 0 && d5 <= d6) return setTriangleHit(hit, c[0], c[1], c[2], 0, 0, 1);
   const vb = d5 * d2 - d1 * d6;
   if (vb <= 0 && d2 >= 0 && d6 <= 0) {
     const w = d2 / (d2 - d6);
-    return { point: [a[0] + w * acx, a[1] + w * acy, a[2] + w * acz], bary: [1 - w, 0, w] };
+    return setTriangleHit(hit, a[0] + w * acx, a[1] + w * acy, a[2] + w * acz, 1 - w, 0, w);
   }
   const va = d3 * d6 - d5 * d4;
   if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
     const w = (d4 - d3) / (d4 - d3 + (d5 - d6));
-    return {
-      point: [b[0] + w * (c[0] - b[0]), b[1] + w * (c[1] - b[1]), b[2] + w * (c[2] - b[2])],
-      bary: [0, 1 - w, w],
-    };
+    return setTriangleHit(hit, b[0] + w * (c[0] - b[0]), b[1] + w * (c[1] - b[1]), b[2] + w * (c[2] - b[2]), 0, 1 - w, w);
   }
   const denom = 1 / (va + vb + vc);
   const v = vb * denom,
     w = vc * denom;
-  return {
-    point: [a[0] + abx * v + acx * w, a[1] + aby * v + acy * w, a[2] + abz * v + acz * w],
-    bary: [1 - v - w, v, w],
-  };
+  return setTriangleHit(hit, a[0] + abx * v + acx * w, a[1] + aby * v + acy * w, a[2] + abz * v + acz * w, 1 - v - w, v, w);
 }
-const boxDistance2 = (p, box) => {
-  let d = 0;
-  for (let k = 0; k < 3; k++) {
-    const delta = p[k] < box.min[k] ? box.min[k] - p[k] : p[k] > box.max[k] ? p[k] - box.max[k] : 0;
-    d += delta * delta;
-  }
-  return d;
-};
-function buildSurfaceBvh(positions, indices, normals) {
+function boxDistance2(x, y, z, box) {
+  const dx = Math.max(box.x0 - x, 0, x - box.x1);
+  const dy = Math.max(box.y0 - y, 0, y - box.y1);
+  const dz = Math.max(box.z0 - z, 0, z - box.z1);
+  return dx * dx + dy * dy + dz * dz;
+}
+
+function sameTopology(layout, positions, indices) {
+  if (!layout || layout.points.length * 3 !== positions.length || layout.indices.length !== indices.length) return false;
+  for (let i = 0; i < indices.length; i++) if (layout.indices[i] !== indices[i]) return false;
+  return true;
+}
+
+function makeSurfaceLayout(positions, indices) {
+  const points = Array.from({ length: Math.floor(positions.length / 3) }, () => [0, 0, 0]);
   const triangles = [];
   for (let i = 0; i + 2 < indices.length; i += 3) {
-    const ids = [indices[i], indices[i + 1], indices[i + 2]];
-    if (ids.some((v) => v * 3 + 2 >= positions.length)) continue;
-    const pts = ids.map((v) => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]]);
-    const min = [0, 1, 2].map(k => Math.min(pts[0][k], pts[1][k], pts[2][k]));
-    const max = [0, 1, 2].map(k => Math.max(pts[0][k], pts[1][k], pts[2][k]));
-    triangles.push({ ids, pts, min, max, center: min.map((v, k) => (v + max[k]) * 0.5) });
+    const ia = indices[i], ib = indices[i + 1], ic = indices[i + 2];
+    const a = points[ia], b = points[ib], c = points[ic];
+    if (a && b && c) triangles.push({ a, b, c, ia: ia * 3, ib: ib * 3, ic: ic * 3,
+      x0: 0, x1: 0, y0: 0, y1: 0, z0: 0, z1: 0, cx: 0, cy: 0, cz: 0 });
   }
-  const build = (items) => {
-    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-    for (const item of items) for (let k = 0; k < 3; k++) {
-      if (item.min[k] < min[k]) min[k] = item.min[k];
-      if (item.max[k] > max[k]) max[k] = item.max[k];
-    }
-    if (items.length <= 8) return { min, max, items };
-    let axis = 0;
-    if (max[1] - min[1] > max[axis] - min[axis]) axis = 1;
-    if (max[2] - min[2] > max[axis] - min[axis]) axis = 2;
-    items.sort((a, b) => a.center[axis] - b.center[axis]);
-    const mid = items.length >> 1;
-    return { min, max, left: build(items.slice(0, mid)), right: build(items.slice(mid)) };
-  };
-  return triangles.length ? build(triangles) : null;
+  return { points, triangles, indices: Array.from(indices), spatial: null, tree: null, poseNumber: 0, travel: 0 };
 }
-function nearestSurfacePoint(p, root, normals, maxDistance2) {
-  let best = null,
-    bestD2 = maxDistance2;
-  const visit = (node, distance2) => {
-    if (distance2 >= bestD2) return;
-    if (node.items) {
-      for (const tri of node.items) {
-        if (boxDistance2(p, tri) >= bestD2) continue;
-        const hit = closestPointTriangle(p, tri.pts[0], tri.pts[1], tri.pts[2]);
-        const dx = p[0] - hit.point[0],
-          dy = p[1] - hit.point[1],
-          dz = p[2] - hit.point[2];
-        const d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 >= bestD2) continue;
-        const n = [0, 1, 2].map((k) => tri.ids.reduce((sum, id, q) => sum + normals[id * 3 + k] * hit.bary[q], 0));
-        const len = Math.hypot(...n);
-        if (len < 1e-8) continue;
-        bestD2 = d2;
-        best = { point: hit.point, normal: n.map((v) => v / len), distance2: d2 };
-      }
-      return;
+
+function buildSurfaceTree(items) {
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  for (const t of items) {
+    x0 = Math.min(x0, t.x0);
+    y0 = Math.min(y0, t.y0);
+    z0 = Math.min(z0, t.z0);
+    x1 = Math.max(x1, t.x1);
+    y1 = Math.max(y1, t.y1);
+    z1 = Math.max(z1, t.z1);
+  }
+  if (items.length <= 8) return { x0, y0, z0, x1, y1, z1, items };
+  const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+  const axisOrder = dy > dx ? byY : byX;
+  items.sort(dz > Math.max(dx, dy) ? byZ : axisOrder);
+  const mid = items.length >> 1;
+  return { x0, y0, z0, x1, y1, z1, left: buildSurfaceTree(items.slice(0, mid)), right: buildSurfaceTree(items.slice(mid)) };
+}
+const byX = (a, b) => a.cx - b.cx;
+const byY = (a, b) => a.cy - b.cy;
+const byZ = (a, b) => a.cz - b.cz;
+
+function updateTriangleBounds(tri) {
+  const { a, b, c } = tri;
+  tri.x0 = Math.min(a[0], b[0], c[0]);
+  tri.x1 = Math.max(a[0], b[0], c[0]);
+  tri.y0 = Math.min(a[1], b[1], c[1]);
+  tri.y1 = Math.max(a[1], b[1], c[1]);
+  tri.z0 = Math.min(a[2], b[2], c[2]);
+  tri.z1 = Math.max(a[2], b[2], c[2]);
+}
+
+function updateTriangleCenter(tri) {
+  tri.cx = (tri.x0 + tri.x1) * 0.5;
+  tri.cy = (tri.y0 + tri.y1) * 0.5;
+  tri.cz = (tri.z0 + tri.z1) * 0.5;
+}
+
+function refitSurface(node) {
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity;
+  let x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  if (node.items) {
+    for (const tri of node.items) {
+      updateTriangleBounds(tri);
+      x0 = Math.min(x0, tri.x0);
+      x1 = Math.max(x1, tri.x1);
+      y0 = Math.min(y0, tri.y0);
+      y1 = Math.max(y1, tri.y1);
+      z0 = Math.min(z0, tri.z0);
+      z1 = Math.max(z1, tri.z1);
     }
-    const dl = node.left ? boxDistance2(p, node.left) : Infinity;
-    const dr = node.right ? boxDistance2(p, node.right) : Infinity;
-    if (dl < dr) {
-      visit(node.left, dl);
-      visit(node.right, dr);
-    } else {
-      visit(node.right, dr);
-      visit(node.left, dl);
+  } else {
+    const { left, right } = node;
+    refitSurface(left);
+    refitSurface(right);
+    x0 = Math.min(left.x0, right.x0);
+    y0 = Math.min(left.y0, right.y0);
+    z0 = Math.min(left.z0, right.z0);
+    x1 = Math.max(left.x1, right.x1);
+    y1 = Math.max(left.y1, right.y1);
+    z1 = Math.max(left.z1, right.z1);
+  }
+  node.x0 = x0;
+  node.y0 = y0;
+  node.z0 = z0;
+  node.x1 = x1;
+  node.y1 = y1;
+  node.z1 = z1;
+}
+
+function poseSurface(layout, positions) {
+  const x = positions[0], y = positions[1], z = positions[2];
+  const sx = x - (layout.x ?? x), sy = y - (layout.y ?? y), sz = z - (layout.z ?? z);
+  let motion2 = 0;
+  for (let i = 0; i < layout.points.length; i++) {
+    const p = layout.points[i];
+    const dx = positions[i * 3] - p[0] - sx;
+    const dy = positions[i * 3 + 1] - p[1] - sy;
+    const dz = positions[i * 3 + 2] - p[2] - sz;
+    motion2 = Math.max(motion2, dx * dx + dy * dy + dz * dz);
+    p[0] = positions[i * 3];
+    p[1] = positions[i * 3 + 1];
+    p[2] = positions[i * 3 + 2];
+  }
+  layout.step = layout.poseNumber ? Math.sqrt(motion2) : 0;
+  layout.poseNumber++;
+  layout.travel += layout.step + 1e-9;
+  layout.x = x;
+  layout.y = y;
+  layout.z = z;
+  if (!layout.triangles.length) return null;
+  if (layout.spatial) refitSurface(layout.spatial);
+  else {
+    for (const t of layout.triangles) {
+      updateTriangleBounds(t);
+      updateTriangleCenter(t);
     }
-  };
-  visit(root, boxDistance2(p, root));
-  return best;
+    layout.spatial = buildSurfaceTree(layout.triangles.slice());
+  }
+  layout.tree = layout.poseNumber === 1 ? layout.spatial : null;
+  return layout.spatial;
+}
+
+function clearancePush(best, signed) {
+  const target = Math.max(best.clearance, Math.min(best.maxClearance, signed));
+  return Math.max(-best.maxPush, Math.min(best.maxPush, target - signed));
+}
+
+// At hard seams the original tree order decides any tie that could change a
+// Float32 position or whether a vertex counts as adjusted.
+function sameClearance(p, best, hit, nx, ny, nz) {
+  if (best.conform) return false;
+  const q = best.point, n = best.normal;
+  const a = clearancePush(best, (p[0] - q[0]) * n[0] + (p[1] - q[1]) * n[1] + (p[2] - q[2]) * n[2]);
+  const b = clearancePush(best, (p[0] - hit.x) * nx + (p[1] - hit.y) * ny + (p[2] - hit.z) * nz);
+  if (!a || !b) return !a && !b;
+  return Object.is(Math.fround(p[0] + a * n[0]), Math.fround(p[0] + b * nx))
+    && Object.is(Math.fround(p[1] + a * n[1]), Math.fround(p[1] + b * ny))
+    && Object.is(Math.fround(p[2] + a * n[2]), Math.fround(p[2] + b * nz));
+}
+
+function considerTriangle(tri, normals, p, best, checkTies) {
+  const hit = best.hit;
+  closestPointTriangle(p, tri.a, tri.b, tri.c, hit);
+  const dx = p[0] - hit.x, dy = p[1] - hit.y, dz = p[2] - hit.z;
+  const d2 = dx * dx + dy * dy + dz * dz;
+  const tied = d2 === best.distance2;
+  if (d2 > best.distance2 || (tied && !(checkTies && best.localHit))) return;
+  const a = hit.wa, b = hit.wb, c = hit.wc;
+  const { ia, ib, ic } = tri;
+  const nx = normals[ia] * a + normals[ib] * b + normals[ic] * c;
+  const ny = normals[ia + 1] * a + normals[ib + 1] * b + normals[ic + 1] * c;
+  const nz = normals[ia + 2] * a + normals[ib + 2] * b + normals[ic + 2] * c;
+  const len = Math.hypot(nx, ny, nz);
+  if (len < 1e-8) return;
+  const ux = nx / len, uy = ny / len, uz = nz / len;
+  if (tied) {
+    const identical = best.point[0] === hit.x && best.point[1] === hit.y && best.point[2] === hit.z
+      && best.normal[0] === ux && best.normal[1] === uy && best.normal[2] === uz;
+    if (!identical && !best.ambiguous) best.ambiguous = !sameClearance(p, best, hit, ux, uy, uz);
+    return;
+  }
+  best.localHit = true;
+  best.found = true;
+  best.ambiguous = false;
+  best.point[0] = hit.x;
+  best.point[1] = hit.y;
+  best.point[2] = hit.z;
+  best.normal[0] = ux;
+  best.normal[1] = uy;
+  best.normal[2] = uz;
+  best.distance2 = d2;
+}
+
+function visitSurface(node, normals, p, best, distance2, ties = false) {
+  if (ties ? distance2 > best.distance2 : distance2 >= best.distance2) return;
+  const x = p[0], y = p[1], z = p[2];
+  if (node.items) {
+    for (const tri of node.items) {
+      const bound = boxDistance2(x, y, z, tri);
+      if (ties ? bound > best.distance2 : bound >= best.distance2) continue;
+      considerTriangle(tri, normals, p, best, ties);
+    }
+    return;
+  }
+  const dl = boxDistance2(x, y, z, node.left), dr = boxDistance2(x, y, z, node.right);
+  // The order, including equal distances, determines the normal at hard seams.
+  if (dl < dr) {
+    visitSurface(node.left, normals, p, best, dl, ties);
+    if (dr <= best.distance2) visitSurface(node.right, normals, p, best, dr, ties);
+  } else {
+    visitSurface(node.right, normals, p, best, dr, ties);
+    if (dl <= best.distance2) visitSurface(node.left, normals, p, best, dl, ties);
+  }
 }
 
 /**
@@ -435,8 +568,9 @@ export function equipmentBoneSide(name) {
   return /\b(?:l|left)\b/.test(bone) ? 'left' : /\b(?:r|right)\b/.test(bone) ? 'right' : null;
 }
 
-/** Build one surface per body section for reuse across garment panels in the same pose. */
-export function garmentFitSurfaces(sources, poseSource) {
+/** Build one surface per body section for all panels in this pose.
+ * With a history, callers consume these surfaces before posing the donor again. */
+export function garmentFitSurfaces(sources, poseSource, history = null) {
   const surfaces = [];
   for (const batch of sources) {
     if (!batch?.positions?.length || !batch?.indices?.length) continue;
@@ -448,11 +582,9 @@ export function garmentFitSurfaces(sources, poseSource) {
     poseSource(batch, posed);
     const normals = new Float32Array(posed.length);
     const I = batch.indices;
+    let regular = true;
     for (let t = 0; t + 2 < I.length; t += 3) {
-      const ids = [I[t], I[t + 1], I[t + 2]];
-      const ia = ids[0] * 3,
-        ib = ids[1] * 3,
-        ic = ids[2] * 3;
+      const ia = I[t] * 3, ib = I[t + 1] * 3, ic = I[t + 2] * 3;
       if (ic + 2 >= posed.length || ib + 2 >= posed.length || ia + 2 >= posed.length) continue;
       const ax = posed[ib] - posed[ia],
         ay = posed[ib + 1] - posed[ia + 1],
@@ -460,10 +592,22 @@ export function garmentFitSurfaces(sources, poseSource) {
       const bx = posed[ic] - posed[ia],
         by = posed[ic + 1] - posed[ia + 1],
         bz = posed[ic + 2] - posed[ia + 2];
-      const n = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
-      const len = Math.hypot(...n);
-      if (len < 1e-10) continue;
-      for (const id of ids) for (let k = 0; k < 3; k++) normals[id * 3 + k] += n[k] / len;
+      const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+      const len = Math.hypot(nx, ny, nz);
+      if (len < 1e-10 || !Number.isFinite(len)) {
+        regular = false;
+        if (len < 1e-10) continue;
+      }
+      const x = nx / len, y = ny / len, z = nz / len;
+      normals[ia] += x;
+      normals[ia + 1] += y;
+      normals[ia + 2] += z;
+      normals[ib] += x;
+      normals[ib + 1] += y;
+      normals[ib + 2] += z;
+      normals[ic] += x;
+      normals[ic + 1] += y;
+      normals[ic + 2] += z;
     }
     // Orient normals consistently away from this surface's centroid as a
     // fallback for NIFs whose triangle winding differs. This is approximate
@@ -483,10 +627,101 @@ export function garmentFitSurfaces(sources, poseSource) {
         if (dot < 0) for (let k = 0; k < 3; k++) normals[i + k] *= -1;
       }
     }
-    const bvh = buildSurfaceBvh(posed, I, normals);
-    if (bvh) surfaces.push({ bvh, normals, side });
+    let layout = history?.get(batch);
+    if (!sameTopology(layout, posed, I)) {
+      layout = makeSurfaceLayout(posed, I);
+      if (history) history.set(batch, layout);
+    }
+    const bvh = poseSurface(layout, posed);
+    if (bvh) {
+      const surface = { bvh, normals, side, layout };
+      if (history && regular) surfaces.push(surface);
+      else surfaces.push({ bvh: orderedRoot(surface), normals, side });
+    }
   }
   return surfaces;
+}
+
+function orderedRoot(surface) {
+  const layout = surface.layout;
+  if (!layout.tree) {
+    for (const tri of layout.triangles) updateTriangleCenter(tri);
+    layout.tree = buildSurfaceTree(layout.triangles.slice());
+  }
+  return layout.tree;
+}
+
+function collectNear(node, p, radius2, list) {
+  if (boxDistance2(p[0], p[1], p[2], node) > radius2) return;
+  if (node.items) {
+    for (const tri of node.items) {
+      if (boxDistance2(p[0], p[1], p[2], tri) > radius2) continue;
+      list.push(tri);
+    }
+  } else {
+    collectNear(node.left, p, radius2, list);
+    collectNear(node.right, p, radius2, list);
+  }
+}
+
+// A triangle outside the saved radius cannot approach faster than its fastest
+// vertex. Subtract shared translation, garment movement, and all intervening
+// donor motion. Only a hit strictly inside the resulting radius is certified.
+const neighborhoods = new WeakMap();
+const neighborhoodPadding = 0.85; // donor-space units outside the last nearest distance
+const slowPoseStep = neighborhoodPadding / 8; // above this, query the updated tree directly
+
+function queryRefittedSurface(surface, p, best, bound, limit) {
+  const { layout, bvh, normals } = surface;
+  best.localHit = false;
+  best.ambiguous = false;
+  visitSurface(layout.tree ?? bvh, normals, p, best, bound, !layout.tree);
+  if (best.ambiguous) {
+    best.distance2 = limit;
+    visitSurface(orderedRoot(surface), normals, p, best, bound);
+  }
+}
+
+function queryNeighborhood(surface, p, best, entries, vertex) {
+  const { layout, normals, bvh } = surface;
+  const limit = best.distance2, bound = boxDistance2(p[0], p[1], p[2], bvh);
+  if (bound >= limit) return;
+  const x = p[0] - layout.x, y = p[1] - layout.y, z = p[2] - layout.z;
+  let entry = entries[vertex];
+  if (entry) {
+    const dx = x - entry.x, dy = y - entry.y, dz = z - entry.z;
+    const safe = entry.radius - Math.sqrt(dx * dx + dy * dy + dz * dz) - (layout.travel - entry.travel) - 1e-6;
+    if (safe > 0) {
+      best.localHit = false;
+      best.ambiguous = false;
+      for (const tri of entry.list) {
+        if (boxDistance2(p[0], p[1], p[2], tri) > best.distance2) continue;
+        considerTriangle(tri, normals, p, best, true);
+      }
+      if (best.distance2 < safe * safe) {
+        if (best.ambiguous) {
+          best.distance2 = limit;
+          visitSurface(orderedRoot(surface), normals, p, best, bound);
+        }
+        return;
+      }
+      if (best.localHit) {
+        best.distance2 = limit;
+        // The full search revisits the closer local hit.
+      }
+    }
+  }
+  queryRefittedSurface(surface, p, best, bound, limit);
+  // Spread list construction across poses and avoid it during abrupt motion.
+  if ((vertex + layout.poseNumber) % 4 !== 0) return;
+  if (!entry) entries[vertex] = entry = { list: [] };
+  entry.x = x;
+  entry.y = y;
+  entry.z = z;
+  entry.travel = layout.travel;
+  entry.radius = Math.sqrt(best.distance2) + neighborhoodPadding;
+  entry.list.length = 0;
+  collectNear(bvh, p, entry.radius * entry.radius, entry.list);
 }
 
 export function fitGarmentToSurfaces(garment, surfaces,
@@ -495,16 +730,35 @@ export function fitGarmentToSurfaces(garment, surfaces,
   if (!surfaces.length) return garment;
   const wantedSide = side === 'left' || side === 'right' ? side : null;
   const positions = Float32Array.from(garment.positions);
+  const best = { point: [0, 0, 0], normal: [0, 0, 0], distance2: 0, found: false, clearance, maxClearance, maxPush, conform,
+    hit: { x: 0, y: 0, z: 0, wa: 0, wb: 0, wc: 0 } };
+  let perGarment = neighborhoods.get(garment);
+  if (!perGarment) neighborhoods.set(garment, perGarment = new WeakMap());
+  const allowed = [];
+  for (const surface of surfaces) {
+    if (wantedSide && surface.side && surface.side !== wantedSide) continue;
+    let entries = null;
+    if (surface.layout && surface.layout.step < slowPoseStep) {
+      entries = perGarment.get(surface.layout);
+      if (!entries) perGarment.set(surface.layout, entries = []);
+    }
+    allowed.push({ surface, entries });
+  }
   let adjusted = 0;
   for (let i = 0; i + 2 < positions.length; i += 3) {
     const p = [positions[i], positions[i + 1], positions[i + 2]];
-    let best = null;
-    for (const surface of surfaces) {
-      if (wantedSide && surface.side && surface.side !== wantedSide) continue;
-      const hit = nearestSurfacePoint(p, surface.bvh, surface.normals, best?.distance2 ?? maxDistance * maxDistance);
-      if (hit && (!best || hit.distance2 < best.distance2)) best = hit;
+    best.found = false;
+    best.distance2 = maxDistance * maxDistance;
+    for (const { surface, entries } of allowed) {
+      if (entries) queryNeighborhood(surface, p, best, entries, i / 3);
+      else {
+        const bound = boxDistance2(p[0], p[1], p[2], surface.bvh);
+        if (bound >= best.distance2) continue;
+        if (surface.layout) queryRefittedSurface(surface, p, best, bound, best.distance2);
+        else visitSurface(surface.bvh, surface.normals, p, best, bound);
+      }
     }
-    if (!best) continue;
+    if (!best.found) continue;
     const signed =
       (p[0] - best.point[0]) * best.normal[0] +
       (p[1] - best.point[1]) * best.normal[1] +
@@ -522,8 +776,7 @@ export function fitGarmentToSurfaces(garment, surfaces,
       }
       continue;
     }
-    const targetClearance = Math.max(clearance, Math.min(maxClearance, signed));
-    const push = Math.max(-maxPush, Math.min(maxPush, targetClearance - signed));
+    const push = clearancePush(best, signed);
     if (!push) continue;
     positions[i] += best.normal[0] * push;
     positions[i + 1] += best.normal[1] * push;

@@ -51,6 +51,8 @@ function poseDonor(batch, { skeleton, pose, mats, skinBatch }) {
   return { slot: batch.fitSlot, batch, positions };
 }
 
+const surfaceHistory = new WeakMap();
+
 export function fitMorphedEquipment(pieces, morph, frame, ctx, donors = new Map()) {
   const surfacesByBatch = new Map();
   const deformed = new Map();
@@ -73,7 +75,7 @@ export function fitMorphedEquipment(pieces, morph, frame, ctx, donors = new Map(
     if (!fit) continue;
     const surfaces = fit.sources.flatMap((batch) => {
       if (!surfacesByBatch.has(batch)) {
-        surfacesByBatch.set(batch, garmentFitSurfaces([batch], (_, positions) => positions.set(getDonor(batch).positions)));
+        surfacesByBatch.set(batch, garmentFitSurfaces([batch], (_, positions) => positions.set(getDonor(batch).positions), surfaceHistory));
       }
       return surfacesByBatch.get(batch);
     });
