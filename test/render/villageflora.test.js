@@ -87,7 +87,7 @@ test('mapped roadside bushes keep their recorded roots and release shared landsc
   assert.deepEqual(dropped,[calls[0][0]]);
 });
 
-test('the layered meadow keeps all seven forms, two silhouettes per form and clearings inside its map pixel', () => {
+test('the layered meadow keeps all seven forms, two silhouettes per form and clearings across world coordinates', () => {
   const counts = Array(8).fill(0);
   for (let x=0; x<30; x++) for (let z=0; z<30; z++) {
     for (let roll=0; roll<20; roll++) counts[1+groundcoverForm(x,z,(roll+.5)/20)]++;
@@ -95,7 +95,10 @@ test('the layered meadow keeps all seven forms, two silhouettes per form and cle
   assert.ok(counts.every(n=>n>0));
   assert.ok(counts[5] > counts[6] && counts[5] > counts[7], 'upper stems are accents among the sedges');
   assert.ok(counts[0]>counts[1] && counts[4]<counts[2]);
-  for (const [x,z] of [[-1,400],[400,-1],[820,400],[400,820]]) assert.equal(groundcoverForm(x,z,0),-1);
+  for (const [x,z] of [[-1,400],[400,-1],[820,400],[400,820],[207*819.2,-213*819.2],[3270*819.2,-543*819.2]]) {
+    const form = groundcoverForm(x,z,0);
+    assert.ok(Number.isInteger(form) && form >= 0 && form < 7);
+  }
   for (let form=0; form<7; form++) {
     const near = [0,1].map(v=>groundcoverGeometry(2*form+v,0));
     assert.notDeepEqual(near[0], near[1]);

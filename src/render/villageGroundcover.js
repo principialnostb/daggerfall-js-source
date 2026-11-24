@@ -30,9 +30,8 @@ export function groundcoverGeometry(variant,lod) {
   return mesh;
 }
 
-// Use the meadow study's patch shapes in pixel-local metres, stable across floating-origin shifts.
+// Use the meadow study's patch shapes in world metres, stable across floating-origin shifts.
 export function groundcoverForm(x,z,roll) {
-  if (x < .78 || z < .78 || x >= 818.42 || z >= 818.42) return -1;
   const patch = .5 + .21*Math.sin(1.95*x+.8*Math.sin(1.7*z)) + .19*Math.cos(2.55*z+.75*x) + .10*Math.sin(3.1*x-1.4*z);
   const openness = .5 + .5*Math.sin(.69*x+.34*z+1.2*Math.sin(.59*z));
   const density = (.22+.70*patch)*(.25+.75*openness);
