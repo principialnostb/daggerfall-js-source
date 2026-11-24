@@ -220,7 +220,7 @@ test('the courtyard fountain animates its two streams and keeps its original pla
     uploadTexture: (archive, record) => paints.add(archive + ':' + record),
     releaseTexture: (archive, record) => paints.delete(archive + ':' + record),
   };
-  const batches = [2, 4].map(record => markPlacedFurnishing({
+  const batches = [2, 10].map(record => markPlacedFurnishing({
     archive: 212, record, vao: {}, size: { w: 1.95, h: 1.6 }, origin: [10, 2, -4],
   }, [[3, .25, 8]]));
   assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel), [batches[1]]);
@@ -293,6 +293,88 @@ test('grass stays out of water bowls including the space needed for leaning blad
   assert.equal(well(11, 10), false);
   assert.equal(placedWaterSourceGrass([make(3)])(9.4, 10), true);
   assert.equal(placedWaterSourceGrass([make(8)]), null);
+});
+
+test('the three street signs draw fitted meshes through the shared furnishing pass', () => {
+  const draws = [], paints = new Set();
+  const renderer = {
+    createMesh: data => data,
+    drawMesh: (mesh, pose) => draws.push({ mesh, pose }),
+    destroyMesh() {},
+    uploadTexture: (archive, record) => paints.add(archive + ':' + record),
+    releaseTexture: (archive, record) => paints.delete(archive + ':' + record),
+  };
+  const shape = { w: 1.5, h: 3.675 };
+  const batches = [4, 5, 6, 10].map(record => markPlacedFurnishing({
+    archive: 212, record, size: shape, vao: {}, origin: [9, 0, 2],
+  }, [[3, 0, 4]]));
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel), [batches[3]]);
+  assert.equal(draws.length, 3);
+  assert.ok(draws[0].mesh.positions.length > draws[1].mesh.positions.length);
+  for (const { mesh, pose } of draws) {
+    assert.equal(mesh.pixelKind, 'objects');
+    assert.deepEqual(Array.from(pose.slice(12, 15)), [12, 0, 6]);
+    assert.ok(mesh.positions.every(Number.isFinite));
+    assert.ok(mesh.subMeshes.every(slot => paints.has(slot.textureArchive + ':' + slot.textureRecord)));
+  }
+  for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+  assert.equal(paints.size, 0);
+});
+
+test('net, rubble, firewood and scarecrow use their authored yard placement and share material leases', () => {
+  const draws = [], paints = new Set();
+  const renderer = {
+    createMesh: data => data,
+    drawMesh: (mesh, pose) => draws.push({ mesh, pose }),
+    destroyMesh() {},
+    uploadTexture: (archive, record) => paints.add(archive + ':' + record),
+    releaseTexture: (archive, record) => paints.delete(archive + ':' + record),
+  };
+  const records = [[212, 7, 87, 43], [212, 11, 65, 36], [212, 12, 65, 36], [211, 20, 57, 93], [211, 3, 39, 20], [212, 10, 32, 80]];
+  const batches = records.map(([archive, record, w, h]) => markPlacedFurnishing({
+    archive, record, size: { w: w / 40, h: h / 40 }, vao: {}, origin: [10, 0, 2],
+  }, [[3, .5, 4]]));
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel), [batches[5]]);
+  assert.equal(draws.length, 5);
+  assert.notDeepEqual(draws[1].mesh.positions, draws[2].mesh.positions);
+  for (const { mesh, pose } of draws) {
+    const heights = mesh.positions.filter((_, i) => i % 3 === 1);
+    assert.equal(Math.min(...heights), 0);
+    assert.equal(Math.max(...heights), 1);
+    assert.equal(mesh.pixelKind, 'objects');
+    assert.deepEqual(Array.from(pose.slice(12, 15)), [13, .5, 6]);
+    assert.ok(mesh.subMeshes.every(slot => paints.has(slot.textureArchive + ':' + slot.textureRecord)));
+  }
+  for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+  assert.equal(paints.size, 0);
+});
+
+test('packed basket and handcart join the placed prop pass at their original base', () => {
+  const draws = [], paints = new Set();
+  const renderer = {
+    createMesh: data => data,
+    drawMesh: (mesh, pose) => draws.push({ mesh, pose }),
+    destroyMesh() {},
+    uploadTexture: (archive, record) => paints.add(archive + ':' + record),
+    releaseTexture: (archive, record) => paints.delete(archive + ':' + record),
+  };
+  const records = [[10, 46, 31], [28, 68, 37]];
+  const batches = records.map(([record, w, h]) => markPlacedFurnishing({
+    archive: 205, record, size: { w: w / 40, h: h / 40 }, vao: {}, origin: [4, 0, -7],
+  }, [[5, .2, 9]]));
+  assert.deepEqual(drawPlacedFurnishings(renderer, batches, acquireTreasureModel), []);
+  assert.equal(draws.length, 2);
+  for (const [i, { mesh, pose }] of draws.entries()) {
+    const [, w, h] = records[i];
+    assert.equal(mesh.pixelKind, 'objects');
+    assert.equal(pose[0], Math.fround(w / 40));
+    assert.equal(pose[5], Math.fround(h / 40));
+    assert.deepEqual(Array.from(pose.slice(12, 15)), [9, Math.fround(.2), 2]);
+    assert.equal(Math.min(...mesh.positions.filter((_, n) => n % 3 === 1)), 0);
+    assert.ok(mesh.subMeshes.every(slot => paints.has(slot.textureArchive + ':' + slot.textureRecord)));
+  }
+  for (const batch of batches) releasePlacedFurnishing(renderer, batch, releaseTreasureModel);
+  assert.equal(paints.size, 0);
 });
 
 test('water racks fit each post to the active floor and keep the deck when the terrain changes ring', () => {

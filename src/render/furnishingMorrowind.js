@@ -6,6 +6,9 @@ import { TOWN_CLUTTER, TOWN_CLUTTER_ARCHIVE, TOWN_ITEMS } from '../world/townSta
 import { DET_FLAT_STAND_INS } from '../world/detStandIns.js';
 import { isFittedPondProp, rackFootHeights } from '../world/waterRack.js';
 import { isPlacedWaterSource, WELL_RIM_RADIUS } from '../world/placedWaterSources.js';
+import { isTownSign } from '../world/townSignModels.js';
+import { isTownYardProp } from '../world/townYardProps.js';
+import { isTownMarketProp } from '../world/townMarketProps.js';
 import { MEADOW_REACH, MEADOW_WIND_REACH } from './grassMeadow.js';
 import { heightFloor, heightSpan } from './labGrass.js';
 import { LAB_WIND_RATE, WIND_SLIDER_MAX } from '../systems/wind/windDrive.js';
@@ -169,7 +172,7 @@ export function placedFurnishingModels(batch) {
   const record = `${archive}:${index}`;
   return {
     spec: placedModels.get(record) ?? furnishings.get(record),
-    lowPoly: placedLowPoly.has(record) || isFittedPondProp(record) || isPlacedWaterSource(record) ? record : null,
+    lowPoly: placedLowPoly.has(record) || isFittedPondProp(record) || isPlacedWaterSource(record) || isTownSign(record) || isTownYardProp(record) || isTownMarketProp(record) ? record : null,
     alternate: placedAlternates.get(record),
     maxLength: tabletopLengths.get(record) ?? storageLengths.get(record),
     tabletopPixels: tabletopLengths.has(record),

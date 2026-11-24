@@ -2,6 +2,9 @@ import { buildTreasureModel, hasTreasureModel, treasurePaints, treasurePixelProf
 import { buildDungeonChain, dungeonChainKind, isDungeonChainKind } from '../world/dungeonChainModel.js';
 import { buildWaterRack, isFittedPondProp } from '../world/waterRack.js';
 import { buildPlacedWaterSource, isPlacedWaterSource } from '../world/placedWaterSources.js';
+import { buildTownSign, isTownSign } from '../world/townSignModels.js';
+import { buildTownYardProp, isTownYardProp } from '../world/townYardProps.js';
+import { buildTownMarketProp, isTownMarketProp } from '../world/townMarketProps.js';
 import { buildDungeonColumn, dungeonColumnKind, isDungeonColumnKind } from '../world/dungeonColumnModel.js';
 import { buildBrokenDungeonCage } from '../world/dungeonCageModel.js';
 import { buildDungeonSarcophagus, CLOSED_SARCOPHAGUS_SHELL, isVioletSarcophagusShell, VIOLET_SARCOPHAGUS_REMAINS } from '../world/dungeonSarcophagus.js';
@@ -75,6 +78,9 @@ export function acquireTreasureModel(renderer, record, remains = null, authored 
       : record === 'coffin-shell' ? buildDungeonSarcophagus(TREASURE_ART)
       : isFittedPondProp(record) ? buildWaterRack(TREASURE_ART, record)
       : isPlacedWaterSource(record) ? buildPlacedWaterSource(TREASURE_ART, record)
+      : isTownSign(record) ? buildTownSign(TREASURE_ART, record)
+      : isTownYardProp(record) ? buildTownYardProp(TREASURE_ART, record)
+      : isTownMarketProp(record) ? buildTownMarketProp(TREASURE_ART, record)
       : isDungeonFurnishing(record) ? buildDungeonFurnishing(TREASURE_ART, record)
       : isDungeonCaveProp(record) ? buildDungeonCaveProp(TREASURE_ART, record)
       : typeof record === 'string' ? buildDungeonRemains(TREASURE_ART, record, remains.parts) : buildTreasureModel(record));

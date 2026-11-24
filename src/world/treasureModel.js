@@ -1,13 +1,16 @@
-import { dampPostPaint, DAMP_POST_WOOD } from './shorePost.js';
 import { MeshBench, box, prism } from './ships/galleonMesh.js';
 import { dfLook } from './dfLook.js';
 import { placedWaterSourcePaints } from './placedWaterSources.js';
+import { townSignPaints } from './townSignModels.js';
+import { yardPropPaints } from './townYardProps.js';
+import { marketPropPaints } from './townMarketProps.js';
+import { dampPostPaint, DAMP_POST_WOOD } from './shorePost.js';
 import { WORKSHOP_WOOD, workshopWoodPaints } from './dungeonWorkshopWood.js';
 import { SLAB_STONE, slabStonePaint } from './dungeonSlabStone.js';
 import { STAINED_PRESS_IRON, STAINED_TABLE_STONE, stainedTablePaint } from './dungeonTortureTable.js';
 
 export const TREASURE_ART = 38343;
-export const FURNISHING_PAINT = { plank: 110, glass: 111, glassEdge: 112, wicker: 113, bone: 114, dryReeds: 125, greenReeds: 126, rackWood: 127, shoreStone: 128 };
+export const FURNISHING_PAINT = { plank: 110, glass: 111, glassEdge: 112, wicker: 113, bone: 114, dryReeds: 125, greenReeds: 126, rackWood: 127, shoreStone: 128, hay: 154 };
 const LINEN = 0, LEATHER = 1, STEEL = 2, WOOD = 3, GOLD = 4, ROPE = 5, GLASS = 6, CLOTH = 7, RED = 8;
 const DARK_CHEST = 11;
 const palettes = [
@@ -75,12 +78,27 @@ export function treasurePaints() {
     paints[material] = { width: size, height: size, colors };
   }
   for (const [record, paint] of workshopWoodPaints()) paints[record] = paint;
+  // Follow the slope of the stack with broken strands in a few warm straw tones.
+  const hayWidth = 96, hayHeight = 32;
+  const hayColors = new Uint8ClampedArray(hayWidth * hayHeight * 4);
+  for (let y = 0; y < hayHeight; y++) for (let x = 0; x < hayWidth; x++) {
+    const strand = (x + (y >> 2) * 2 + Math.floor(2 * Math.sin(y * .3 + (x >> 4)))) % hayWidth;
+    const bundle = Math.floor(strand / 3);
+    const tip = (y + bundle * 7) % (9 + bundle % 5);
+    const shade = .86 + ((bundle * 13) % 11) * .021 + (strand % 3 === 0 && tip > 2 ? .18 : 0)
+      - (tip < 2 ? .13 : 0) + .11 * y / hayHeight;
+    hayColors.set([155 * shade, 124 * shade, 70 * shade, 255], (y * hayWidth + x) * 4);
+  }
+  paints[FURNISHING_PAINT.hay] = { width: hayWidth, height: hayHeight, colors: hayColors };
+  paints[DAMP_POST_WOOD] = dampPostPaint(paints[WORKSHOP_WOOD.beam]);
   paints[SLAB_STONE] = slabStonePaint();
   paints[FURNISHING_PAINT.shoreStone] = slabStonePaint([58, 56, 48]);
   paints[STAINED_TABLE_STONE] = stainedTablePaint();
   paints[STAINED_PRESS_IRON] = stainedTablePaint(true);
   for (const [record, paint] of placedWaterSourcePaints()) paints[record] = paint;
-  paints[DAMP_POST_WOOD] = dampPostPaint(paints[WORKSHOP_WOOD.beam]);
+  for (const [record, paint] of townSignPaints()) paints[record] = paint;
+  for (const [record, paint] of yardPropPaints(paints)) paints[record] = paint;
+  for (const [record, paint] of marketPropPaints(paints)) paints[record] = paint;
   return paints;
 }
 

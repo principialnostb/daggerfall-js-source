@@ -27,6 +27,7 @@
 
 import { registerCustomModel, registerModelAlias, customModelFor } from './customModels.js';
 import { addVendorTextures } from '../systems/textureReplacement.js';
+import { WATERSIDE_ARCHIVE, WATERSIDE_ART, watersideMaterialEntries, fenceMaterialEntries } from './townWatersideArt.js';
 import { buildDerivedPicture } from '../formats/derivedTexture.js';
 import { TOWN_PICTURE_ARCHIVE, PICTURE } from './townPictures.js';
 import { registerFlatField } from './flatFields.js';
@@ -293,7 +294,7 @@ export const TOWN_CROP_FIELDS = Object.freeze({
 // ---- the RMB Resource Pack's scene pieces -----------------------------------------------------------------------
 /** The rocks Beautiful Villages and Beautiful Cities scatter round their buildings: each mesh's box as Unity imports it
  *  (x mirrored), in metres at the mesh's own centimetres - [x0, x1, depth below the origin, height above it, z0, z1] -
- *  stood at RMBRP_ROCK_SCALE, below. Each stands in as a boulder of the climate's rock (302_3, swapped by climate) over
+ *  stood at RMBRP_ROCK_SCALE, below. Each stands in as a boulder of weathered stone over
  *  that box. FIELD BUGS 2026-10-15f TEMPLE-STEPS: the table was [width, height, depth, length] round the origin, but a
  *  mesh's box sits off its origin, by up to a fifth of its width (53086), which the prefab's scale makes a metre. */
 export const RMBRP_ROCKS = Object.freeze({
@@ -349,6 +350,7 @@ export const RMBRP_ROCK_SCALE = Object.freeze({
   53085: 8,
   53086: 4,
 });
+const BOULDER = [WATERSIDE_ARCHIVE, WATERSIDE_ART.boulder];
 const ROCK = [302, 3],
   GRASS = [302, 2];
 /** A rock's boulder: over its mesh's box (RMBRP_ROCKS), at its prefab's scale. */
@@ -365,13 +367,13 @@ export function rockMesh(id) {
  *  And its picture was laid by one plan for every face, the side view (x, -y): one row of the texture across the
  *  underside, every side that faces x squeezed to a sliver - 25 to 75 per cent of each rock's surface stretched past
  *  four to one, a flat grey smear. `boulderUv`: a face's picture laid along the axis its normal `n` leans on most (box
- *  mapping, a repeat a metre), so no face is stretched past 1 : 1/sqrt(3) and a side's rows lie level. */
+ *  mapping, one repeat every 2.6 metres), so no face is stretched past 1 : 1/sqrt(3) and a side's rows lie level. */
 export const boulderUv = (p, n) => {
   const ax = Math.abs(n[0]),
     ay = Math.abs(n[1]),
     az = Math.abs(n[2]);
-  if (ay >= ax && ay >= az) return [p[0], -p[2]]; // the crown and the underside: from above
-  return ax >= az ? [p[2], -p[1]] : [p[0], -p[1]]; // a side: along the axis it faces, its rows level
+  if (ay >= ax && ay >= az) return [p[0] * .38, -p[2] * .38]; // the crown and the underside: from above
+  return [(ax >= az ? p[2] : p[0]) * .38, -p[1] * .38]; // a side: along the axis it faces, its rows level
 };
 /** A boulder: an eight-sided lump, its rim and crown pushed in and out by a seed, `w` x `l` across round (cx, cz), `up`
  *  above its origin and `down` below - never out past its box (TEMPLE-STEPS: the rim had been pushed out by up to 12%,
@@ -402,7 +404,7 @@ export function boulderMesh(w, up, down, l, seed, cx = 0, cz = 0) {
     const g = [(a[0] + b[0] + c[0]) / 3 - cx, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3 - cz];
     const l2 = (n[0] * g[0] + n[1] * g[1] + n[2] * g[2] < 0 ? -1 : 1) * (Math.hypot(...n) || 1),
       nn = [n[0] / l2, n[1] / l2, n[2] / l2];
-    m.tri(ROCK, a, b, c, nn, boulderUv(a, nn), boulderUv(b, nn), boulderUv(c, nn));
+    m.tri(BOULDER, a, b, c, nn, boulderUv(a, nn), boulderUv(b, nn), boulderUv(c, nn));
   }; // ROCK-SMEAR: out of the boulder (its origin on the axis), never into it
   for (let i = 0; i < N; i++) {
     const j = (i + 1) % N;
@@ -1343,8 +1345,29 @@ function domeModel({ low, high, spire = null }) {
  *  the T-dock's wing, twelve metres of steps on its fourteen. Decks are [x0, x1, z0, z1] and piles [x, z], in the mesh's
  *  own units. */
 export const DOCK_SCALE = 2;
-const DOCK_PLANK = [67, 7],
-  DOCK_PILE = [67, 2];
+const waterside = record => [WATERSIDE_ARCHIVE, record];
+const DOCK_PLANK = waterside(WATERSIDE_ART.deck),
+  DOCK_EDGE = waterside(WATERSIDE_ART.timberEnd),
+  DOCK_PILE = waterside(WATERSIDE_ART.pile);
+
+class DockBuilder extends MeshBuilder {
+  constructor(ramp = false) {
+    super();
+    this.ramp = ramp;
+  }
+
+  tri(tex, a, b, c, normal, ua, ub, uc) {
+    if (tex === DOCK_PILE) {
+      super.tri(normal[1] === 0 ? DOCK_PILE : DOCK_EDGE, a, b, c, normal, ua, ub, uc);
+      return;
+    }
+    const deck = Math.abs(normal[1]) > .8;
+    const uv = ([x, y, z]) => deck
+      ? this.ramp ? [z / 4, x / 2.08] : [x / 4, z / 2.08]
+      : [(Math.abs(normal[0]) > Math.abs(normal[2]) ? z : x) / 4, -y / .8];
+    super.tri(deck ? DOCK_PLANK : DOCK_EDGE, a, b, c, normal, uv(a), uv(b), uv(c));
+  }
+}
 export const RMBRP_DOCKS = Object.freeze({
   53140: Object.freeze({
     decks: [[-1, 1, 1, 5]],
@@ -1388,11 +1411,11 @@ export const RMBRP_DOCKS = Object.freeze({
 });
 const dockPoint = (x, y, z) => [-x * DOCK_SCALE, y * DOCK_SCALE, z * DOCK_SCALE];
 function dock({ decks, piles }) {
-  const m = new MeshBuilder(),
+  const m = new DockBuilder(),
     S = DOCK_SCALE;
   for (const [x0, x1, z0, z1] of decks)
     m.box(DOCK_PLANK, dockPoint((x0 + x1) / 2, -0.05, (z0 + z1) / 2), [(x1 - x0) * S, 0.1 * S, (z1 - z0) * S], 0.5);
-  for (const [x, z] of piles) m.cylinderY(DOCK_PILE, dockPoint(x, -2.5, z), 0.15 * S, 3 * S, 5, 1);
+  for (const [x, z] of piles) m.cylinderY(DOCK_PILE, dockPoint(x, -2.5, z), 0.15 * S, 3 * S, 5, 3.05 * S);
   return m.build();
 }
 /** A prism of the four (x, y) `corners`, standing from z0 to z1 - its sides wound by the corners' own order, read off
@@ -1420,7 +1443,7 @@ export function prismZ(m, tex, corners, z0, z1) {
 }
 /** The ramp (53143): a slab two units square, a fifth thick, its top falling half a unit from the origin's edge. */
 function dockRamp() {
-  const m = new MeshBuilder(),
+  const m = new DockBuilder(true),
     S = DOCK_SCALE;
   const [ax, ay] = dockPoint(0, 0, 0),
     [bx, by] = dockPoint(0, -0.2, 0),
@@ -1442,7 +1465,7 @@ function dockRamp() {
 }
 /** The steps (53144): five treads a tenth apart, falling away from the origin's edge, on two stringers. */
 function dockSteps() {
-  const m = new MeshBuilder(),
+  const m = new DockBuilder(true),
     S = DOCK_SCALE;
   for (let k = 0; k < 5; k++)
     m.box(DOCK_PLANK, dockPoint(-0.3 * (k + 0.5), -0.1 * k - 0.025, -1), [0.3 * S, 0.05 * S, 2 * S], 0.5);
@@ -1678,7 +1701,7 @@ let _installed = false;
 export function installTownStandIns(isOn = () => true) {
   if (_installed) return 0;
   _installed = true;
-  let n = installDetStandIns(isOn);
+  let n = installDetStandIns(isOn) + addVendorTextures(watersideMaterialEntries(isOn));
   for (let k = 0; k < TOWN_BED_COUNT; k++) {
     const { model, colour } = townBedOf(TOWN_BED_FIRST + k);
     registerModelAlias(TOWN_BED_FIRST + k, { model, remap: bedRemap(colour), turn: TOWN_BED_TURN }, isOn);
@@ -1753,7 +1776,7 @@ export function installPortStandIns() {
       }),
     ),
   );
-  return installDetStandIns(() => true) + addVendorTextures(items.map((e) => ({ ...e, yields: true }))); // a player's own RMB Resource Pack answers first
+  return installDetStandIns(() => true) + addVendorTextures(fenceMaterialEntries()) + addVendorTextures(items.map((e) => ({ ...e, yields: true }))); // a player's own RMB Resource Pack answers first
 }
 /** Test seam. */
 export function _resetTownStandIns() {

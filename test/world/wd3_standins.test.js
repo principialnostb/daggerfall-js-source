@@ -76,7 +76,7 @@ function soundMesh(id, m) {
   let covered = 0;
   const tex = new Set();
   for (const s of m.subMeshes) {
-    assert.ok(s.textureArchive <= LAST_CLASSIC_TEXTURE_ARCHIVE || s.textureArchive === TOWN_PICTURE_ARCHIVE, `${id}: texture ${s.textureArchive}_${s.textureRecord}`);
+    assert.ok(s.textureArchive <= LAST_CLASSIC_TEXTURE_ARCHIVE || s.textureArchive === TOWN_PICTURE_ARCHIVE || s.textureArchive === 38228, `${id}: texture ${s.textureArchive}_${s.textureRecord}`);
     assert.equal(s.startIndex, covered, `${id}: submeshes tile the index list`);
     covered += s.primitiveCount * 3;
     tex.add(`${s.textureArchive}_${s.textureRecord}`);
@@ -207,7 +207,7 @@ test('WD3 stand-ins, every built piece is sound - Rosy\'s hangings and rugs, the
   // TEMPLE-STEPS) - the boulder inside it, its rim pulled in by at most a quarter (test/world/fb1015f_templesteps.test.js)
   for (const [id, b] of Object.entries(RMBRP_ROCKS)) {
     const { lo, hi, tex } = box[id], [x0, x1, down, up, z0, z1] = b.map((v) => v * RMBRP_ROCK_SCALE[id]);
-    assert.deepEqual([...tex], ['302_3'], `${id}: the climate's rock`);
+    assert.deepEqual([...tex], ['38228_3'], `${id}: weathered stone`);
     assert.ok(near(hi[1], up, 1e-5) && near(lo[1], -Math.max(down, 0.05), 1e-5), `${id}: ${up} up, ${down} down`);
     assert.ok(lo[0] >= x0 - 1e-5 && hi[0] <= x1 + 1e-5 && lo[2] >= z0 - 1e-5 && hi[2] <= z1 + 1e-5, `${id}: inside its box`);
     assert.ok(hi[0] - lo[0] >= (x1 - x0) * 0.75 && hi[2] - lo[2] >= (z1 - z0) * 0.75, `${id}: ${x1 - x0} x ${z1 - z0}`);
@@ -234,7 +234,7 @@ test('WD3 stand-ins, every built piece is sound - Rosy\'s hangings and rugs, the
   assert.equal(DOCK_SCALE, 2);
   for (const id of Object.keys(RMBRP_DOCKS)) {
     const { lo, hi, tex } = box[id];
-    assert.deepEqual([...tex].sort(), ['67_2', '67_7']);
+    assert.deepEqual([...tex].sort(), ['38228_0', '38228_1', '38228_2']);
     assert.ok(near(lo[1], -5) && near(hi[1], 1), `${id}: piles from 5 m below the deck to 1 m above`);
   }
   assert.ok(near(box[53140].lo[2], 2 * 0.85, 0.02) && near(box[53140].hi[2], 2 * 5.15, 0.02), 'the short dock: its deck from 2 m out');
@@ -339,13 +339,20 @@ test('WD3 stand-ins, the install: once; every piece behind the town mods\' switc
   let towns = true;
   const n = installTownStandIns(() => towns);
   assert.equal(installTownStandIns(() => true), 0, 'once');
+  setTextureDeriveContext({});
+  assert.equal(await preloadTextureArchive(38228), 4);
+  for (const record of [0, 1, 2, 3]) {
+    const material = decodedTexture(38228, record);
+    assert.deepEqual([material.width, material.height, material.colors.length], [64, 64, 64 * 64 * 4]);
+  }
   const recs = (t) => Object.values(t).reduce((k, rs) => k + Object.keys(rs).length, 0);
   const det = recs(DET_FLAT_STAND_INS) + recs(DET_FLAT_DRAWINGS) + recs(DET_TOWN_FLATS)
     + Object.values(DET_OLD_ARCHIVES).reduce((k, a) => k + [DET_FLAT_STAND_INS, DET_FLAT_DRAWINGS, DET_TOWN_FLATS].reduce((m, t) => m + Object.keys(t[a] ?? {}).length, 0), 0) + TOWN_PICTURES.length;
-  assert.equal(n, det + 18 + 22 + 7, 'DET\'s pictures, the bedclothes, the clutter and the gardens');
+  assert.equal(n, det + 18 + 22 + 7 + 4, 'DET\'s pictures, the bedclothes, the clutter and the gardens');
   for (const id of [...Object.keys(TOWN_PAINTINGS), ...Object.keys(ROSYS_PIECES), ...Object.keys(RMBRP_PIECES), ...Object.keys(DET_TOWN_MODELS)]) assert.equal(hasCustomModel(id), true, id);
   for (const id of Object.keys(TOWN_CROP_FIELDS)) assert.ok(flatFieldFor(id), id);
   const pictures = [
+    ...[0, 1, 2, 3].map(r => [38228, r]),
     ...TOWN_BED_COLOURS.flatMap((_, c) => [0, 1, 2].map((cloth) => [TOWN_BED_ARCHIVE, bedclothRecord(c, cloth)])),
     ...Object.keys(TOWN_CLUTTER).map((r) => [TOWN_CLUTTER_ARCHIVE, Number(r)]),
     ...Object.keys(TOWN_GARDEN).map((r) => [TOWN_GARDEN_ARCHIVE, Number(r)]),
@@ -372,6 +379,7 @@ test('AUDIT SHIP-REFIT the boot\'s install: DET\'s pieces and archive 1210/1230\
   assert.equal(installPortStandIns(), 0, 'once');
   const items = Object.entries(TOWN_ITEMS).flatMap(([a, rs]) => Object.keys(rs).map((r) => [Number(a), Number(r)]));
   assert.ok(n > items.length, 'DET\'s pictures and the items');
+  for (const record of [4, 5, 6]) assert.equal(hasTextureReplacement(38228, record), true, 'the fence materials are available without town mods');
   for (const [a, r] of items) assert.equal(hasTextureReplacement(a, r), true, `${a}_${r}`);
   for (const [a, rs] of Object.entries(DET_FLAT_STAND_INS)) for (const r of Object.keys(rs)) assert.equal(hasTextureReplacement(Number(a), Number(r)), true, `${a}_${r}`);
   for (const id of [45081, 45190, 45191, 45145]) assert.equal(hasCustomModel(id), true, `${id}`);
@@ -381,7 +389,7 @@ test('AUDIT SHIP-REFIT the boot\'s install: DET\'s pieces and archive 1210/1230\
   assert.deepEqual([hasCustomModel(45190), hasCustomModel(69424), hasTextureReplacement(1210, 10)], [true, false, true], 'the towns off: the boot\'s stand');
   towns = true;
   assert.equal(hasCustomModel(69424), true);
-  assert.match(readFileSync(join(ROOT, 'src/scenes/shared.js'), 'utf8'), /installImmersiveTravel\(\);[^\n]*\n\s+installPortStandIns\(\);/, 'the boot calls it');
+  assert.match(readFileSync(join(ROOT, 'src/scenes/shared.js'), 'utf8'), /installImmersiveTravel\(\);[\s\S]*?\n\s+installPortStandIns\(\);/, 'the boot calls it');
   resetAll();
 });
 

@@ -9,6 +9,8 @@ import { clothReplacementNow } from '../systems/clothReplacementDye.js';
 // any place is kept for good, as everything once was.
 
 import { isStreetFountain } from '../world/streetFountain.js';
+import { isTownFence, weatheredTownFence } from '../world/weatheredTownFence.js';
+import { WATERSIDE_ARCHIVE } from '../world/townWatersideArt.js';
 import {classicPixelKind} from '../systems/worldPixelConfig.js';
 import { TextureFile, LAST_CLASSIC_TEXTURE_ARCHIVE } from '../formats/textureFile.js'; import { changeMask } from '../formats/baseImageFile.js';   // HM1: the item icons' removeMask (one line: the cites below stand)
 import { FlatsFile } from '../formats/flatsFile.js';   // NPC1: captions + portrait indices
@@ -455,7 +457,8 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
     }
     const dfMesh = patchSeams(modelIdNum, arch.getMesh(index));   // DUNGEON-SEAMS: the holes in Daggerfall's own stairs and ceilings closed - on a copy, the archive's mesh is shared
     for (const sm of dfMesh.subMeshes) await getTexture(sm.textureArchive);
-    const model = dfMeshToModel(dfMesh, getTextureSize);
+    const model = weatheredTownFence(modelIdNum, dfMeshToModel(dfMesh, getTextureSize));
+    if (isTownFence(modelIdNum)) await getTexture(WATERSIDE_ARCHIVE);
     const pictures = [];   // PLACE-LRU: what this model's build put up, the model's to hold
     for (const sm of model.subMeshes) meshPicture(pictures, sm, () => uploadRecord(sm.textureArchive, sm.textureRecord, { opaque: true }));   // a mesh material: alphaIndex -1
     const gpu = renderer.createMesh(model);
@@ -474,7 +477,7 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
    *  ARCH3D record's own), or null; its pictures must be loaded (customModelNeeds). */
   function classicModelOf(id) {
     const i = arch.getRecordIndex(id);
-    return i === -1 ? null : dfMeshToModel(arch.getMesh(i), getTextureSize);
+    return i === -1 ? null : weatheredTownFence(id, dfMeshToModel(arch.getMesh(i), getTextureSize));
   }
   /** WD3: an alias's mesh - its classic model's geometry and UVs (sized by the classic pictures, which a swapped
    *  picture keeps), the swap laid on, then an ordinary model under the alias's own id. No classic model, no mesh. */

@@ -388,15 +388,20 @@ function build(b, id) {
         prism(b, WOOD, shoulder, [x + .12, .99 - .085 * i, .05 * i], .097, .005, 5);
       }
       break;
-    case '212:1':
-      vessel(b, [[.025, .03], [.05, .48, ROPE], [.27, .43, ROPE], [.56, .32, ROPE],
-        [.82, .21, ROPE], [.97, .06, CLOTH], [.98, 0, CLOTH]], 11);
-      for (let i = 0; i < 17; i++) {
-        const a = i * 2.4, y = .12 + (i % 6) * .12, radius = .49 - y * .34;
-        prism(b, CLOTH, [Math.cos(a) * radius, y, Math.sin(a) * radius],
-          [Math.cos(a + .28) * (radius + .047), y + .11, Math.sin(a + .28) * (radius + .047)], .012, .002, 4);
+    case '212:1': {
+      const hay = FURNISHING_PAINT.hay;
+      vessel(b, [[0, 0], [.024, .453, hay], [.18, .427, hay], [.41, .355, hay], [.67, .253, hay],
+        [.86, .155, hay], [.961, .063, hay], [1, 0, hay]], 14, false, true);
+      for (let i = 0; i < 38; i++) {
+        const a = i * 2.4, y = .12 + (i % 7) * .105;
+        const radius = (.45 - y * (.17 + y * .22)) * (1 + .11 * Math.cos(a * 5 + y * 1.8));
+        const x = Math.cos(a) * radius + .055 * y, z = Math.sin(a) * radius;
+        const reach = .048 + (i % 4) * .012;
+        const tip = [x + Math.cos(a + .3) * reach, Math.max(.012, y - .15), z + Math.sin(a + .3) * reach];
+        prism(b, i % 7 === 0 ? FURNISHING_PAINT.dryReeds : hay, [x, y, z], tip, .010 + (i % 3) * .004, .002, 3);
       }
       break;
+    }
     case '214:2': case '214:6': {
       const head = [-.25, .68, .02];
       prism(b, WOOD, [.41, .16, -.04], head, .033, .028, 6);
