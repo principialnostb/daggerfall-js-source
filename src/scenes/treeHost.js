@@ -1,4 +1,5 @@
 // @ts-check
+import { appendPixelFlat, removePixelFlat } from '../world/flatDistance.js';
 // ═══════════════════════════════════════════════════════════════════
 // PROF4 (2026-09-28, Mac: "Continue") - LOGGING IN THE STREAMING WORLD
 // (bible/06-Systems/Professions-Arc.md 4.2, 5.2, 6, 25): Logging's KIND
@@ -182,8 +183,7 @@ export function treeKind({ book, renderer = null, flatBatchAabb = null, getTextu
   /** NODE-OUTLINE: each tree's pictures, made once a batch it stands in (none made a frame) */
   const pictured = new WeakMap();
   const drop = (entry, b) => {
-    const i = entry.batches.indexOf(b);
-    if (i >= 0) entry.batches.splice(i, 1);
+    removePixelFlat(entry.batches, b);
     renderer?.destroyBatch(b);
   };
   return {
@@ -268,7 +268,7 @@ export function treeKind({ book, renderer = null, flatBatchAabb = null, getTextu
       b._box = [c[0] - reach, c[1] - 1, c[2] - reach, c[0] + reach, c[1] + g.size.h, c[2] + reach];
       b.noShadow = true;
       b.tip = [dx, dz, 0];
-      entry.batches.push(b);
+      appendPixelFlat(entry.batches, b);
       falls.push({ entry, batch: b, t: 0, key: n.key });
       if (LOGS_ARCHIVES.includes(f.base) && getTexture && billboardSize) {
         const t = await getTexture(f.archive);
@@ -278,7 +278,7 @@ export function treeKind({ book, renderer = null, flatBatchAabb = null, getTextu
         const at = [c[0] + dx * 0.8, c[1], c[2] + dz * 0.8];
         const logs = renderer.createBillboardBatch(f.archive, LOGS_RECORD, size, [at]);
         logs._box = flatBatchAabb ? flatBatchAabb([at], size) : [at[0] - size.w, at[1], at[2] - size.w, at[0] + size.w, at[1] + size.h, at[2] + size.w];
-        entry.batches.push(logs);
+        appendPixelFlat(entry.batches, logs);
         if (unlaid.delete(n.key)) { drop(entry, logs); return; }   // AUDIT GATHER-SPEED G2: refused while its texture came
         logsLying.push({ entry, batch: logs, at, key: n.key });
       }

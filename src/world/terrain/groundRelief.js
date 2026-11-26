@@ -32,6 +32,41 @@ function patchField(x, z) {
   );
 }
 
+// Every form has the same 8 rim vertices, 8 three-vertex ribs and peak.
+const FORM_INDICES = (() => {
+  const indices = [], peak = 32;
+  for (let k = 0; k < 8; k++) {
+    const j = (k + 1) % 8,
+      a = 8 + 3 * k,
+      b = 8 + 3 * j;
+    if (k % 2 === 0) indices.push((k + 7) % 8, k, j);
+    indices.push(
+      k,
+      a,
+      j,
+      j,
+      a,
+      b,
+      a,
+      a + 1,
+      b,
+      b,
+      a + 1,
+      b + 1,
+      a + 1,
+      a + 2,
+      b + 1,
+      b + 1,
+      a + 2,
+      b + 2,
+      a + 2,
+      peak,
+      b + 2,
+    );
+  }
+  return new Uint8Array(indices);
+})();
+
 function addForm(out, grid, tx, tz, wx, wz, kinds, strength) {
   const { positions, normals, width, cell } = grid;
   const base = tz * (width + 1) + tx,
@@ -78,8 +113,7 @@ function addForm(out, grid, tx, tz, wx, wz, kinds, strength) {
   const stony = kinds?.b === GROUND_KIND.stone;
   const height = (kinds ? 0.11 + 0.095 * strength : 0.05 + 0.07 * strength) * (0.8 + 0.2 * noise(wx, wz, 113));
   const pos = [],
-    face = [],
-    indices = [];
+    face = [];
   function vertex(u, v, rise, material, sod = 0) {
     const dry = kinds?.a === GROUND_KIND.water ? clamp((grass(u, v) - 0.52) * 5) : 1;
     pos.push((tx + u) * cell, sample(u, v) + rise * dry, (tz + v) * cell);
@@ -113,36 +147,8 @@ function addForm(out, grid, tx, tz, wx, wz, kinds, strength) {
     point(radius * (0.57 + 0.37 * cut), height * (0.58 + 0.3 * cut), cut * 0.84);
     point(radius * (0.49 + 0.26 * cut), height * (0.85 + 0.13 * noise(wx, wz, k + 151)), 0, kinds ? 0.88 : 0);
   }
-  const peak = vertex(cx, cz, height, 0, kinds ? 0.97 : 0);
-  for (let k = 0; k < 8; k++) {
-    const j = (k + 1) % 8,
-      a = 8 + 3 * k,
-      b = 8 + 3 * j;
-    if (k % 2 === 0) indices.push((k + 7) % 8, k, j);
-    indices.push(
-      k,
-      a,
-      j,
-      j,
-      a,
-      b,
-      a,
-      a + 1,
-      b,
-      b,
-      a + 1,
-      b + 1,
-      a + 1,
-      a + 2,
-      b + 1,
-      b + 1,
-      a + 2,
-      b + 2,
-      a + 2,
-      peak,
-      b + 2,
-    );
-  }
+  vertex(cx, cz, height, 0, kinds ? 0.97 : 0);
+  const indices = FORM_INDICES;
   const ns = new Float32Array(pos.length);
   for (let n = 0; n < indices.length; n += 3) {
     const a = indices[n] * 3,
@@ -154,11 +160,10 @@ function addForm(out, grid, tx, tz, wx, wz, kinds, strength) {
     const bx = pos[c] - pos[a],
       by = pos[c + 1] - pos[a + 1],
       bz = pos[c + 2] - pos[a + 2];
-    for (const i of [a, b, c]) {
-      ns[i] += ay * bz - az * by;
-      ns[i + 1] += az * bx - ax * bz;
-      ns[i + 2] += ax * by - ay * bx;
-    }
+    const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+    ns[a] += nx; ns[a + 1] += ny; ns[a + 2] += nz;
+    ns[b] += nx; ns[b + 1] += ny; ns[b + 2] += nz;
+    ns[c] += nx; ns[c + 1] += ny; ns[c + 2] += nz;
   }
   for (let k = 0; k < face.length; k++) {
     const i = k * 3;
@@ -178,10 +183,10 @@ function addForm(out, grid, tx, tz, wx, wz, kinds, strength) {
   for (const i of indices) out.i.push(first + i);
 }
 
-function extend(source, extra) {
-  const result = new Float32Array(source.length + extra.length);
+function extend(source, extra, length = extra.length) {
+  const result = new Float32Array(source.length + length);
   result.set(source);
-  result.set(extra, source.length);
+  if (extra) result.set(extra, source.length);
   return result;
 }
 
@@ -196,7 +201,8 @@ export function groundRelief(positions, normals, indices, bankDepth, options) {
     chosen = new Set();
   // The first six indices of a base quad name its southwest corner. Bespoke
   // terrain can replace any quad entirely; visit only the base quads still drawn.
-  for (let off = 0; off + 5 < indices.length; off += 6) {
+  const baseEnd = options.baseIndexCount ?? indices.length;
+  for (let off = 0; off + 5 < baseEnd; off += 6) {
     const first = indices[off],
       tx = first % (width + 1),
       tz = Math.floor(first / (width + 1));
@@ -226,7 +232,8 @@ export function groundRelief(positions, normals, indices, bankDepth, options) {
     addForm(out, grid, tx, tz, wx, wz, kinds, field);
   }
   if (!chosen.size) return null;
-  const merged = new Uint32Array(indices.length - chosen.size * 6 + out.i.length);
+  const indexCount = indices.length - chosen.size * 6 + out.i.length;
+  const merged = new Uint32Array(indexCount);
   let start = 0,
     end = 0;
   for (const off of chosen) {
@@ -250,6 +257,6 @@ export function groundRelief(positions, normals, indices, bankDepth, options) {
     normals: extend(normals, out.n),
     indices: merged,
     finish,
-    bankDepth: bankDepth ? extend(bankDepth, new Float32Array(out.face.length)) : null,
+    bankDepth: bankDepth ? extend(bankDepth, null, out.face.length) : null,
   };
 }

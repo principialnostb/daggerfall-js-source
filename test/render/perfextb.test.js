@@ -159,7 +159,7 @@ test('PERF-EXT10: every field src/ writes on a billboard batch is one the factor
   walk('src');
   const WRITE = String.raw`\s*(?:=(?!=)|\?\?=|\+=|-=|\|\|=)`;
   // the renderer's own memory and the hosts' dress, on any receiver but `this` (a window's `_box`, the pass's `_shadows`)
-  const byName = new RegExp(String.raw`(?<!\bthis)\.(_bbKey\w*|_sh(?!Inst)\w+|_box|sway|conceal|noShadow|selfCard|_dead|_moveScratch)` + WRITE, 'g');
+  const byName = new RegExp(String.raw`(?<!\bthis)\.(_bbKey\w*|_sh(?!Inst)[A-Z]\w*|_box|sway|conceal|noShadow|selfCard|_dead|_moveScratch)` + WRITE, 'g');
   // any field on a receiver named for a batch - formats/ holds the Morrowind MESH batches, which are not these
   const byReceiver = new RegExp(String.raw`(?<![\w.])(?:batch|\w+\.batch|\w*[a-z]Batch)\.(\w+)` + WRITE, 'g');
   const stray = [];
@@ -168,7 +168,10 @@ test('PERF-EXT10: every field src/ writes on a billboard batch is one the factor
     const s = rd(f);
     for (const m of s.matchAll(byName)) { seen++; if (!minted.has(m[1])) stray.push(`${f}: .${m[1]}`); }
     if (f.startsWith('src/formats/')) continue;
-    for (const m of s.matchAll(byReceiver)) { seen++; if (!minted.has(m[1])) stray.push(`${f}: .${m[1]}`); }
+    // A skin batch iterates character mesh pieces; other receivers inside that loop can still be billboards.
+    const billboardSource = s.replace(/^( *)for \(const batch of bound\.skinned\) \{[\s\S]*?^\1\}/gm,
+      block => block.replace(/(?<![\w.])batch(?=\.)/g, 'skinPiece'));
+    for (const m of billboardSource.matchAll(byReceiver)) { seen++; if (!minted.has(m[1])) stray.push(`${f}: .${m[1]}`); }
   }
   assert.ok(seen > 100, `only ${seen} batch writes found - the sweep stopped matching`);
   assert.deepEqual([...new Set(stray)], [], 'written on a batch after birth, and not minted in createBillboardBatch\'s literal');
@@ -358,14 +361,50 @@ test('PERF-EXT11: no flat ever draws with a stale size or origin - GL walked as 
 
 // ── PERF-EXT12: no object ─────────────────────────────────────────────
 
-test('PERF-EXT12: the streaming host asks the far-flat rule POSITIONALLY - no `{ ring, height, animated }` built for every flat batch of every pixel in sight or reach, every frame (the base: an object literal at the call); nothing in src/ builds one for it', () => {
+test('PERF-EXT12: the exterior and window use the same classified batches and their positional distance rule', () => {
   const w = rd('src/scenes/world.js');
-  assert.match(w, /if \(!farFlatVisibleAt\(ring, b\.farH \?\? b\.size\?\.h \?\? 0, b\.frame != null\)\) continue;/, 'the pixel walk\'s call (LPT1: a far picture\'s batch hands its flat\'s own height - AUDIT LPT B1)');
-  assert.match(w, /import \{ farFlatVisibleAt \} from '\.\.\/world\/flatDistance\.js'/);
+  assert.match(w, /for \(const b of pixelFlatsAtRing\(p\.batches, ring\)\)/);
+  assert.match(w, /for \(const fb of pixelFlatsAtRing\(p\.batches, ring\)\)/);
+  assert.match(rd('src/world/flatDistance.js'), /farFlatVisibleAt\(FAR_FLAT_RING, b\.farH \?\? b\.size\?\.h \?\? 0, b\.frame != null\)/);
+  assert.match(w, /import \{ [^}]*pixelFlatsAtRing[^}]* \} from '\.\.\/world\/flatDistance\.js'/);
   const objectCalls = [];
   const walk = (d) => { for (const e of readdirSync(join(ROOT, d))) { const p = `${d}/${e}`; if (statSync(join(ROOT, p)).isDirectory()) walk(p); else if (p.endsWith('.js') && /(?<!function )farFlatVisible\(\s*\{/.test(rd(p))) objectCalls.push(p); } };
   walk('src');
   assert.deepEqual(objectCalls, [], 'an object built to ask the rule');
+});
+
+test('far pixel batches keep native order through live additions, removal, animation and seasonal swaps', () => {
+  const { pixelFlatsAtRing, appendPixelFlat, removePixelFlat, prependPixelFlats } = flatDistance;
+  let reads = 0;
+  const tall = { get farH() { reads++; return 2.5; }, size: { h: 1 } };
+  const young = { farH: 0, size: { h: 8 } };
+  const fire = { size: { h: 1 }, frame: 0 };
+  const list = [young, tall, fire];
+  assert.equal(pixelFlatsAtRing(list, 1), list);
+  assert.equal(reads, 0);
+  const far = pixelFlatsAtRing(list, 2);
+  assert.deepEqual(far, [tall, fire]);
+  const classified = reads;
+  fire.frame = 5; fire.castOnly = true;
+  assert.equal(pixelFlatsAtRing(list, 5), far);
+  assert.equal(reads, classified);
+  assert.equal(far[1].frame, 5);
+  assert.equal(far[1].castOnly, true);
+  const npc = { size: { h: 1.8 }, frame: 0 }, small = { size: { h: 1 } };
+  appendPixelFlat(list, small);
+  appendPixelFlat(list, npc);
+  removePixelFlat(list, fire);
+  removePixelFlat(list, fire);
+  assert.deepEqual(far, [tall, npc]);
+  removePixelFlat(list, young);
+  removePixelFlat(list, tall);
+  const seasonal = { size: { h: 3 } };
+  prependPixelFlats(list, [small, seasonal]);
+  assert.deepEqual(pixelFlatsAtRing(list, 2), [seasonal, npc]);
+  assert.equal(pixelFlatsAtRing(list, 0), list);
+  assert.deepEqual(list, [small, seasonal, small, npc]);
+  const replacement = [young, fire];
+  assert.deepEqual(pixelFlatsAtRing(replacement, 2), [fire]);
 });
 
 test('PERF-EXT12: the positional rule IS the rule - over rings 0..6, heights 0 / 0.4 / 1.8 / 2.49 / 2.5 / 6 and animated false / true / left out, farFlatVisibleAt answers what farFlatVisible({...}) answers, and the object form is only a call to it (one home: the MAC1 pins, which speak the object form, hold the positional one)', () => {

@@ -18,7 +18,7 @@ import {
   TAMRIEL_ROADS_VERSION, GROUND_ROLL_VERSION, regionPrefix, REGION_APRON, REGION_CORE_W, REGION_CORE_H, LAND_LOOK, regionLattice, regionOf, regionAt, inCore, regionHasLand,
   regionsByNearness, buildTamrielRegion, rollSpec, rollTypeAt, regionKey, inputsPrint,
 } from '../src/world/tamrielRoads.js';
-import { beyondKey, beyondPixel, joinLayer, mergeArenaRoads, arenaRoadsLayer, setArenaRoads, packArenaRoads, unpackArenaRoads } from '../src/world/arenaRoads.js';
+import { beyondKey, beyondPixel, joinLayer, mergeArenaRoads, arenaRoadsLayer, setArenaRoads, packArenaRoads, unpackArenaRoads, arenaRoadTiles, arenaRoadTilePixels, arenaRoadsVersion } from '../src/world/arenaRoads.js';
 import { packPastBayPlaces } from '../src/world/pastBayPlaces.js';
 import { CAPITALS, GATE_STEPS, capitalGates, capitalSpanPixels } from '../src/world/tamrielCapitals.js';
 import { countryStandsAt, COUNTRY_TYPES } from '../src/world/tamrielCountry.js';
@@ -26,6 +26,7 @@ import { lairStandsAt, lairPlanned, lairBlockCount, lairPools, LAIR_TYPES } from
 import { createTamrielRoadsClient, roadsWorkerCount } from '../src/world/tamrielRoadsClient.js';
 import { createRoadsWorkerState } from '../src/world/tamrielRoadsWorker.js';
 import { createTamrielRoadsHost } from '../src/scenes/tamrielRoadsHost.js';
+import { packedTerrainRoads } from '../src/world/terrain/roadByteGrid.js';
 import { TerrainGenClient } from '../src/world/terrain/terrainGenClient.js';
 import { GENERATOR_VERSION } from '../src/world/roadsCache.js';
 import { LOCATION_TYPES } from '../src/formats/mapsFile.js';
@@ -546,4 +547,34 @@ test('TESA14 with ARENA2: a region of the player\'s own continent, built twice i
     assert.deepEqual(served.filter((p) => !paths.has(beyondKey(p.x, p.y))).map((p) => [p.x, p.y, p.type]), [], `${reached.length} of ${served.length} hamlets and villages on a path`);
     assert.equal(MAP_WIDTH, MAP_W);
   } finally { setTamrielTrace(null); setTamrielFit(null); }
+});
+
+test('Packed region landing preserves terrain lookups, mask order, overlap and map ink', () => {
+  const road = beyondKey(-64, -64), overlap = beyondKey(64, 64);
+  const layers = [
+    { roads: new Map([[road, 1], [overlap, 2]]), tracks: new Map([[0, 4], [road, 8], [0xffffffff, 16]]), join: new Map([[road, 0], [1, 32]]) },
+    { roads: new Map([[road, 64], [0xffffffff, 128]]), tracks: new Map([[1, 1], [overlap, 2]]), join: new Map([[1, 4]]) },
+    { roads: new Map([[180, 1], [40, 2], [16, 4], [100, 8]]), tracks: new Map(), join: new Map() },
+    joinLayer([]),
+  ].map(packArenaRoads);
+  layers.push({ keys: Uint32Array.of(1, 3, 1), roads: Uint8Array.of(1, 2, 4), tracks: Uint8Array.of(8, 16, 32) });
+  const queries = [0, 1, road, road - 1, overlap, overlap + 1, 0xffffffff, 16, 40, 100, 180, -1, 0x100000000];
+  function land(read) {
+    const client = new TerrainGenClient({ woods: null });
+    const result = [];
+    client.addArenaRoads(joinLayer([]), null, { reset: true });
+    for (const packed of layers) {
+      const add = read(packed);
+      client.addArenaRoads(add, null, { packed });
+      const installed = arenaRoadsLayer();
+      const kinds = ['roads', 'tracks', 'join'];
+      result.push({
+        delta: kinds.map(kind => [add[kind].size, [...add[kind]], [...add[kind].keys()], queries.map(k => add[kind].get(k))]),
+        merged: kinds.map(kind => [...installed[kind]]),
+        ink: [...arenaRoadTiles()].map(([id, version]) => [id, version - arenaRoadsVersion(), [...arenaRoadTilePixels((id % 8192) - 4096, Math.floor(id / 8192) - 4096)]]),
+      });
+    }
+    return result;
+  }
+  assert.deepEqual(land(packedTerrainRoads), land(unpackArenaRoads));
 });

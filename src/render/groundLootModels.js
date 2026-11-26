@@ -2,7 +2,7 @@ import { morrowindWorldVisualEnabled } from '../systems/dungeonDecor.js';
 import { trs } from '../world/mat4.js';
 import { createMeshKit } from '../world/eliteGates/meshKit.js';
 import { lootPaints } from './foodLootModel.js';
-import { buildLootPouch, treasurePaints } from '../world/treasureModel.js';
+import { buildLootPouch, TreasurePaintBank } from '../world/treasureModel.js';
 
 const models = new WeakMap();
 const pouches = new WeakMap();
@@ -12,9 +12,9 @@ function acquirePouch(renderer) {
   let pouch = pouches.get(renderer);
   if (!pouch) {
     const data = buildLootPouch(POUCH_ART);
-    const paints = treasurePaints();
+    const paints = new TreasurePaintBank();
     const records = [...new Set(data.slots.map(slot => slot.record))];
-    for (const record of records) renderer.uploadTexture(POUCH_ART, record, paints[record]);
+    for (const record of records) renderer.uploadTexture(POUCH_ART, record, paints.get(record));
     pouch = { mesh: renderer.createMesh(data), records, users: 0 };
     pouches.set(renderer, pouch);
   }

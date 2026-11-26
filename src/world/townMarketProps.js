@@ -1,3 +1,4 @@
+import { paintFamily } from './paintFamily.js';
 import { createMeshKit } from './eliteGates/meshKit.js';
 import { WORKSHOP_WOOD } from './dungeonWorkshopWood.js';
 import { STAINED_PRESS_IRON as IRON } from './dungeonTortureTable.js';
@@ -10,7 +11,15 @@ const TWINE = 5;
 const IDS = new Set(['205:10', '205:28']);
 export const isTownMarketProp = record => IDS.has(record);
 
-export function marketPropPaints(paints) {
+export const marketPropPaints = paintFamily([
+  [WICKER, wickerPaint],
+  [GRAIN, () => producePaint([106, 72, 45], [190, 163, 107], true)],
+  [ROOT_RED, () => producePaint([93, 47, 36], [162, 101, 69])],
+  [LINEN, () => producePaint([79, 75, 54], [186, 168, 121])],
+  [TIRED_WOOD, get => wornBoardPaint(get(boards))],
+]);
+
+function wickerPaint() {
   const wicker = image(32);
   const shade = noiseField(20510, 5, wicker.width);
   for (let y = 0; y < wicker.height; y++) for (let x = 0; x < wicker.width; x++) {
@@ -20,30 +29,26 @@ export function marketPropPaints(paints) {
     const tone = .47 + (shade(x, y) - .5) * .26 + seam + crossing;
     putTexel(wicker, x, y, blendRgb([62, 43, 27], [153, 119, 72], tone));
   }
-  const boardPaint = paints[boards], worn = boardPaint.colors.slice();
+  return wicker;
+}
+
+function wornBoardPaint(boardPaint) {
+  const worn = boardPaint.colors.slice();
   for (let i = 0; i < worn.length; i += 4) {
     worn[i] *= .66;
     worn[i + 1] *= .75;
     worn[i + 2] *= .79;
   }
-  const rootPaint = image(16);
-  const rootTone = noiseField(20511, 6, 16);
+  return { ...boardPaint, colors: worn };
+}
+
+function producePaint(low, high, grain = false) {
+  const paint = image(16), rootTone = noiseField(20511, 6, 16);
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-    const tone = .42 + rootTone(x, y) * .35 + y / 80;
-    putTexel(rootPaint, x, y, blendRgb([106, 72, 45], [190, 163, 107], tone));
+    const tone = grain ? .42 + rootTone(x, y) * .35 + y / 80 : .38 + rootTone(x, y) * .45;
+    putTexel(paint, x, y, blendRgb(low, high, tone));
   }
-  const rootRed = image(16), linen = image(16);
-  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-    const tone = .38 + rootTone(x, y) * .45;
-    putTexel(rootRed, x, y, blendRgb([93, 47, 36], [162, 101, 69], tone));
-    putTexel(linen, x, y, blendRgb([79, 75, 54], [186, 168, 121], tone));
-  }
-  return [
-    [WICKER, wicker],
-    [GRAIN, rootPaint],
-    [ROOT_RED, rootRed], [LINEN, linen],
-    [TIRED_WOOD, { ...boardPaint, colors: worn }],
-  ];
+  return paint;
 }
 
 const POLYGON = 12;

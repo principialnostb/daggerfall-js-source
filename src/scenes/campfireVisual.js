@@ -124,7 +124,7 @@ export function createCampfireVisual(renderer, ground = null) {
 export function drawCampScene(renderer, context, batches, right, up) {
   context.camps?.draw(renderer);
   context.camps?.drawFlames?.();
-  renderer.drawBillboards(batches, right, up);
+  renderer.withWorldFixtureDestination(() => renderer.drawBillboards(batches, right, up));
 }
 
 export function drawCampWorldFx(camps,fx){

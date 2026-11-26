@@ -2467,6 +2467,11 @@ export class LabGrassRenderer {
   draw(proj, view, eye, timeSeconds, light, wind, range = LAB_GRASS.range, style = 'smooth') {
     this.frame = [proj, view, eye, timeSeconds, light, wind, range];   // BANTHA2: the frame's draw as asked - a field drawn beside this one under its light and wind (scenes/jungleFloorHost.js drawBeside)
     if (!this.count || !this.slotBox) return;   // AUDIT 68 S16-grass-set-broken-dead: the field's slots are the one thing it draws
+    // Slot capacity survives an empty field. There is no coverage to composite until a cell has blades.
+    if (light.worldRenderer && !this.slotBox.some(Boolean)) {
+      for (const key in this.drawn) this.drawn[key] = 0;
+      return;
+    }
     const gl = this.gl; const u = this.u;
     // out = proj * view, column-major
     const o = this._vp;

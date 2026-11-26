@@ -115,18 +115,27 @@ export function modResourceGlob(patterns, original) {
       bundled.get(pack.id).add(path.slice(path.toLowerCase().indexOf('/mods/')+1).toLowerCase());
     }
   }
-  const result={...original};
-  for(const [path,url] of [...urls, ...desktopPack]){
-    const full=prefix+path;
-    if(matchers.some(re=>re.test(full))){
-      for(const key of Object.keys(result))if(key.toLowerCase()===full.toLowerCase())delete result[key];
-      result[full]=url;
+  // Overrides compare paths case-insensitively. Preserve the old delete-and-append
+  // order (the last spelling wins) without scanning the entire result for every file.
+  const overrides = new Map();
+  for (const source of [urls, desktopPack]) {
+    for (const [path, url] of source) {
+      const full = prefix + path;
+      if (!matchers.some(re => re.test(full))) continue;
+      const folded = full.toLowerCase();
+      overrides.delete(folded);
+      overrides.set(folded, [full, url]);
       const pack = desktopPack.has(path) ? packForPath(full) : null;
       if (pack) {
         if (!bundled.has(pack.id)) bundled.set(pack.id, new Set());
         bundled.get(pack.id).add(path.toLowerCase());
       }
     }
+  }
+  const result = { ...original };
+  if (overrides.size) {
+    for (const key of Object.keys(original)) if (overrides.has(key.toLowerCase())) delete result[key];
+    for (const [path, url] of overrides.values()) result[path] = url;
   }
   for(const path of Object.keys(result)){
     const pack=packForPath(path);

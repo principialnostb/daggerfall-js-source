@@ -140,6 +140,7 @@ function patchIndices(indices, sites, count) {
     }
     start = i + 1;
   }
+  const baseIndexCount = k;
   let base = count;
   for (const { width, height, footprint, west, south, sub } of sites) {
     for (let z = 0; z < height - 1; z++) for (let x = 0; x < width - 1; x++) {
@@ -154,7 +155,7 @@ function patchIndices(indices, sites, count) {
     }
     base += width * height;
   }
-  return out;
+  return { indices: out, baseIndexCount };
 }
 
 // The streamed world translates both heights together when its origin moves.
@@ -220,11 +221,14 @@ function buildBasin(site, bytes, bed, pos, norm, bankDepth, bankFinish, offset, 
   for (let iz = 0; iz < HEIGHT; iz++) for (let ix = 0; ix < WIDTH; ix++) {
     depths[iz * WIDTH + ix] = fittedDepth(site, bytes, WEST + ix / sub, SOUTH + iz / sub, houseBank);
   }
-  bankFinish.set(bankFinishWeights(depths, WIDTH, HEIGHT, TILE_UNITS / sub, WATERLINE), offset - gridVertices);
+  const finishStart = offset - gridVertices;
+  bankFinishWeights(depths, WIDTH, HEIGHT, TILE_UNITS / sub, WATERLINE, bankFinish.subarray(finishStart, finishStart + heights.length));
   for (let iz = 0; iz < HEIGHT; iz++) for (let ix = 0; ix < WIDTH; ix++) {
     const x = WEST + ix / sub, z = SOUTH + iz / sub;
     const k = iz * WIDTH + ix, i = (offset + k) * 3;
-    pos.set([x * TILE_UNITS, level - depths[k], z * TILE_UNITS], i);
+    pos[i] = x * TILE_UNITS;
+    pos[i + 1] = level - depths[k];
+    pos[i + 2] = z * TILE_UNITS;
     heights[k] = pos[i + 1];
     const tile = bytes[Math.min(NORTH - 1, Math.floor(z)) * SIDE + Math.min(EAST - 1, Math.floor(x))];
     if (!WATER_DRAW_MASK_TABLE[tile] && tile >> 2 !== 2 && !clearPondBank(site, x, z, .05)) bankFinish[offset - gridVertices + k] = 0;
@@ -234,7 +238,9 @@ function buildBasin(site, bytes, bed, pos, norm, bankDepth, bankFinish, offset, 
     const dx = depths[k + (ix < WIDTH - 1 ? 1 : 0)] - depths[k - (ix > 0 ? 1 : 0)];
     const dz = depths[k + (iz < HEIGHT - 1 ? WIDTH : 0)] - depths[k - (iz > 0 ? WIDTH : 0)];
     const dy = 2 * TILE_UNITS / sub, len = Math.hypot(dx, dy, dz);
-    norm.set([dx / len, dy / len, dz / len], i);
+    norm[i] = dx / len;
+    norm[i + 1] = dy / len;
+    norm[i + 2] = dz / len;
   }
   for (let z = SOUTH; z <= NORTH; z++) for (let x = WEST; x <= EAST; x++) {
     if (!site.footprint && !site.pilot && (x === WEST || x === EAST || z === SOUTH || z === NORTH)) continue;
@@ -327,5 +333,7 @@ export function pondTerrain(renderer, px, py, bytes, bed, positions, normals, in
   bed.pondPilotAt = (x, z) => !!at(x, z)?.pilot;
   bed.pondWaterAt = (x, z) => at(x, z)?.waterY;
   if (basins.length === 1) bed.pondWaterY = basins[0].waterY;
-  return renderer.createTerrainSurface(pos, norm, patchIndices(indices, patches, gridVertices), bankDepth, pondShoreMesh(basins, bytes, px, py), land, finish);
+  const patched = patchIndices(indices, patches, gridVertices);
+  land.baseIndexCount = patched.baseIndexCount;
+  return renderer.createTerrainSurface(pos, norm, patched.indices, bankDepth, pondShoreMesh(basins, bytes, px, py), land, finish);
 }

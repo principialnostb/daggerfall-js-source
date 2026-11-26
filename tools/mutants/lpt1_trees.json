@@ -291,9 +291,9 @@
   },
   {
     "name": "LPT1-B1-far-ring-on-the-picture",
-    "file": "src/scenes/world.js",
-    "old": "farFlatVisibleAt(ring, b.farH ?? b.size?.h ?? 0,",
-    "new": "farFlatVisibleAt(ring, b.size?.h ?? 0,",
+    "file": "src/world/flatDistance.js",
+    "old": "farFlatVisibleAt(FAR_FLAT_RING, b.farH ?? b.size?.h ?? 0,",
+    "new": "farFlatVisibleAt(FAR_FLAT_RING, b.size?.h ?? 0,",
     "tests": [
       "test/systems/lpt1_lowpolytrees.test.js"
     ]

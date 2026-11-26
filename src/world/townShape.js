@@ -172,6 +172,11 @@ function hash01(seed, x, y) {
   }
   return (h >>> 0) / 4294967296;
 }
+// Adjacent tiles often interpolate the same four exact hash values. Keep only the last
+// lattice cell of each octave in this realm; neither the scale nor the fractional
+// coordinates are inputs to its corner hashes.
+const wanderCells = Array.from({ length: 2 }, () => ({ seed: NaN, x: NaN, y: NaN, a: 0, b: 0, c: 0, d: 0 }));
+
 /** The outline's wander at tile (x, y): two octaves of smoothed value noise on the town's seed, in [-1, 1].
  *  @param {number} seed @param {number} x @param {number} y @param {number} [scale] its noise's cell, in tiles */
 export function shapeWander(seed, x, y, scale = TOWN_SHAPE.scale) {
@@ -189,10 +194,17 @@ export function shapeWander(seed, x, y, scale = TOWN_SHAPE.scale) {
     const sx = tx * tx * (3 - 2 * tx),
       sy = ty * ty * (3 - 2 * ty);
     const k = seed + o * 0x51ed27;
-    const a = hash01(k, ix, iy),
-      b = hash01(k, ix + 1, iy),
-      c = hash01(k, ix, iy + 1),
-      d = hash01(k, ix + 1, iy + 1);
+    const cell = wanderCells[o];
+    if (cell.seed !== k || cell.x !== ix || cell.y !== iy) {
+      cell.seed = k;
+      cell.x = ix;
+      cell.y = iy;
+      cell.a = hash01(k, ix, iy);
+      cell.b = hash01(k, ix + 1, iy);
+      cell.c = hash01(k, ix, iy + 1);
+      cell.d = hash01(k, ix + 1, iy + 1);
+    }
+    const { a, b, c, d } = cell;
     v += amp * (a + (b - a) * sx + (c + (d - c) * sx - (a + (b - a) * sx)) * sy);
     sum += amp;
     amp *= 0.5;
@@ -207,61 +219,69 @@ export function shapeWander(seed, x, y, scale = TOWN_SHAPE.scale) {
 export const RING = Object.freeze({ road: 1, NW: 2, NE: 3, SE: 4, SW: 5 });
 
 /**
- * Each tile's distance (in tiles) to the nearest taken one - an exact Euclidean transform (Felzenszwalb's, two passes of
- * the lower envelope) over the town's tiles; Infinity on a town with none.
+ * Each tile's distance (in tiles) to the nearest taken one - an exact Euclidean transform (binary
+ * columns and the row envelopes) over the town's tiles; Infinity on a town with none.
  * @param {Uint8Array} occ @param {number} W @param {number} H @returns {Float64Array}
  */
 export function tileDistance(occ, W, H) {
-  const INF = 1e20,
-    f = new Float64Array(Math.max(W, H)),
-    d = new Float64Array(W * H);
-  const line = (n, get, set) => {
-    const v = new Int32Array(n),
-      z = new Float64Array(n + 1),
-      g = new Float64Array(n);
-    for (let i = 0; i < n; i++) g[i] = get(i);
-    let k = 0;
-    v[0] = 0;
-    z[0] = -INF;
-    z[1] = INF;
-    for (let q = 1; q < n; q++) {
-      let s = (g[q] + q * q - (g[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
-      while (s <= z[k]) {
-        k--;
-        s = (g[q] + q * q - (g[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+  const dist = new Float64Array(W * H);
+  const nearestY = new Int32Array(W).fill(-1);
+  let occupied = 0;
+  // With binary sites, the column distance is simply the distance to the nearest
+  // occupied row above or below. Visit rows in storage order in both directions.
+  for (let y = 0; y < H; y++) {
+    for (let x = 0, i = y * W; x < W; x++, i++) {
+      if (occ[i]) {
+        nearestY[x] = y;
+        occupied++;
+      } else {
+        const dy = y - nearestY[x];
+        dist[i] = nearestY[x] < 0 ? Infinity : dy * dy;
       }
-      k++;
-      v[k] = q;
-      z[k] = s;
-      z[k + 1] = INF;
     }
-    k = 0;
-    for (let q = 0; q < n; q++) {
-      while (z[k + 1] < q) k++;
-      set(q, (q - v[k]) ** 2 + g[v[k]]);
+  }
+  if (!occupied) return dist.fill(Infinity);
+  if (occupied === dist.length) return dist;
+  nearestY.fill(-1);
+  for (let y = H - 1; y >= 0; y--) {
+    for (let x = 0, i = y * W; x < W; x++, i++) {
+      if (dist[i] === 0) nearestY[x] = y;
+      else if (nearestY[x] >= 0) {
+        const dy = nearestY[x] - y;
+        dist[i] = Math.min(dist[i], dy * dy);
+      }
     }
-  };
-  for (let i = 0; i < W * H; i++) d[i] = occ[i] ? 0 : INF;
-  for (let x = 0; x < W; x++)
-    line(
-      H,
-      (y) => d[y * W + x],
-      (y, val) => {
-        f[y] = val;
-        if (y === H - 1) for (let yy = 0; yy < H; yy++) d[yy * W + x] = f[yy];
-      },
-    );
-  for (let y = 0; y < H; y++)
-    line(
-      W,
-      (x) => d[y * W + x],
-      (x, val) => {
-        f[x] = val;
-        if (x === W - 1) for (let xx = 0; xx < W; xx++) d[y * W + xx] = f[xx];
-      },
-    );
-  for (let i = 0; i < W * H; i++) d[i] = d[i] >= INF / 2 ? Infinity : Math.sqrt(d[i]);
-  return d;
+  }
+  // The row's finite parabolas form the same lower envelope as the general
+  // Euclidean transform. Save the selected costs before overwriting the row.
+  const sites = new Int32Array(W), costs = new Float64Array(W), cuts = new Float64Array(W);
+  for (let y = 0; y < H; y++) {
+    const row = y * W;
+    let last = -1;
+    for (let x = 0; x < W; x++) {
+      const cost = dist[row + x];
+      if (cost === Infinity) continue;
+      const lifted = cost + x * x;
+      let cut = -Infinity;
+      while (last >= 0) {
+        const p = sites[last];
+        cut = (lifted - (costs[last] + p * p)) / (2 * x - 2 * p);
+        if (cut > cuts[last]) break;
+        last--;
+      }
+      last++;
+      sites[last] = x;
+      costs[last] = cost;
+      cuts[last] = cut;
+    }
+    let k = 0;
+    for (let x = 0; x < W; x++) {
+      while (k < last && cuts[k + 1] < x) k++;
+      const dx = x - sites[k];
+      dist[row + x] = Math.sqrt(dx * dx + costs[k]);
+    }
+  }
+  return dist;
 }
 
 /**
@@ -334,6 +354,7 @@ export function townShapeField(occ, W, H, seed, o = {}) {
   const margin = o.margin ?? TOWN_SHAPE.margin,
     wander = Math.min(o.wander ?? TOWN_SHAPE.wander, margin - 0.5),
     core = o.core ?? 0;
+  const inner = margin - Math.abs(wander), outer = margin + Math.abs(wander);
   const out = new Uint8Array(W * H);
   if (!occ.some((v) => v)) return out.fill(1);
   const dist = tileDistance(occ, W, H);
@@ -344,7 +365,7 @@ export function townShapeField(occ, W, H, seed, o = {}) {
         d = dist[i];
       if (d <= core)
         out[i] = 1; // TS4: the round's own ground - a wall's, its markers' - its distance none
-      else if (d <= margin + wander * shapeWander(seed >>> 0, x, y)) out[i] = enc(d);
+      else if (d <= inner || (d <= outer && d <= margin + wander * shapeWander(seed >>> 0, x, y))) out[i] = enc(d);
     }
   }
   // the holes: every tile the outside cannot reach is the town's

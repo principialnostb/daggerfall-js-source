@@ -183,17 +183,18 @@ export class TerrainGenClient {
    * in order), this thread's layer merged at once (`arenaRoadsLanded`) and `onLanded(epoch, add, reset)` told. With no
    * worker this thread's layer is every kernel's. Answers the epoch.
    * @param {?{ roads: Map<number, number>, tracks: Map<number, number>, join?: Map<number, number> }} add
-   * @param {?Function} [onLanded] @param {{ reset?: boolean }} [o]
+   * @param {?Function} [onLanded] @param {{ reset?: boolean, packed?: ReturnType<typeof packArenaRoads> }} [o]
    */
-  addArenaRoads(add, onLanded = null, { reset = false } = {}) {
+  addArenaRoads(add, onLanded = null, { reset = false, packed: region = null } = {}) {
     const epoch = ++this._arenaAsks;
     this.arenaRoadsEpoch = epoch;
     const layer = reset || !arenaRoadsLayer() ? { roads: new Map(), tracks: new Map(), join: new Map() } : arenaRoadsLayer();
     if (add) mergeArenaRoads(layer, add);
     installArenaRoads(layer, reset ? null : add);   // TESA15: a region's add moves only the ink tiles it reaches
     if (this._worker) {
-      const packed = add ? packArenaRoads(add) : null;
-      this._worker.postMessage({ t: 'arena-roads', epoch, reset, layer: packed }, packed ? [packed.keys.buffer, packed.roads.buffer, packed.tracks.buffer, packed.joinKeys.buffer, packed.join.buffer] : []);
+      // The roads cache can still own these arrays. Post a structured clone of that region.
+      const packed = region ?? (add ? packArenaRoads(add) : null);
+      this._worker.postMessage({ t: 'arena-roads', epoch, reset, layer: packed }, packed && !region ? [packed.keys.buffer, packed.roads.buffer, packed.tracks.buffer, packed.joinKeys.buffer, packed.join.buffer] : []);
     }
     this.arenaRoadsLanded = epoch;
     onLanded?.(epoch, add, reset);

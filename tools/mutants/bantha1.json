@@ -273,8 +273,8 @@
   {
     "name": "BANTHA1-one-slot-drawn",
     "file": "src/render/renderer.js",
-    "old": "      for (let i = 0; i < slots.length; i++) if (slots[i]?.runs.length) this._drawLowPolyTrees(slots[i]);",
-    "new": "      if (slots[0]?.runs.length) this._drawLowPolyTrees(slots[0]);",
+    "old": "      for (let i = 0; i < slots.length; i++) if (slots[i]?.runs.length) this._drawLowPolyTrees(slots[i], treeBlock);",
+    "new": "      if (slots[0]?.runs.length) this._drawLowPolyTrees(slots[0], treeBlock);",
     "tests": [
       "test/world/bantha1_jungle.test.js"
     ]

@@ -7,6 +7,7 @@ import {CHAR_PIXEL_TIERS} from '../../src/systems/charPixel.js';
 import {pixelWorldDraw,pixelWorldMesh,worldPixelActive,withFixturePixelTarget} from '../../src/render/worldPixelLayer.js';
 import {identity} from '../../src/world/mat4.js';
 import {drawCampPixelFlame,drawCampPixelFlameShells} from '../../src/scenes/campfirePixelFlame.js';
+import {drawPixelatedCharacters} from '../../src/render/charPixelLayer.js';
 import {Renderer} from '../../src/render/renderer.js';
 
 test('objects use shared tiers and saved environment preferences are ignored',()=>{
@@ -172,4 +173,52 @@ test('HD flame preserves the direct translucent draw and core remains shadowless
   assert.deepEqual(seen,[[mesh,m,null,{noShadow:true,translucent:.47}],[mesh,m,null,{noShadow:true}]]);
   assert.equal(samples.length,0);
  }finally{resetPrefs();}
+});
+
+test('pixelated props keep half-covered blocks and preserve shadows when every block is empty', () => {
+  resetPrefs();
+  const { r, written } = passRenderer();
+  r._worldFixtureDestination = { viewport: [0, 0, 1440, 1080], framebuffer: null };
+  const mesh = { pixelKind: 'objects', bounds: [0, 0, 0, 1], vao: {}, subMeshes: [{}] };
+  const casters = [], draws = [];
+  r.recordShadowMesh = (...args) => casters.push(args);
+  r.drawMesh = (...args) => draws.push(args);
+  function rect(left, right, bottom, top, noShadow = false) {
+    const m = identity();
+    m[0] = (right - left) / 1440;
+    m[5] = (top - bottom) / 1080;
+    m[12] = (right + left) / 1440 - 1;
+    m[13] = (top + bottom) / 1080 - 1;
+    assert.equal(pixelWorldMesh(r, mesh, m, null, { noShadow }), true);
+    return m;
+  }
+  const small = rect(720.45, 720.55, 540.45, 540.55);
+  assert.deepEqual(casters, [[mesh, small, null]]);
+  // Two sample centres, on opposite sides of a block boundary.
+  rect(721.45, 722.55, 540.45, 540.55, true);
+  assert.equal(casters.length, 1);
+  assert.equal(written.length, 0);
+  assert.equal(draws.length, 0);
+  // The same width inside one block reaches precisely two of four samples.
+  rect(720.45, 721.55, 540.45, 540.55);
+  assert.equal(written.length, 1);
+  assert.equal(draws.length, 1);
+});
+
+test('world and character passes resume drawing when WebGL restores the viewport', () => {
+  resetPrefs();
+  const {r, written} = passRenderer(), m = identity(), mesh = {pixelKind:'objects'};
+  const parameter = r.gl.getParameter;
+  let lost = true, draws = 0;
+  r.gl.getParameter = key => key === r.gl.VIEWPORT && lost ? null : parameter(key);
+  r.drawMesh = () => { draws++; };
+  const body = () => drawPixelatedCharacters(r, [{mesh, model:m}], 270, null, () => { draws++; });
+  assert.equal(pixelWorldMesh(r, mesh, m, null, {}), true);
+  body();
+  assert.equal(draws, 0);
+  lost = false;
+  assert.equal(pixelWorldMesh(r, mesh, m, null, {}), true);
+  body();
+  assert.equal(draws, 2);
+  assert.equal(written.length, 2);
 });

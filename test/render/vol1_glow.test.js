@@ -156,10 +156,10 @@ test('VOL1: on the fake GL - a world frame with a lantern in a fogged air marche
 
 test('BOUNCE1, WITHDRAWN BY ITS AUDIT: no bounce term anywhere - a per-lantern bounce with no visibility from the lit floor either leaks through walls (unshadowed, and every lantern past the eight has no map) or fills nothing (shadowed a reach off, a flat back is deeper in the umbra); the lit loops are EL1\'s own again, the lane declares no uELBounce, the doors are the glow\'s alone (mutant: the term back)', () => {
   for (const src of [EL_GLSL, EL_MESH_FS, EL_BB_FS]) assert.ok(!/uELBounce|EL_BOUNCE|bounce/i.test(src), 'no bounce in the lane\'s GLSL');
-  assert.match(EL_MESH_FS, /float att = sh \* elAttenuation\(d, uPointLights\[i\]\.w\);\n    acc \+= att \* \(max\(dot\(n, Ln\), 0\.0\) \+ spec\) \* uPointColors\[i\];/, 'EL1\'s lit loop');
-  assert.match(EL_BB_FS, /acc \+= sh \* elAttenuation\(d, uPointLights\[i\]\.w\) \* uPointColors\[i\];/, 'EL1\'s flat');
+  assert.match(EL_MESH_FS, /float att = sh \* elAttenuation\(d, uPointLights\[i\]\.w\);\n    acc \+= att \* \(mix\(max\(facing, 0\.0\), 0\.24 \+ 0\.76 \* abs\(facing\), twoSided\) \+ spec \* \(1\.0 - twoSided\)\) \* uPointColors\[i\];/, 'EL1\'s lit loop');
+  assert.match(EL_BB_FS, /acc \+= sh \* elAttenuation\(d, uPointLights\[i\]\.w\) \* uPointColors\[i\] \* treeLightFacing\(uPointLights\[i\]\.xyz - wp\);/, 'EL1\'s flat');
   assert.equal(EL_LANE.bounce, undefined);
-  const loop = EL_MESH_FS.slice(EL_MESH_FS.indexOf('vec3 elPointLitWet('), EL_MESH_FS.indexOf('vec3 elPointLit('));
+  const loop = EL_MESH_FS.slice(EL_MESH_FS.indexOf('vec3 elPointLitWetSided('), EL_MESH_FS.indexOf('vec3 elPointLit('));
   assert.equal((loop.match(/acc \+=/g) || []).length, 1, 'the lit loop accumulates ONE term per light: the direct light (a bounce line under any name would be a second)');
   const el = rd('src/render/enhancedLighting.js'), r = rd('src/render/renderer.js');
   assert.ok(!/export (const|function) (EL_BOUNCE|bounceOn)/.test(el) && !/setBounce|_bounceWanted/.test(r), 'the constants, the door and the setter are gone');

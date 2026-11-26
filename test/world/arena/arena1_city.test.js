@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { standArenaInLocation, ARENA_BLOCK, ARENA_BLOCK_INDEX, ARENA_CELL, inArenaCell, isArenaCity, installArena, _resetArena } from '../../../src/world/arena/arenaCity.js';
 import { drawNamedBuildings, mergeNamedBuildings, makeBuildingKey } from '../../../src/systems/talk/talkTopics.js';
 import { BUILDING_TYPES } from '../../../src/world/buildingNames.js';
-import { registerPortBlock, getNewDFBlockIndex, getNewDFBlockName, getDFBlockReplacementData, editLocation, registerLocationEdit, installWorldDataReplacement, _resetWorldDataReplacement, bindWorldDataBlocks } from '../../../src/formats/worldData/worldDataReplacement.js';
+import { registerPortBlock, registerPortBlockOf, registerPortBlockFamily, getNewDFBlockIndex, getNewDFBlockName, getDFBlockReplacementData, editLocation, registerLocationEdit, installWorldDataReplacement, _resetWorldDataReplacement, bindWorldDataBlocks } from '../../../src/formats/worldData/worldDataReplacement.js';
 import { buildingSummaries } from '../../../src/world/buildingSummaries.js';
 import { worldDataDoor, setWorldDataDoor } from '../../../src/formats/worldData/worldDataDoor.js';
 import { setValue } from '../../../src/systems/settings/settings.js';
@@ -116,6 +116,53 @@ test('ARENA1 city: the port\'s block at a fixed index past any BSA, served behin
   assert.match(read('src/formats/mapsFile.js'), /dfLocation\.locationIndex = location;\n\s*worldDataDoor\(\)\?\.editLocation\?\.\(dfLocation, this\);/);
   assert.doesNotMatch(read('src/formats/mapsFile.js').match(/readClassicLocation\(region, location\) \{[\s\S]*?\n {2}\}/)[0], /editLocation/, 'a pack\'s edit is taken against the city as MAPS.BSA holds it');
   assert.match(read('src/scenes/modWorldData.js'), /installWorldDataReplacement\(\);\n\s*await installArena\(\);/);
+});
+
+test('port block names preserve the first matching registration through collisions, moves and reset', (t) => {
+  _resetWorldDataReplacement();
+  t.after(() => _resetWorldDataReplacement());
+  const entries = new Map();
+  const [a, b, c] = [900101, 900102, 900103];
+  let families = true;
+  // Let even a non-integer reach the family untouched, as it did after the linear search.
+  const family = (index) => index === a || index === String(a) ? 'FAMILY.RMB' : null;
+  registerPortBlockFamily({ indexOf: () => -1, nameOf: family, make: () => null });
+  function check() {
+    for (const index of [a, b, c, 0, -0, -1, NaN, Infinity, a + 0.5, null, undefined, String(a)]) {
+      const expected = [...entries].find(([, value]) => value === index)?.[0] ?? (families ? family(index) : null);
+      assert.equal(getNewDFBlockName(index), expected, String(index));
+    }
+  }
+  function put(name, index, fromBlock = false) {
+    const ok = fromBlock ? registerPortBlockOf(name, () => null, index) : registerPortBlock(name, {}, index);
+    assert.equal(ok, true);
+    entries.set(name, index);
+    check();
+  }
+  check();
+  put('FIRST.RMB', a);
+  put('SECOND.RMB', a, true);
+  put('THIRD.RMB', b);
+  put('FIRST.RMB', b, true); // SECOND inherits a; FIRST precedes THIRD at b.
+  put('THIRD.RMB', b, true); // replacing the maker at the same index keeps its original order.
+  put('SECOND.RMB', c); // the family answers a again.
+  put('ZERO.RMB', -0);
+  put('NEGATIVE.RMB', -1, true);
+  for (const index of [NaN, Infinity, '900101', 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(registerPortBlock('FIRST.RMB', {}, index), false);
+    assert.equal(registerPortBlockOf('SECOND.RMB', () => null, index), false);
+  }
+  assert.equal(registerPortBlock('FIRST.RMB', null, a), false);
+  assert.equal(registerPortBlockOf('SECOND.RMB', {}, a), false);
+  assert.equal(registerPortBlock('', {}, a), false);
+  check();
+  _resetWorldDataReplacement({ assets: false });
+  check();
+  _resetWorldDataReplacement();
+  entries.clear();
+  families = false;
+  check();
+  put('FRESH.RMB', a);
 });
 
 /** The city's summaries as every reader draws them. */

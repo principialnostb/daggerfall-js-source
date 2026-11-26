@@ -69,3 +69,24 @@ test('near-ground decoration preserves the coarse water vertices and the shared 
     null,
   );
 });
+
+test('generated relief preserves vertex 65535 as an ordinary triangle index', () => {
+  const small = build(10 << 2);
+  assert.ok(small.indices instanceof Uint32Array);
+  const annex = small.positions.length / 3 - grid.positions.length / 3;
+  const buildPadded = vertices => {
+    const positions = new Float32Array(vertices * 3), normals = new Float32Array(positions.length);
+    positions.set(grid.positions);
+    normals.set(grid.normals);
+    return groundRelief(positions, normals, grid.indices, null, {
+      width, height, tileDim: width, bytes: new Uint8Array(width * height).fill(10 << 2),
+      originX: -128, originZ: 256, baseIndexCount: grid.indices.length,
+    });
+  };
+  const belowBoundary = buildPadded(65535 - annex);
+  assert.ok(belowBoundary.indices instanceof Uint32Array);
+  assert.equal(belowBoundary.indices.reduce((a, b) => Math.max(a, b)), 65534);
+  const firstWide = buildPadded(65536 - annex);
+  assert.ok(firstWide.indices instanceof Uint32Array);
+  assert.equal(firstWide.indices.reduce((a, b) => Math.max(a, b)), 65535);
+});

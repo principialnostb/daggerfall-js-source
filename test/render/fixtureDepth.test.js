@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tilesHideBounds } from '../../src/render/fixtureDepth.js';
+import { fixtureHidden, tilesHideBounds, withFixtureDepth } from '../../src/render/fixtureDepth.js';
+import { drawCampScene } from '../../src/scenes/campfireVisual.js';
 import { identity } from '../../src/world/mat4.js';
 
 function snapshot() {
@@ -20,4 +21,28 @@ test('a flame touching the wall depth or the near plane always takes the regular
   const depth = (64 * 256 / 65535) * 2 - 1;
   assert.equal(tilesHideBounds(tiles, [[-.5, 0, depth]], 1), false);
   assert.equal(tilesHideBounds(tiles, [[-.5, 0, -1], [-.4, 0, .6]], 1), false);
+});
+
+test('exterior fixtures use the world depth buffer without a CPU readback', () => {
+  const fbo = {};
+  const renderer = { _worldFixtureDestination: { framebuffer: fbo }, _frameFbo: fbo, _air: { frame: { fbo, depth: {} } } };
+  const marker = {};
+  const result = withFixtureDepth(renderer, () => {
+    for (let i = 0; i < 30; i++) assert.equal(fixtureHidden(renderer, [[0, 0, 0]], 1), false);
+    return marker;
+  });
+  assert.equal(result, marker);
+});
+
+test('both dungeon hosts submit billboard fixtures inside the main world destination', () => {
+  let scoped = false;
+  const seen = [], batches = [], right = [1,0,0], up = [0,1,0];
+  const renderer = {
+    withWorldFixtureDestination(draw) { scoped = true; try { draw(); } finally { scoped = false; } },
+    drawBillboards(...args) { assert.equal(scoped, true); seen.push(args); },
+  };
+  const camps = {draw(r) { assert.equal(r, renderer); assert.equal(scoped, false); }, drawFlames() { assert.equal(scoped, false); }};
+  drawCampScene(renderer, {camps}, batches, right, up);
+  assert.deepEqual(seen, [[batches, right, up]]);
+  assert.equal(scoped, false);
 });

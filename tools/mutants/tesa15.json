@@ -134,8 +134,8 @@
   {
     "name": "TESA15-the-cache-s-places-dropped",
     "file": "src/world/tamrielRoadsClient.js",
-    "old": "      live.onRegion(\n        region,\n        unpackArenaRoads(hit.layer),\n        { cached: true },\n        unpackPastBayPlaces(hit.places),\n        hit.land ?? null,\n      );",
-    "new": "      live.onRegion(region, unpackArenaRoads(hit.layer), { cached: true }, [], hit.land ?? null);",
+    "old": "        unpackPastBayPlaces(hit.places),",
+    "new": "        [],",
     "tests": [
       "test/tesa15_mapfidelity.test.js",
       "test/tesa14_roads.test.js"

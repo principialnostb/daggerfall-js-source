@@ -224,7 +224,7 @@ test('STAND-FLAT the streamed world by source: a town horse and a person no Stat
     'collider.cover.add(key, coverItems'], 'a batch each, before the cover (they make none)');
   assert.ok(w.includes('      standFlats,   // STAND-FLAT'), 'on the pixel');
   // a person a World of Daggerfall marker stands (a captive, a merchant, a prisoner) joins them on its pixel
-  ordered(w, ["w.flat = { kind: 'billboard', archive: act.archive, record: act.record };", 'const batch = renderer.createBillboardBatch(act.archive, act.record, size, [base]);', 'p.batches.push(batch);',
+  ordered(w, ["w.flat = { kind: 'billboard', archive: act.archive, record: act.record };", 'const batch = renderer.createBillboardBatch(act.archive, act.record, size, [base]);', 'appendPixelFlat(p.batches, batch);',
     'if (isStandFlat(act.archive, act.record)) p.standFlats?.push(standFlatRecord({ archive: act.archive, record: act.record, x: base[0], y: base[1], z: base[2] }, batch, standFlatId(`${p.px},${p.py}`, base[0], base[2])));'], 'a marker\'s person');
   ordered(w, ['const _peopleOn = streetPeople.frame();', 'standingHorses.begin(tvf ? null : mwViewHorseRig(), mwv.eye);', 'const framePixelWalk = () => {',
     'streetPeople.offer(personActor(pn, look, f, mwv.eye, dt), pn.standBatch);', 'if (p.standFlats && ring <= 1) for (const sf of p.standFlats) {',

@@ -73,8 +73,10 @@ export function packGrahtMeshes(made = null) {
   }
   let verts = 0;
   for (const m of made) verts += m.positions.length / 3;
-  const vf = new Float32Array(verts * 8),
-    idx = new Uint16Array(verts);
+  const vertexBytes = verts * 32;
+  const bin = new Uint8Array(vertexBytes + verts * 2);
+  const vf = new Float32Array(bin.buffer, 0, verts * 8);
+  const idx = new Uint16Array(bin.buffer, vertexBytes, verts);
   const meshes = [];
   let at = 0;
   for (const m of made) {
@@ -95,10 +97,7 @@ export function packGrahtMeshes(made = null) {
     meshes.push({ vertex: at, vertices: n, index: at, subs: m.subs.map(([first, count]) => [first, count]) });
     at += n;
   }
-  const bin = new Uint8Array(vf.byteLength + idx.byteLength);
-  bin.set(new Uint8Array(vf.buffer), 0);
-  bin.set(new Uint8Array(idx.buffer), vf.byteLength);
-  return { index: { vertexBytes: vf.byteLength, meshes }, bin, made };
+  return { index: { vertexBytes, meshes }, bin, made };
 }
 
 /**

@@ -1,4 +1,4 @@
-import { buildTreasureModel, hasTreasureModel, treasurePaints, treasurePixelProfile, TREASURE_ART } from '../world/treasureModel.js';
+import { buildTreasureModel, hasTreasureModel, TreasurePaintBank, treasurePixelProfile, TREASURE_ART } from '../world/treasureModel.js';
 import { buildDungeonChain, dungeonChainKind, isDungeonChainKind } from '../world/dungeonChainModel.js';
 import { buildWaterRack, isFittedPondProp } from '../world/waterRack.js';
 import { buildPlacedWaterSource, isPlacedWaterSource } from '../world/placedWaterSources.js';
@@ -57,15 +57,8 @@ export function markClassicDungeonPreview(batch, mesh, pose) {
 export function acquireTreasureModel(renderer, record, remains = null, authored = null) {
   let cache = caches.get(renderer);
   if (!cache) {
-    const paints = treasurePaints();
-    paints.forEach((paint, i) => renderer.uploadTexture(TREASURE_ART, i, paint));
-    cache = { meshes: new Map(), users: 0, materials: Object.keys(paints).map(Number), remainsPaints: new Set() };
+    cache = { meshes: new Map(), users: 0, materials: new Set(), paints: new TreasurePaintBank() };
     caches.set(renderer, cache);
-  }
-  if (remains) for (const [slot, paint] of remains.paints) {
-    if (cache.remainsPaints.has(slot)) continue;
-    renderer.uploadTexture(TREASURE_ART, slot, paint);
-    cache.remainsPaints.add(slot);
   }
   let entry = cache.meshes.get(record);
   if (!entry) {
@@ -84,19 +77,58 @@ export function acquireTreasureModel(renderer, record, remains = null, authored 
       : isDungeonFurnishing(record) ? buildDungeonFurnishing(TREASURE_ART, record)
       : isDungeonCaveProp(record) ? buildDungeonCaveProp(TREASURE_ART, record)
       : typeof record === 'string' ? buildDungeonRemains(TREASURE_ART, record, remains.parts) : buildTreasureModel(record));
-    const mesh = dungeonPropMesh(record, renderer.createMesh(data));
+    const prepared = prepareTreasureMesh(renderer, cache, data, remains);
+    const mesh = dungeonPropMesh(record, prepared.mesh);
     if (typeof record === 'number' && !workshopKind(record)) mesh.pixelFootprint = { bounds: data.aabb, ...treasurePixelProfile(record) };
     // Stone burial shells keep the selected object grid as the camera approaches.
     if (record === 'coffin-shell') mesh.pixelFootprint = { bounds: data.aabb, area: .028, maxScale: 1.9 };
     if (isVioletSarcophagusShell(record) || record === VIOLET_SARCOPHAGUS_REMAINS) mesh.pixelBlockScale = 1.5;
     if (authored) mesh.pixelBlockScale = authored.pixelBlockScale ?? 1.35;
     mesh.pixelKind = 'objects';
-    entry = { mesh, users: 0 };
+    entry = { mesh, users: 0, missing: prepared.missing };
     cache.meshes.set(record, entry);
+  } else if (entry.missing && remains) {
+    for (const slot of entry.missing) {
+      if (!cache.materials.has(slot)) {
+        const paint = remains.paints.get(slot);
+        if (!paint) continue;
+        renderer.uploadTexture(TREASURE_ART, slot, paint);
+        cache.materials.add(slot);
+      }
+      entry.missing.delete(slot);
+    }
+    if (!entry.missing.size) entry.missing = null;
   }
   entry.users++;
   cache.users++;
   return entry.mesh;
+}
+
+function prepareTreasureMesh(renderer, cache, data, remains) {
+  const uploaded = [];
+  let missing = null;
+  try {
+    // Fountains remap several geometry slots to one picture. Authored furniture may also use other archives.
+    for (const { textureArchive, textureRecord } of data.subMeshes) {
+      if (textureArchive !== TREASURE_ART || cache.materials.has(textureRecord)) continue;
+      const paint = remains?.paints.get(textureRecord) ?? cache.paints.get(textureRecord);
+      if (!paint) {
+        (missing ??= new Set()).add(textureRecord);
+        continue;
+      }
+      renderer.uploadTexture(TREASURE_ART, textureRecord, paint);
+      cache.materials.add(textureRecord);
+      uploaded.push(textureRecord);
+    }
+    return { mesh: renderer.createMesh(data), missing };
+  } catch (error) {
+    for (const slot of uploaded) {
+      renderer.releaseTexture(TREASURE_ART, slot);
+      cache.materials.delete(slot);
+    }
+    if (!cache.users) caches.delete(renderer);
+    throw error;
+  }
 }
 
 export function releaseTreasurePile(renderer, batch) {
@@ -118,7 +150,6 @@ export function releaseTreasureModel(renderer, record) {
   if (--cache.users === 0) {
     caches.delete(renderer);
     for (const slot of cache.materials) renderer.releaseTexture(TREASURE_ART, slot);
-    for (const slot of cache.remainsPaints) renderer.releaseTexture(TREASURE_ART, slot);
   }
 }
 

@@ -21,6 +21,7 @@ import {
 import { AIR_GLARE_SLACK } from '../../src/render/airPass.js';
 import { EL_LANE, EL_MESH_FS, EL_BB_FS, EL_TERRAIN_FS, EL_CHAR_FS } from '../../src/render/enhancedLighting.js';
 import { Renderer, WORLD_FRAME } from '../../src/render/renderer.js';
+import { waterUniforms } from '../../src/render/waterSurface.js';
 import { perspective, ortho, lookAt, multiply, transformPoint } from '../../src/world/mat4.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -32,10 +33,11 @@ const project = (m, x, y, z) => { const p = transformPoint(m, x, y, z); const w 
 function recordingGl() {
   const calls = [];
   let ids = 0;
-  const consts = { TEXTURE_CUBE_MAP_POSITIVE_X: 100, TEXTURE0: 1000, DEPTH_BUFFER_BIT: 256, COLOR_BUFFER_BIT: 16384 };
+  const consts = { ELEMENT_ARRAY_BUFFER: 34963, UNSIGNED_SHORT: 5123, UNSIGNED_INT: 5125, TEXTURE_CUBE_MAP_POSITIVE_X: 100, TEXTURE0: 1000, DEPTH_BUFFER_BIT: 256, COLOR_BUFFER_BIT: 16384 };
   const gl = new Proxy({}, {
     get(_, k) {
       if (k in consts) return consts[k];
+      if (k === 'bufferData') return (target, data, usage) => calls.push([k, target, data, usage]);
       if (k === 'getProgramParameter' || k === 'getShaderParameter') return () => true;
       if (k === 'getUniformLocation') return (_p, n) => n;
       if (k === 'getAttribLocation') return () => 0;
@@ -140,14 +142,40 @@ test('EL5: the face basis the shader selects by is pointFaceMatrices\' own - a p
   assert.equal(SHADOW_POINT_SIZE, 512); assert.equal(SHADOW_POINT_NEAR, 0.1);
 });
 
-test('EL5: every lane shader takes any caster\'s shadow through shadowOfLight, after the range early-out; the flat too', () => {
-  for (const [name, fs] of [['mesh', EL_MESH_FS], ['terrain', EL_TERRAIN_FS], ['char', EL_CHAR_FS]]) {
-    // PIN MOVED (LIGHT-REACH): a surface turned from the light leaves the loop before its caster is read
-    assert.match(fs, /float d = length\(L\);\n    if \(d >= uPointLights\[i\]\.w\) continue;[^\n]*\n    vec3 Ln = L \/ max\(d, 1e-4\);\n(?:    \/\/[^\n]*\n)*    if \(dot\(n, Ln\) <= 0\.0\) continue;\n    int k = uCasterOf\[i\];[^\n]*\n(?:    \/\/[^\n]*\n)*    float sh = k >= 0 \? casterShadowAt\(k, uPointLights\[i\], wp, n\)[^\n]*\n      : \(k == -2 \|\| d > uPointLights\[i\]\.w \* 0\.7\) \? 1\.0[^\n]*\n      : mix\(contactShadow\(wp, n, Ln, d\), 1\.0, smoothstep\(uPointLights\[i\]\.w \* 0\.6, uPointLights\[i\]\.w \* 0\.7, d\)\);/, `${name}: EL8 - a caster's map (DISC15: of either tier), else a contact shadow`);
-    assert.ok(!/uShadowIndex \?/.test(fs), `${name}: no single-index compare left`);
+test('EL5: every surface and billboard selects the in-range light\'s shadow before applying attenuation', () => {
+  // GLSL comments and line breaks can change without affecting which light or normal the sample uses.
+  const code = fs => fs.replace(/\/\/[^\n]*/g, '').replace(/\s+/g, ' ').trim();
+  const lookup = code(`
+    int i = elClusterLight(cell, j);
+    vec3 L = uPointLights[i].xyz - wp;
+    float d = length(L);
+    if (d >= uPointLights[i].w) continue;
+    vec3 Ln = L / max(d, 1e-4);
+    float facing = dot(n, Ln);
+    if (facing <= 0.0 && twoSided == 0.0) continue;
+    vec3 biasNormal = twoSided > 0.0 && facing < 0.0 ? -n : n;
+    int k = uCasterOf[i];
+    float sh = k >= 0 ? casterShadowAt(k, uPointLights[i], wp, biasNormal)
+      : (k == -2 || d > uPointLights[i].w * 0.7) ? 1.0
+      : mix(contactShadow(wp, biasNormal, Ln, d), 1.0, smoothstep(uPointLights[i].w * 0.6, uPointLights[i].w * 0.7, d));
+  `);
+  for (const [name, shader] of [['mesh', EL_MESH_FS], ['terrain', EL_TERRAIN_FS], ['char', EL_CHAR_FS]]) {
+    const source = code(shader);
+    assert.ok(source.includes(lookup), name + ': range and one-sided facing checks precede the ranked map or contact lookup');
+    assert.ok(source.includes('float att = sh * elAttenuation(d, uPointLights[i].w);'), name + ': attenuation uses this shadow and distance');
+    assert.ok(!/uShadowIndex\s*\?/.test(source), name + ': no single-index comparison');
   }
-  assert.match(EL_BB_FS, /float d = length\(uPointLights\[i\]\.xyz - wp\);\n    if \(d >= uPointLights\[i\]\.w\) continue;[^\n]*\n(?:    [^\n]*\n){3}    float sh = shadowOfLight\(i, uPointLights\[i\], at, vec3\(0\.0\)\);/);
-  assert.match(EL_BB_FS, /acc \+= sh \* elAttenuation\(d, uPointLights\[i\]\.w\) \* uPointColors\[i\];/, 'the flat reuses the distance it tested');
+  const flat = code(EL_BB_FS);
+  assert.ok(flat.includes(code(`
+    int i = elClusterLight(cell, j);
+    float d = length(uPointLights[i].xyz - wp);
+    if (d >= uPointLights[i].w) continue;
+    vec3 toL = uPointLights[i].xyz - base;
+    float tl = length(toL);
+    vec3 at = base + toL * (min(0.35, tl * 0.5) / max(tl, 1e-4));
+    float sh = shadowOfLight(i, uPointLights[i], at, vec3(0.0));
+    acc += sh * elAttenuation(d, uPointLights[i].w) * uPointColors[i] * treeLightFacing(uPointLights[i].xyz - wp);
+  `)), 'the flat rejects out-of-range lights before lifting the sample, then applies the same lamp and distance');
 });
 
 test('EL5: the renderer\'s bundles carry bounds - a mesh and each sub-mesh, a terrain surface, a billboard batch about its origin', () => {
@@ -243,4 +271,94 @@ test('EL5: the glare hides in world units at five taps, the resolve grades in di
   assert.match(probe, /if \(!\(openLane - openNoA > 0\.02\)\)\n\s*failures\.push/, 'and beside it, some');
   assert.match(probe, /sh\.culledTotal === 0\) failures\.push\('the replays culled nothing/, 'the cull check (SC1: summed over the frames - a still room replays nothing on its last)');
   assert.match(probe, /'--use-angle=swiftshader'/, 'a real GL, software');
+});
+
+test('terrain colour, shadow replay and water use the index width of the bound surface', () => {
+  const { gl, canvas, calls } = recordingGl();
+  const renderer = new Renderer(canvas);
+  renderer.setLightingLane(EL_LANE);
+  renderer.setLighting(new Float32Array([0.1, 0.1, 0.1]), 0);
+  renderer.setPointLights(new Float32Array([0, 1, 0, 10]), new Float32Array([1, 1, 1]));
+  const eye = new Float32Array([0, 1, 0]);
+  const vertices = new Float32Array([-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1]);
+  const faces = [0, 1, 2, 0, 2, 3];
+  const compact = renderer.createTerrainSurface(vertices, vertices, new Uint16Array(faces));
+  // Index 65535 is a vertex in 32-bit terrain but primitive restart in a 16-bit EBO.
+  const wideVertices = new Float32Array(65536 * 3);
+  wideVertices.set(vertices.subarray(0, 9));
+  wideVertices.set(vertices.subarray(9), 65535 * 3);
+  const wide = renderer.createTerrainSurface(wideVertices, wideVertices, new Uint32Array([0, 1, 2, 0, 2, 65535]));
+  // World and town water sheets have a separate 32-bit EBO even when sharing a compact terrain's vertices.
+  const sheet = renderer.createWaterSheet(new Uint32Array(faces), { terrain: compact });
+
+  function assertDraws(surface, type) {
+    let vao = null, count = 0;
+    for (const [call, a, b, c, d] of calls) {
+      if (call === 'bindVertexArray') vao = a;
+      if (call === 'drawElements' && vao === surface.vao) {
+        assert.deepEqual([a, b, c, d], [gl.TRIANGLES, faces.length, type, 0]);
+        count++;
+      }
+    }
+    assert.ok(count > 0, 'expected a submitted draw for this VAO');
+  }
+
+  renderer.beginFrame(I, I, eye, WORLD_FRAME);
+  calls.length = 0;
+  renderer.drawTerrain(compact, I, {}, {}, 6.4);
+  renderer.drawTerrain(wide, I, {}, {}, 6.4);
+  assertDraws(compact, gl.UNSIGNED_SHORT);
+  assertDraws(wide, gl.UNSIGNED_INT);
+
+  calls.length = 0;
+  renderer.beginFrame(I, I, eye, WORLD_FRAME);
+  assert.equal(renderer.shadows.kind, 'point');
+  assertDraws(compact, gl.UNSIGNED_SHORT);
+  assertDraws(wide, gl.UNSIGNED_INT);
+
+  calls.length = 0;
+  renderer.drawWaterSurfaces([[compact, I, null, null], [wide, I, null, null], [sheet, I, null, null]], 3, 6.4, waterUniforms());
+  assertDraws(compact, gl.UNSIGNED_SHORT);
+  assertDraws(wide, gl.UNSIGNED_INT);
+  assertDraws(sheet, gl.UNSIGNED_INT);
+});
+
+test('two terrain VAOs share their original index storage until the final surface is destroyed', () => {
+  const { gl, canvas, calls } = recordingGl();
+  const renderer = new Renderer(canvas);
+  const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  const indices = new Uint32Array([0, 1, 2]);
+  const surface = () => renderer.createTerrainSurface(positions, positions, indices);
+  calls.length = 0;
+  const a = surface();
+  const b = surface();
+  const uploads = () => calls.filter(([name, target]) => name === 'bufferData' && target === gl.ELEMENT_ARRAY_BUFFER);
+  assert.equal(uploads().length, 1);
+  const uploaded = uploads()[0][2];
+  assert.equal(uploaded, indices);
+  assert.equal(a.indexType, gl.UNSIGNED_INT);
+  assert.equal(b.indexType, gl.UNSIGNED_INT);
+
+  let vao = null;
+  const attachments = new Map();
+  for (const [name, target, buffer] of calls) {
+    if (name === 'bindVertexArray') vao = target;
+    if (name === 'bindBuffer' && target === gl.ELEMENT_ARRAY_BUFFER && vao) attachments.set(vao, buffer);
+  }
+  const shared = attachments.get(a.vao);
+  assert.ok(shared);
+  assert.equal(attachments.get(b.vao), shared);
+  const deletions = () => calls.filter(([name, buffer]) => name === 'deleteBuffer' && buffer === shared).length;
+
+  renderer.destroyMesh(a);
+  assert.equal(deletions(), 0);
+  assert.ok(renderer._terrainIndexSets.has(indices));
+  renderer.destroyMesh(b);
+  assert.equal(deletions(), 1);
+  assert.ok(!renderer._terrainIndexSets.has(indices));
+
+  const reloaded = surface();
+  assert.equal(uploads().length, 2, 'a later streamed pixel gets a fresh buffer');
+  renderer.destroyMesh(reloaded);
+  assert.equal(deletions(), 1, 'the released GL object is never deleted twice');
 });

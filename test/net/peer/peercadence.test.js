@@ -252,11 +252,18 @@ test('PEER-CADENCE: by source - the clips advance ABOVE the pose gate, the parti
   const third = upd.indexOf("if (viewMode === 'third') {");
   const gate = upd.indexOf('if (pose) {');
   assert.ok(gate > third && third > 0, 'the pose gate is inside the third-person branch');
-  for (const clip of ['advanceClip(actionState', 'advanceClip(movementState', 'advanceClip(jumpState', 'advanceClip(idleState', 'advanceClip(torchState']) {
-    const at = upd.indexOf(clip); assert.ok(at > 0 && at < third, `${clip} advances before the branch, so before the gate`);
+  assert.match(upd.slice(0, third), /const steppedAction = actionState;\s*advanceClip\(steppedAction,/, 'the playhead that advances is the current action');
+  for (const clip of ['advanceClip(steppedAction', 'advanceClip(movementState', 'advanceClip(jumpState', 'advanceClip(idleState', 'advanceClip(torchState']) {
+    const at = upd.indexOf(clip); assert.ok(at > 0 && at < third, clip + ' advances before the third-person branch');
   }
-  // PIN MOVED (MW-BOW1): the weapon's own clock poses its pieces first, inside the same gate - a skipped frame poses neither
-  assert.match(upd, /if \(pose\) \{\s*posePartClocks\(t\.arm, [^\n]*\n\s*poseAssembly\(t\.arm, \{[\s\S]*?\}\);\s*uploadThirdMesh\(t\);[\s\S]*?stepRigEffects\(t\.arm, \{ dt: effectsDt,[\s\S]*?frames\+\+;[^\n]*\n\s*\}\s*if \(!thirdMesh\) return;[^\n]*\n[\s\S]*?for \(const r of thirdMesh\.ranges\) \{/, 'skin, upload, particles on the banked dt and the frame count inside the gate; the hidden loop outside it, guarded for a mesh that was never minted');
+  const elapsed = upd.indexOf('thirdBlendElapsed += Math.max(0, dt);', third);
+  assert.ok(elapsed > third && elapsed < gate, 'the crossfade measures elapsed animation time on skipped frames too');
+  const guard = upd.indexOf('if (!thirdMesh) return;', gate);
+  const hidden = upd.indexOf('for (const r of thirdMesh.ranges)', guard);
+  const visibleBranch = upd.slice(gate, guard);
+  assert.ok(guard > gate && hidden > guard, 'the hidden loop still runs on skipped frames and requires a mesh');
+  assert.match(visibleBranch, /^if \(pose\) \{\s*posePartClocks\(t\.arm,[\s\S]*?poseAssembly\(t\.arm,[\s\S]*?uploadThirdMesh\(t\);[\s\S]*?stepRigEffects\(t\.arm, \{ dt: effectsDt,[\s\S]*?frames\+\+;[^\n]*\n\s*\}\s*$/,
+    'weapon, body, upload, particles on the banked dt and pose count share the pose gate');
   const fp = upd.slice(upd.indexOf('const fBase = poseSource'), upd.indexOf('frames++', upd.indexOf('const fBase = poseSource')));
   assert.doesNotMatch(fp, /if \(pose\)|if \(!pose\)|\bpose \?|effectsDt/, 'the first-person branch never reads the flag or the bank');
   const pb = rd('src/net/peer/peerBodies.js');

@@ -667,18 +667,21 @@ test('BLOOD1a by source: FOUR HOSTS, one spelling - the switch bag, the draw und
   // world-hosted dungeon drew it twice a frame and the standalone host
   // drew it only while a foe, a drop or a spell was alive.
   assert.equal((read('src/scenes/dungeonContext.js').match(/loodMarks\.draw\(/g) ?? []).length, 0, 'the context draws its own ring nowhere - the hosts own the pass');
+  const campDraw = read('src/scenes/campfireVisual.js').split('export function drawCampScene(')[1].split('\n}')[0];
+  assert.ok(campDraw.includes('renderer.drawBillboards(batches, right, up)'), 'the common dungeon pass draws its supplied flats on the supplied basis');
   for (const [host, line, bb] of [
-    ['src/scenes/worldModes.js', 'dungeonCtx.bloodMarks?.draw?.(camRight, UP_Y);', 'renderer.drawBillboards([...dungeonCtx.billboardBatches'],
-    ['src/scenes/dungeon.js', 'ctx.bloodMarks?.draw?.(camRight, UP_Y);', 'renderer.drawBillboards([...ctx.billboardBatches'],
+    ['src/scenes/worldModes.js', 'dungeonCtx.bloodMarks?.draw?.(camRight, UP_Y);', 'drawCampScene(renderer, dungeonCtx, [...dungeonCtx.billboardBatches'],
+    ['src/scenes/dungeon.js', 'ctx.bloodMarks?.draw?.(camRight, UP_Y);', 'drawCampScene(renderer, ctx, [...ctx.billboardBatches'],
   ]) {
     const h = read(host);
     assert.equal(h.split(line).length - 1, 1, `${host}: draws the context’s ring exactly once`);
     const d = h.indexOf(line);
-    assert.ok(d < h.indexOf(bb) && h.indexOf(bb) - d < 400, `${host}: beside and before the level’s flats`);
+    const flats = h.indexOf(bb, d);
+    assert.ok(flats > d && h.slice(d, flats).replace(/\/\/[^\n]*/g, '').length < 400, `${host}: beside and before the level’s flats`);
     // ...at the SAME depth as the flats' own draw beside it: not behind
     // a gate of its own (drawFoes' was `if (_mobileBatches.length || ...)`)
     const indentOf = (at) => h.slice(h.lastIndexOf('\n', at) + 1, at);
-    assert.equal(indentOf(d), indentOf(h.indexOf(bb)), `${host}: at the flats’ own depth - unconditional, not behind a gate`);
+    assert.equal(indentOf(d), indentOf(flats), `${host}: at the flats’ own depth - unconditional, not behind a gate`);
     assert.ok(!/^\s*if \(/.test(h.slice(h.lastIndexOf('\n', d) + 1, d + line.length)), `${host}: no gate on the line`);
   }
 
@@ -1958,7 +1961,7 @@ test('MAC-BUG W4: a MARK takes the same light a CHUNK takes - the two passes of 
   const r = readFileSync(new URL('../../src/render/renderer.js', import.meta.url), 'utf8');
 
   const decalFs = r.slice(r.indexOf('const DECAL_FS = `'), r.indexOf('`;', r.indexOf('const DECAL_FS = `')));   // MAC-BUG W6: the classic one, a module const now
-  const meshFs = r.slice(r.indexOf('const CHAR_FS = `'), r.indexOf('`;', r.indexOf('const CHAR_FS = `')));   // BLOOD AUDIT 4: the SURFACE's shader, which is what a mark lies on
+  const meshFs = r.slice(r.indexOf('const FS = `'), r.indexOf('`;', r.indexOf('const FS = `')));   // BLOOD AUDIT 4: the SURFACE's shader, which is what a mark lies on
 
   // BLOOD AUDIT 4: THE POINT-LIGHT TERM, character for character with
   // THE MESH'S - W4 had the flats' attenuation-only loop here ("a decal
@@ -2070,7 +2073,7 @@ test('MAC-BUG W6 by source: the decal has a LANE TWIN, the flat’s model on the
   assert.match(EL_DECAL_FS, /vec3 sunLit = uDecalSun \* \(ndl \* sunVis\);/);
   assert.match(EL_DECAL_FS, /uniform vec3 uLightDir;/);
   assert.match(EL_DECAL_FS, /float ndl = max\(dot\(n, uLightDir\), 0\.0\);/, 'the sun by N.L - the lane’s mesh line');
-  assert.match(EL_BB_FS, /vec3 lit = albedo \* \(uTint \+ sunLit \+ elPointFlat\(vBBWorld, base, vBBSunVis\) \+ elIndirectFlat\(vBBWorld\)\) \+ emission;/, '(the flat’s own line)');
+  assert.match(EL_BB_FS, /vec3 lit = albedo \* \(uTint \+ sunLit \+ treeLightColor\(elPointFlat\(vBBWorld, base, vBBSunVis\) \+ elIndirectFlat\(vBBWorld\) \* treeLightFacing\(uIndirect\.xyz - vBBWorld\)\)\) \+ emission;/, '(the flat’s own line)');
   assert.equal((EL_DECAL_FS.slice(EL_DECAL_FS.lastIndexOf('void main()')).match(/sunShadowAt\(/g) || []).length, 1, 'the sun map is read once per fragment');
   assert.match(EL_DECAL_FS, /outColor = vec4\(elFinish\(lit, vWorld\), t\.a \* vColor\.a\);/, 'exposure, tonemap, fog in linear, in-scatter, ENCODE - the lane’s finish, with the mark’s own alpha');
   assert.match(EL_DECAL_FS, new RegExp(`uniform vec4 uPointLights\\[${EL_MAX_LIGHTS}\\];`), 'the lane’s forty-eight');
@@ -2156,7 +2159,9 @@ test('BLOOD1 AUDIT 3: the dungeon’s hand-off splash pool is cleared ABOVE the 
   const d = src.indexOf('    destroy() {');
   const body = src.slice(d, src.indexOf('\n    },\n', d));
   const clear = body.indexOf('      hitEffects.clear();');
-  const loop = body.indexOf('      for (const b of billboardBatches) renderer.destroyBatch(b);');
+  const loop = body.indexOf('      for (const b of closeDungeonPropPreviews(billboardBatches)) renderer.destroyBatch(b);');
+  const preview = readFileSync(new URL('../../src/scenes/dungeonPropPreviews.js', import.meta.url), 'utf8');
+  assert.match(preview.split('export function closeDungeonPropPreviews(batches) {')[1].split('\n}')[0], /return batches;/, 'cleanup returns the same list to the destroy loop');
   assert.ok(clear > 0 && loop > 0 && clear < loop, 'the splash pool is cleared before the hand-off list is freed');
   assert.ok(body.indexOf('bloodMarks.dispose();') < clear, 'and the ring, its own, is ended by its own name first');
 
@@ -2364,7 +2369,8 @@ test('BLOOD1 AUDIT 3: a mark on streamed terrain lies on the DRAWN ground, and t
   const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
   const world = hostText('src/scenes/world.js');
   assert.match(world, /const collider = new Collider\(heightAt, surfaceAt\);/, 'the world host hands both');
-  assert.match(world, /return surfaceHeightAt\(p\.samples, lx, lz, p\._stride \?\? 1\) \+ t\[1\];/, 'the drawn ground is the grass placer’s own sampler, on the pixel the point is in');
+  assert.ok(world.includes('const { entry: p, lx, lz, baseY } = at;'), 'the scene samples the terrain cell containing the point');
+  assert.ok(world.includes('return (p._bed?.pondFloor?.(lx, lz) ?? surfaceHeightAt(p.samples, lx, lz, p._stride ?? 1)) + baseY;'), 'the drawn pond bed or terrain triangle supplies the placed height in that cell');
   // the ray walk: one translation array a bucket, and no boxed origin
   // (HOST-SPLIT 2: the buckets are laid by the pixel build, src/scenes/pixelBuild.js, which reads the state live - host.state)
   assert.equal((world.match(/\(\(o\) => \(\) => host\.state\.pixelTranslation\(px, py, o\)\)\(\[0, 0, 0\]\)/g) ?? []).length, 10, 'every bucket translation reuses its own array');   // PIN MOVED (NOTICE-PANEL): ten - Gothway Garden's boards went with every town's. PIN MOVED (GHOSTFENCE): the eleventh the Ghostfence's pylons, curtain and gate (scenes/ghostfenceBuild.js); PIN MOVED (ROAD-LOOK): the tenth is a pixel's bridges, solid in its bucket   // PIN MOVED (URBANIZER U3): the ninth is a town past the Bay's fabric, solid in its pixel's bucket   // FIELD BUGS 2026-10-13e HILL-SEAT (PIN MOVED): the eighth is a block's hill pads, solid in the pixel's bucket   // GOTHWAY-BOARDS: the seventh is a Gothway Garden board's mesh (one a board), the patch's own   // TACT1: the sixth is the pixel's cover, in the pixel's own frame   // WOD2: the fourth is World of Daggerfall's models, whose sites open the pixel's bucket (a location's pixel never has one); WOD4: the fifth is the camp at Privateer's Hold's
@@ -3641,9 +3647,11 @@ test('BLOOD2f: the lane glints a wet mark - the lamp and the sun seen in it at t
   // BLOOD AUDIT 5: ONE lantern loop for the diffuse and the glint - the
   // same shadow answer for both (a mark in a contact shadow is
   // glint-shadowed too), the pow skipped where the mark is dry
-  const loop = F_DECAL_FS.slice(F_DECAL_FS.indexOf('vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) {'), F_DECAL_FS.indexOf('\n}', F_DECAL_FS.indexOf('vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) {')));
+  const start = F_DECAL_FS.indexOf('vec3 elPointLitWetSided(');
+  assert.ok(start >= 0);
+  const loop = F_DECAL_FS.slice(start, F_DECAL_FS.indexOf('\n}', start));
   assert.ok(loop.length > 0, 'the lantern loop takes the wetness and answers the glint beside the diffuse');
-  assert.match(loop, /float att = sh \* elAttenuation\(d, uPointLights\[i\]\.w\);\s*\n\s*acc \+= att \* \(max\(dot\(n, Ln\), 0\.0\) \+ spec\) \* uPointColors\[i\];/, 'the diffuse as it was');
+  assert.match(loop, /float att = sh \* elAttenuation\(d, uPointLights\[i\]\.w\);\s*\n\s*acc \+= att \* \(mix\(max\(facing, 0\.0\), 0\.24 \+ 0\.76 \* abs\(facing\), twoSided\) \+ spec \* \(1\.0 - twoSided\)\) \* uPointColors\[i\];/, 'the diffuse as it was');
   assert.match(loop, /if \(wet > 0\.0\) \{\s*\n\s*float g = pow\(max\(dot\(n, H\), 0\.0\), elWetPow\);[\s\S]*?\n\s*if \(g > 0\.0\) glint \+= att \* g \* wetFresnel\(dot\(V, H\)\) \* uPointColors\[i\];/, 'the glint on the SAME att - the same shadow, the same falloff - at the wet gloss, ITS colour, no pow when dry, and (AUDIT BLOOD3 F5) Schlick at ITS OWN half-vector');   // puddle stretch between the pow and the glint; elWetPow is the lobe
   assert.match(loop, new RegExp(`glint \\*= ${EL_WET_STRENGTH} \\* wet;`), 'scaled by the wetness');
   assert.match(F_DECAL_FS, /vec3 elPointLit\(vec3 wp, vec3 n\) \{ vec3 g; return elPointLitWet\(wp, n, 0\.0, g\); \}/, 'the mesh’s call is the dry case of the one loop');

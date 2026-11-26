@@ -8701,21 +8701,22 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // PEER-CADENCE: a frame that does not pose keeps last frame's
         // skin, upload and bounds; the clips above advanced all the
         // same, so the next posing frame lands where the clock is.
+        // A peer can skip the skin while its clip changes. Start the fade on that tick and count every elapsed step.
+        // MW-ANIM-BLEND: cross-fade every third-person clip transition (walk/idle/run/jump/attack) over a short fixed window.
+        if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
+          // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
+          // never (one clip), a blow cut by the next briefly, the return to the stance slowly
+          const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state, animWeaponType(built?.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand && !carriesShield(rig()));   // SECTION-SEAM; FIST-SNAP
+          if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, modSetting('morrowind-animation', 'MotionDoctrine') !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
+            thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
+            thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
+            thirdBlendElapsed = 0; thirdBlendSeconds = seconds; thirdBlendStop = seconds == null && stopsMoving(thirdPoseState, state) && modSetting('morrowind-animation', 'MotionDoctrine') !== 0;   // STOP-EASE
+          }
+          thirdPoseState = state; thirdPoseSource = poseSource; thirdPoseKind = kindNow;
+        }
+        thirdBlendElapsed += Math.max(0, dt);
         if (pose) {
           posePartClocks(t.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
-          // MW-ANIM-BLEND: cross-fade every third-person clip transition (walk/idle/run/jump/attack) over a short fixed window.
-          if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
-            // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
-            // never (one clip), a blow cut by the next briefly, the return to the stance slowly
-            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state, animWeaponType(built?.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand && !carriesShield(rig()));   // SECTION-SEAM; FIST-SNAP
-            if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, modSetting('morrowind-animation', 'MotionDoctrine') !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
-              thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
-              thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
-              thirdBlendElapsed = 0; thirdBlendSeconds = seconds; thirdBlendStop = seconds == null && stopsMoving(thirdPoseState, state) && modSetting('morrowind-animation', 'MotionDoctrine') !== 0;   // STOP-EASE
-            }
-            thirdPoseState = state; thirdPoseSource = poseSource; thirdPoseKind = kindNow;
-          }
-          thirdBlendElapsed += Math.max(0, dt);
           const blendChoice = Math.max(0, Math.min(3, Number(modSetting('morrowind-animation', 'AnimationBlendDuration')) || 0));
           const reactionRule = hitReactionTransitionBlend(thirdBlendFromSource, poseSource, 1);
           const blendDuration = reactionRule?.duration ?? thirdBlendSeconds ?? [0, 0.16, 0.25, 0.4][blendChoice];

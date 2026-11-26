@@ -245,7 +245,7 @@
   {
     "name": "replay-no-terrain",
     "file": "src/render/shadowPass.js",
-    "old": "        f.bindVao(s.vao);\n        gl.drawElements(gl.TRIANGLES, s.indexCount, gl.UNSIGNED_INT, 0);\n        draws++;",
+    "old": "        f.bindVao(s.vao);\n        gl.drawElements(gl.TRIANGLES, s.indexCount, s.indexType ?? gl.UNSIGNED_INT, 0);\n        draws++;",
     "new": "        f.bindVao(s.vao);",
     "tests": [
       "test/render/el2_shadows.test.js"

@@ -220,3 +220,28 @@ test('PERF2 pins: the sky passes, the clouds\' composite and the ring sit AT the
   const hook = codeOnly(w.slice(w.indexOf('window.__grassStats = () => ({'), w.indexOf('window.__grassStats = () => ({') + 1200));
   assert.match(hook, /cells: labGrassField\?\.live\.size \?\? 0, slots: labGrassField\?\.slots \?\? 0,/, 'the probe reports the field\u2019s cells and slots');
 });
+
+test('an empty grass field preserves the shared frame and resumes drawing when a cell fills', () => {
+  const { gl, calls } = stubGl();
+  const field = new LabGrassRenderer(gl);
+  field.allocSlots(49, 2);
+  const eye = [0, 12, 0];
+  const proj = mirrorProjectionX(perspective(Math.PI / 3, 16 / 9, 0.2, 6000));
+  const view = lookAt(eye, [0, 12, 1], [0, 1, 0]);
+  const light = { sunDir: [0, 1, 0], amb: [.2, .2, .2], sunCol: [1, 1, 1], dim: 1 };
+  const wind = { dir: [1, 0], speed: 0, windV: [0, 0] };
+  const draw = (time, lighting = light) => field.draw(proj, view, eye, time, lighting, wind, 200);
+  field.writeSlot(1, cellPlaced(0, 3, 49));
+  draw(1);
+  assert.equal(field.drawn.slots, 1);
+  field.clearSlot(1);
+  calls.length = 0;
+  draw(2, { ...light, worldRenderer: {} });
+  assert.equal(calls.length, 0);
+  assert.ok(Object.values(field.drawn).every(value => value === 0));
+  assert.equal(field.frame[3], 2);
+  field.writeSlot(0, cellPlaced(0, 3, 49));
+  draw(3);
+  assert.equal(field.drawn.slots, 1);
+  assert.ok(calls.some(([name]) => name === 'drawArraysInstanced' || name === 'drawElementsInstanced'));
+});

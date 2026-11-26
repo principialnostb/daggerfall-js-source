@@ -7652,6 +7652,15 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   destroyMesh(mesh) {
     const gl = this.gl;
     if (mesh.pondShore) releaseTreasureModel(this, mesh);
+    if (mesh.sharedTerrainIndices) {
+      const indices = mesh.sharedTerrainIndices;
+      const entry = this._terrainIndexSets.get(indices);
+      if (--entry.users === 0) {
+        this._terrainIndexSets.delete(indices);
+        gl.deleteBuffer(entry.buffer);
+      }
+      mesh.sharedTerrainIndices = null;
+    }
     mesh._dead = true;   // EL2: a shadow record from the last frame may still hold it
     this._wl?.forget(mesh);   // WL1: none of its windows lights
     for (const b of mesh.buffers) gl.deleteBuffer(b);
@@ -7683,7 +7692,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   /** Lazily create the shared 129x129 terrain index buffer. */
   _terrainIndices(indices) {
     let entry = this._terrainIndexSets.get(indices);
-    if (entry) return entry;
+    if (entry) { entry.users++; return entry; }
     const gl = this.gl;
     // EV6: this element bind happens OUTSIDE any VAO of its own, and a
     // drawn VAO may still be bound (drawMesh no longer unbinds) - an
@@ -7693,7 +7702,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-    entry = { buffer, count: indices.length };
+    entry = { buffer, count: indices.length, users: 1, indexType: indices instanceof Uint16Array ? gl.UNSIGNED_SHORT : gl.UNSIGNED_INT };
     this._terrainIndexSets.set(indices, entry);
     return entry;
   }
@@ -7705,7 +7714,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     const relief = land && pageParam('groundrelief') !== 'off' ? groundRelief(positions, normals, indices, bankDepth, land) : null;
     if (relief) ({ positions, normals, indices, bankDepth } = relief);
     const ownIndices = relief || bankFinish;
-    const indexSet = ownIndices ? { buffer: gl.createBuffer(), count: indices.length } : this._terrainIndices(indices);
+    const indexSet = ownIndices ? { buffer: gl.createBuffer(), count: indices.length,
+      indexType: indices instanceof Uint16Array ? gl.UNSIGNED_SHORT : gl.UNSIGNED_INT } : this._terrainIndices(indices);
     const vao = gl.createVertexArray();
     this._bindVao(vao);
     const buffers = [];
@@ -7738,7 +7748,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       buffers.push(indexSet.buffer);
     }
     this._bindVao(null);
-    const surface = { vao, buffers, indexCount: indexSet.count, bounds: boundsOf(positions) };
+    const surface = { vao, buffers, indexCount: indexSet.count, indexType: indexSet.indexType, bounds: boundsOf(positions) };
+    if (!ownIndices) surface.sharedTerrainIndices = indices;
     if (shore) surface.pondShore = acquireTreasureModel(this, surface, null, shore);
     return surface;   // EL5: the replays cull by it
   }
@@ -8485,7 +8496,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     this._activeTexture(gl.TEXTURE0);
     this.stats.texBinds++;
     this._bindVao(surface.vao);
-    gl.drawElements(gl.TRIANGLES, surface.indexCount, gl.UNSIGNED_INT, 0);
+    gl.drawElements(gl.TRIANGLES, surface.indexCount, surface.indexType ?? gl.UNSIGNED_INT, 0);
     this.stats.draws++;
     this._bindVao(null);
     // prefer the chunk under the eye so the proxy's roadGate matches the stones in view
@@ -8770,7 +8781,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
         this.stats.texBinds++;
       }
       this._bindVao(surface.vao);
-      gl.drawElements(gl.TRIANGLES, surface.indexCount, gl.UNSIGNED_INT, 0);
+      gl.drawElements(gl.TRIANGLES, surface.indexCount, surface.indexType ?? gl.UNSIGNED_INT, 0);
       this.stats.draws++;
     }
     this._activeTexture(gl.TEXTURE0);

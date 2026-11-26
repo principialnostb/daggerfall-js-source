@@ -318,9 +318,10 @@ test('LIGHT-REACH LR7: THE STREET\'S LANTERNS REACH FARTHER ON THE LANE - half a
 
 test('LIGHT-REACH LR8 (AUDIT LIGHT-REACH S2): A SURFACE TURNED FROM THE LIGHT TAKES NONE OF IT - the lane\'s lantern loop leaves a light behind the surface before its shadow taps, its glint and its wet glint. Before, an eye grazing the surface from the far side of the lamp saw that lamp\'s glint through it (N.H near 1 there): a leak the skip closes, a change a player sees. And the windows\' reach is half again WL1\'s 8 (mutants: the skip after the shadow, the reach)', () => {
   for (const fs of [EL_MESH_FS, EL_TERRAIN_FS, EL_CHAR_FS, EL_DECAL_FS]) {
-    const loop = fs.slice(fs.indexOf('vec3 elPointLitWet('), fs.indexOf('vec3 elPointLit(vec3 wp, vec3 n) {'));
+    const loop = fs.slice(fs.indexOf('vec3 elPointLitWetSided('), fs.indexOf('vec3 elPointLit(vec3 wp, vec3 n) {'));
     const at = (t) => loop.indexOf(t);
-    const skip = at('if (dot(n, Ln) <= 0.0) continue;'), range = at('if (d >= uPointLights[i].w) continue;'), taps = at('int k = uCasterOf[i];');
+    assert.ok(loop.includes('float facing = dot(n, Ln);'));
+    const skip = at('if (facing <= 0.0 && twoSided == 0.0) continue;'), range = at('if (d >= uPointLights[i].w) continue;'), taps = at('int k = uCasterOf[i];');
     assert.ok(range > 0 && skip > range && taps > skip, 'after the range test, before the caster');
     assert.ok(at('float spec = elSpecLobe(') > skip && at('glint += att * g * wetFresnel(') > skip, 'before the glint and the wet glint');
   }

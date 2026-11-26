@@ -45,39 +45,87 @@ export function selectTreasureAppearance(record, roll) {
   return hasTreasureModel(record) ? record : approvedRecords[Math.floor(roll() * approvedRecords.length)];
 }
 
-export function treasurePaints() {
-  const paints = palettes.map((color, material) => {
-    const size = material === WOOD ? 32 : 16;
-    const colors = new Uint8ClampedArray(size * size * 4);
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const streak = ((x >> 1) * 29 ^ (y >> 1) * 13 ^ material * 17) & 7;
-      const wear = (((x >> 1) * 11 ^ (y >> 2) * 31) & 7) - 3;
-      const seam = material === LINEN && (x % 4 === 0 || y % 5 === 0) ? -.13 : 0;
-      const grain = material === WOOD && x % 5 === 0 ? -.21 : seam;
-      const woodGrain = ((x * 17 ^ (y >> 2) * 5) & 7) * .024;
-      const shade = material === WOOD
-        ? .91 + woodGrain + (x % 8 === 0 ? -.18 : 0) + wear * .024
-        : .82 + streak * .040 + wear * .035 + grain;
-      colors.set([...color.map(c => c * shade), 255], (y * size + x) * 4);
+const furnishingColors = [
+  [110, [91, 65, 43]],
+  [111, [39, 72, 65]],
+  [112, [81, 130, 112]],
+  [113, [113, 87, 51]],
+  [114, [150, 139, 111]],
+  [115, [84, 79, 67]],
+  [116, [111, 101, 79]],
+  [117, [103, 73, 83]],
+  [118, [130, 92, 102]],
+  [FURNISHING_PAINT.dryReeds, [126, 103, 52]],
+  [FURNISHING_PAINT.greenReeds, [71, 83, 47]],
+  [FURNISHING_PAINT.rackWood, [106, 84, 53]]
+];
+
+const recipes = new Map([
+  ...palettes.map((color, record) => [record, () => palettePaint(color, record)]),
+  ...furnishingColors.map(([record, color]) => [record, () => furnishingPaint(color, record)]),
+  ...workshopWoodPaints.recipes,
+  [FURNISHING_PAINT.hay, hayPaint],
+  [DAMP_POST_WOOD, get => dampPostPaint(get(WORKSHOP_WOOD.beam))],
+  [SLAB_STONE, () => slabStonePaint()],
+  [FURNISHING_PAINT.shoreStone, () => slabStonePaint([58, 56, 48])],
+  [STAINED_TABLE_STONE, () => stainedTablePaint()],
+  [STAINED_PRESS_IRON, () => stainedTablePaint(true)],
+  ...placedWaterSourcePaints.recipes,
+  ...townSignPaints.recipes,
+  ...yardPropPaints.recipes,
+  ...marketPropPaints.recipes,
+]);
+
+// Derived paints read their source through the same bank. Only the mesh's actual records go to the GPU.
+export class TreasurePaintBank extends Map {
+  get(record) {
+    if (!this.has(record) && recipes.has(record)) {
+      this.set(record, recipes.get(record)(slot => this.get(slot)));
     }
-    return dfLook({ width: size, height: size, colors }, material + 83);
-  });
-  for (const [material, color] of [[110, [91, 65, 43]], [111, [39, 72, 65]], [112, [81, 130, 112]], [113, [113, 87, 51]], [114, [150, 139, 111]], [115, [84, 79, 67]], [116, [111, 101, 79]], [117, [103, 73, 83]], [118, [130, 92, 102]], [FURNISHING_PAINT.dryReeds, [126, 103, 52]], [FURNISHING_PAINT.greenReeds, [71, 83, 47]], [FURNISHING_PAINT.rackWood, [106, 84, 53]]]) {
-    const size = 24;
-    const colors = new Uint8ClampedArray(size * size * 4);
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const grain = ((Math.floor(x / 4) * 11 + y * 17) % 9 - 4) * .018;
-      const shade = material === 110 ? .95 + grain - (y % 7 === 0 ? .21 : 0)
-        : material === 113 ? .96 + grain + ((Math.floor(x / 3) + Math.floor(y / 2)) % 2 ? .12 : -.12)
-        : material === FURNISHING_PAINT.rackWood ? .74 + (y / (size - 1)) * .18 + grain
-          + ((x * 17 ^ (y >> 2) * 5) & 7) * .025 - (x % 6 === 0 ? .12 : 0)
-        : material >= 115 ? .91 + grain + ((x * 7 + y * 13) % 11) * .012
-        : .94 + grain * .4 + (x > 5 && x < 9 ? .12 : 0);
-      colors.set([...color.map(channel => channel * shade), 255], (y * size + x) * 4);
-    }
-    paints[material] = { width: size, height: size, colors };
+    return super.get(record);
   }
-  for (const [record, paint] of workshopWoodPaints()) paints[record] = paint;
+}
+
+export function treasurePaints() {
+  const bank = new TreasurePaintBank(), paints = [];
+  for (const record of recipes.keys()) paints[record] = bank.get(record);
+  return paints;
+}
+
+function palettePaint(color, material) {
+  const size = material === WOOD ? 32 : 16;
+  const colors = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const streak = ((x >> 1) * 29 ^ (y >> 1) * 13 ^ material * 17) & 7;
+    const wear = (((x >> 1) * 11 ^ (y >> 2) * 31) & 7) - 3;
+    const seam = material === LINEN && (x % 4 === 0 || y % 5 === 0) ? -.13 : 0;
+    const grain = material === WOOD && x % 5 === 0 ? -.21 : seam;
+    const woodGrain = ((x * 17 ^ (y >> 2) * 5) & 7) * .024;
+    const shade = material === WOOD
+      ? .91 + woodGrain + (x % 8 === 0 ? -.18 : 0) + wear * .024
+      : .82 + streak * .040 + wear * .035 + grain;
+    colors.set([...color.map(c => c * shade), 255], (y * size + x) * 4);
+  }
+  return dfLook({ width: size, height: size, colors }, material + 83);
+}
+
+function furnishingPaint(color, material) {
+  const size = 24;
+  const colors = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const grain = ((Math.floor(x / 4) * 11 + y * 17) % 9 - 4) * .018;
+    const shade = material === 110 ? .95 + grain - (y % 7 === 0 ? .21 : 0)
+      : material === 113 ? .96 + grain + ((Math.floor(x / 3) + Math.floor(y / 2)) % 2 ? .12 : -.12)
+      : material === FURNISHING_PAINT.rackWood ? .74 + (y / (size - 1)) * .18 + grain
+        + ((x * 17 ^ (y >> 2) * 5) & 7) * .025 - (x % 6 === 0 ? .12 : 0)
+      : material >= 115 ? .91 + grain + ((x * 7 + y * 13) % 11) * .012
+      : .94 + grain * .4 + (x > 5 && x < 9 ? .12 : 0);
+    colors.set([...color.map(channel => channel * shade), 255], (y * size + x) * 4);
+  }
+  return { width: size, height: size, colors };
+}
+
+function hayPaint() {
   // Follow the slope of the stack with broken strands in a few warm straw tones.
   const hayWidth = 96, hayHeight = 32;
   const hayColors = new Uint8ClampedArray(hayWidth * hayHeight * 4);
@@ -89,17 +137,7 @@ export function treasurePaints() {
       - (tip < 2 ? .13 : 0) + .11 * y / hayHeight;
     hayColors.set([155 * shade, 124 * shade, 70 * shade, 255], (y * hayWidth + x) * 4);
   }
-  paints[FURNISHING_PAINT.hay] = { width: hayWidth, height: hayHeight, colors: hayColors };
-  paints[DAMP_POST_WOOD] = dampPostPaint(paints[WORKSHOP_WOOD.beam]);
-  paints[SLAB_STONE] = slabStonePaint();
-  paints[FURNISHING_PAINT.shoreStone] = slabStonePaint([58, 56, 48]);
-  paints[STAINED_TABLE_STONE] = stainedTablePaint();
-  paints[STAINED_PRESS_IRON] = stainedTablePaint(true);
-  for (const [record, paint] of placedWaterSourcePaints()) paints[record] = paint;
-  for (const [record, paint] of townSignPaints()) paints[record] = paint;
-  for (const [record, paint] of yardPropPaints(paints)) paints[record] = paint;
-  for (const [record, paint] of marketPropPaints(paints)) paints[record] = paint;
-  return paints;
+  return { width: hayWidth, height: hayHeight, colors: hayColors };
 }
 
 // Irregular rings give the fabric real folds and a pinched neck.

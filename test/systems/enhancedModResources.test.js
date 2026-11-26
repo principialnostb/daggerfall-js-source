@@ -74,3 +74,23 @@ test('nested texture add-on resources belong to their own card', async()=>{
  assert.equal(modPackState('texture-better-armor').count,1);
  assert.equal(modPackState('texture-armor-joints').count,1);
 });
+
+test('EMC overrides remove every old spelling and retain last-write order', async (t) => {
+  const prefix = '../../';
+  const a = 'Mods/Bodies/Better Bodies/Meshes/A.nif';
+  const b = 'Mods/Bodies/Better Bodies/Meshes/B.nif';
+  const last = a.replace('/A.', '/a.');
+  const keep = 'Mods/Bodies/Better Bodies/Meshes/keep.nif';
+  const shell = Object.getOwnPropertyDescriptor(globalThis, 'daggerShell');
+  Object.defineProperty(globalThis, 'daggerShell', { configurable: true, value: { testEmc: true } });
+  t.after(() => { if (shell) Object.defineProperty(globalThis, 'daggerShell', shell); else delete globalThis.daggerShell; });
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify([a, b, last]), { status: 200 }));
+  const { initEnhancedModResources, modResourceGlob } = await import('../../src/systems/enhancedModResources.js?case-override-test');
+  await initEnhancedModResources();
+  const result = modResourceGlob('../../Mods/**/*.nif', {
+    [prefix + a]: 'old', [prefix + a.toUpperCase()]: 'also old', [prefix + keep]: 'kept',
+  });
+  assert.deepEqual(Object.entries(result), [
+    [prefix + keep, 'kept'], [prefix + b, 'dagger://game/test-emc/1'], [prefix + last, 'dagger://game/test-emc/2'],
+  ]);
+});

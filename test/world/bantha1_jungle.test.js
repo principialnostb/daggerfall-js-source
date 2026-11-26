@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import {
   JUNGLE_ARCHIVE, JUNGLE_SPECIES, JUNGLE_MEASURES, jungleFiles, jungleRecord, parseObj, parseMtl, measureTree,
@@ -38,7 +38,7 @@ import { createTreesHost } from '../../src/scenes/treesHost.js';
 import { packNature, unpackNature, natureBuffers } from '../../src/world/terrain/natureWire.js';
 import { jungleTreeMark, JUNGLE_MARK_CLEAR } from '../../src/scenes/treeHost.js';
 import { nodeGlows, createNodeGlowState, NODE_GLOW_PULL } from '../../src/render/nodeGlow.js';
-import { Renderer, WORLD_FRAME } from '../../src/render/renderer.js';
+import { Renderer, WORLD_FRAME, skinFaceFs } from '../../src/render/renderer.js';
 import { perspective, lookAt, mirrorProjectionX } from '../../src/world/mat4.js';
 import { ecoOrigin, ecoNoise } from '../../src/world/ecotone.js';
 import { fogFactor } from '../../src/world/weather.js';
@@ -553,13 +553,15 @@ test('AUDIT BANTHA1 HAZE-1: every program a module under src/render exports comp
   const bad = [];
   let n = 0;
   for (const f of walk(join(ROOT, 'src', 'render'))) {
-    const m = await import(f);
+    const m = await import(pathToFileURL(f).href);
     for (const [k, v] of Object.entries(m)) {
       if (typeof v !== 'string' || !v.includes('#version 300 es')) continue;
       const key = `${f.slice(join(ROOT, 'src').length + 1).split('\\').join('/')} ${k}`;
       if (PREPROCESSED.has(key)) continue;
       n++;
-      try { glslFunctions(v.replace(/^[\s\S]*?#version[^\n]*\n/, ''), {}, { eager: true }); } catch (e) { bad.push(`${key}: ${String(e.message).split('\n')[0]}`); }
+      // The character lane is a fragment template. Compile the face-normal and hair helpers installed by Renderer.
+      const shader = key === 'render/enhancedLighting.js EL_CHAR_FS' ? skinFaceFs(v) : v;
+      try { glslFunctions(shader.replace(/^[\s\S]*?#version[^\n]*\n/, ''), {}, { eager: true }); } catch (e) { bad.push(`${key}: ${String(e.message).split('\n')[0]}`); }
     }
   }
   assert.deepEqual(bad, []);

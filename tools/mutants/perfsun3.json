@@ -2,8 +2,8 @@
   {
     "name": "PERF-SUN3-the-far-list-by-the-near-planes",
     "file": "src/render/shadowPass.js",
-    "old": "    const P = planes[last];\n    for (let i = 0; i < this.count; i++) {",
-    "new": "    const P = planes[0];\n    for (let i = 0; i < this.count; i++) {",
+    "old": "spherePlanes(vps[c], planes[c]); out[c].n = 0;",
+    "new": "spherePlanes(vps[c === last ? 0 : c], planes[c]); out[c].n = 0;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -11,8 +11,8 @@
   {
     "name": "PERF-SUN3-a-nearer-list-by-the-nearest-planes",
     "file": "src/render/shadowPass.js",
-    "old": "      const from = out[c + 1], Q = planes[c];",
-    "new": "      const from = out[c + 1], Q = planes[0];",
+    "old": "spherePlanes(vps[c], planes[c]); out[c].n = 0;",
+    "new": "spherePlanes(vps[c === last ? last : 0], planes[c]); out[c].n = 0;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -20,8 +20,8 @@
   {
     "name": "PERF-SUN3-an-unbounded-record-left-out",
     "file": "src/render/shadowPass.js",
-    "old": "      if (r.kind !== REC_BB) { if (recordVisible(P, r)) add(last, i); continue; }",
-    "new": "      if (r.kind !== REC_BB) { if (r.bounded && recordVisible(P, r)) add(last, i); continue; }",
+    "old": "if (!recordVisible(planes[c], r)) break;",
+    "new": "if (!r.bounded || !recordVisible(planes[c], r)) break;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -29,8 +29,8 @@
   {
     "name": "PERF-SUN3-a-record-cut-at-its-first-flat-out",
     "file": "src/render/shadowPass.js",
-    "old": "        if (!b || !batchVisible(P, b)) continue;   // the replay's first question drops a null one too",
-    "new": "        if (!b || !batchVisible(P, b)) break;",
+    "old": "        if (!b) continue;\n        const s = batchSphere(b, this._bSphere);",
+    "new": "        if (!b) break;\n        const s = batchSphere(b, this._bSphere);\n        if (s && !sphereInPlanes(planes[last], s[0], s[1], s[2], s[3])) break;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -112,8 +112,8 @@
   {
     "name": "PERF-SUN3-a-nearer-list-by-the-far-planes",
     "file": "src/render/shadowPass.js",
-    "old": "      const from = out[c + 1], Q = planes[c];",
-    "new": "      const from = out[c + 1], Q = planes[last];",
+    "old": "spherePlanes(vps[c], planes[c]); out[c].n = 0;",
+    "new": "spherePlanes(vps[last], planes[c]); out[c].n = 0;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -121,8 +121,8 @@
   {
     "name": "PERF-SUN3-a-far-solid-untested",
     "file": "src/render/shadowPass.js",
-    "old": "      if (r.kind !== REC_BB) { if (recordVisible(P, r)) add(last, i); continue; }",
-    "new": "      if (r.kind !== REC_BB) { add(last, i); continue; }",
+    "old": "if (!recordVisible(planes[c], r)) break;",
+    "new": "if (c < last && !recordVisible(planes[c], r)) break;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -130,8 +130,8 @@
   {
     "name": "PERF-SUN3-a-nearer-solid-untested",
     "file": "src/render/shadowPass.js",
-    "old": "        if (r.kind !== REC_BB) { if (recordVisible(Q, r) && !(reach && this._solidPastReach(r, radius))) add(c, i); continue; }",
-    "new": "        if (r.kind !== REC_BB) { if (!(reach && this._solidPastReach(r, radius))) add(c, i); continue; }",
+    "old": "if (!recordVisible(planes[c], r)) break;",
+    "new": "if (c === last && !recordVisible(planes[c], r)) break;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -139,8 +139,8 @@
   {
     "name": "PERF-SUN3-a-nearer-flat-untested",
     "file": "src/render/shadowPass.js",
-    "old": "          if (!batchVisible(Q, b)) continue;",
-    "new": "          if (!b) continue;",
+    "old": "if (s && !sphereInPlanes(planes[c], s[0], s[1], s[2], s[3])) break;",
+    "new": "if (c === last && s && !sphereInPlanes(planes[c], s[0], s[1], s[2], s[3])) break;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -175,8 +175,8 @@
   {
     "name": "SUN-REACH-the-far-cascade-cut-too",
     "file": "src/render/shadowPass.js",
-    "old": "      if (r.kind !== REC_BB) { if (recordVisible(P, r)) add(last, i); continue; }",
-    "new": "      if (r.kind !== REC_BB) { if (recordVisible(P, r) && !(this._sunReachOn && this._solidPastReach(r, this._reach[6 + last]))) add(last, i); continue; }",
+    "old": "if (c < last && reach && this._solidPastReach(r, this._reach[6 + c])) break;",
+    "new": "if (reach && this._solidPastReach(r, this._reach[6 + c])) break;",
     "tests": [
       "test/render/perfsun3.test.js"
     ]

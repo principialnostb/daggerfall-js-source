@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassicStreetLantern, usesClassicStreetLantern } from '../../src/world/classicStreetLantern.js';
 import { createTorchVisual } from '../../src/scenes/torchVisual.js';
+import packed from '../../src/world/art/classicStreetLantern.json' with { type: 'json' };
 
 function renderer() {
   const state = { uploads: [], freed: [], released: [], evicted: [], draws: [] };
@@ -32,7 +33,14 @@ test('Blender mesh has finite indexed geometry, normalized height and no flame',
   const xs = [...m.indices.slice(pane.startIndex)].map(index => m.positions[3 * index]);
   assert.deepEqual([xs.filter(x => x > 0).length, xs.filter(x => x < 0).length], [36, 36]);
   assert.ok(m.indices.length / 3 < 12000);
-  assert.ok(r.uploads.every(([, , p]) => p.colors.length === p.width * p.height * 4));
+  for (const field of ['positions', 'normals', 'uvs', 'indices']) {
+    const array = m[field];
+    assert.deepEqual(Buffer.from(array.buffer, array.byteOffset, array.byteLength), Buffer.from(packed[field], 'base64'));
+  }
+  for (const [i, [, , paint]] of r.uploads.entries()) {
+    assert.equal(paint.colors.length, paint.width * paint.height * 4);
+    assert.deepEqual(Buffer.from(paint.colors), Buffer.from(packed.textures[i], 'base64'));
+  }
   fixture.destroy();
   assert.deepEqual(r.freed, [m]);
   assert.equal(r.released.length, 3);
@@ -47,8 +55,8 @@ test('game fixture pool shares street mesh and frees it after the last owner', (
   const mesh = r.draws[0][0];
   assert.equal(mesh.indices, r.draws[1][0].indices);
   assert.equal(r.draws[1][0].subMeshes[2].primitiveCount * 2, mesh.subMeshes[2].primitiveCount);
-  assert.equal(r.uploads.filter(([, record]) => record === 40).length, 1);
+  assert.deepEqual(r.uploads.map(([, record]) => record), [40, 41, 42]);
   a.destroy(); assert.ok(!r.freed.includes(mesh));
-  b.destroy(); assert.equal(r.freed.filter(m => m === mesh).length, 1);
-  b.destroy(); assert.equal(r.released.filter(([, record]) => record === 40).length, 1);
+  b.destroy(); assert.deepEqual(r.freed, [mesh]);
+  b.destroy(); assert.deepEqual(r.released.map(([, record]) => record), [40, 41, 42]);
 });

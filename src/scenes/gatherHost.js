@@ -1,4 +1,5 @@
 // @ts-check
+import { appendPixelFlat, removePixelFlat } from '../world/flatDistance.js';
 // ═══════════════════════════════════════════════════════════════════
 // PROF2 (2026-09-28, Mac: "Go") - THE GATHERING PROFESSIONS IN THE
 // STREAMING WORLD, one shell for every kind of node (bible/06-Systems/
@@ -445,7 +446,7 @@ export function createGatherHost(deps) {
       const size = { w: base.w * VEIN_CHUNKS.scale, h: base.h * VEIN_CHUNKS.scale };
       b = deps.renderer.createBillboardBatch(look.archive, look.record, size, at, { dynamic: true });
       b._box = chunkBox(bu.at, bu.floor, size.h, size.w);   // EV3: every place a chunk of it can be
-      bu.entry.batches.push(b);
+      appendPixelFlat(bu.entry.batches, b);
     }
     if (look.tint) b.tint = look.tint;   // VEIN-WASH: the ore's own wash, as its flats wear it
     if (look.tint && look.dye) b.dye = look.dye;   // VEIN-HUE: as its colour
@@ -477,8 +478,7 @@ export function createGatherHost(deps) {
     bu.batch = null;
     if (!b) return;
     if (bu.dungeon) { bu.dungeon.drop(b); return; }
-    const i = bu.entry?.batches.indexOf(b) ?? -1;
-    if (i >= 0) bu.entry.batches.splice(i, 1);
+    if (bu.entry) removePixelFlat(bu.entry.batches, b);
     deps.renderer.destroyBatch(b);
   }
   /** GATHER-FEEL II: AN ACT'S FRAME, AND THE BLOW IT LANDED. The machine stepped (its own tick - the act playing, or a
@@ -545,8 +545,7 @@ export function createGatherHost(deps) {
     const s = stood.get(`${entry.px},${entry.py}`);
     if (!s) return;
     for (const b of s.batches) {
-      const i = entry.batches.indexOf(b);
-      if (i >= 0) entry.batches.splice(i, 1);
+      removePixelFlat(entry.batches, b);
       deps.renderer.destroyBatch(b);
     }
     forgetCrackBatches(s.batches);   // VEIN-CRACKS
@@ -643,7 +642,7 @@ export function createGatherHost(deps) {
         if (tint) batch.tint = tint;   // VEIN-WASH: an ore's own wash (scenes/mineHost.js ORE_WASH)
         if (tint && dye) batch.dye = dye;   // VEIN-HUE: the wash its colour
         batch._box = deps.flatBatchAabb(centers, size);
-        entry.batches.push(batch);
+        appendPixelFlat(entry.batches, batch);
         rec.batches.push(batch);
         if (node) holdCrack(node, batch);   // VEIN-CRACKS: a worked node's own batch, cracked as it is
         for (let i = 0; i < owners.length; i += 3) pictureOf(rec.pictures, owners[i]).push({ batch, first: owners[i + 1], count: owners[i + 2].length, centers: owners[i + 2] });   // NODE-OUTLINE

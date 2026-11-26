@@ -80,6 +80,8 @@ const scopes = new WeakMap();
 export function withFixtureDepth(r, draw) {
   const frame = r._air?.frame;
   if (!frame?.depth || frame.fbo !== r._frameFbo || r._panelSaved || r._rwOutside || scopes.has(r)) return draw();
+  // The main world target already depth-tests fixtures against this buffer.
+  if (!r._studioDepth && r._worldFixtureDestination?.framebuffer === frame.fbo) return draw();
   scopes.set(r, { frame, count: 0, tiles: null });
   try { return draw(); } finally { scopes.delete(r); }
 }

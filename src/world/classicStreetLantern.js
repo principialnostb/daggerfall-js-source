@@ -1,9 +1,9 @@
 import packed from './art/classicStreetLantern.json' with { type: 'json' };
 import { TORCH_ARCHIVE } from './torchModel.js';
+import { packedArtBytes as bytes } from './packedArtBytes.js';
 
 const MATERIALS = [40, 41, 42];
 export { usesClassicStreetLantern } from './streetLanternPlacement.js';
-const bytes = encoded => Uint8Array.from(globalThis.atob(encoded), c => c.charCodeAt(0));
 
 // Departure from DFU DaggerfallBillboard.SetMaterial/Update: the owner's
 // reference becomes a fixed solid street fixture, with no candle or flame.

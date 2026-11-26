@@ -1,3 +1,4 @@
+import { paintFamily } from './paintFamily.js';
 import { buildCourtyardFountain, courtyardFountainPaints, COURTYARD_PAINT } from './courtyardFountain.js';
 import { mapCourtyardStone } from './courtyardFountainStone.js';
 import { createMeshKit } from './eliteGates/meshKit.js';
@@ -11,29 +12,31 @@ export const WELL_RIM_RADIUS = .442;
 const { beam, boards, endGrain } = WORKSHOP_WOOD;
 const { stone, water } = COURTYARD_PAINT;
 
-export function placedWaterSourcePaints() {
-  const paints = courtyardFountainPaints();
-  for (const [record, low, high] of [
-    [COPPER, [35, 51, 45], [103, 120, 91]],
-    [IRON, [44, 42, 39], [118, 110, 100]],
-    [SHINGLES, [69, 48, 36], [147, 109, 73]],
-    [FITTINGS, [52, 44, 31], [125, 105, 72]],
-  ]) {
-    const size = 32, paint = image(size);
-    const patina = noiseField(record, 6, size);
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      let tone = .52 + (patina(x, y) - .5) * .52;
-      if (record === SHINGLES) {
-        const row = y % 8;
-        const tile = (x + ((y >> 3) % 2) * 4) % 8;
-        tone += row === 0 || tile === 0 ? -.30 : row === 1 ? .14 : 0;
-        tone += (.5 - patina(x - tile, y - row)) * .36;
-      }
-      putTexel(paint, x, y, blendRgb(low, high, Math.round(tone * 17) / 17));
+const waterSourceMetalAndRoof = [
+  [COPPER, [35, 51, 45], [103, 120, 91]],
+  [IRON, [44, 42, 39], [118, 110, 100]],
+  [SHINGLES, [69, 48, 36], [147, 109, 73]],
+  [FITTINGS, [52, 44, 31], [125, 105, 72]],
+];
+export const placedWaterSourcePaints = paintFamily([
+  ...courtyardFountainPaints.recipes,
+  ...waterSourceMetalAndRoof.map(([record, low, high]) => [record, () => waterSourcePaint(record, low, high)]),
+]);
+
+function waterSourcePaint(record, low, high) {
+  const size = 32, paint = image(size);
+  const patina = noiseField(record, 6, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    let tone = .52 + (patina(x, y) - .5) * .52;
+    if (record === SHINGLES) {
+      const row = y % 8;
+      const tile = (x + ((y >> 3) % 2) * 4) % 8;
+      tone += row === 0 || tile === 0 ? -.30 : row === 1 ? .14 : 0;
+      tone += (.5 - patina(x - tile, y - row)) * .36;
     }
-    paints.push([record, paint]);
+    putTexel(paint, x, y, blendRgb(low, high, Math.round(tone * 17) / 17));
   }
-  return paints;
+  return paint;
 }
 
 const octagon = (radius, y, side) => {

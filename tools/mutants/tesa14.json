@@ -381,7 +381,7 @@
   {
     "name": "TESA14-a-region-unhanded",
     "file": "src/scenes/tamrielRoadsHost.js",
-    "old": "        terrainGen.addArenaRoads(layer, onLanded);\n",
+    "old": "        terrainGen.addArenaRoads(layer, onLanded, { packed });\n",
     "new": "",
     "tests": [
       "test/tesa14_roads.test.js"

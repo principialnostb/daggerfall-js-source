@@ -209,9 +209,9 @@ test('MAC1 D: the far rings draw the trees and the flats that move, and nothing 
   // the wire: the streaming host's flat walk asks it per batch, with the
   // batch's own height and the animator's frame as the "moves" bit
   const w = src('src/scenes/world.js');
-  assert.match(w, /import \{ farFlatVisibleAt \} from '\.\.\/world\/flatDistance\.js'/);   // PERF-EXT12: the rule's positional home - no object a batch a frame
-  assert.match(w, /const ring = Math\.max\(Math\.abs\(p\.px - state\.current\.x\), Math\.abs\(p\.py - state\.current\.y\)\);\s*\n(?:\s*\/\/[^\n]*\n)*\s*if \(pixelVisible \|\| pixelCasts\) for \(const b of p\.batches\) \{\s*\n\s*if \(!farFlatVisibleAt\(ring, b\.farH \?\? b\.size\?\.h \?\? 0, b\.frame != null\)\) continue;[^\n]*\n\s*const off = [^\n]*EV3\s*\n\s*if \(off && !renderer\.shadowReach\(b\._box, t\[0\], t\[1\], t\[2\]\)\) continue;/,
-    'the ring is Chebyshev from the player\'s pixel and the rule runs inside the pixel\'s gate (AUDIT REACH: a pixel neither seen nor reached walks no batch at all) - PIN MOVED (PERF-ORDER, 2026-10-11): ahead of the batch\'s frustum test and reach, three compares before a box (PERF-EXT12 made the rule positional, so it mints nothing a batch); each only skips, so the batches kept are the same');
+  assert.match(w, /import \{ [^}]*pixelFlatsAtRing[^}]* \} from '\.\.\/world\/flatDistance\.js'/);   // PERF-EXT12: the rule's positional home - no object a batch a frame
+  assert.match(w, /const ring = Math\.max\(Math\.abs\(p\.px - state\.current\.x\), Math\.abs\(p\.py - state\.current\.y\)\);\s*\n(?:\s*\/\/[^\n]*\n)*\s*if \(pixelVisible \|\| pixelCasts\) for \(const b of pixelFlatsAtRing\(p\.batches, ring\)\) \{\s*\n\s*const off = [^\n]*EV3\s*\n\s*if \(off && !renderer\.shadowReach\(b\._box, t\[0\], t\[1\], t\[2\]\)\) continue;/,
+    'the ring is Chebyshev from the player\'s pixel and the rule runs inside the pixel\'s gate (AUDIT REACH: a pixel neither seen nor reached walks no batch at all) - PIN MOVED (PERF-ORDER, 2026-10-11): ahead of the individual frustum and shadow reach tests');
 });
 
 // ── H ────────────────────────────────────────────────────────────
@@ -463,8 +463,10 @@ function mountLiteral(text, opener, env = {}) {
     has: () => true,
     get: (t, k) => (k === Symbol.unscopables ? undefined : (k in t ? t[k] : STUB)),
   });
+  // Vite substitutes its dev flag before this host runs. Evaluate the production hook bag.
+  const literal = literalBody(text, opener).replace(/\bimport\.meta\.env\.DEV\b/g, 'false');
   // eslint-disable-next-line no-new-func
-  return new Function('__scope', `with (__scope) { return (${literalBody(text, opener)}); }`)(scope);
+  return new Function('__scope', `with (__scope) { return (${literal}); }`)(scope);
 }
 
 /** A host's createWorldModes bag, built - the `host` object worldModes'

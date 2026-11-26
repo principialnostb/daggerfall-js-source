@@ -16,6 +16,7 @@
 // region a stretch of the land past the Bay is laid by has landed (`landedIn`) - so the living world wakes a region at a
 // time, the land about the player first, where it waited for every region of the build.
 // ═══════════════════════════════════════════════════════════════════
+import { packedTerrainRoads } from '../world/terrain/roadByteGrid.js';
 import { createTamrielRoadsClient } from '../world/tamrielRoadsClient.js';
 import { regionLattice, regionsByNearness, regionWanted, regionAt, inputsPrint, REGION_APRON, GROUND_ROLL_VERSION } from '../world/tamrielRoads.js';
 import { keptLandRegions, fnv32 } from '../world/tamriel/tamrielBootCache.js';   // AUDIT RELEASE R4-4: the boot's continent kept
@@ -118,7 +119,7 @@ export function createTamrielRoadsHost({ terrainGen, woodsBytes, heightAt, joinL
   return api;
 
   function start(towns, spec, capitals, held, player) {
-    roadsClient ??= createTamrielRoadsClient({ log });
+    roadsClient ??= createTamrielRoadsClient({ log, readLayer: packedTerrainRoads });
     const joins = forBay ? arenaJoins(forBay, joinLand) : [];
     const gates = [], obstacles = [];
     // AUDIT TESA II R2 (lane C's gate walk): a gate is walked out over this host's own ground - the composed one, the
@@ -153,10 +154,10 @@ export function createTamrielRoadsHost({ terrainGen, woodsBytes, heightAt, joinL
     const mine = build;
     Promise.resolve(roadsClient.start({
       inputs, print: inputsPrint(inputs), regions,
-      onRegion: (region, layer, stats, places, land) => {
+      onRegion: (region, layer, stats, places, land, packed) => {
         addPastBayPlaces(places ?? []);   // TESA15: before the roads, so the map's repaint for them has both
         addExactPieces(region, land ?? null);   // EXACT-PIECES: its land's pieces, joined to its landed neighbours'
-        terrainGen.addArenaRoads(layer, onLanded);
+        terrainGen.addArenaRoads(layer, onLanded, { packed });
         landed++;
         log.log(`[roads] region (${region.i}, ${region.j}): ${layer.roads.size} road and ${layer.tracks.size} track pixels, ${places?.length ?? 0} places ${stats.cached ? 'from the cache' : `in ${stats.ms} ms`}; ${landed} of ${total}${landed === total ? `, all in ${((Date.now() - t0) / 1000).toFixed(1)} s` : ''}`);
         const g = grids.find((q) => q.key === `${region.i},${region.j}`);   // WW7-9: its word, the layer and its places in

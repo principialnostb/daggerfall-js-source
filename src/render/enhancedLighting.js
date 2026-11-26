@@ -461,7 +461,7 @@ float wetFresnel(float vdoth) {
 ${powChainGlsl('elSpecLobe', EL_SPEC_GLOSS)}
 float elSpecK = 1.0;   // the ground turns this down in the rain; every other caller leaves it
 float elWetPow = ${EL_WET_GLOSS}.0;   // a puddle tightens the wet lobe to a mirror's; every other caller leaves it
-vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint, float twoSided) {
+vec3 elPointLitWetSided(vec3 wp, vec3 n, float wet, out vec3 glint, float twoSided) {
   vec3 acc = vec3(0.0);
   glint = vec3(0.0);
   highp uvec2 cell = elCluster(wp);   // LC1
@@ -511,7 +511,7 @@ vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint, float twoSided) {
   glint *= ${glslFloat(EL_WET_STRENGTH)} * wet;
   return acc + winLit(wp, n, 0.0, 1.0);   // WL1: the windows' light, through their glass
 }
-vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) { return elPointLitWet(wp, n, wet, glint, 0.0); }
+vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) { return elPointLitWetSided(wp, n, wet, glint, 0.0); }
 vec3 elPointLit(vec3 wp, vec3 n) { vec3 g; return elPointLitWet(wp, n, 0.0, g); }
 // a flat's lantern term, attenuation only; its shadow is read at the
 // flat's base (one value for the whole sprite - a sprite in its own map
@@ -1234,7 +1234,7 @@ void main() {
   float mdiff = charDiffuse(n, uMoonDir);
   vec3 glint;
   vec3 lit = albedo * (uAmbient + uSunColor * (uSunScale * diff) + uMoonColor * (uMoonScale * mdiff)
-    + elPointLitWet(vWorldPos, n, 0.0, glint, uHairLight) + elIndirectLit(vWorldPos, n));   // EL3
+    + elPointLitWetSided(vWorldPos, n, 0.0, glint, uHairLight) + elIndirectLit(vWorldPos, n));   // EL3
   outColor = vec4(elFinish(lit, vWorldPos), 1.0);
 }`;
 

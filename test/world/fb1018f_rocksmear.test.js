@@ -24,6 +24,8 @@ import zlib from 'node:zlib';
 import { rockMesh, boulderMesh, prismZ, RMBRP_ROCKS, RMBRP_ROCK_SCALE, RMBRP_PIECES } from '../../src/world/townStandIns.js';
 import { MeshBuilder } from '../../src/world/detStandIns.js';
 
+const ROCK_REPEATS_PER_METRE = 0.38;
+
 /** Per triangle: the texture map's two singular values (repeats per metre along the face's most and least stretched
  *  directions), its area, and how the texture's v runs with height along the face (dv per metre up). */
 function uvStretch(mesh) {
@@ -111,23 +113,23 @@ test('ROCK-SMEAR: every RMB Resource Pack rock stand-in takes its picture with n
     const faces = uvStretch(rockMesh(id));
     assert.equal(faces.length, 48, `${id}: a boulder's faces - eight sides of two bands, a crown and an underside`);
     for (const f of faces) {
-      assert.ok(f.sMin >= 1 / Math.sqrt(3) - 1e-6, `${id}: a face smeared (${f.sMin.toFixed(4)} : ${f.sMax.toFixed(4)} repeats a metre)`);
-      assert.ok(f.sMax <= 1 + 1e-6, `${id}: a face's picture finer than a repeat a metre (${f.sMax.toFixed(4)})`);
+      assert.ok(f.sMin >= ROCK_REPEATS_PER_METRE / Math.sqrt(3) - 1e-6, `${id}: a face smeared (${f.sMin.toFixed(4)} : ${f.sMax.toFixed(4)} repeats a metre)`);
+      assert.ok(f.sMax <= ROCK_REPEATS_PER_METRE + 1e-6, `${id}: a face's picture finer than the authored repeat scale (${f.sMax.toFixed(4)})`);
     }
   }
 });
 
-test('ROCK-SMEAR: the underside and the crown are mapped from above, and every side keeps the picture\'s rows level - its v falls a repeat a metre up the rock, as it did', () => {
+test('ROCK-SMEAR: the underside and the crown are mapped from above, and every side keeps the picture\'s rows level - its v falls by the authored repeat scale per metre', () => {
   for (const id of Object.keys(RMBRP_ROCKS)) {
     for (const f of uvStretch(rockMesh(id))) {
-      if (Math.abs(f.ny) > Math.SQRT1_2 + 0.05) { assert.ok(f.sMin > 0.7, `${id}: a face that looks up or down, mapped from above (${f.sMin.toFixed(3)})`); continue; }
-      if (Math.abs(f.ny) < 0.5 && f.dvUp !== null) assert.ok(Math.abs(f.dvUp + 1) < 1e-6, `${id}: a side's rows not level (dv ${f.dvUp.toFixed(4)} a metre up)`);
+      if (Math.abs(f.ny) > Math.SQRT1_2 + 0.05) { assert.ok(f.sMin > 0.7 * ROCK_REPEATS_PER_METRE, `${id}: a face that looks up or down, mapped from above (${f.sMin.toFixed(3)})`); continue; }
+      if (Math.abs(f.ny) < 0.5 && f.dvUp !== null) assert.ok(Math.abs(f.dvUp + ROCK_REPEATS_PER_METRE) < 1e-6, `${id}: a side's rows not level (dv ${f.dvUp.toFixed(4)} a metre up)`);
     }
   }
   // the underside in particular: a fan at one height, the face the old plan smeared to a single row
   const flat = uvStretch(boulderMesh(4, 1, 0.5, 3, 7)).filter((f) => f.ny < -0.99);
   assert.ok(flat.length >= 8, 'the boulder\'s underside');
-  for (const f of flat) assert.ok(Math.abs(f.sMin - 1) < 1e-6 && Math.abs(f.sMax - 1) < 1e-6, `the underside, a repeat a metre each way (${f.sMin.toFixed(4)}, ${f.sMax.toFixed(4)})`);
+  for (const f of flat) assert.ok(Math.abs(f.sMin - ROCK_REPEATS_PER_METRE) < 1e-6 && Math.abs(f.sMax - ROCK_REPEATS_PER_METRE) < 1e-6, `the underside, the authored repeat scale in both directions (${f.sMin.toFixed(4)}, ${f.sMax.toFixed(4)})`);
 });
 
 test('ROCK-SMEAR: the report - Ipsmoth\'s four blocks stand the pack\'s rocks, nine of them on its water\'s tiles, every one a stand-in this law dresses', () => {

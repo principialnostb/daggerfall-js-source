@@ -772,8 +772,8 @@
   {
     "name": "AUDIT-PRECIP-HOST-7-the-old-groups-left-standing",
     "file": "src/scenes/pixelBuild.js",
-    "old": "          renderer.destroyBatch(b);\n          const i = p.batches.indexOf(b);",
-    "new": "          const i = p.batches.indexOf(b);",
+    "old": "          renderer.destroyBatch(b);\n          removePixelFlat(p.batches, b);",
+    "new": "          removePixelFlat(p.batches, b);",
     "tests": [
       "test/scenes/audit_precip_host7.test.js"
     ]

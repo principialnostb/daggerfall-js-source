@@ -285,8 +285,8 @@
   {
     "name": "terrain-no-bounds",
     "file": "src/render/renderer.js",
-    "old": "    const surface = { vao, buffers, indexCount: indexSet.count, bounds: boundsOf(positions) };",
-    "new": "    const surface = { vao, buffers, indexCount: indexSet.count };",
+    "old": "    const surface = { vao, buffers, indexCount: indexSet.count, indexType: indexSet.indexType, bounds: boundsOf(positions) };",
+    "new": "    const surface = { vao, buffers, indexCount: indexSet.count, indexType: indexSet.indexType };",
     "tests": [
       "test/render/el5_field.test.js"
     ]

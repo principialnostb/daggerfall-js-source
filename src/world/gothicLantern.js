@@ -2,6 +2,7 @@ import packed from './art/gothicLantern.json' with { type: 'json' };
 import { TORCH_ARCHIVE } from './torchModel.js';
 import { buildFixtureChain } from './lightFixtureModel.js';
 import { trs } from './mat4.js';
+import { packedArtBytes as bytes } from './packedArtBytes.js';
 
 const IRON = 30, EDGE = 31, PANE = 32, FLAME = 34, DARK_PANE = 35;
 const CHAIN_START = .867, SOCKET_SEAT = .957;
@@ -13,14 +14,12 @@ const CANDLE_FLAME = { at: [0, .351, 0], scale: .20 };
 // Chandeliers, braziers, candles and floor fixtures have their own silhouettes.
 export const usesGothicLantern = record => [8, 11, 12, 13, 22, 24, 25, 26, 27].includes(record);
 
-function bytes(encoded) {
-  return Uint8Array.from(globalThis.atob(encoded), char => char.charCodeAt(0));
-}
-
 export function createGothicLantern(renderer) {
+  let panePixels;
   for (const [i, record] of MATERIALS.entries()) {
     if (record === FLAME) continue;
-    const colors = bytes(packed.textures[i === 5 ? 2 : i]);
+    const colors = record === DARK_PANE ? panePixels.slice() : bytes(packed.textures[i]);
+    if (record === PANE) panePixels = colors;
     if (record === DARK_PANE) {
       for (let p = 0; p < colors.length; p += 4) {
         colors[p] *= .21;

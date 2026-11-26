@@ -2,7 +2,9 @@
 // The host constructs it where the code stood. What it reads of the host's scope comes through `host`: the
 // settled names by value at construction, every live one (a `let` someone writes, a `const` made below) read at its
 // use as `host.<name>` - as the code read them where it was.
+import { markFixedPixelLocal } from './frameKept.js';
 import { markStreetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
+import { prependPixelFlats, removePixelFlat } from '../world/flatDistance.js';
 import { layoutTownFlats, layoutTownLights, townLanternRoadSurface } from '../world/townLanternLayout.js';
 import { markPlacedFurnishing, placedWaterSourceGrass } from '../render/furnishingMorrowind.js';
 import { ANIMAL_SOUND_BY_RECORD, ANIMALS_ARCHIVE } from '../systems/soundClips.js';
@@ -622,6 +624,7 @@ export function createPixelBuild(host) {
           }
           for (const w of b.layout.windmills) {
             const local = multiply(originMatrix, w.matrix);
+            markFixedPixelLocal(local);
             const box = transformedAabb(archAabb('millBody', BODY.positions), local);
             for (let i = 0; i < 3; i++) { box[i] -= MILL_SAIL_PAD; box[3 + i] += MILL_SAIL_PAD; }
             unionBox(box);
@@ -639,6 +642,7 @@ export function createPixelBuild(host) {
           const gpu = await getGpuMesh(placed.modelIdNum, () => breather.breathe());   // AUDIT PRE-MERGE 1003 W6: a model built here breathes with the pixel (the colosseum's seal)
           if (!gpu) continue;
           const local = multiply(originMatrix, placed.matrix);
+          markFixedPixelLocal(local);
           const cpu = cpuModels.get(placed.modelIdNum);
           const box = transformedAabb(archAabb(placed.modelIdNum, cpu.positions), local);
           // NOTICE-PANEL (scenes/townPanelHost.js): a town's board (RMBLayout's standalone 41739) does not stand - the town
@@ -879,6 +883,7 @@ export function createPixelBuild(host) {
         if (gpuF && cpuF) {
           await remapSubMeshes(gpuF.subMeshes, texRemap, townClimateArchive, pipeline, townClimateBase);
           const local = trs(locLocal[0], locLocal[1], locLocal[2], 0, 0, 0), box = transformedAabb(archAabb(fabric.modelId, cpuF.positions), local);
+          markFixedPixelLocal(local);
           unionBox(box);
           const entry = { gpu: gpuF, local, _box: box, _order: fabric.modelId };
           models.push(entry);
@@ -1238,6 +1243,7 @@ export function createPixelBuild(host) {
           if (!gpu) continue;
           await remapSubMeshes(gpu.subMeshes, texRemap, townClimateArchive, pipeline, townClimateBase);
           const local = multiply(origin, holdModelMatrix(hm));
+          markFixedPixelLocal(local);
           const cpu = cpuModels.get(hm.modelId);
           const box = transformedAabb(archAabb(hm.modelId, cpu.positions), local);
           unionBox(box);
@@ -1859,10 +1865,9 @@ export function createPixelBuild(host) {
         for (const b of sk.batches) {
           p.flatAnims.remove(b);
           renderer.destroyBatch(b);
-          const i = p.batches.indexOf(b);
-          if (i >= 0) p.batches.splice(i, 1);
+          removePixelFlat(p.batches, b);
         }
-        p.batches.unshift(...made.batches);
+        prependPixelFlats(p.batches, made.batches);
         const forestGroups = new Map();
         for (const [k, g] of p.forest.groups) if (!sk.forest.has(k)) forestGroups.set(k, g);   // the jungle's stand as they stood
         for (const [k, g] of made.forestGroups) forestGroups.set(k, g);

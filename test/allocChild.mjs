@@ -19,12 +19,10 @@
 // 48 bytes a frame concurrently and 1 synchronously.) test/tooling/allocchild.test.js
 // proves the settle under an artificially late compiler. Every suite that
 // measures allocation spawns its child with these.
-import { fileURLToPath } from 'node:url';
-
 export const ALLOC_CHILD_ARGS = Object.freeze([
   '--expose-gc',
   '--min-semi-space-size=64',
   '--max-semi-space-size=64',
   '--allow-natives-syntax',
-  '--import', fileURLToPath(new URL('./allocSettle.mjs', import.meta.url)),
+  '--import', new URL('./allocSettle.mjs', import.meta.url).href,
 ]);

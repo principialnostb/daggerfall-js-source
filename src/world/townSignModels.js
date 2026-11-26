@@ -1,3 +1,4 @@
+import { paintFamily } from './paintFamily.js';
 import { createMeshKit } from './eliteGates/meshKit.js';
 import { WORKSHOP_WOOD } from './dungeonWorkshopWood.js';
 import { blendRgb, image, noiseField, putTexel } from './superDungeon/sdPixelKit.js';
@@ -8,20 +9,20 @@ const IRON_SECTION = [[-.021, -.015], [.021, -.015], [.024, -.008], [.024, .008]
 const SIGNS = new Set(['212:4', '212:5', '212:6']);
 export const isTownSign = record => SIGNS.has(record);
 
-export function townSignPaints() {
-  return [
-    [IRON, [38, 34, 30], [137, 119, 102]],
-    [CREST, [92, 65, 39], [177, 144, 93]],
-    [LEAF, [45, 54, 30], [105, 111, 57]],
-    [PAINTED_WOOD, [52, 57, 47], [114, 105, 81]],
-  ].map(([record, dark, light]) => {
-    const paint = image(32), pattern = noiseField(record, 7, 32);
-    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-      const wear = Math.round((.22 + pattern(x, y) * .62) * 12) / 12;
-      putTexel(paint, x, y, blendRgb(dark, light, wear));
-    }
-    return [record, paint];
-  });
+export const townSignPaints = paintFamily([
+  [IRON, [38, 34, 30], [137, 119, 102]],
+  [CREST, [92, 65, 39], [177, 144, 93]],
+  [LEAF, [45, 54, 30], [105, 111, 57]],
+  [PAINTED_WOOD, [52, 57, 47], [114, 105, 81]],
+].map(([record, dark, light]) => [record, () => signPaint(record, dark, light)]));
+
+function signPaint(record, dark, light) {
+  const paint = image(32), pattern = noiseField(record, 7, 32);
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+    const wear = Math.round((.22 + pattern(x, y) * .62) * 12) / 12;
+    putTexel(paint, x, y, blendRgb(dark, light, wear));
+  }
+  return paint;
 }
 
 function scroll(kit, x, y, radius, from, turn, lead = []) {

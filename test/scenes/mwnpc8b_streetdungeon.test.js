@@ -45,7 +45,9 @@ test('MWNPC8b-a the dungeon: a person\'s flat out of the shared groups into a ba
   assert.ok(d.includes('_peopleLane.destroy();   // MWNPC8b'), 'gone with the context');
   const m = rd('src/scenes/worldModes.js');
   assert.ok(m.includes('          standingLook,   // MWNPC8b'), 'the world\'s dungeon reads its people as its buildings do');
-  ordered(m, ['dungeonCtx.drawPeople?.(canvas, proj, view, mwv.eye, dt', 'renderer.drawBillboards([...dungeonCtx.billboardBatches,'], 'before the level\'s billboards');
+  ordered(m, ['dungeonCtx.drawPeople?.(canvas, proj, view, mwv.eye, dt', 'drawCampScene(renderer, dungeonCtx, [...dungeonCtx.billboardBatches,'], 'before the level\'s billboards');
+  const camps = rd('src/scenes/campfireVisual.js');
+  ordered(camps, ['function drawCampScene(renderer, context, batches, right, up)', 'renderer.withWorldFixtureDestination(() => renderer.drawBillboards(batches, right, up))'], 'the level and its people reach the same billboard pass');
 });
 
 test('MWNPC8b-b the street: one batch a person in standPixelNpcs (the away arm and the quest pass still first); the near rings\' people offered as the pixels are walked, at their scene feet; the bodies drawn before the flats; let go indoors, moved with the origin', () => {
@@ -53,7 +55,7 @@ test('MWNPC8b-b the street: one batch a person in standPixelNpcs (the away arm a
   const from = w.indexOf('async function standPixelNpcs(');
   const stand = w.slice(from, w.indexOf('function restrideTerrain(', from));
   ordered(stand, ['setupExteriorQuestStaticNpcs', 'for (const pn of entry.npcs) {', 'pn.standBatch = null;', 'if (!pn.active) continue;', 'const centers = [[pn.x, pn.y, pn.z]];',
-    'const batch = renderer.createBillboardBatch(archive, record, size, centers);', 'pn.standBatch = batch;', 'entry.batches.push(batch);'], 'a person\'s own batch');
+    'const batch = renderer.createBillboardBatch(archive, record, size, centers);', 'pn.standBatch = batch;', 'appendPixelFlat(entry.batches, batch);'], 'a person\'s own batch');
   assert.ok(!stand.includes('npcGroups'), 'no shared group left');
   assert.ok(w.includes('if (!dict) return null;   // never before the faction table: asked again'));
   ordered(w, ['const _peopleOn = streetPeople.frame();', 'for (const p of _pixelOrder) {', 'const ring = Math.max(Math.abs(p.px - state.current.x)',

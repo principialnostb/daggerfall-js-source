@@ -131,3 +131,22 @@ test('TOWN-SHAPES on the freeware: a hamlet\'s outline no rectangle; a coast tow
   const water = t.samples.filter((v) => v * MAX_TERRAIN_HEIGHT <= SCALED_OCEAN_ELEVATION + 1e-3).length;
   assert.ok(water > 2000, `its sea stands (${water} samples; DFU's blend left about 240)`);   // PIN MOVED (FB1028): 3,000 - the sea its ease reaches is lifted (2,084)
 });
+
+test('binary town distance agrees byte for byte with nearest occupied tile on rectangular grids', () => {
+  for (const [width, height] of [[1, 1], [1, 13], [17, 1], [9, 14], [18, 7]]) {
+    const sites = new Uint8Array(width * height);
+    for (const density of [0, 1, 5, 13]) {
+      for (let i = 0; i < sites.length; i++) sites[i] = ((i * 17 + (i % width) * 5) % 13) < density ? 3 : 0;
+      const expected = new Float64Array(sites.length).fill(Infinity);
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        let nearest = Infinity;
+        for (let i = 0; i < sites.length; i++) if (sites[i]) {
+          const dx = x - i % width, dy = y - Math.floor(i / width);
+          nearest = Math.min(nearest, dx * dx + dy * dy);
+        }
+        expected[y * width + x] = Math.sqrt(nearest);
+      }
+      assert.deepEqual(new Uint8Array(tileDistance(sites, width, height).buffer), new Uint8Array(expected.buffer));
+    }
+  }
+});

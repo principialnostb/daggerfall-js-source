@@ -210,9 +210,9 @@ test('LA-COST1: THE SECOND CALL IN A FRAME SENDS ONLY ITS OWN - a billboard call
   const pairs = [
     // merged beside main's HITFLASH1 and WEAPON-MOUNT: a batch's hit flash is its own (uHitFlash), and a decal call
     // says whether it hangs a picture or lays a film (uPicture) - both the call's, beside the atlas
-    ['billboards', () => r.drawBillboards(bbs, R, UP), ['uRight', 'uUp', 'uFlatWind', 'uWindfallSway', 'uWindfallAxis', 'uSpectral', 'uConceal', 'uHitFlash', 'uEliteGlow', 'uSize', 'uOrigin', 'uSway']],   // ELITE FOES: a batch's glow is its own too, as the flash is; WINDFALL1: Windfall's law is the call's, as the wind is
+    ['billboards', () => r.drawBillboards(bbs, R, UP), ['uRight', 'uUp', 'uFlatWind', 'uWindfallSway', 'uWindfallAxis', 'uSpectral', 'uConceal', 'uHitFlash', 'uEliteGlow', 'uSize', 'uOrigin', 'uSway', 'uNpcPixelBlock', 'uTreeLighting']],   // ELITE FOES: a batch's glow is its own too, as the flash is; WINDFALL1: Windfall's law is the call's, as the wind is
     ['decals', () => r.drawDecals(decal, { id: 'atlas' }), ['uPicture']],
-    ['a character', () => r.drawCharacter(rig, I), ['uModel', 'uTex', 'uUseTex', 'uAlphaCut']],
+    ['a character', () => r.drawCharacter(rig, I), ['uModel', 'uTex', 'uUseTex', 'uAlphaCut', 'uHairLight']],
   ];
   const counts = [];
   for (const [what, draw, own] of pairs) {
@@ -238,7 +238,7 @@ test('LA-COST1: THE SECOND CALL IN A FRAME SENDS ONLY ITS OWN - a billboard call
   // must not ride onto the next frame's flats)
   // LPT1 (bible/07-Rendering/Low-Poly-Trees.md): and the low-poly trees' mesh mode and handover, set off (two more - a
   // call the trees drew in leaves the handover on for the flats after it)
-  assert.deepEqual(counts, ['billboards 113 -> 30', 'decals 88 -> 12', 'a character 89 -> 13']);   // PIN MOVED (WET1, 2026-10-30): +1 each program's first call - the wet ground (uWet), sent with the frame's block; this GL answers every name, a driver answers null for the three programs that declare none and nothing is sent; WET1e uWetProxy is terrain-only (not these three)   // PIN MOVED (WL1, 2026-10-29): +1 each program's first call - the window lights' switch (uWinOn), sent with the frame's block   // PIN MOVED (OW-HORIZON, 2026-10-20): +1 each program's first call - the cloud deck's far law (uCloudShadowFar), sent with the map when the deck moves   // PIN MOVED (AUDIT BANTHA1 TREE-2, 2026-10-18): +1 a billboard call's first - the lane's uSunLift reset, every flat's sun at its root until a jungle batch says otherwise; BANTHA1 (2026-10-18): the jungle's haze (uJungleHaze) rides the fog's upload only while it is on, or once as it goes off - a frame outside the jungle pays no call   // PIN MOVED (VEIN-CRACKS, GATHER-FEEL II, 2026-10-13): +1 a billboard call's first - the frame block's uCrack, every flat whole until a worked vein's batch says otherwise   // PIN MOVED (VEIN-HUE, FIELD BUGS 2026-10-12b): +1 a billboard call's first - the frame block's uBatchDye, reset with the wash   // PIN MOVED (PERF-ARENA, 2026-10-10): -1 a billboard call - its two still flats share their arena's VAO, one bind where there were two   // PIN MOVED (WINDFALL1, 2026-10-08): +2 a billboard call - Windfall's two vec4s, the call's own as the wind is
+  assert.deepEqual(counts, ['billboards 116 -> 33', 'decals 88 -> 12', 'a character 90 -> 14']);   // PIN MOVED (WET1, 2026-10-30): +1 each program's first call - the wet ground (uWet), sent with the frame's block; this GL answers every name, a driver answers null for the three programs that declare none and nothing is sent; WET1e uWetProxy is terrain-only (not these three)   // PIN MOVED (WL1, 2026-10-29): +1 each program's first call - the window lights' switch (uWinOn), sent with the frame's block   // PIN MOVED (OW-HORIZON, 2026-10-20): +1 each program's first call - the cloud deck's far law (uCloudShadowFar), sent with the map when the deck moves   // PIN MOVED (AUDIT BANTHA1 TREE-2, 2026-10-18): +1 a billboard call's first - the lane's uSunLift reset, every flat's sun at its root until a jungle batch says otherwise; BANTHA1 (2026-10-18): the jungle's haze (uJungleHaze) rides the fog's upload only while it is on, or once as it goes off - a frame outside the jungle pays no call   // PIN MOVED (VEIN-CRACKS, GATHER-FEEL II, 2026-10-13): +1 a billboard call's first - the frame block's uCrack, every flat whole until a worked vein's batch says otherwise   // PIN MOVED (VEIN-HUE, FIELD BUGS 2026-10-12b): +1 a billboard call's first - the frame block's uBatchDye, reset with the wash   // PIN MOVED (PERF-ARENA, 2026-10-10): -1 a billboard call - its two still flats share their arena's VAO, one bind where there were two   // PIN MOVED (WINDFALL1, 2026-10-08): +2 a billboard call - Windfall's two vec4s, the call's own as the wind is
   // ...and the next frame sends them all again
   r.beginFrame(PROJ, VIEW, new Float32Array([0.3, 0.8, 0.2]), WORLD_FRAME);
   calls.length = 0; r.drawBillboards(bbs, R, UP);
@@ -562,7 +562,7 @@ test('LA-COST3: THE FLAT\'S SUN IS READ ONCE A QUAD - the lane\'s billboard vert
   assert.equal(sources.filter((s) => s === lane).length, 1, 'the lane\'s billboard program, once');
   assert.ok(sources.filter((s) => s === classic).length >= 3, 'BB_VS for the classic set, the shadow pass\'s flats and the air pass\'s emitters');
   const src = read('src/render/renderer.js');
-  assert.match(src, /bb: this\._buildProgram\(bbVertexShader\(src\.bbVs\), src\.bbFs\),/);
+  assert.match(src, /bb: this\._buildProgram\(bbVertexShader\(src\.bbVs\), billboardPixelShader\(src\.bbFs\)\),/);
   assert.match(src, /vs: \{ mesh: VS, bb: BB_VS, terrain: TERRAIN_VS, char: CHAR_VS, charSkin: CHAR_SKIN_VS \}/, 'the shadow pass: BB_VS');   // PIN MOVED (MWNPC16): the skinned body's VS beside it
   assert.match(src, /vs: \{ mesh: VS, bb: BB_VS \}, glsl:/, 'the air pass: BB_VS');
   assert.equal(EL_LANE.bbVs, EL_BB_VS_EXT);
@@ -652,7 +652,7 @@ test('LA-COST5: THE CONTACT MARCH IS EASED OUT OF ITS BAND, NOT CUT AT ITS EDGE 
   assert.equal(EL_CONTACT_FADE_START, 0.6); assert.equal(AIR_CONTACT_RANGE_FRACTION, 0.7);
   assert.ok(EL_CONTACT_FADE_START < AIR_CONTACT_RANGE_FRACTION, 'the fade ends where the march does');
   const eased = withStub(EL_MESH_FS);
-  const hard = swap(eased, '\n      : mix(contactShadow(wp, n, Ln, d), 1.0, smoothstep(uPointLights[i].w * 0.6, uPointLights[i].w * 0.7, d));', '\n      : contactShadow(wp, n, Ln, d);');
+  const hard = swap(eased, '\n      : mix(contactShadow(wp, biasNormal, Ln, d), 1.0, smoothstep(uPointLights[i].w * 0.6, uPointLights[i].w * 0.7, d));', '\n      : contactShadow(wp, biasNormal, Ln, d);');
   const colour = [1, 0.72, 0.42];
   const at = (src, w, d, hand = false) => {
     const f = glslFunctions(src, litBindings([[0, 0, 0, w]], [colour], [hand ? -2 : -1]), { fp32: true });

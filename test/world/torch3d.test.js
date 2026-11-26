@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildTorchBody,torchKind,TORCH_ARCHIVE} from '../../src/world/torchModel.js';
 import { identity, transformPoint } from '../../src/world/mat4.js';
+import { campfireLayerGeometry } from '../../src/world/campfireFlameCache.js';
+import { CAMPFIRE_ARCHIVE, CAMPFIRE_FRAMES } from '../../src/world/campfireModel.js';
 import { buildLightFixture, fixtureRecord, fixtureEmits } from '../../src/world/lightFixtureModel.js';
 import { Collider } from '../../src/player/collider.js';
 import { findTorchMount, fixtureCeilingGap, mountTorchBatch, torchMountAt, TORCH_COLLAR_Y } from '../../src/world/torchMount.js';
@@ -21,19 +23,51 @@ test('only the five flame torches become solid fixtures',()=>{
   assert.ok(m.subMeshes.every(s=>s.textureArchive===TORCH_ARCHIVE));
  }
 });
-test('fixtures share animation resources and release only after the final owner',()=>{
- const uploads=[],freed=[],released=[],draws=[];
- const r={createMesh:m=>m,uploadTexture:(...a)=>uploads.push(a),destroyMesh:m=>freed.push(m),releaseTexture:(...a)=>released.push(a),drawMesh:(...a)=>draws.push(a)};
- const a=createTorchVisual(r,'pole'),b=createTorchVisual(r,'wood');
- assert.equal(uploads.length,7);
- // Lifecycle can be tested without allocating a WebGL target.
- a.destroy();a.destroy();assert.equal(freed.length,0);
- b.destroy();assert.equal(freed.length,54);assert.equal(released.length,7);
- const c=createTorchVisual(r,'iron');assert.equal(uploads.length,14);c.destroy();
- assert.equal(draws.length,0);
+test('torch owners build only visible bodies and layers, reuse the exact camp animation, and release their resources once', () => {
+  const meshes = [], freed = [], uploads = [], released = [], emission = [], evicted = [], draws = [];
+  const renderer = {
+    createMesh(mesh) { meshes.push(mesh); return mesh; },
+    destroyMesh: mesh => freed.push(mesh),
+    uploadTexture: (_, record) => uploads.push(record),
+    releaseTexture: (_, record) => released.push(record),
+    uploadEmissionTexture: (_, record) => emission.push(record),
+    evictEmissionTexture: key => evicted.push(key),
+    drawMesh: mesh => draws.push(mesh),
+  };
+  const pole = createTorchVisual(renderer, 'pole'), wood = createTorchVisual(renderer, 'wood');
+  const shared = 2 + 3 * CAMPFIRE_FRAMES;
+  assert.equal(meshes.length, shared);
+  pole.draw([0, 0, 0], 1, 0);
+  assert.equal(meshes.length, shared);
+  for (const [i, layer] of ['core', 'middle', 'outer'].entries()) {
+    const source = campfireLayerGeometry(0, layer), drawn = draws[i + 1];
+    for (const field of ['positions', 'normals', 'uvs', 'indices']) assert.equal(drawn[field], source[field]);
+    assert.deepEqual(drawn.subMeshes, source.subMeshes.map(part => ({ ...part, textureArchive: TORCH_ARCHIVE })));
+    assert.deepEqual(drawn.slots, source.slots.map(slot => ({ ...slot, archive: TORCH_ARCHIVE })));
+    assert.ok(source.slots.every(slot => slot.archive === CAMPFIRE_ARCHIVE));
+  }
+  wood.draw([0, 0, 0], 1, 0);
+  assert.equal(meshes.length, shared);
+  assert.deepEqual(draws.slice(5), draws.slice(1, 4));
+  pole.draw([0, 0, 0], 1, 1 / 12);
+  assert.equal(meshes.length, shared);
+  assert.notEqual(draws[9], draws[1]);
+  const materialRecords = meshes.flatMap(mesh => mesh.subMeshes.map(part => part.textureRecord));
+  assert.deepEqual(uploads, [...new Set(materialRecords)]);
+  assert.deepEqual(emission, uploads.filter(record => record >= 5 && record <= 8));
+
+  pole.destroy(); pole.destroy();
+  assert.equal(freed.length, 0);
+  wood.destroy(); wood.destroy();
+  assert.deepEqual(freed, meshes);
+  assert.deepEqual(released, uploads);
+  assert.deepEqual(evicted, emission.map(record => `${TORCH_ARCHIVE}_${record}`));
+  const iron = createTorchVisual(renderer, 'iron');
+  iron.draw([0, 0, 0], 1, 0);
+  assert.equal(meshes.length, shared + 1 + 3 * CAMPFIRE_FRAMES);
+  assert.notEqual(draws[13], draws[1]);
+  iron.destroy();
 });
-
-
 test('a wall bracket reaches the authored face and pulls an embedded torch into the room', () => {
   const collider = new Collider(() => -Infinity);
   collider.addMesh('stone', [0, 0, 0, 2, 0, 0, 2, 3, 0, 0, 3, 0], [0, 1, 2, 0, 2, 3], identity());

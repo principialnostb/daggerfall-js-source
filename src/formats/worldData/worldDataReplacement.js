@@ -287,6 +287,7 @@ export function _resetWorldDataReplacement({ assets = true } = {}) {
   if (assets) {
     _assets.clear();
     _portBlocks.clear();
+    _portBlockNames.clear();
     _portBuildings.clear();
     _blockFamilies.length = 0;
     _locationEdits.length = 0;
@@ -301,11 +302,25 @@ export function _resetWorldDataReplacement({ assets = true } = {}) {
 // any BSA (world/gate/gateArena.js's made block is the precedent), so the first block a mod's file names still takes
 // BsaFile.Count (DFU's AssignBlockIndices, RR3b) and no pack's new block moves.
 const _portBlocks = new Map(); // name -> { index, json, block }
+const _portBlockNames = new Map(); // index -> first matching name in _portBlocks insertion order
+function setPortBlock(name, block) {
+  const previous = _portBlocks.get(name);
+  _portBlocks.set(name, block);
+  if (previous && previous.index !== block.index) {
+    // Map.set keeps this name's original place. Moving it can change the first match at both indices.
+    _portBlockNames.clear();
+    for (const [key, entry] of _portBlocks) {
+      if (!_portBlockNames.has(entry.index)) _portBlockNames.set(entry.index, key);
+    }
+  } else if (!_portBlockNames.has(block.index)) {
+    _portBlockNames.set(block.index, name);
+  }
+}
 /** A block of the port's own, by name, at a fixed index (>= 900000): its JSON, or (AUDIT-TESA A6-2) a function answering
  *  it, called when the block is first read. */
 export function registerPortBlock(name, json, index) {
   if (!name || json == null || !Number.isSafeInteger(index)) return false;
-  _portBlocks.set(name, { index, json, block: null });
+  setPortBlock(name, { index, json, block: null });
   return true;
 }
 // AUDIT SHIP-REFIT (2026-10-29): A BUILDING FILE OF THE PORT'S OWN - the ships' furnishing (world/shipRefit.js) - is the
@@ -324,7 +339,7 @@ export function registerPortBuilding(fileName, json) {
  *  a Bay palace block's copy, its court stood down), called when the block is first read, with the bound BlocksFile. */
 export function registerPortBlockOf(name, make, index) {
   if (!name || typeof make !== 'function' || !Number.isSafeInteger(index)) return false;
-  _portBlocks.set(name, { index, make, block: null });
+  setPortBlock(name, { index, make, block: null });
   return true;
 }
 /** IC-GRAND (bible/03-World/Arena-Provinces.md IC-GRAND): BLOCK FAMILIES - a run of the port's own blocks answered by one
@@ -375,10 +390,7 @@ function familyBlock(name) {
   }
   return null;
 }
-const portBlockByIndex = (index) => {
-  for (const [name, b] of _portBlocks) if (b.index === index) return name;
-  return familyName(index);
-};
+const portBlockByIndex = (index) => _portBlockNames.get(index) ?? familyName(index);
 function portBlock(name) {
   const b = _portBlocks.get(name);
   if (!b) return familyBlock(name);

@@ -1,4 +1,5 @@
 // @ts-check
+import { appendPixelFlat, removePixelFlat } from '../world/flatDistance.js';
 // WITCH1 (2026-10-20, the owner: "players with housing can place an object on the outside in which players can give
 // candy or whatever is lore appropriate"; "A new vendor that stands outside of each tavern"; bible/06-Systems/
 // Witches-Festival.md): THE WITCHES' FESTIVAL IN THE STREETS - the Hearth Offerings at the homes' doors, the Wyrd
@@ -118,8 +119,7 @@ export function createWitchesHost(deps) {
     stood.delete(key);
     if (!s) return;
     for (const r of s.rows) {
-      const i = s.entry.batches.indexOf(r.batch);
-      if (i >= 0) s.entry.batches.splice(i, 1);
+      removePixelFlat(s.entry.batches, r.batch);
       renderer.destroyBatch(r.batch);
       const j = s.entry.lights.indexOf(r.light);
       if (j >= 0) s.entry.lights.splice(j, 1);
@@ -143,7 +143,7 @@ export function createWitchesHost(deps) {
       if (!c) continue;
       const batch = renderer.createBillboardBatch(FESTIVAL_ARCHIVE, record, size, [c]);
       batch._box = flatBatchAabb([c], size);
-      entry.batches.push(batch);
+      appendPixelFlat(entry.batches, batch);
       const light = [c[0], c[1] + size.h - OFFERING_LIGHT_DROP, c[2]];
       entry.lights.push(light);
       rows.push({ o, c, batch, light });

@@ -72,3 +72,43 @@ export function farFlatVisibleAt(ring, height, animated = false) {
 export function farFlatVisible({ ring, height, animated = false }) {
   return farFlatVisibleAt(ring, height, animated);
 }
+
+// A streamed pixel fixes a batch's display height and arms its animation before insertion.
+// Only the frame *number*, position and draw flags may then change. Keep the original objects
+// in order so frustum, shadow and window passes still see their live values.
+const farByList = new WeakMap();
+const visibleFar = b => farFlatVisibleAt(FAR_FLAT_RING, b.farH ?? b.size?.h ?? 0, b.frame != null);
+
+export function pixelFlatsAtRing(batches, ring) {
+  if (ring < FAR_FLAT_RING) return batches;
+  let far = farByList.get(batches);
+  if (!far) {
+    far = batches.filter(visibleFar);
+    farByList.set(batches, far);
+  }
+  return far;
+}
+
+// Only published pixels need these mutations. During construction no frame can see the list.
+export function appendPixelFlat(batches, batch) {
+  batches.push(batch);
+  const far = farByList.get(batches);
+  if (far && visibleFar(batch)) far.push(batch);
+}
+
+export function removePixelFlat(batches, batch) {
+  const at = batches.indexOf(batch);
+  if (at < 0) return;
+  batches.splice(at, 1);
+  const far = farByList.get(batches);
+  if (far) {
+    const index = far.indexOf(batch);
+    if (index >= 0) far.splice(index, 1);
+  }
+}
+
+export function prependPixelFlats(batches, added) {
+  batches.unshift(...added);
+  // A season replaces the groups at the front. Preserve the order of all later arrivals.
+  if (added.length) farByList.delete(batches);
+}

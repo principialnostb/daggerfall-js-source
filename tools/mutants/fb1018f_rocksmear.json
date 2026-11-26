@@ -12,8 +12,8 @@
   {
     "name": "ROCK-SMEAR-one-plan",
     "file": "src/world/townStandIns.js",
-    "old": "    m.tri(ROCK, a, b, c, nn, boulderUv(a, nn), boulderUv(b, nn), boulderUv(c, nn));",
-    "new": "    m.tri(ROCK, a, b, c, nn, [a[0], -a[1]], [b[0], -b[1]], [c[0], -c[1]]);",
+    "old": "    m.tri(BOULDER, a, b, c, nn, boulderUv(a, nn), boulderUv(b, nn), boulderUv(c, nn));",
+    "new": "    m.tri(BOULDER, a, b, c, nn, [a[0] * .38, -a[1] * .38], [b[0] * .38, -b[1] * .38], [c[0] * .38, -c[1] * .38]);",
     "tests": [
       "test/world/fb1018f_rocksmear.test.js"
     ],
@@ -22,8 +22,8 @@
   {
     "name": "ROCK-SMEAR-underside-side-view",
     "file": "src/world/townStandIns.js",
-    "old": "  if (ay >= ax && ay >= az) return [p[0], -p[2]]; // the crown and the underside: from above",
-    "new": "  if (ay >= ax && ay >= az) return [p[0], -p[1]]; // the crown and the underside: from above",
+    "old": "if (ay >= ax && ay >= az) return [p[0] * .38, -p[2] * .38];",
+    "new": "if (ay >= ax && ay >= az) return [p[0] * .38, -p[1] * .38];",
     "tests": [
       "test/world/fb1018f_rocksmear.test.js"
     ],
@@ -32,8 +32,8 @@
   {
     "name": "ROCK-SMEAR-x-side-front-view",
     "file": "src/world/townStandIns.js",
-    "old": "  return ax >= az ? [p[2], -p[1]] : [p[0], -p[1]]; // a side: along the axis it faces, its rows level",
-    "new": "  return ax >= az ? [p[0], -p[1]] : [p[0], -p[1]]; // a side: along the axis it faces, its rows level",
+    "old": "return [(ax >= az ? p[2] : p[0]) * .38, -p[1] * .38];",
+    "new": "return [p[0] * .38, -p[1] * .38];",
     "tests": [
       "test/world/fb1018f_rocksmear.test.js"
     ],
@@ -52,8 +52,8 @@
   {
     "name": "ROCK-SMEAR-rows-upside-down",
     "file": "src/world/townStandIns.js",
-    "old": "  return ax >= az ? [p[2], -p[1]] : [p[0], -p[1]]; // a side: along the axis it faces, its rows level",
-    "new": "  return ax >= az ? [p[2], p[1]] : [p[0], -p[1]]; // a side: along the axis it faces, its rows level",
+    "old": "return [(ax >= az ? p[2] : p[0]) * .38, -p[1] * .38];",
+    "new": "return [(ax >= az ? p[2] : p[0]) * .38, p[1] * .38];",
     "tests": [
       "test/world/fb1018f_rocksmear.test.js"
     ],
@@ -113,8 +113,8 @@
   {
     "name": "ROCK-SMEAR-uv-of-raw-normal",
     "file": "src/world/townStandIns.js",
-    "old": "    m.tri(ROCK, a, b, c, nn, boulderUv(a, nn), boulderUv(b, nn), boulderUv(c, nn));",
-    "new": "    m.tri(ROCK, a, b, c, nn, boulderUv(a, n), boulderUv(b, n), boulderUv(c, n));",
+    "old": "    m.tri(BOULDER, a, b, c, nn, boulderUv(a, nn), boulderUv(b, nn), boulderUv(c, nn));",
+    "new": "    m.tri(BOULDER, a, b, c, nn, boulderUv(a, n), boulderUv(b, n), boulderUv(c, n));",
     "tests": [
       "test/world/fb1018f_rocksmear.test.js"
     ],

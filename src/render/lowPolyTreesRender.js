@@ -17,24 +17,36 @@ export class LowPolyTreesGpu {
    */
   constructor(gl, index, bin) {
     this.gl = gl;
-    const vertexFloats = index.vertexBytes / 4;
-    const verts = new Float32Array(
-      bin.buffer.slice(bin.byteOffset, bin.byteOffset + index.vertexBytes),
-      0,
-      vertexFloats,
-    );
-    // the indices made whole-buffer (WebGL2 has no base vertex): each mesh's u16 run plus its first vertex, as u32
+    const { vertexBytes } = index;
+    if (!Number.isSafeInteger(vertexBytes) || vertexBytes < 0 || vertexBytes % 32 || vertexBytes > bin.byteLength) {
+      throw new RangeError('Invalid tree vertex byte range');
+    }
+    // WebGL reads these bytes synchronously; even an unaligned slice needs no float copy.
+    const verts = bin.subarray(0, vertexBytes);
+    // Rebase each mesh's local u16 indices to the one global u32 element buffer.
     let total = 0;
-    for (const m of index.meshes) for (const [, n] of m.subs) total += n;
-    const u16 = new Uint16Array(
-      bin.buffer.slice(bin.byteOffset + index.vertexBytes, bin.byteOffset + index.vertexBytes + total * 2),
-    );
+    for (const m of index.meshes) for (const [, n] of m.subs) {
+      if (!Number.isSafeInteger(n) || n < 0) throw new RangeError('Invalid tree submesh index count');
+      total += n;
+    }
+    if (total * 2 > bin.byteLength - vertexBytes) throw new RangeError('Truncated tree index data');
+    const offset = bin.byteOffset + vertexBytes;
+    const words = offset % 2 === 0 ? new Uint16Array(bin.buffer, offset, total) : null;
     const idx = new Uint32Array(total);
     /** each mesh's submeshes as [byte offset into the index buffer, count] */
     this.subs = index.meshes.map((m) =>
       m.subs.map(([at, n]) => {
         const start = m.index + at;
-        for (let k = 0; k < n; k++) idx[start + k] = u16[start + k] + m.vertex;
+        if (!Number.isSafeInteger(start) || start < 0 || start + n > total) throw new RangeError('Invalid tree submesh index range');
+        const end = start + n;
+        if (words) {
+          for (let i = start; i < end; i++) idx[i] = words[i] + m.vertex;
+        } else {
+          // Packed little-endian u16 values may start at an odd offset inside a caller's buffer.
+          for (let i = start, byte = vertexBytes + start * 2; i < end; i++, byte += 2) {
+            idx[i] = (bin[byte] | (bin[byte + 1] << 8)) + m.vertex;
+          }
+        }
         return [start * 4, n];
       }),
     );

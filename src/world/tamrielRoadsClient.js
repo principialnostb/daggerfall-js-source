@@ -45,7 +45,7 @@ const clock = () => (globalThis.performance ?? Date).now();
 
 /**
  * @param {{ makeWorker?: () => any, workers?: number, store?: ?{ get: Function, set: Function }, log?: { warn: Function },
- *   defer?: (fn: () => void) => void, now?: () => number, budgetMs?: number }} [o] `store` undefined: the roads' IndexedDB
+ *   defer?: (fn: () => void) => void, now?: () => number, budgetMs?: number, readLayer?: (packed: any) => any }} [o] `store` undefined: the roads' IndexedDB
  *   cache (null where there is none); null: none. `defer` runs a function in a task of its own, `now` the clock.
  */
 export function createTamrielRoadsClient({
@@ -56,6 +56,7 @@ export function createTamrielRoadsClient({
   defer = nextTask,
   now = clock,
   budgetMs = LAND_BUDGET_MS,
+  readLayer = unpackArenaRoads,
 } = {}) {
   const cache = store === undefined ? idbStore() : store;
   /** @type {any[]} */
@@ -156,10 +157,10 @@ export function createTamrielRoadsClient({
       log.warn(`[roads] region (${m.i}, ${m.j}) could not be built: ${m.error}`);
       return;
     }
-    const layer = unpackArenaRoads(m.layer),
+    const layer = readLayer(m.layer),
       places = unpackPastBayPlaces(m.places);
     keep(asked, m);
-    live.onRegion(asked.region, layer, { ...m.stats, ms: m.ms, cached: false }, places, m.land ?? null); // EXACT-PIECES: its land's pieces
+    live.onRegion(asked.region, layer, { ...m.stats, ms: m.ms, cached: false }, places, m.land ?? null, m.layer); // EXACT-PIECES: its land's pieces
   }
   function answer(slot, m) {
     const asked = slot.busy;
@@ -253,10 +254,11 @@ export function createTamrielRoadsClient({
       const { region, hit } = landing.shift();
       live.onRegion(
         region,
-        unpackArenaRoads(hit.layer),
+        readLayer(hit.layer),
         { cached: true },
         unpackPastBayPlaces(hit.places),
         hit.land ?? null,
+        hit.layer,
       );
       if (now() - t0 >= budgetMs) break;
     }
@@ -269,7 +271,7 @@ export function createTamrielRoadsClient({
      * regions nearest first, and where each region's layer and places go. Answers once the cache has been asked of every
      * region (the hits still landing, a budget a task).
      * @param {{ inputs: object, print: string, regions: Array<{ i: number, j: number, core: object }>,
-     *   onRegion: (region: any, layer: any, stats: { cached: boolean, ms?: number }, places: Array<{ x: number, y: number, type: number }>, land?: any) => void }} o
+     *   onRegion: (region: any, layer: any, stats: { cached: boolean, ms?: number }, places: Array<{ x: number, y: number, type: number }>, land?: any, packed?: any) => void }} o
      */
     start({ inputs, print, regions, onRegion }) {
       const me = { run: ++run, inputs, print, onRegion };

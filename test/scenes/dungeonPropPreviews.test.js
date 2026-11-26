@@ -3,24 +3,42 @@ import assert from 'node:assert/strict';
 import { createDungeonPropPreviews, closeDungeonPropPreviews } from '../../src/scenes/dungeonPropPreviews.js';
 import { executeConsoleCommand, hasConsoleCommand } from '../../src/systems/consoleCommands.js';
 import { identity } from '../../src/world/mat4.js';
+import { TREASURE_ART } from '../../src/world/treasureModel.js';
 import { drawTreasurePiles, releaseTreasurePile } from '../../src/render/treasurePiles.js';
 
 test('the violet sarcophagus panel entry spawns its object mesh as a single prop and as a set', async () => {
-  const draws = [];
+  const draws = [], loadedModels = [], uploaded = [], released = [];
+  const resident = new Set();
   const renderer = {
     _view: identity(),
     createBillboardBatch: () => ({}),
     createMesh: data => ({ data }),
-    drawMesh: (mesh, pose) => draws.push({ mesh, pose }),
-    uploadTexture() {},
+    drawMesh(mesh, pose) {
+      for (const sub of mesh.data?.subMeshes ?? []) assert.ok(resident.has(sub.textureArchive + ':' + sub.textureRecord));
+      draws.push({ mesh, pose });
+    },
+    uploadTexture(archive, record) {
+      const key = archive + ':' + record;
+      resident.add(key);
+      uploaded.push(key);
+    },
     destroyMesh() {},
-    releaseTexture() {},
+    releaseTexture(archive, record) {
+      const key = archive + ':' + record;
+      resident.delete(key);
+      released.push(key);
+    },
     destroyBatch(batch) { releaseTreasurePile(this, batch); },
   };
   const batches = createDungeonPropPreviews({
     renderer, active: () => true,
     getTexture() { throw new Error('ARCH3D preview should not load a sprite'); },
-    getGpuMesh: async () => ({ original: true }),
+    getGpuMesh: async (id) => {
+      loadedModels.push(id);
+      resident.add('92:8');
+      resident.add('92:11');
+      return { original: true };
+    },
     cpuModels: new Map([41315, 41322, 41323, 41325, 41326].map(id => [id, { positions: [-1, -.5, -1, 1, .5, 1] }])),
     collider: { raycastHit: (_, direction) => ({ dist: direction[1] < 0 ? 2 : Infinity }) },
   });
@@ -29,13 +47,21 @@ test('the violet sarcophagus panel entry spawns its object mesh as a single prop
     assert.match(executeConsoleCommand('prop_preview', ['set', 'Саркофаги']), /Размещаю/);
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(batches.length, 6);
-    assert.deepEqual(drawTreasurePiles(renderer, batches), []);
+    assert.deepEqual(loadedModels, [41324, 41319, 41320, 41321, 41324, 41327]);
+    assert.deepEqual(drawTreasurePiles(renderer, batches, false), batches);
+    assert.deepEqual(draws, []);
+    assert.deepEqual(uploaded, []);
+    assert.deepEqual(drawTreasurePiles(renderer, batches, true), []);
     assert.equal(draws.length, 6);
     assert.equal(draws[0].mesh.pixelKind, 'objects');
     assert.equal(draws[0].mesh.pixelFootprint, undefined);
     assert.equal(draws[0].mesh.pixelBlockScale, 1.5);
-    assert.ok(draws[0].mesh.data.subMeshes.some(sub => sub.textureArchive === 92 && sub.textureRecord === 11));
-    assert.ok(draws[0].mesh.data.subMeshes.some(sub => sub.textureArchive === 92 && sub.textureRecord === 8));
+    const trim = TREASURE_ART + ':118';
+    assert.deepEqual(uploaded, [trim]);
+    for (const { mesh } of draws) {
+      const records = mesh.data.subMeshes.map(sub => sub.textureArchive + ':' + sub.textureRecord);
+      assert.deepEqual(new Set(records), new Set(['92:11', '92:8', trim]));
+    }
     const lidEdges = ({ mesh, pose }) => {
       const { positions, indices, subMeshes } = mesh.data;
       const lid = subMeshes.find(sub => sub.textureArchive === 92 && sub.textureRecord === 8);
@@ -53,6 +79,8 @@ test('the violet sarcophagus panel entry spawns its object mesh as a single prop
     assert.equal(draws.at(-1).pose[13], -1.5);
     assert.match(executeConsoleCommand('prop_preview', ['clear']), /cleared/);
     assert.equal(batches.length, 0);
+    assert.deepEqual(released, [trim]);
+    assert.deepEqual(resident, new Set(['92:8', '92:11']));
   } finally {
     closeDungeonPropPreviews(batches);
   }

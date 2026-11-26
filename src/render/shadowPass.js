@@ -1,3 +1,4 @@
+import { PointShadowMembership } from './pointShadowMembership.js';
 // @ts-check
 // EL2 (2026-09-17, the Enhanced Lighting arc, tier two - SHADOWS).
 //
@@ -1264,6 +1265,7 @@ export class ShadowPass {
     this._cands = Array.from({ length: SHADOW_POINT_CASTERS }, () => ({ n: 0, hw: 0, rec: new Int32Array(64), bn: new Int32Array(64), bb: [] }));   // AUDIT 637 B4: `hw` the most slots filled since discard
     this._candOf = new Array(SHADOW_POINT_CASTERS).fill(null);
     this._candLim = new Float64Array(5 * SHADOW_POINT_CASTERS);
+    this._casterMembership = new PointShadowMembership(SHADOW_POINT_CASTERS, cubeKeeps);
     this._candOpen = new Int32Array(SHADOW_POINT_CASTERS);
     this._candQuads = new Uint8Array(SHADOW_POINT_CASTERS);
     this._candWalked = false;   // AUDIT 637 B3: this frame's walk made (render clears it; _candFor makes it on the first ask)
@@ -1273,6 +1275,7 @@ export class ShadowPass {
     // a slot's flats are its `bb` array up to its count in `bn`: the arrays are kept, only the counts reset
     this._reach = new Float64Array(6 + SHADOW_CASCADES.length);   // the read reach: the eye, the light's unit direction, each cascade's radius
     this._sunReachOn = false;
+    this._sunRecordSlots = new Int32Array(SHADOW_CASCADES.length);
     this._sunCandPlanes = SHADOW_CASCADES.map(() => new Float32Array(24));
     this._sunPlanes = SHADOW_CASCADES.map(() => new Float32Array(24));   // SHADOW-REACH: the cascades' frusta, for the hosts' reach test
     this._sunPlanesFrame = -1;
@@ -2330,9 +2333,10 @@ export class ShadowPass {
       const ok = SHADOW_TUNING.facePrepass !== false && Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z) && Number.isFinite(far);
       out[k] = ok ? this._cands[k] : null;
       quads[k] = 0;
-      if (ok) { this._cands[k].n = 0; live++; }
+      if (ok) { this._cands[k].n = 0; live |= 1 << k; }
     }
     for (let k = nC; k < out.length; k++) out[k] = null;
+    this._casterMembership.begin(lim, live);
     if (!live) return out;
     const add = (k, i) => {
       const c = out[k];
@@ -2345,16 +2349,17 @@ export class ShadowPass {
     for (let i = 0; i < this.count; i++) {
       const r = this.records[i];
       if (r.kind !== REC_BB) {
-        const sx = r.sphere[0], sy = r.sphere[1], sz = r.sphere[2], sr = r.sphere[3];
-        for (let k = 0; k < nC; k++) if (out[k] && (!r.bounded || cubeKeeps(lim, k, sx, sy, sz, sr))) add(k, i);
+        for (let ranks = this._casterMembership.ranks(r, r.bounded ? r.sphere : null); ranks; ranks &= ranks - 1) {
+          add(31 - Math.clz32(ranks & -ranks), i);
+        }
         continue;
       }
       for (let k = 0; k < nC; k++) open[k] = -1;
       for (const b of r.batches) {
         if (!b) continue;   // the replay's first question drops it too
         const c = batchSphere(b, sp);   // none: every face takes it (and one with a NaN in it cubeKeeps keeps)
-        for (let k = 0; k < nC; k++) {
-          if (!out[k] || (c && !cubeKeeps(lim, k, c[0], c[1], c[2], c[3]))) continue;
+        for (let ranks = this._casterMembership.ranks(b, c); ranks; ranks &= ranks - 1) {
+          const k = 31 - Math.clz32(ranks & -ranks);
           if (b._place) quads[k] = 1;   // its quads asked if this lantern draws (_candidateQuads)
           let j = open[k];
           if (j < 0) { j = add(k, i); open[k] = j; openList(out[k], j); }
@@ -2648,35 +2653,33 @@ export class ShadowPass {
       openList(L, j);
       return j;
     };
-    // the far cascade: every record, every flat
-    const P = planes[last];
+    // Each batch has one world sphere throughout this walk. Walk its nested
+    // cascades from far to near while the sphere is in hand. Each list keeps
+    // the original record order and the original batch order within a record.
+    const reach = this._sunReachOn, slots = this._sunRecordSlots;
     for (let i = 0; i < this.count; i++) {
       const r = this.records[i];
-      if (r.kind !== REC_BB) { if (recordVisible(P, r)) add(last, i); continue; }
-      let j = -1;
-      for (const b of r.batches) {
-        if (!b || !batchVisible(P, b)) continue;   // the replay's first question drops a null one too
-        if (j < 0) j = add(last, i);
-        const farList = out[last]; farList.bb[j][farList.bn[j]++] = b;
+      if (r.kind !== REC_BB) {
+        for (let c = last; c >= 0; c--) {
+          if (!recordVisible(planes[c], r)) break;
+          if (c < last && reach && this._solidPastReach(r, this._reach[6 + c])) break;
+          add(c, i);
+        }
+        continue;
       }
-    }
-    // each nearer cascade: the next one out's list, by its own planes, and by its read reach
-    const reach = this._sunReachOn;
-    for (let c = last - 1; c >= 0; c--) {
-      const from = out[c + 1], Q = planes[c];
-      const radius = this._reach[6 + c];
-      for (let t = 0; t < from.n; t++) {
-        const i = from.rec[t], r = this.records[i];
-        if (r.kind !== REC_BB) { if (recordVisible(Q, r) && !(reach && this._solidPastReach(r, radius))) add(c, i); continue; }
-        const list = from.bb[t], n = from.bn[t];
-        const windRate = reach ? Math.hypot(r.flatWind[0], r.flatWind[1]) : 0, law = reach && windfallLawOn(r.windfall);
-        let j = -1;
-        for (let u = 0; u < n; u++) {
-          const b = list[u];
-          if (!batchVisible(Q, b)) continue;
-          if (reach && this._flatPastReach(r, windRate, law, b, radius)) continue;
-          if (j < 0) j = add(c, i);
-          const nearList = out[c]; nearList.bb[j][nearList.bn[j]++] = b;
+      slots.fill(-1);
+      const windRate = reach ? Math.hypot(r.flatWind[0], r.flatWind[1]) : 0;
+      const law = reach && windfallLawOn(r.windfall);
+      for (const b of r.batches) {
+        if (!b) continue;
+        const s = batchSphere(b, this._bSphere);
+        for (let c = last; c >= 0; c--) {
+          if (s && !sphereInPlanes(planes[c], s[0], s[1], s[2], s[3])) break;
+          if (c < last && reach && this._flatPastReach(r, windRate, law, b, this._reach[6 + c])) break;
+          const list = out[c];
+          if (slots[c] === -1) slots[c] = add(c, i);
+          const slot = slots[c];
+          list.bb[slot][list.bn[slot]++] = b;
         }
       }
     }
@@ -2868,7 +2871,7 @@ export class ShadowPass {
         use(P.terrain);
         gl.uniformMatrix4fv(P.terrain.model, false, r.matrix);
         f.bindVao(s.vao);
-        gl.drawElements(gl.TRIANGLES, s.indexCount, gl.UNSIGNED_INT, 0);
+        gl.drawElements(gl.TRIANGLES, s.indexCount, s.indexType ?? gl.UNSIGNED_INT, 0);
         draws++;
       } else {
         use(P.bb);

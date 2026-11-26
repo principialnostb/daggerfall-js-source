@@ -525,7 +525,7 @@ test('LPT1 the fragment: the far picture and its tree are complementary screen-d
 });
 
 /** A recording fake GL (arena5_banners's shape). */
-function recordingGl() {
+function recordingGl(onBufferData = null) {
   const calls = [];
   let ids = 0;
   const consts = { TEXTURE0: 33984, TEXTURE1: 33985, TEXTURE_2D: 3553, TEXTURE_2D_ARRAY: 35866 };
@@ -538,7 +538,10 @@ function recordingGl() {
       if (typeof k === 'string' && k.startsWith('create')) return () => ({ id: ++ids });
       if (k === 'getParameter') return () => new Float32Array(4);
       if (typeof k === 'string' && k.toUpperCase() === k) return k;
-      return (...args) => { calls.push([k, ...args.map((a) => (ArrayBuffer.isView(a) ? Array.from(a) : a))]); };
+      return (...args) => {
+        if (k === 'bufferData') onBufferData?.(...args);
+        calls.push([k, ...args.map((a) => (ArrayBuffer.isView(a) ? Array.from(a) : a))]);
+      };
     },
   });
   return { gl, calls, canvas: { getContext: () => gl, clientWidth: 320, clientHeight: 200, width: 320, height: 200 } };
@@ -676,6 +679,38 @@ test('LPT1 the atlas texture (AUDIT LPT A4/A5): its chain allocated, sampled as 
   r.releaseAtlasTexture(tex);
   assert.equal(calls.filter((c) => c[0] === 'deleteTexture').length, 1, 'freed once');
   assert.ok(!r.lptAtlases.has(tex));
+});
+
+test('LowPolyTreesGpu uploads precisely the supplied byte view and rebases aligned and unaligned indices', () => {
+  const vertexBytes = 260 * 32;
+  const index = { vertexBytes, meshes: [
+    { vertex: 0, vertices: 258, index: 0, subs: [[0, 3]] },
+    { vertex: 258, vertices: 2, index: 3, subs: [[0, 3]] },
+  ] };
+  for (const offset of [0, 1, 2, 3, 4]) {
+    const backing = new Uint8Array(offset + vertexBytes + 12 + 9).fill(0xaa);
+    const bin = backing.subarray(offset, offset + vertexBytes + 12);
+    for (let i = 0; i < vertexBytes; i++) bin[i] = i;
+    const local = [257, 256, 0, 0, 1, 1];
+    const data = new DataView(bin.buffer, bin.byteOffset, bin.byteLength);
+    local.forEach((v, i) => data.setUint16(vertexBytes + 2 * i, v, true));
+    const uploaded = [];
+    const { gl, calls } = recordingGl((_target, data) => uploaded.push(data));
+    const gpu = new LowPolyTreesGpu(gl, index, bin);
+    const [vertices, indices] = uploaded;
+    assert.equal(vertices.buffer, bin.buffer);
+    assert.equal(vertices.byteOffset, bin.byteOffset);
+    assert.equal(vertices.byteLength, vertexBytes);
+    assert.deepEqual([...vertices], [...bin.subarray(0, vertexBytes)]);
+    assert.ok(indices instanceof Uint32Array);
+    assert.deepEqual([...indices], [257, 256, 0, 258, 259, 259]);
+    assert.deepEqual(gpu.subs, [[[0, 3]], [[12, 3]]]);
+    gpu.destroy();
+    const before = calls.length;
+    assert.throws(() => new LowPolyTreesGpu(gl, index, bin.subarray(0, -1)), RangeError);
+    assert.throws(() => new LowPolyTreesGpu(gl, index, bin.subarray(0, 2)), RangeError);
+    assert.equal(calls.length, before, 'truncated views fail before allocating GPU resources');
+  }
 });
 
 test('LPT1 LowPolyTreesGpu: one vertex buffer as the billboard program reads it (vertex 0, uv 1, normal 2), the indices made whole-buffer u32 with each mesh\'s first vertex added, the instance at 3 ([x, y, z, turn]) and 4 (its scale) a divisor each; setInstances grows by doubling', () => {
@@ -977,7 +1012,8 @@ test('LPT1 the hosts: world.js and exterior.js stand the trees behind the mod\'s
   assert.match(w, /made\.lptHandles = lptHandles;/, 'BUILD-FAIL1\'s ledger carries them...');
   assert.match(th, /for \(const h of m\.lptHandles \?\? \[\]\) lowPolyTrees\?\.release\(h\);/, '...and a build that throws lets them go');
   assert.match(w, /trees\.releasedBuild\(m\);/, '...asked by releaseFailedBuild');
-  assert.match(w, /farFlatVisibleAt\(ring, b\.farH \?\? b\.size\?\.h \?\? 0, b\.frame != null\)/);
+  assert.match(w, /pixelFlatsAtRing\(p\.batches, ring\)/);
+  assert.match(read('src/world/flatDistance.js'), /farFlatVisibleAt\(FAR_FLAT_RING, b\.farH \?\? b\.size\?\.h \?\? 0, b\.frame != null\)/);
   assert.match(th, /skip: \(set, i\) => FELLED\.has\(set\.centers\[i\]\)/, 'a felled tree stands no 3D tree');
   const fr = th.slice(th.indexOf('    frame(pixels, eye, planes) {'), th.indexOf('lowPolyTrees?.frame(lptSets'));
   assert.match(fr, /if \(p\._dist2 > 2\) \{ if \(p\._dist2 > 8\) \{ drop\(a\); drop\(b\); \} continue; \}/, 'the eye\'s pixel and its eight; a set past the 5x5 let go (AUDIT LPT B10)');

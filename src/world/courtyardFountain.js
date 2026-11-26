@@ -1,3 +1,4 @@
+import { paintFamily } from './paintFamily.js';
 import { createMeshKit } from './eliteGates/meshKit.js';
 import { courtyardStonePaint, mapCourtyardStone } from './courtyardFountainStone.js';
 
@@ -9,12 +10,10 @@ const POOL_RADIUS = .405;
 
 export const COURTYARD_PAINT = Object.freeze({ stone: SANDSTONE, water: POOL });
 
-export function courtyardFountainPaints() {
-  return [
-    [SANDSTONE, courtyardStonePaint()],
-    [POOL, { width: 1, height: 1, colors: Uint8Array.of(46, 69, 67, 255) }],
-  ];
-}
+export const courtyardFountainPaints = paintFamily([
+  [SANDSTONE, courtyardStonePaint],
+  [POOL, () => ({ width: 1, height: 1, colors: Uint8Array.of(46, 69, 67, 255) })],
+]);
 
 const point = (radius, y, side) => [radius * Math.cos(side * STEP), y, radius * Math.sin(side * STEP)];
 

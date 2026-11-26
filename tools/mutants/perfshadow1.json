@@ -69,8 +69,8 @@
   {
     "name": "PERF-SHADOW1-g-an-unbounded-record-left-out",
     "file": "src/render/shadowPass.js",
-    "old": "if (out[k] && (!r.bounded || cubeKeeps(lim, k, sx, sy, sz, sr))) add(k, i);",
-    "new": "if (out[k] && cubeKeeps(lim, k, sx, sy, sz, sr)) add(k, i);",
+    "old": "this._casterMembership.ranks(r, r.bounded ? r.sphere : null)",
+    "new": "this._casterMembership.ranks(r, r.sphere)",
     "tests": [
       "test/render/perfshadow1.test.js"
     ]

@@ -26,12 +26,18 @@ export function withFixturePixelTarget(renderer, draw) {
  }
 }
 
-export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null){
+export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null,onEmptyCoverage=null){
  if(active.has(r)||!r.gl||r._spriteDepth>0||r._panelSaved)return false;
  const rows=worldPixelRows(kind)/(mesh?.pixelBlockScale??1);
  if(!rows)return false;
  const target=r._fixturePixelTarget ?? alphaState ?? {};
+ const world = !r._studioDepth && !r._rwOutside && r._worldFixtureDestination;
+ if (world && !r._fixturePixelTarget) {
+  target.viewport ??= world.viewport;
+  if (target.framebuffer === undefined) target.framebuffer = world.framebuffer;
+ }
  const vp=target.viewport ??= pixelViewport(r.gl);
+ if (!vp) return true; // A lost context cannot draw. Resume normally when the viewport returns.
  if(blockPixels(vp[3],rows)<=1&&!mesh?.pixelFootprint)return false;
  const b=mesh?.bounds;
  const footprint=mesh?.pixelFootprint;
@@ -42,18 +48,28 @@ export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null){
  },(x,y,z)=>transformPoint(m,x,y,z)):b?boxCorners({minX:b[0]-b[3],maxX:b[0]+b[3],minY:b[1]-b[3],maxY:b[1]+b[3],minZ:b[2]-b[3],maxZ:b[2]+b[3]},(x,y,z)=>transformPoint(m,x,y,z)):null;
  if(mesh?.pixelKind==='effect' && fixtureHidden(r,corners,blockPixels(vp[3],rows)+1))return true;
  const projection=r._proj;
+ let drew = false, completed = false;
  active.add(r);
  // Target allocation binds 2D textures on the active unit; never let it replace snow masks or world data.
  r.gl.activeTexture(r.gl.TEXTURE0);
  try{
   drawPixelatedCharacters(r,[{mesh,model:m}],rows,corners,()=>{
+   drew = true;
    r._forgetTextureShadows?.();
    r._use(r.program);r.gl.uniformMatrix4fv(r.uProj,false,r._proj);
    r._tFrameStamp=-1;
    draw();
-  },opacity,footprint,target);
+  },opacity,footprint,target,world ? onEmptyCoverage : null);
+  completed = true;
  }finally{
-  active.delete(r);r._tFrameStamp=-1;r._forgetTextureShadows?.();
+  active.delete(r);
+  if (drew || !completed) {
+   r._tFrameStamp = -1;
+   r._forgetTextureShadows?.();
+  } else {
+   // The rectangle was empty. Only the explicit activeTexture above touched GL.
+   r._activeUnit = r.gl.TEXTURE0;
+  }
   r._use(r.program);r.gl.uniformMatrix4fv(r.uProj,false,projection);
  }
  return true;
@@ -61,5 +77,9 @@ export function pixelWorldDraw(r,kind,mesh,m,draw,opacity=1,alphaState=null){
 
 export function pixelWorldMesh(r,mesh,m,remap,options){
  if(options.translucent>0||(mesh?.pixelKind!=='objects' && mesh?.pixelKind!=='landscape' && mesh?.pixelKind!=='pond'))return false;
- return pixelWorldDraw(r,mesh.pixelKind,mesh,m,()=>r.drawMesh(mesh,m,remap,options));
+ // Even a mesh with no resolved colour can cast a visible shadow.
+ const onEmptyCoverage = !mesh.wl && !mesh.prepass && mesh.vao && mesh.subMeshes?.length ? () => {
+  if (!options.noShadow) r.recordShadowMesh(mesh, m, remap);
+ } : null;
+ return pixelWorldDraw(r,mesh.pixelKind,mesh,m,()=>r.drawMesh(mesh,m,remap,options),1,null,onEmptyCoverage);
 }

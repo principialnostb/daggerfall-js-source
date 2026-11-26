@@ -6,8 +6,8 @@ const smooth = (a, b, x) => {
 
 // Locate sub-cell intersections with the level sheet. Only nearby vertices
 // need distances; the unmodified bowl, street and perimeter keep their heights.
-export function bankFinishWeights(depth, width, height, step, waterline) {
-  const distance = new Float32Array(depth.length).fill(FINISH_REACH);
+export function bankFinishWeights(depth, width, height, step, waterline, distance = new Float32Array(depth.length)) {
+  distance.fill(FINISH_REACH);
   function mark(x, z, dx, dz, a, b) {
     if ((a < waterline) === (b < waterline)) return;
     const t = (waterline - a) / (b - a);

@@ -116,7 +116,8 @@ async function bytes(entry) {
     });
     cache.set(entry.url, pending);
   }
-  return new Uint8Array(await pending);
+  // Clip readers share immutable keyframe bytes; each rig owns its playback state.
+  return pending;
 }
 
 /**

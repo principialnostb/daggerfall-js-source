@@ -2,7 +2,7 @@
   {
     "name": "ALLOC-RACE-the-settle-dropped-from-the-list",
     "file": "test/allocChild.mjs",
-    "old": "  '--import', fileURLToPath(new URL('./allocSettle.mjs', import.meta.url)),\n",
+    "old": "  '--import', new URL('./allocSettle.mjs', import.meta.url).href,\n",
     "new": "",
     "tests": [
       "test/tooling/allocchild.test.js"

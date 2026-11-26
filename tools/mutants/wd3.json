@@ -237,8 +237,8 @@
   {
     "name": "PORT-STAND-INS-det-gated",
     "file": "src/world/townStandIns.js",
-    "old": "  return installDetStandIns(() => true) + addVendorTextures(items.map((e) => ({ ...e, yields: true }))); // a player's own RMB Resource Pack answers first",
-    "new": "  return installDetStandIns(() => false) + addVendorTextures(items.map((e) => ({ ...e, yields: true }))); // a player's own RMB Resource Pack answers first",
+    "old": "  return installDetStandIns(() => true)",
+    "new": "  return installDetStandIns(() => false)",
     "tests": [
       "test/world/wd3_standins.test.js"
     ]

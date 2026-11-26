@@ -100,7 +100,7 @@ import { textureReplacementEnabled, hasTextureReplacement, preloadTextureRecord,
 import { SeasonHelper } from '../systems/seasonsIliacBay.js';   // SIB1: Seasons of the Iliac Bay's SeasonHelper; WINDFALL1: and its atlases' prefixes, which Windfall's own tables key on
 import { loadSeasonsTextures, seasonsInstalled } from '../systems/seasonsIliacBayAssets.js';   // SIB1: its textures, from the player's own copy of the mod
 import { createSeasonReskin } from '../world/seasonReskin.js';
-import { farFlatVisibleAt } from '../world/flatDistance.js';   // MAC1: the far rings draw the trees and the flats that move, and nothing small   // ROAD-H H3: which pixels a season re-skin rebuilds - RefreshLoadedNatureBatches' per-batch decision, per KEY
+import { appendPixelFlat, pixelFlatsAtRing, removePixelFlat } from '../world/flatDistance.js';   // MAC1: the far rings draw the trees and the flats that move, and nothing small   // ROAD-H H3: which pixels a season re-skin rebuilds - RefreshLoadedNatureBatches' per-batch decision, per KEY
 import { updateCityGate } from '../world/city/cityGate.js';   // AUDIT 64 F14: DaggerfallCityGate
 import { targetAimPoint, missileAimDirection, isLocalPlayerTarget, PLAYER_TARGET } from '../characters/enemy/enemyTargets.js';   // AUDIT WORLD6b-iii(a) C3: the ONE aim law for an enemy missile (the peer's transform, mine otherwise); HCC: CollectThreats' `senses.Target == player`
 import { setupExteriorQuestStaticNpcs } from '../characters/exteriorNpcs.js';   // C2 / AUDIT 26: RMBLayout's street StaticNPCs; E3: their quest pass
@@ -517,7 +517,7 @@ import { noteMyBlow, noteMyHurt, isHurtClip, poseFx, createPeerFxPlayer } from '
 import { hitFlashStrength, setBatchHitFlash, HIT_FLASH_S } from '../systems/hitFlash.js';   // HITFLASH1: a struck body's red - the peers' curve is the foes'
 import { setOneShotObserver } from '../systems/audio.js';   // PEERFX1
 import { createTownScratch, createPersonTextureKeys, recordFrameKey } from './townScratch.js';   // the town loop's per-frame seats, and its memoised keys
-import { pixelsInto, bothInto, scaledInto, copiedInto } from './frameKept.js';   // the frame's lists and records, kept and refilled in place
+import { pixelsInto, bothInto, scaledInto, copiedInto, pixelFrameMatrix, modelWorldMatrix } from './frameKept.js';   // the frame's lists and records, kept and refilled in place
 import { createDroppedTorches } from './droppedTorches.js';
 import { createCamps } from './camps.js';   // SURV3: the camps this host stands - the tent and the fire
 import { drinkAtSource, DRY_SOURCE_TEXT } from '../systems/survival/items.js';   // SURV3: the mod's water sources under the one ray
@@ -4303,7 +4303,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
       batch._box = flatBatchAabb([base], size);
       for (let i = 0; i < 3; i++) { p._box[i] = Math.min(p._box[i], batch._box[i]); p._box[3 + i] = Math.max(p._box[3 + i], batch._box[3 + i]); }
       armFlatAnim(batch, t, act.archive, act.record, p.flatAnims, (p.placeHold ?? pipeline).uploadRecordFrame);
-      p.batches.push(batch);
+      appendPixelFlat(p.batches, batch);
       // STAND-FLAT (bible/04-Characters/Morrowind-NPCs.md section 28): a person the marker stood is a standing person -
       // the street's lane stands their body as it does a site's own people
       if (isStandFlat(act.archive, act.record)) p.standFlats?.push(standFlatRecord({ archive: act.archive, record: act.record, x: base[0], y: base[1], z: base[2] }, batch, standFlatId(`${p.px},${p.py}`, base[0], base[2])));
@@ -5527,8 +5527,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     // the culling test carries them and destroyPixel frees them with
     // everything else.
     for (const b of entry.npcBatches ?? []) {
-      const i = entry.batches.indexOf(b);
-      if (i >= 0) entry.batches.splice(i, 1);
+      removePixelFlat(entry.batches, b);
       entry.flatAnims.remove(b);
       renderer.destroyBatch(b);
     }
@@ -5551,7 +5550,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
       armFlatAnim(batch, t, archive, record, entry.flatAnims, (entry.placeHold ?? pipeline).uploadRecordFrame);
       pn.standBatch = batch;
       entry.npcBatches.push(batch);
-      entry.batches.push(batch);
+      appendPixelFlat(entry.batches, batch);
     }
   }
 
@@ -27059,22 +27058,16 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
       const ring = Math.max(Math.abs(p.px - state.current.x), Math.abs(p.py - state.current.y));
       if (ring > VIEW_RINGS) continue;
       const t = state.pixelTranslation(p.px, p.py, p._t || (p._t = [0, 0, 0]));
-      let pixelMatrix = p._pixelMatrix;
-      if (!pixelMatrix) pixelMatrix = p._pixelMatrix = identity();
-      if (pixelMatrix[12] !== t[0] || pixelMatrix[13] !== t[1] || pixelMatrix[14] !== t[2]) {
-        pixelMatrix[12] = t[0]; pixelMatrix[13] = t[1]; pixelMatrix[14] = t[2];
-        p._worldGen = (p._worldGen | 0) + 1;
-      }
+      const pixelMatrix = pixelFrameMatrix(p, t);
       if (p._box && aabbOutside(planes, p._box, t[0], t[1], t[2])) continue;
       if (p.staticBatch) r.drawMesh(p.staticBatch, pixelMatrix, null);
       for (const m of p.models) {
         if (m._batched || aabbOutside(planes, m._box, t[0], t[1], t[2])) continue;
-        if (m._worldGen !== p._worldGen || !m._world) { m._world = multiply(pixelMatrix, m.local, m._world || new Float32Array(16)); m._worldGen = p._worldGen | 0; }
-        r.drawMesh(m.gpu, m._world, m.texRemap ?? p.texRemap);
+        r.drawMesh(m.gpu, modelWorldMatrix(p, m), m.texRemap ?? p.texRemap);
       }
       ground.push(p);   // FINAL AUDIT: a pure-ocean pixel too - its ground hidden, its seafloor and its sea drawn (below), as the street frame does
-      for (const fb of p.batches) {
-        if (aabbOutside(planes, fb._box, t[0], t[1], t[2]) || !farFlatVisibleAt(ring, fb.farH ?? fb.size?.h ?? 0, fb.frame != null)) continue;
+      for (const fb of pixelFlatsAtRing(p.batches, ring)) {
+        if (aabbOutside(planes, fb._box, t[0], t[1], t[2])) continue;
         fb.origin = t;
         // MWNPC8b x RW1: no Morrowind body stands in the view out, so a standing person's flat is drawn here, never left
         // cast-only by the street frame's last mark (it was, for the people nearest the house); the street marks it anew
@@ -31907,12 +31900,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
       // Float32Array(16)s PER MODEL PER FRAME, the render loop's
       // second-largest GC source after drawMesh's string keys.
       const t = state.pixelTranslation(p.px, p.py, p._t || (p._t = [0, 0, 0]));
-      let pixelMatrix = p._pixelMatrix;
-      if (!pixelMatrix) pixelMatrix = p._pixelMatrix = identity();
-      if (pixelMatrix[12] !== t[0] || pixelMatrix[13] !== t[1] || pixelMatrix[14] !== t[2]) {
-        pixelMatrix[12] = t[0]; pixelMatrix[13] = t[1]; pixelMatrix[14] = t[2];
-        p._worldGen = (p._worldGen | 0) + 1;   // every cached model matrix refreshes
-      }
+      const pixelMatrix = pixelFrameMatrix(p, t);
       // EV3: the pixel gate - one p-vertex test against the build-time
       // bounds skips the terrain draw, every model and every flat batch
       // of a pixel wholly off-screen; a visible pixel then tests each
@@ -31946,12 +31934,9 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
           if (m._batched) continue;   // PERF4: drawn above
           const off = cullOn && aabbOutside(_planes, m._box, t[0], t[1], t[2]);
           if (off && !renderer.shadowReach(m._box, t[0], t[1], t[2])) continue;   // SHADOW-REACH: off screen AND out of every shadow's reach
-          if (m._worldGen !== p._worldGen || !m._world) {
-            m._world = multiply(pixelMatrix, m.local, m._world || new Float32Array(16));
-            m._worldGen = p._worldGen | 0;
-          }
-          if (off) renderer.recordShadowMesh(m.gpu, m._world, m.texRemap ?? p.texRemap);   // SHADOW-REACH: for the maps alone; HOME-LOOK: a painted home's own table
-          else renderer.drawMesh(m.gpu, m._world, m.texRemap ?? p.texRemap);
+          const world = modelWorldMatrix(p, m);
+          if (off) renderer.recordShadowMesh(m.gpu, world, m.texRemap ?? p.texRemap);   // SHADOW-REACH: for the maps alone; HOME-LOOK: a painted home's own table
+          else renderer.drawMesh(m.gpu, world, m.texRemap ?? p.texRemap);
         }
       } else if (pixelCasts) {
         // SHADOW-REACH: the whole pixel is off screen but inside a shadow's reach - its ground, its merged statics
@@ -31960,11 +31945,8 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         if (p.staticBatch) renderer.recordShadowMesh(p.staticBatch, pixelMatrix, null);
         for (const m of p.models) {
           if (m._batched || !renderer.shadowReach(m._box, t[0], t[1], t[2])) continue;
-          if (m._worldGen !== p._worldGen || !m._world) {
-            m._world = multiply(pixelMatrix, m.local, m._world || new Float32Array(16));
-            m._worldGen = p._worldGen | 0;
-          }
-          renderer.recordShadowMesh(m.gpu, m._world, m.texRemap ?? p.texRemap);   // HOME-LOOK
+          const world = modelWorldMatrix(p, m);
+          renderer.recordShadowMesh(m.gpu, world, m.texRemap ?? p.texRemap);   // HOME-LOOK
         }
       }
       // WM2b: THE SAILS, on the same eased wind vector the cloud deck
@@ -32004,11 +31986,8 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
       // flats that move, and nothing else. Facing costs nothing here (a
       // uniform per pass), so a far flat that draws still turns.
       const ring = Math.max(Math.abs(p.px - state.current.x), Math.abs(p.py - state.current.y));
-      // AUDIT REACH: a pixel neither seen nor reached has nothing to walk (the first cut asked the far-flat rule, an
-      // object a batch, of every batch of every streamed pixel); the rule runs inside the pixel's gate, asked of every batch of
-      // a pixel seen or in a shadow's reach (PERF-ORDER: ahead of each batch's own box, the cheaper test first)
-      if (pixelVisible || pixelCasts) for (const b of p.batches) {
-        if (!farFlatVisibleAt(ring, b.farH ?? b.size?.h ?? 0, b.frame != null)) continue;   // MAC1 (a far flat the rule drops casts nothing either); PERF-EXT12: positional, no object a batch a frame (flatDistance.js); PERF-ORDER (2026-10-11): asked FIRST - three compares, where the box and the reach were asked of every batch it then dropped (Knightstale by night: 655 of the 1,361 a frame); each test only skips, so the batches kept are the same
+      // Query the ring only for visible or shadow-reaching pixels, before checking each eligible batch's own box.
+      if (pixelVisible || pixelCasts) for (const b of pixelFlatsAtRing(p.batches, ring)) {
         const off = !pixelVisible || (cullOn && aabbOutside(_planes, b._box, t[0], t[1], t[2]));   // EV3
         if (off && !renderer.shadowReach(b._box, t[0], t[1], t[2])) continue;   // SHADOW-REACH: off screen and out of every shadow's reach
         b.origin = t;

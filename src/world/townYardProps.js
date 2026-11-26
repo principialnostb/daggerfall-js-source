@@ -1,3 +1,4 @@
+import { paintFamily } from './paintFamily.js';
 import { createMeshKit } from './eliteGates/meshKit.js';
 import { WORKSHOP_WOOD } from './dungeonWorkshopWood.js';
 import { SLAB_STONE, slabStonePaint } from './dungeonSlabStone.js';
@@ -10,8 +11,26 @@ const CLOTH = 151, NET_BODY = 152, MOSS = 153;
 const IDS = new Set(['212:7', '212:11', '212:12', '211:20', '211:3']);
 export const isTownYardProp = record => IDS.has(record);
 
-export function yardPropPaints(paints) {
-  const wood = paints[beam], colors = wood.colors.slice();
+export const yardPropPaints = paintFamily([
+  [CLOTH, () => wovenPaint([68, 45, 34], [134, 100, 70])],
+  [NET_BODY, () => wovenPaint([25, 32, 32], [61, 74, 69])],
+  [MOSS, () => wovenPaint([57, 67, 45], [100, 111, 76])],
+  [BARK, get => barkPaint(get(beam))],
+  [SHALE, () => slabStonePaint([65, 66, 61])],
+  [SHADED_STONE, () => slabStonePaint([84, 79, 68])],
+]);
+
+function wovenPaint(low, high) {
+  const paint = image(32), stain = noiseField(11, 7, 32);
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+    const tone = .29 + stain(x, y) * .54 + ((x - y) % 5 === 0 ? .075 : 0);
+    putTexel(paint, x, y, blendRgb(low, high, tone));
+  }
+  return paint;
+}
+
+function barkPaint(wood) {
+  const colors = wood.colors.slice();
   for (let i = 0; i < colors.length; i += 4) {
     const ring = (i / 4) % wood.width;
     const chip = ring % 19 < 2 ? .13 : 0;
@@ -19,20 +38,7 @@ export function yardPropPaints(paints) {
     colors[i + 1] *= .73 - chip;
     colors[i + 2] *= .75 - chip;
   }
-  const cloth = image(32), net = image(32), moss = image(32);
-  const stain = noiseField(11, 7, 32);
-  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-    const tone = .29 + stain(x, y) * .54 + ((x - y) % 5 === 0 ? .075 : 0);
-    putTexel(cloth, x, y, blendRgb([68, 45, 34], [134, 100, 70], tone));
-    putTexel(net, x, y, blendRgb([25, 32, 32], [61, 74, 69], tone));
-    putTexel(moss, x, y, blendRgb([57, 67, 45], [100, 111, 76], tone));
-  }
-  return [
-    [CLOTH, cloth], [NET_BODY, net], [MOSS, moss],
-    [BARK, { ...wood, colors }],
-    [SHALE, slabStonePaint([65, 66, 61])],
-    [SHADED_STONE, slabStonePaint([84, 79, 68])],
-  ];
+  return { ...wood, colors };
 }
 
 const grainOffset = x => Math.sin(x * 12) * .075;

@@ -93,9 +93,22 @@ function sizeLayer(gl, L, w, h) {
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, L.depth, 0);
 }
 
+// The resolve discards blocks with fewer than half of their subsamples covered.
+function samplesOnAxis(low, high, size, block, sub) {
+  const scale = sub / block;
+  // Include a quarter screen pixel on either side for transform/raster rounding.
+  const first = Math.ceil((((low + 1) * size * .5) - .25) * scale - .5);
+  const last = Math.floor((((high + 1) * size * .5) + .25) * scale - .5);
+  if (first > last) return 0;
+  const firstBlock = Math.floor(first / sub), lastBlock = Math.floor(last / sub);
+  if (firstBlock === lastBlock) return last - first + 1;
+  if (lastBlock - firstBlock > 1) return sub;
+  return Math.max((firstBlock + 1) * sub - first, last - lastBlock * sub + 1);
+}
+
 /** The screen rectangle (target pixels, relative to the viewport) the world points `corners` cover, padded a block;
  *  null when any stands behind the eye (the whole viewport then). */
-function screenRect(corners, pv, vw, vh, pad) {
+function screenRect(corners, pv, vw, vh, pad, block = 0, onEmptyCoverage = null) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [x, y, z] of corners) {
     const w = pv[3] * x + pv[7] * y + pv[11] * z + pv[15];
@@ -107,6 +120,14 @@ function screenRect(corners, pv, vw, vh, pad) {
   x0 -= mx; x1 += mx; y0 -= my; y1 += my;
   const l = Math.max(0, Math.floor((x0 + 1) * 0.5 * vw) - pad), b = Math.max(0, Math.floor((y0 + 1) * 0.5 * vh) - pad);
   const r = Math.min(vw, Math.ceil((x1 + 1) * 0.5 * vw) + pad), t = Math.min(vh, Math.ceil((y1 + 1) * 0.5 * vh) + pad);
+  if (onEmptyCoverage && r > l && t > b) {
+    const sub = pixSub(block);
+    const samples = samplesOnAxis(x0, x1, vw, block, sub) * samplesOnAxis(y0, y1, vh, block, sub);
+    if (2 * samples < sub * sub) {
+      onEmptyCoverage();
+      return [0, 0, 0, 0];
+    }
+  }
   return r > l && t > b ? [l, b, r - l, t - b] : [0, 0, 0, 0];
 }
 
@@ -139,7 +160,7 @@ export function footprintBlockPixels(height, rows, fraction, referenceFraction, 
  * Optional opacity applies only to pixel write-back: translucent callers draw opaque into the isolated target;
  * their HD/one-pixel fallback belongs to the caller. Character callers keep the default one.
  */
-export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null, target = null) {
+export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1, footprintProfile = null, target = null, onEmptyCoverage = null) {
   // HD and an already active sprite target use the original meshes at any
   // viewport size. Querying GL here can stall the main thread every frame.
   if (!(rows > 0) || renderer._spriteDepth > 0) {
@@ -152,6 +173,7 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null, d
   // views keep their own target, including a nested inventory/studio picture.
   if (!target && !renderer._panelSaved && !renderer._studioDepth) target = renderer._worldFixtureDestination;
   const vp = /** @type {Int32Array} */ (target?.viewport ?? pixelViewport(gl));
+  if (!vp) return;   // WebGL has no drawable viewport while the context is lost.
   const footprint = footprintProfile && corners
     ? screenRect(corners, mul4(renderer._proj, renderer._view, _pv), vp[2], vp[3], 0)
     : null;
@@ -163,7 +185,7 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null, d
     return;
   }
   const vw = vp[2], vh = vp[3];
-  const rect = corners ? screenRect(corners, mul4(renderer._proj, renderer._view, _pv), vw, vh, px * 2) : [0, 0, vw, vh];
+  const rect = corners ? screenRect(corners, mul4(renderer._proj, renderer._view, _pv), vw, vh, px * 2, px, onEmptyCoverage) : [0, 0, vw, vh];
   if (rect && rect[2] === 0) return;   // wholly off the screen
   const [rx, ry, rw, rh] = rect ?? [0, 0, vw, vh];
   const L = layerOf(renderer);
