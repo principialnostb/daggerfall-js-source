@@ -57,7 +57,10 @@ test('Helbenar adds four distinct near meshes and renders their matching far pic
     const atlas = villageTreePicture(proto.subs[0].atlas, bytesOf('../../src/assets/trees/helbenar/study.idx'));
     const pic = renderImpostor(trees, proto, () => atlas);
     assert.ok(pic.width > 20 && pic.height > 50);
-    if (key === '506_12' || key === '510_25') checkSpruceCrown(pic, key);
+    if (key === '506_12' || key === '510_25') {
+      assert.equal(proto.subs[0].opaque, false);
+      checkSpruceCrown(pic, key);
+    }
     assert.ok(pic.data.filter((v, i) => i % 4 === 3 && v === 255).length > 400);
   }
   assert.equal(forms.size, 4);
@@ -155,7 +158,9 @@ test('only the two study crowns have cutout artwork and the bole stays opaque in
           if (y >= 128) assert.equal(alpha, 255);
           else if (!alpha) holes++;
         }
-      assert.ok(holes > 0 && holes < 128 * 128 / 2);
+      const fraction = holes / (128 * 128);
+      if (offset === 128) assert.ok(fraction >= .40 && fraction <= .60);
+      else assert.ok(fraction > 0 && fraction < .50);
     }
   }
 });
@@ -196,4 +201,25 @@ test('the additional woodland binds every remaining tree record to its own near 
   assert.equal(villageTreeForm(506, 14), villageTreeForm(507, 14));
   assert.equal(villageTreeLitter(510, 11), 2);
   assert.equal(villageTreeLitter(510, 16), 1);
+});
+
+test('winter spruce frost preserves the bark and needle silhouette', () => {
+  const ink = bytesOf('../../src/assets/trees/helbenar/study.idx');
+  const name = 'helbenar-woodland-study';
+  const summer = villageTreePicture(name, ink);
+  const winter = villageTreePicture(name + '-winter', ink);
+  let frosted = 0;
+  for (let y = 0; y < summer.height; y++) {
+    for (let x = 128; x < summer.width; x++) {
+      const i = (y * summer.width + x) * 4;
+      assert.equal(summer.data[i + 3], winter.data[i + 3]);
+      const bark = y >= 128;
+      if (bark) assert.equal(winter.data[i], summer.data[i]);
+      else if (winter.data[i] > summer.data[i]) {
+        frosted++;
+        assert.ok(winter.data[i + 1] > winter.data[i]);
+      }
+    }
+  }
+  assert.ok(frosted > 100);
 });

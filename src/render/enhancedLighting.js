@@ -536,7 +536,7 @@ vec3 elPointFlat(vec3 wp, vec3 base, float flatSun) {   // WL1: flatSun the flat
     float tl = length(toL);
     vec3 at = base + toL * (min(${glslFloat(EL_FLAT_LAMP_LIFT)}, tl * 0.5) / max(tl, 1e-4));   // AUDIT FLICKER P1: off the flat's own (late) card
     float sh = shadowOfLight(i, uPointLights[i], at, vec3(0.0));   // EL2; EL5: any caster's; DISC15: either tier
-    acc += sh * elAttenuation(d, uPointLights[i].w) * uPointColors[i];
+    acc += sh * elAttenuation(d, uPointLights[i].w) * uPointColors[i]${wlShadow === 'flat' ? ' * treeLightFacing(uPointLights[i].xyz - wp)' : ''};
   }
   return acc + winLit(wp, vec3(0.0), 1.0, flatSun);   // WL1: a flat takes the windows' light by its attenuation alone, as a lantern's - its sun through glass by the quad's one read (LA-COST3)
 }
@@ -788,7 +788,7 @@ ${LPT_FS_TEXEL}  if (tex.a < ((uSpectral == 1 || uConceal.x > 0.0) ? 0.1 : 0.5))
   // vertex shader (EL_BB_VS_EXT) reads it at that same point, with the same
   // function, at each corner - the four agree - and hands it here flat.
   vec3 sunLit = dot(uBBSun, uBBSun) > 0.0 ? uBBSun * cloudShadowAt(vBBWorld) * vBBSunVis : vec3(0.0);
-  vec3 lit = albedo * (uTint + sunLit + elPointFlat(vBBWorld, base, vBBSunVis) + elIndirectFlat(vBBWorld)) + emission;
+  vec3 lit = albedo * (uTint + sunLit + treeLightColor(elPointFlat(vBBWorld, base, vBBSunVis) + elIndirectFlat(vBBWorld) * treeLightFacing(uIndirect.xyz - vBBWorld))) + emission;
   float undyed = dot(lit, vec3(0.2126, 0.7152, 0.0722));   // VEIN-HUE: the lit flat's brightness, in the lane's linear light
   lit *= elDecode(uBatchTint);   // ARENA5: the batch's wash after both maps (the classic lane's law, in the lane's linear light - white is white)
   if (uBatchDye > 0.0) lit = mix(lit, undyed * elDecode(uBatchTint), uBatchDye);   // VEIN-HUE: a dyed batch's wash is its colour

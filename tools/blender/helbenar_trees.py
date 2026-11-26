@@ -56,6 +56,19 @@ def limb(faces, a, b, ra, rb, sides=6):
 
 def map_spray(faces, start, root, axis, side, slot):
     # One patch per sprig: the midrib follows branch growth across all its folded panels.
+    if slot >= 6:
+        offsets = [pt-root for _, points in faces[start:] for pt in points]
+        half_width = max(.001, max(abs(p.dot(side)) for p in offsets))
+        reach = max(.001, max(p.dot(axis) for p in offsets))
+        # Tiny branches sample the denser centre, which still reads as needles at a distance.
+        width_span = 16 if reach < .32 else 55
+        length_span = 83 if reach < .32 else 118
+        for index in range(start, len(faces)):
+            shade, points = faces[index]
+            uvs = [(64 + width_span*(pt-root).dot(side)/half_width,
+                    388 + length_span*(pt-root).dot(axis)/reach) for pt in points]
+            faces[index] = shade, points, uvs
+        return
     u0 = 48 + int(root.x*13 + root.z*17 + slot*5) % 32
     v0 = 399 + int(root.y*19 + root.z*7 + slot*7) % 24
     for index in range(start, len(faces)):
@@ -266,7 +279,7 @@ if __name__ == "__main__":
     (DEST/"study.idx").write_bytes(art)
     vertices,indices,meshes = bytearray(),bytearray(),[]
     for i,name in enumerate(["Field oak","Upland oak","Norway spruce","Slender spruce"]):
-        mesh = make_mesh(name,tree(i>=2,i%2),i*11,sample_mat if i in (0,2) else mat,i in (0,2),i>=2)
+        mesh = make_mesh(name,tree(i>=2,i%2),i*11,sample_mat if i != 1 else mat,i != 1,i>=2)
         v,ix,desc = pack(mesh)
         desc.update(vertex=len(vertices)//32,index=len(indices)//2)
         meshes.append(desc)

@@ -62,7 +62,7 @@ export function addVillageTreeLibrary(json, original, extra, woodlandData = null
   const prefabs = { ...json.prefabs },
     atlases = { ...json.atlases },
     materials = { ...json.materials };
-  for (const suffix of ['', '-winter', '-study', '-study-winter', '-spruce', '-spruce-winter']) {
+  for (const suffix of ['', '-winter', '-study', '-study-winter']) {
     const name = VILLAGE_TREE_ATLAS + suffix;
     atlases[name] = { alpha: name.includes('-study') };
     materials[name] = { tex: name, cull: 0 };
@@ -79,11 +79,11 @@ export function addVillageTreeLibrary(json, original, extra, woodlandData = null
       const form = villageTreeForm(archive, record);
       if (form < 0 || (!woodlandData && form >= assets.meshes.length)) continue;
       const winter = archive >= 505 && archive % 2;
-      const suffix = ['-study', '', '-study', '-spruce'][form] ?? '-canopy';
+      const suffix = ['-study', '', '-study', '-study'][form] ?? '-canopy';
       prefabs[`${archive}_${record}_helbenar`] = {
         mesh: json.meshes.length + form,
         materials: [VILLAGE_TREE_ATLAS + suffix + (winter ? '-winter' : '')],
-        spruceFoliage: form === 2 ? 1 : form === 3 ? 2 : 0,
+        spruceFoliage: Number(form === 2 || form === 3),
         scale: [1, 1, 1],
       };
     }
@@ -111,40 +111,19 @@ export function villageTreePicture(name, study, woodlandInk = null) {
     if (study?.length !== 256*512) throw new Error('Incomplete Helbenar study atlas');
     const data = new Uint8Array(study.length*4);
     const winter = name.endsWith('-winter');
+    const spruceSnow = [166, 182, 182], oakSnow = [204, 218, 216];
     for (let y=0; y<512; y++) for (let x=0; x<256; x++) {
       const at = y*256+x;
       const ink = study[(511-y)*256+x];
       if (ink === 255) continue;
       const color = assets.studyColors[ink];
-      const frost = winter && y<128 ? .35 : 0;
-      for(let c=0;c<3;c++) data[4*at+c] = color[c]*(1-frost)+[204,218,216][c]*frost;
+      // Frost gathers on the brighter needle tips and leaves the interior of each spray green.
+      const frost = winter && y < 128 ? (x >= 128 ? .08 + .045 * (ink - 21) : .35) : 0;
+      const snow = x >= 128 ? spruceSnow : oakSnow;
+      for(let c=0;c<3;c++) data[4*at+c] = color[c]*(1-frost)+snow[c]*frost;
       data[4*at+3]=255;
     }
     return {width:256,height:512,data,missing:0};
-  }
-  if (name.includes('-spruce')) {
-    if (study?.length !== 256 * 512) throw new Error('Incomplete Helbenar study atlas');
-    const width = 256, height = 32, data = new Uint8Array(width * height * 4);
-    const winter = name.endsWith('-winter');
-    // The narrow spruce uses opaque cards with one 16px strip per shade.
-    // Reuse the larger spruce's painted needles and bark plates at that scale.
-    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-      const slot = x >> 4, col = x % 16, bark = slot < 2;
-      const start = bark ? 7 : 21;
-      const sx = (col * 4 + slot * 31 + (bark ? 0 : y)) % 128;
-      const sy = bark ? 55 + (31 - y) * 5 : 384 + ((31 - y) * 3 + slot * 17) % 128;
-      const ink = study[sy * 256 + 128 + sx];
-      const shade = ink === 255 ? 1 : ink - start;
-      const tone = Math.max(0, Math.min(6, shade + (bark ? slot : Math.min(slot, 8) - 7)));
-      const color = assets.studyColors[start + tone];
-      const frost = winter && !bark ? 0.24 + .04 * tone : 0;
-      const i = (y * width + x) * 4;
-      data[i] = color[0] * (1 - frost) + 204 * frost;
-      data[i + 1] = color[1] * (1 - frost) + 218 * frost;
-      data[i + 2] = color[2] * (1 - frost) + 216 * frost;
-      data[i + 3] = 255;
-    }
-    return { width, height, data, missing: 0 };
   }
   const rgb = globalThis.atob(assets.palette);
   const data = new Uint8Array(256 * 32 * 4);

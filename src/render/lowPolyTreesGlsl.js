@@ -20,6 +20,21 @@ export const LPT_FS_HEAD = `
 in vec3 vShade;   // LPT1 (render/lowPolyTreesGlsl.js)
 in float vAlpha;
 in float vFade;
+in vec3 vTreeNormal;
+uniform float uTreeLighting;
+
+float treeLightFacing(vec3 toLight) {
+  if (uTreeLighting < 0.5) return 1.0;
+  if (uTreeLighting < 1.5) return 0.55;
+  float facing = dot(normalize(vTreeNormal), toLight) / max(length(toLight), 1e-4);
+  return 0.28 + 0.64 * max(facing, 0.0);
+}
+
+vec3 treeLightColor(vec3 light) {
+  if (uTreeLighting < 0.5) return light;
+  float peak = max(light.r, max(light.g, light.b));
+  return mix(light, vec3(dot(light, vec3(0.2126, 0.7152, 0.0722))), 0.18) / (1.0 + 0.30 * peak);
+}
 `;
 
 /** CANOPY-SEE (Mac, 2026-10-31: "a sort of transparency when your overworld traveling in valenwood. Under the tall

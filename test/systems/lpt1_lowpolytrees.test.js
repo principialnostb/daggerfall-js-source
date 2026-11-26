@@ -1010,12 +1010,21 @@ test('LPT1 runSteps: a step generator\'s answer, whole', () => {
   assert.equal(runSteps((function* () { yield; yield; return 7; })()), 7);
 });
 
-test('Tamriel Lands selects additional tree forms by climate outside Helbenar and resolves the approved trees across climates', async () => {
-  const { lpt } = door({ villageTrees: true });
+test('Tamriel Lands uses authored near and far trees by archive and season without a town flag', async () => {
+  const { lpt, frames } = door({ villageTrees: true });
   await lpt.load();
   assert.equal(lpt.proto(501, 30)?.key, '501_30_helbenar');
   assert.equal(lpt.proto(506, 11)?.key, '506_11_helbenar');
   assert.notEqual(lpt.proto(506, 15)?.mesh, lpt.proto(507, 15)?.mesh);
-  assert.equal(lpt.proto(510, 12)?.key, '510_12_helbenar');
-  assert.equal(lpt.proto(510, 12, true)?.key, '510_12_helbenar');
+  for (const archive of [504, 505, 510, 511]) {
+    const proto = lpt.proto(archive, 12 + Number(archive < 506));
+    assert.ok(proto?.key.endsWith('_helbenar'));
+    assert.equal(proto.subs[0].atlas.endsWith('-winter'), archive % 2 === 1);
+    const far = await lpt.farPicture(proto);
+    assert.ok(far?.record.includes('#lpthelbenar-'));
+    const set = { ox: 0, oy: 0, oz: 0, handles: [far], trees: Float32Array.from([0, 5, 0, 5, 1, 0]) };
+    lpt.frame([set], 0, 0, 0, { stamp: 1 });
+    assert.equal(frames.at(-1).runs[0].run.handle, far);
+    assert.equal(frames.at(-1).runs[0].drawCount, 1);
+  }
 });

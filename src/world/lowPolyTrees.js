@@ -612,7 +612,7 @@ export function* impostorSteps(lpt, proto, atlasPic) {
           const ty = Math.min(pic.height - 1, Math.max(0, Math.floor((1 - (vv - Math.floor(vv))) * pic.height))); // uv's v=0 is the picture's bottom
           const s = (ty * pic.width + tx) * 4;
           if (!sub.opaque && pic.data[s + 3] < cut) continue;
-          const needles = proto.spruceFoliage === 1 ? vv >= .75 : proto.spruceFoliage === 2 && u >= .375;
+          const needles = proto.spruceFoliage && vv >= .75;
           const sh = needles ? SPRUCE_LIGHT.sky + SPRUCE_LIGHT.skyFacing * Math.abs(f[v0 + 4]) : lptShade(
             b0 * f[v0 + 3] + b1 * f[v1 + 3] + b2 * f[v2 + 3],
             b0 * f[v0 + 4] + b1 * f[v1 + 4] + b2 * f[v2 + 4],

@@ -609,7 +609,7 @@ layout(location=3) in vec4 aInst;
 layout(location=4) in float aScale;
 uniform float uMesh;
 uniform vec3 uMeshScale;
-uniform float uSpruceFoliage; // UV layout of the spruce needle cards
+uniform float uSpruceFoliage; // The spruce needle cards use the upper band of the atlas
 uniform vec3 uMeshColor;
 uniform float uMeshAlpha;
 uniform vec4 uLptCut;
@@ -620,6 +620,7 @@ out vec3 vBBWorld;
 out vec3 vBBBase;   // EL2: the flat's placement base, where the lane's shadow is read for the whole sprite (the classic FS declares it not, which GLSL allows)
 out vec3 vShade;    // LPT1: a tree's light on its own faces times its material's colour (1 on a flat)
 out float vAlpha;   // LPT1: what a texel's alpha is multiplied by (1 on a flat; 0 an opaque card, which no cut takes)
+out vec3 vTreeNormal;
 out float vFade;    // LPT1: the crossfade - 1 whole; below 1 a far picture's share; 2..3 a tree's, 2 plus its share
 void main() {
   // Bottom-anchored: centre sits half a height above the placement base.
@@ -689,6 +690,7 @@ void main() {
   vShade = vec3(1.0);
   vAlpha = 1.0;
   vFade = 1.0;
+  vTreeNormal = vec3(0.0);
   bool gone = false;
   // LPT1: A FAR PICTURE NEAR THE EYE GIVES WAY to its 3D tree: none inside the radius, crossfading across the band
   if (uLptCut.w > 0.0 && uMesh < 0.5) {
@@ -715,6 +717,7 @@ void main() {
       float lean = clamp(p.y / max(uSize.y * aScale, 1e-3), 0.0, 1.0);   // AUDIT LPT A3: up THIS tree's height, as its far picture's quad
       world.xz += wdir * wl * (0.55 + gust * 0.75) * 0.0015 * uSway * lean * lean * uSize.y * aScale;
     }
+    vTreeNormal = wn;
     vBBBase = aInst.xyz;
     vUV = aCorner;
     // its faces' light (AUDIT LPT A2): the far picture's own - FLORA-GROUND: the sky's, from straight above
@@ -725,7 +728,7 @@ void main() {
     float faceSky = clamp(0.72 + 0.28 * dot(wn, vec3(${LPT_IMPOSTOR_LIGHT.map((v) => v.toFixed(4)).join(', ')})), 0.5, 1.0);
     float faceSun = clamp(0.72 + 0.28 * dot(wn, uLptSun.xyz), 0.5, 1.0);
     // Needle sprays take diffuse light on both sides. Keep the bark's solid face response.
-    bool needles = uSpruceFoliage == 1.0 ? aCorner.y >= 0.75 : uSpruceFoliage == 2.0 && aCorner.x >= 0.375;
+    bool needles = uSpruceFoliage > 0.5 && aCorner.y >= 0.75;
     if (needles) {
       float facing = dot(wn, uLptSun.xyz);
       faceSky = ${SPRUCE_LIGHT.sky} + ${SPRUCE_LIGHT.skyFacing} * abs(wn.y);
@@ -922,7 +925,7 @@ ${LPT_FS_TEXEL}  // Spectral flats keep their 180-alpha translucency (blended pa
     if (i >= uPointCount) break;
     float d = length(uPointLights[i].xyz - vBBWorld);
     float att = clamp(1.0 - d / uPointLights[i].w, 0.0, 1.0);
-    pointAcc += att * att * uPointColors[i];
+    pointAcc += att * att * uPointColors[i] * treeLightFacing(uPointLights[i].xyz - vBBWorld);
   }
   pointAcc += winLit(vBBWorld, vec3(0.0), 1.0, 1.0);   // WL1: by attenuation alone, as a lantern lights a flat
   // spectral eyes/body glow, or an auto-emissive flat's own albedo (black
@@ -938,7 +941,7 @@ ${LPT_FS_TEXEL}  // Spectral flats keep their 180-alpha translucency (blended pa
   // (billboards have no normal).
   float iD = length(uIndirect.xyz - vBBWorld);
   float iAtt = clamp(1.0 - iD / max(uIndirect.w, 1e-4), 0.0, 1.0);
-  vec3 lit = albedo * (uTint + uBBSun * cloudShadowAt(vBBWorld) + pointAcc + iAtt * iAtt * uIndirectColor) + emission;   // VC4
+  vec3 lit = albedo * (uTint + uBBSun * cloudShadowAt(vBBWorld) + treeLightColor(pointAcc + iAtt * iAtt * uIndirectColor * treeLightFacing(uIndirect.xyz - vBBWorld))) + emission;   // VC4
   // ARENA5: the batch's wash, multiplied in after both maps were sampled above the cut (SPRITE-GRAD's law) and once the
   // flat is lit - white leaves every other flat as it was
   float undyed = dot(lit, vec3(0.299, 0.587, 0.114));   // VEIN-HUE: the lit flat's brightness, before its wash
@@ -2694,6 +2697,7 @@ export class Renderer {
     this.bbUEmissionTex = gl.getUniformLocation(this.bbProgram, 'uEmissionTex');
     this.bbUSpectral = gl.getUniformLocation(this.bbProgram, 'uSpectral');
     this.bbUPixelBlock = gl.getUniformLocation(this.bbProgram, 'uNpcPixelBlock');
+    this.bbUTreeLighting = gl.getUniformLocation(this.bbProgram, 'uTreeLighting');
     this.bbUConceal = gl.getUniformLocation(this.bbProgram, 'uConceal');   // ECV1
     this.bbUHitFlash = gl.getUniformLocation(this.bbProgram, 'uHitFlash');   // HITFLASH1
     this.bbUDissolve = gl.getUniformLocation(this.bbProgram, 'uDissolve');   // DISSOLVE
@@ -8864,7 +8868,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
   /** LPT1: the trees' instanced draws - one a prototype's submesh, its visible instances - and the program left in flat
    *  mode. A submesh brings its material: its atlas, its colour, its cut, and its faces (a front-only material culls
    *  its back faces as the world's meshes do - AUDIT LPT A6). */
-  _drawLowPolyTrees(f) {
+  _drawLowPolyTrees(f, treeBlock = 1) {
     this._close2D();   // PERF-2D: a draw closes the 2D run first (drawBillboards has; this says so of itself)
     const gl = this.gl, L = this.bbLpt ?? NO_LPT_LOCS;
     gl.uniform1f(L.uMesh, 1);
@@ -8877,10 +8881,17 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     this._bindVao(f.gpu.vao);
     this._bindEmission(this._blackTex);   // a tree glows nowhere
     let lastAlpha = -1, lastCull = 0, lr = -1, lg = -1, lb = -1;
+    let treeStyle = -1;
     for (const run of f.runs) {
       if (!run.drawCount) continue;
       f.gpu.pointInstances(run.drawStart);
       const proto = run.run?.handle?.proto;
+      const style = proto?.key?.endsWith('_helbenar') ? 2 : 0;
+      if (style !== treeStyle) {
+        if (this.bbUTreeLighting) gl.uniform1f(this.bbUTreeLighting, style);
+        gl.uniform1f(this.bbUPixelBlock, style ? treeBlock : 1);
+        treeStyle = style;
+      }
       const spruce = proto?.spruceFoliage ?? 0;
       if (L.uSpruceFoliage) gl.uniform1f(L.uSpruceFoliage, spruce);
       const sl = spruce ? SPRUCE_LIGHT.height : f.sunLift ?? 0;
@@ -9208,9 +9219,16 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     const npcRows = this._spriteDepth > 0 || this._panelSaved ? 0 : charPixelRows('npc');
     const block = npcRows > 0 ? blockPixels(pixelViewport(gl)[3], npcRows) : 1;
     const npcArchives = block > 1 ? npcBillboardArchives() : null;
-    let lastPixelBlock = NaN;
+    const treeRows = this._spriteDepth > 0 || this._panelSaved || this._studioDepth ? 0 : worldPixelRows('landscape');
+    const treeBlock = treeRows > 0 ? blockPixels(pixelViewport(gl)[3], treeRows) : 1;
+    let lastPixelBlock = NaN, lastTreeStyle = NaN;
     const drawOne = (b) => {
-      const pixelBlock = npcArchives?.has(b.archive) ? block : 1;
+      const style = b.lptProto?.proto?.key?.endsWith('_helbenar') ? 1 : 0;
+      if (style !== lastTreeStyle) {
+        if (this.bbUTreeLighting) gl.uniform1f(this.bbUTreeLighting, style);
+        lastTreeStyle = style;
+      }
+      const pixelBlock = style ? treeBlock : npcArchives?.has(b.archive) ? block : 1;
       if (pixelBlock !== lastPixelBlock) {
         gl.uniform1f(this.bbUPixelBlock, pixelBlock);
         lastPixelBlock = pixelBlock;
@@ -9302,10 +9320,12 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       if (this._bbCrackOn) { gl.uniform2f(this.bbUCrack, 0, 0); this._bbCrackOn = false; }   // VEIN-CRACKS: the trees take no vein's seams
       if (this._bbTintOn) { gl.uniform3f(this.bbUBatchTint, 1, 1, 1); gl.uniform1f(this.bbUBatchDye, 0); this._bbTintOn = false; }
       if (this._bbColumnOn) { gl.uniform1f(bc.uColumnOn, 0); this._bbColumnOn = 0; }
-      for (let i = 0; i < slots.length; i++) if (slots[i]?.runs.length) this._drawLowPolyTrees(slots[i]);   // BANTHA1: every slot's trees
+      for (let i = 0; i < slots.length; i++) if (slots[i]?.runs.length) this._drawLowPolyTrees(slots[i], treeBlock);   // BANTHA1: every slot's trees
       const drawn = this._lptDrawn ??= [null, null];
       for (let i = 0; i < slots.length; i++) drawn[i] = slots[i]?.runs.length ? slots[i] : null;   // NODE-OUTLINE: what this frame drew, for the nodes' glint
       lastKey = null; lastW = NaN; lastH = NaN; lastOx = NaN; lastOy = NaN; lastOz = NaN; lastSway = null;
+      lastTreeStyle = NaN;
+      lastPixelBlock = NaN;
       this._bbLptCutOn = undefined;   // whatever the next batch's slot, it is sent
     }
     if (slots) slots.fill(null);
@@ -9340,7 +9360,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       gl.depthMask(true);
       gl.disable(gl.BLEND);
     }
-    if (lastPixelBlock > 1) gl.uniform1f(this.bbUPixelBlock, 1);
+    if (this.bbUTreeLighting) gl.uniform1f(this.bbUTreeLighting, 0);
+    if (!(lastPixelBlock <= 1)) gl.uniform1f(this.bbUPixelBlock, 1);
     this._activeTexture(gl.TEXTURE0);
     this._bindVao(null);
     gl.enable(gl.CULL_FACE);

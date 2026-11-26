@@ -224,7 +224,7 @@ export function createPixelBuild(host) {
         if (isCoverFlat(archive,record,size)) for(const c of shown) coverItems.push(...coverProxies(c,size,{tree:false}));
         continue;
       }
-      const { sib, proto: lpt, far, plain, key: rkey } = await naturePicture({ village: g.localGround, door: lowPolyTrees, seasons: host.seasonsActive ? seasons : null, renderer, uploadRecord: g.uploadRecord }, t, archive, record);
+      const { sib, proto: lpt, far, plain, key: rkey } = await naturePicture({ door: lowPolyTrees, seasons: host.seasonsActive ? seasons : null, renderer, uploadRecord: g.uploadRecord }, t, archive, record);
       coverItems.push(...flatBodies(t, archive, record, plain, centers, { tree: g.natureSet.has(archive) && isTreeRecord(g.natureBase(archive), record) }));   // PROP-BODIES: the record's own, whichever picture stands
       // Skyrim ground plants are three crossed cards (not a camera billboard); trees/rocks host hanging moss
       if (archive === SKYRIM_FLORA_ARCHIVE) {

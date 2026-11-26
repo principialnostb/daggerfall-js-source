@@ -67,33 +67,58 @@ def artwork():
         def stroke(x,y,dx,dy,v):
             steps=max(1,math.ceil(max(abs(dx),abs(dy))))
             for n in range(steps+1): dot(x+dx*n/steps,y+dy*n/steps,v)
-        for n in range(230 if not species else 126):
-            x,y=rng.randrange(128),rng.randrange(128)
-            a=rng.uniform(-1,1)+(math.pi if n%2 else 0)
-            ux,uy=math.sin(a),math.cos(a)
-            length=rng.randrange(9,19); shade=rng.randrange(2,6)
-            if species:
-                stroke(x,y,length*ux,length*uy,2)
-                for j in range(1,length,2):
-                    for sign in (-1,1):
-                        width=(1-j/length)*4+2
-                        needle = shade - (sign == 1)
-                        dx, dy = ux*4+sign*uy*width, uy*4-sign*ux*width
-                        stroke(x+j*ux,y+j*uy,dx,dy,needle)
-                        if shade >= 4 and j > length*.44 and sign < 0:
-                            dot(x+j*ux+dx,y+j*uy+dy,needle+1)
-            else:
+        if species:
+            # Each shoot has a continuous stem and staggered needle fans.
+            # Leave clear gaps between fans so the polygon perimeter does not read as a leaf.
+            for y in range(3, 125):
+                t = y/125
+                core = (42 + 10*math.sin(math.pi*t))*(1-.75*t*t)
+                core *= .83 + .17*math.cos(y*math.tau/8)
+                mid = round(64 + 2*math.sin(y*.055))
+                for x in range(-int(core), int(core)+1):
+                    # The thin outer needles stay transparent between the darker overlapping fans.
+                    if abs(x) < .52*core or (y+abs(x)//3)%8 < 6:
+                        dot(mid+x,y,1 + int((y+abs(x)//3)%8 < 3))
+            for y in range(3, 124):
+                mid = 64 + 2*math.sin(y*.055)
+                for x in range(-2 if y<92 else -1, 3 if y<92 else 2):
+                    dot(mid+x,y,2 + int(x==0))
+            for j, base in enumerate(range(7, 114, 8)):
+                for sign in (-1,1):
+                    y = base + (j%3-1)*sign*2
+                    spread = (30 + 17*math.sin(math.pi*y/128))*(1-.68*(y/128)**2)
+                    centre = 64 + 2*math.sin(y*.055)
+                    rise = 10 + j%4
+                    stem = sign*spread
+                    stroke(centre,y,stem,rise,2)
+                    for k in range(1,15):
+                        t = k/15
+                        x, sy = centre+stem*t, y+rise*t
+                        length = (12 + (j+k)%5)*(1-.70*t)
+                        stroke(x,sy,sign*length*.63,length,3 + (j+k)%3)
+                        if k%3 != 0:
+                            stroke(x,sy,sign*length*.73,-length*.45,2 + (j+k)%3)
+                    stroke(centre+stem*.82,y+rise*.82,stem*.18,rise*.18,4)
+            for y in range(81, 117, 5):
+                reach = (123-y)*.26
+                stroke(64,y,reach,8,4)
+                stroke(64,y,-reach,7,3)
+        else:
+            for n in range(230):
+                x,y=rng.randrange(128),rng.randrange(128)
+                a=rng.uniform(-1,1)+(math.pi if n%2 else 0)
+                ux,uy=math.sin(a),math.cos(a)
+                length=rng.randrange(9,19); shade=rng.randrange(2,6)
                 for j in range(length):
                     w=math.sin(math.pi*(j+.3)/length)**.8*(3.3+.9*math.cos(j*1.15))
                     for k in range(-int(w),int(w)+1):
                         dot(x+j*ux+k*uy,y+j*uy-k*ux,shade-(k<0)+(k==0 and j<length*.76))
-        for i, value in enumerate(tile):
-            if value == 255:
-                x, y = i % 128, i // 128
-                # Keep breaks between sprays in patches large enough to survive the first mip.
-                gap = math.sin(x*math.tau/32 + math.sin(y*math.tau/32)) + math.cos(y*math.tau/16 - x*math.tau/64)
-                if gap < (.12 if species else .50):
-                    tile[i] = 1
+            for i, value in enumerate(tile):
+                if value == 255:
+                    x, y = i % 128, i // 128
+                    gap = math.sin(x*math.tau/32 + math.sin(y*math.tau/32)) + math.cos(y*math.tau/16 - x*math.tau/64)
+                    if gap < .50:
+                        tile[i] = 1
         for y in range(128):
             pixels[(384+y)*256+off:(384+y)*256+off+128]=bytes(255 if c==255 else 14+7*species+c for c in tile[y*128:y*128+128])
     return pixels

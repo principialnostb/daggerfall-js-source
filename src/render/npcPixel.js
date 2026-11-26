@@ -25,9 +25,18 @@ export function npcBillboardArchives() {
 export function billboardPixelShader(source) {
   return source.replace('in vec2 vUV;', 'in vec2 vUV;\nuniform float uNpcPixelBlock;')
     .replace('vec2 uv = vUV;', `vec2 uv = vUV;
-  if (uNpcPixelBlock > 1.0) {
+  if (uNpcPixelBlock > 1.0 && uTreeLighting < 0.5) {
     vec2 offset = uNpcPixelBlock * (vec2(0.5) - fract(gl_FragCoord.xy / uNpcPixelBlock));
     uv += dFdx(vUV) * offset.x + dFdy(vUV) * offset.y;
     if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) discard;
+  }`).replace('vec4 tex = texture(uTex, uv);', `vec4 tex = texture(uTex, uv);
+  if (uNpcPixelBlock > 1.0 && uTreeLighting > 0.5) {
+    // Quantize colour at the landscape grid. Keep the original alpha contour and mip footprint.
+    vec2 dx = dFdx(vUV), dy = dFdy(vUV);
+    vec2 offset = uNpcPixelBlock * (vec2(0.5) - fract(gl_FragCoord.xy / uNpcPixelBlock));
+    vec2 at = uv + dx * offset.x + dy * offset.y;
+    if (uTreeLighting < 1.5) at = clamp(at, vec2(0.0), vec2(0.99999));
+    vec4 cell = textureGrad(uTex, at, dx, dy);
+    if (cell.a >= 0.5) tex.rgb = cell.rgb;
   }`);
 }
