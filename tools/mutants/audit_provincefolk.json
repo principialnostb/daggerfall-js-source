@@ -119,7 +119,7 @@
   {
     "name": "APF-A2-the-room's-context-alone",
     "file": "src/characters/peopleBodies.js",
-    "old": "  return personLook(\n    pn,\n    staticNpcData(pn, { ...sceneCtx, getFaction, raceOfCurrentRegion: () => regionRace ?? 0 }),\n    getFaction(pn.factionID),\n  );",
+    "old": "  return personLook(\n    pn,\n    staticNpcData(pn, { ...sceneCtx, getFaction, raceOfCurrentRegion: () => regionRace ?? 0 }),\n    getFaction(pn.factionID), null,\n    sceneCtx.flats?.getFlatData(pn.textureArchive, pn.textureRecord) ?? null,\n  );",
     "new": "  return personLook(pn, staticNpcData(pn, sceneCtx), getFaction(pn.factionID));",
     "tests": [
       "test/scenes/audit_provincefolk.test.js"

@@ -8,7 +8,7 @@
 // characters/creatureBodies.js; a person's).
 import { rosterLook } from './foeBodies.js';
 import { folkLookOf } from './folkBodies.js';
-import { dressPerson } from './wardrobe.js'; // MWNPC17: a still picture's kind, dressed by its role
+import { dressFlatPerson } from './wardrobe.js'; // MWNPC17: a still picture's kind, dressed by its role
 import { textSeed } from '../systems/livingWorld/seed.js';
 
 /** A key a host changed: a finite number or a string is one; null, undefined and NaN are none. */
@@ -101,17 +101,17 @@ export const STILL_WARDROBE = Object.freeze({
  * are drawn (never a walker's per-spawn roll). `rec` keeps what it reads - the sprites ask once a body.
  * AUDIT MW-NPC II K1: what the sprite wears NOW is the caller's - `cls` the class it is armed in (default the
  * resident's own), `guard` the watch's uniform on (his own clothes off it), `still` a still picture.
- * @param {any} rec @param {any} res @param {{ still?: boolean, cls?: number|null, guard?: boolean }} [o]
+ * @param {any} rec @param {any} res @param {{ still?: boolean, cls?: number|null, guard?: boolean, caption?: string }} [o]
  */
-export function residentLook(rec, res, { still = false, cls = res.cls, guard = false } = {}) {
+export function residentLook(rec, res, { still = false, cls = res.cls, guard = false, caption = '' } = {}) {
   const seed = textSeed(String(res.id));
   if (cls != null)
     return rosterLook(rec, { mobileType: cls, gender: res.sex === 'female' ? 'female' : 'male', seed, race: res.race });
-  const kind = still ? STILL_WARDROBE[res.job] : undefined;
+  const kind = res.job === 'smith' ? 'smith' : still ? STILL_WARDROBE[res.job] : undefined;
   if (kind) {
     const gender = res.sex === 'female' ? 'female' : 'male';
-    const d = dressPerson({ role: kind, gender, seed, cut: kind === 'priest' ? 'robe' : null }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears
-    return { race: res.race ?? 'Breton', gender, faceIndex: (seed >>> 0) % 10, items: d.items, npc: d.npc };
+    const d = dressFlatPerson({ role: kind, gender, seed, caption: caption || (kind === 'priest' ? 'robe' : '') }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears
+    return { race: res.race ?? 'Breton', gender, faceIndex: (seed >>> 0) % 10, items: d.items, npc: { ...d.npc, faceSpriteArchive: res.civvies ?? res.archive } };
   }
   return folkLookOf(
     {
@@ -140,7 +140,7 @@ export function residentLook(rec, res, { still = false, cls = res.cls, guard = f
  * dress changes. A BEGGAR's picture sits or lies at their pitch, and no body does: null - their picture stands.
  * @param {any} person @param {number[]} feet @returns {any} the actor, or null (the picture stands)
  */
-export function residentWalkerActor(person, feet) {
+export function residentWalkerActor(person, feet, flats = null) {
   const res = person.living.res;
   const role = person.stillLook ? (person.stillRole ?? null) : null;
   if (role === 'beggar') return null;
@@ -150,7 +150,10 @@ export function residentWalkerActor(person, feet) {
   let k = person._mwRes;
   if (!k || k.res !== res || k.cls !== cls || k.guard !== guard || k.still !== still)
     k = person._mwRes = { res, look: null, cls, guard, still }; // a compare a frame, no allocation
-  k.look ??= residentLook(k, res, { still, cls, guard });
+  if (!k.look) {
+    const flat = still ? flats?.getFlatData(person.stillLook.archive, person.stillLook.record) : null;
+    k.look = residentLook(k, res, { still, cls, guard, caption: flat?.caption });
+  }
   return rosterActor(k, {
     id: `res:${res.id}`,
     look: k.look,

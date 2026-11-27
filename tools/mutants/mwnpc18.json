@@ -193,8 +193,8 @@
   {
     "name": "AUDIT-MWNPC16-18-R2-merchant-before-rogue",
     "file": "src/characters/peopleBodies.js",
-    "old": "  ['rogue', /\\b(?:thief|thieves|rogue|assassin|cutthroat|bandit|brotherhood|smuggler|pirate|cowl)/i],\n  ['merchant', /\\b(?:merchant|shopkeep|trader|vendor|innkeep|barkeep|bartender|banker|tailor|grocer)|smith/i],",
-    "new": "  ['merchant', /\\b(?:merchant|shopkeep|trader|vendor|innkeep|barkeep|bartender|banker|tailor|grocer)|smith/i],\n  ['rogue', /\\b(?:thief|thieves|rogue|assassin|cutthroat|bandit|brotherhood|smuggler|pirate|cowl)/i],",
+    "old": "  ['rogue', /\\b(?:thief|thieves|rogue|assassin|cutthroat|bandit|brotherhood|smuggler|pirate|cowl)/i],\n  ['smith', /\\b(?:blacksmith|smith)\\b/i],\n  ['merchant', /\\b(?:merchant|shopkeep|trader|vendor|innkeep|barkeep|bartender|banker|tailor|grocer)|smith/i],",
+    "new": "  ['merchant', /\\b(?:merchant|shopkeep|trader|vendor|innkeep|barkeep|bartender|banker|tailor|grocer)|smith/i],\n  ['smith', /\\b(?:blacksmith|smith)\\b/i],\n  ['rogue', /\\b(?:thief|thieves|rogue|assassin|cutthroat|bandit|brotherhood|smuggler|pirate|cowl)/i],",
     "tests": [
       "test/scenes/mwnpc18_decorfigures.test.js"
     ]

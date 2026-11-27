@@ -1463,6 +1463,13 @@ export const FEATURES = Object.freeze([
   // lane (npcBodiesOn and its tier), so it lands at once. AUDIT MW-NPC II P6: the note said "foes first" and "the closest
   // dozen" - MWNPC11's budget ranks every lane alike and stands up to 24.
   Object.freeze({
+    id: 'enhancedNpcs', group: 'world',
+    get title() { return t('features.enhancedNpcs.title', 'Enhanced NPCs'); },
+    get note() { return t('features.enhancedNpcs.note', 'Show animated townspeople and guards.'); },
+    effect: 'Takes effect at once.', kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'enhancedNpcs', initial: true, online: 'player' }),
+  }),
+  Object.freeze({
     id: 'mw-npc-bodies',
     group: 'world',
     title: 'Morrowind People',

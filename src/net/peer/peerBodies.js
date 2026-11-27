@@ -407,7 +407,7 @@ export function peerBuildOpts(look, shown = null, glyphs = null) {
     race: mwRaceId(stub.race),
     female: stub.gender === 'female',
     faceIndex: stub.faceIndex | 0,
-    armor: [...(npc ? withNpcPicks(worn, npc) : worn), ...outfitPiece(look, wolf)], // MWNPC17: each garment its rung and its pick; BEAST-BOOTS: a beast NPC's helm and boots go to the composer as a player's do; MW-FOLK1: and a townsperson's outfit
+    armor: [...(npc ? withNpcPicks(worn, npc, look.race) : worn), ...outfitPiece(look, wolf)], // MWNPC17: each garment its rung and its pick; BEAST-BOOTS: a beast NPC's helm and boots go to the composer as a player's do; MW-FOLK1: and a townsperson's outfit
     // DISC12: the hand in use; WEREWOLF1: a wolf holds nothing (the build refuses the hand anyway)
     weapon: wolf ? null : peerWeaponOf(look, shown),
     hasAmmo: false,

@@ -157,7 +157,7 @@
   {
     "name": "AUDITMWNPC-C4-resident-as-spawn",
     "file": "src/scenes/world.js",
-    "old": "const a = person.living?.res ? residentWalkerActor(person, batch.origin) : folkActor(",
+    "old": "const a = person.living?.res ? residentWalkerActor(person, batch.origin, pipeline.flatsFile?.()) : folkActor(",
     "new": "const a = person.living?.res ? folkActor(person, batch.origin, p.population.race) : folkActor(",
     "tests": [
       "test/characters/mwnpc7_folk.test.js"

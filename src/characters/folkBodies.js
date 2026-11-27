@@ -112,10 +112,11 @@ export function folkLookOf(person, race, seed) {
   // as Morrowind dresses none: the wardrobe dresses them, and the figure draws what a beast wears of it (BEAST-BOOTS).
   const own = townsfolkOutfitOf(person.archive);
   if (own && spriteSex(person.archive) === gender && !WARDROBE_BEAST_RACES.includes(race))
-    return { race, gender, faceIndex, items: [], npc: npcHint(seed, 0), outfit: own.id };
+    return { race, gender, faceIndex, items: [], npc: { ...npcHint(seed, 0), spriteArchive: person.archive }, outfit: own.id };
   const { role, cut } = FOLK_DRESS[gender][folkVariant(person.archive, race)];
-  const d = dressPerson({ role, gender, seed, cut }); // MWNPC17: the role and cut their sprite shows, the rest their own
-  return { race, gender, faceIndex, items: d.items, npc: d.npc };
+  const spriteCut = gender === 'female' && [393, 396, 454].includes(person.archive) ? 'skirt' : cut;
+  const d = dressPerson({ role, gender, seed, cut: spriteCut }); // MWNPC17: the role and cut their sprite shows, the rest their own
+  return { race, gender, faceIndex, items: d.items, npc: { ...d.npc, spriteArchive: person.archive } };
 }
 
 /** MW-FOLK1: the sex a walker's picture is (PERSON_TEXTURES' lists), or null for an archive no list holds. */

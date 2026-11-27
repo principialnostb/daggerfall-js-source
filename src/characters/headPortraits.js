@@ -122,7 +122,7 @@ export async function playerHeadImage(who, { px = 128, ph = px, renderer = portr
 export async function npcHeadImage(look, { px = 128, ph = px, renderer = portraitRenderer() } = {}) {
   if (!look || look.creature || !renderer) return null;
   const { npcBodiesOn } = await import('./npcBodies.js');
-  if (!npcBodiesOn()) return null;
+  if (!npcBodiesOn() || getPref('enhancedNpcs') === false) return null;
   const [{ headPortrait }, { peerBuildOpts }] = await Promise.all([
     import('../combat/fpArm.js'),
     import('../net/peer/peerBodies.js'),

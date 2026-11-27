@@ -20,7 +20,7 @@ import { textSeed } from '../systems/livingWorld/seed.js'; // MWNPC18: a figure'
 import { RACES } from '../systems/races.js';
 import { SOCIAL_GROUPS, GUILD_GROUPS, FACTION_TYPES } from '../formats/factionFile.js';
 import { isNpcFlat } from '../world/npcFlatArchives.js'; // STALL-FLATS: RDBLayout.NPCFlatArchives, the people's pictures
-import { dressPerson } from './wardrobe.js'; // MWNPC17: the wardrobe's roles
+import { dressFlatPerson, WARDROBE_BEAST_RACES } from './wardrobe.js'; // MWNPC17: the wardrobe's roles
 import { nativeAt } from './provinceFolk.js'; // PROVINCE-FOLK: the place's own people past the Bay
 
 const RACE_NAME = Object.freeze(Object.fromEntries(Object.entries(RACES).map(([k, v]) => [v, k])));
@@ -95,7 +95,7 @@ export function wardrobeOf(f) {
  * for as long as they stand. MWNPC17: dressed by their kind's role off their name seed (characters/wardrobe.js).
  * @param {any} pn @param {any} data @param {any} faction
  */
-export function personLook(pn, data, faction, feet = null) {
+export function personLook(pn, data, faction, feet = null, flat = null) {
   if (pn._mwLook !== undefined) return pn._mwLook;
   if (!data || isChildNPCData(data)) return (pn._mwLook = null);
   // MWNPC8b: an EDITOR flat (a marker DFU never renders, whatever faction it carries) is no one to stand a body for -
@@ -112,7 +112,16 @@ export function personLook(pn, data, faction, feet = null) {
   if (kind === 'none' || !race) return (pn._mwLook = null);
   const gender = data.gender === GENDERS.Female ? 'female' : 'male';
   const seed = mix((data.nameSeed | 0) ^ mix(data.hash | 0));
-  const d = dressPerson({ role: KIND_ROLE[kind], gender, seed });
+  const smith = data.billboardArchiveIndex === 182 && data.billboardRecordIndex === 59;
+  const caption = flat?.caption ?? '';
+  const namedRole = figureRole(caption);
+  const role = smith ? 'smith' : kind === 'common' ? namedRole : KIND_ROLE[kind];
+  const d = dressFlatPerson({ role, gender, seed, caption, archive: data.billboardArchiveIndex, record: data.billboardRecordIndex });
+  if (!caption && seed % 4 === 0 && !WARDROBE_BEAST_RACES.includes(race)) {
+    const outfit = role === 'priest' ? (gender === 'female' ? 398 : [381, 383][seed & 1])
+      : role === 'merchant' && gender === 'male' ? [385, 386][seed & 1] : null;
+    if (outfit) return (pn._mwLook = { race, gender, faceIndex: mix(seed ^ 0xfa) % 10, items: [], npc: d.npc, outfit: 'townsfolk_' + outfit });
+  }
   return (pn._mwLook = { race, gender, faceIndex: mix(seed ^ 0xfa) % 10, items: d.items, npc: d.npc });
 }
 
@@ -142,7 +151,7 @@ export function figureLook(fig, ctx = null, feet = null) {
   const gender = row ? flatGender(row.gender) : null;
   if (!gender) return (fig._mwLook = null);
   const seed = textSeed(`decor:${piece.id}`);
-  const d = dressPerson({ role: figureRole(row.caption), gender, seed });
+  const d = dressFlatPerson({ role: figureRole(row.caption), gender, seed, caption: row.caption, archive: a, record: r });
   return (fig._mwLook = {
     race: nativeAt(feet) ?? raceNameOf(ctx?.race ?? null),
     gender,
@@ -177,7 +186,8 @@ export function standingPersonLook(pn, sceneCtx, dict, regionRace) {
   return personLook(
     pn,
     staticNpcData(pn, { ...sceneCtx, getFaction, raceOfCurrentRegion: () => regionRace ?? 0 }),
-    getFaction(pn.factionID),
+    getFaction(pn.factionID), null,
+    sceneCtx.flats?.getFlatData(pn.textureArchive, pn.textureRecord) ?? null,
   );
 }
 /** MWNPC18: TEXTURE.175, the Daedra Princes as their quests summon them - never a person's body. */
@@ -204,6 +214,7 @@ export const FIGURE_ROLE_WORDS = Object.freeze([
     /\b(?:noble|lords?\b|lady|ladies|kings?\b|queen|prince|baron|duke|duchess|count(?:ess)?\b|regent|courtier|elegant|royal|emperor|empress|aristocra)/i,
   ],
   ['rogue', /\b(?:thief|thieves|rogue|assassin|cutthroat|bandit|brotherhood|smuggler|pirate|cowl)/i],
+  ['smith', /\b(?:blacksmith|smith)\b/i],
   ['merchant', /\b(?:merchant|shopkeep|trader|vendor|innkeep|barkeep|bartender|banker|tailor|grocer)|smith/i],
   ['scholar', /\b(?:scholar|sages?\b|librarian|scribe|teacher|professor|clerk|historian)/i],
 ]);

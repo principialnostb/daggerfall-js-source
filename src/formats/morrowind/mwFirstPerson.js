@@ -1771,6 +1771,30 @@ export function curatedAnswersFace(pools, race, female, faceIndex, faceTable = F
   return !!c && !!poolRecord(pools.heads, c.head) && !!poolRecord(pools.hairs, c.hair);
 }
 
+// Match the visible features of the original walking sprites. These are BODY IDs
+// shared by the base game and Westly's replacements. The seed still picks within a group.
+const SPRITE_HEADS = [
+  { archives: [381, 382, 383, 384], race: 'redguard', sex: 'm', heads: ['03', '05'], hairs: ['00'], color: '#161319' },
+  { archives: [395, 396, 397, 398], race: 'redguard', sex: 'f', heads: ['01', '02', '04', '05'], hairs: ['01', '02', '04'], color: '#161319' },
+  { archives: [387, 388, 389, 390], race: 'nord', sex: 'm', heads: ['01', '05', '06'], hairs: ['04'], color: '#9a6b4d' },
+  { archives: [392], race: 'nord', sex: 'f', heads: ['01', '02', '06'], hairs: ['01', '05'], color: '#d7ae68' },
+  { archives: [393, 451, 452], race: 'nord', sex: 'f', heads: ['01', '02', '03', '06'], hairs: ['01', '05'], color: '#9a6b4d' },
+  { archives: [385, 394], race: 'breton', sex: 'm', heads: ['02', '05'], hairs: ['01'], color: '#332018' },
+  { archives: [386, 391], race: 'breton', sex: 'm', heads: ['01', '03', '06', '07'], hairs: ['01'], color: '#503124' },
+  { archives: [453, 456], race: 'breton', sex: 'f', heads: ['01', '04', '06'], hairs: ['02'], color: '#d7ae68' },
+  { archives: [454], race: 'breton', sex: 'f', heads: ['02', '03', '05'], hairs: ['03', '05'], color: '#9a6b4d' },
+  { archives: [455], race: 'breton', sex: 'f', heads: ['01', '02', '04', '06'], hairs: ['02', '05'], color: '#503124' },
+];
+
+export function spriteHeadProfile(archive, race, female) {
+  return SPRITE_HEADS.find(p => p.race === race && p.sex === (female ? 'f' : 'm') && p.archives.includes(archive));
+}
+
+/** Match an authored BODY suffix, whose spelling differs between race records. */
+export function spriteHeadRecords(records, numbers, slot) {
+  return records.filter(record => numbers.some(n => new RegExp(slot + '_?' + n + '$', 'i').test(record.id)));
+}
+
 export function playerBodyRows(parts, race, female, { beast = false, faceIndex = 0, faceTable = FACE_TABLE, faceMatch = null, faceRace = race, vampire = false, walk = null, has = null, ownHeads = false, appearanceHeadId = null, appearanceHairId = null } = {}) {   // MWNPC14: `vampire` the race's vampire head; MWNPC17: `walk` an NPC's { head, hair }; AUDIT MW-HEADS1: `has` the archives' (facePools); MW-HEADS2: `ownHeads` a player's - the port's own heads
   const want = String(race || '').toLowerCase();
   // MW-D32: the sweep slots resolve through getBodyParts-whole
@@ -1815,7 +1839,16 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
   // same `has`: AUDIT MW-HEADS1).
   const pools = facePools(parts, faceRace, female, { has, own: ownHeads });
   for (const slot of ['head', 'hair']) {
-    const sorted = slot === 'head' ? pools.heads : pools.hairs;
+    const pool = slot === 'head' ? pools.heads : pools.hairs;
+    const profile = slot === 'head' && walk && spriteHeadProfile(walk.spriteArchive, faceRace, female);
+    const traits = !female && slot === 'head' && walk?.face ? {
+      breton: { bearded: ['02', '05'], older: ['04', '06'] },
+      nord: { bearded: ['01', '06'], older: ['01', '02'] },
+      redguard: { bearded: ['03', '05'], older: ['01', '06'] },
+    }[faceRace]?.[walk.face] : null;
+    const numbers = profile?.heads ?? traits;
+    const matching = numbers ? spriteHeadRecords(pool, numbers, 'head').filter(p => p.model && (!has || has(normalizeVfsPath('meshes/' + p.model)))) : [];
+    const sorted = matching.length ? matching : pool;
     let chosen = null;
     let how = null;
     // MWNPC17: AN NPC'S OWN - its head and its hair walked each on its own off its seed (characters/wardrobe.js
@@ -1852,6 +1885,7 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
       slot,
       record: chosen,
       ...(earRecord ? { earRecord } : {}),
+      ...(slot === 'hair' && walk?.face === 'bald' && !beast ? { earsOnly: true } : {}),
       ...(slot === 'hair' && how?.startsWith('selected') ? { splitHair: true } : {}),
       verdict: chosen ? (how ? `third-person record found, ${how}` : 'third-person record found') : 'NOTHING for this slot',
       counts: { all: sorted.length },   // AUDIT MW-HEADS1 (L2-F7): the pool chosen among - the port's own where it stands

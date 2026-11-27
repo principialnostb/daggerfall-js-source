@@ -101,7 +101,7 @@
   {
     "name": "MWNPC10c-still-unread",
     "file": "src/characters/rosterBodies.js",
-    "old": "  const kind = still ? STILL_WARDROBE[res.job] : undefined;",
+    "old": "  const kind = res.job === 'smith' ? 'smith' : still ? STILL_WARDROBE[res.job] : undefined;",
     "new": "  const kind = undefined;",
     "tests": [
       "test/characters/mwnpc10c_roads.test.js"
@@ -110,7 +110,7 @@
   {
     "name": "MWNPC10c-still-always",
     "file": "src/characters/rosterBodies.js",
-    "old": "  const kind = still ? STILL_WARDROBE[res.job] : undefined;",
+    "old": "  const kind = res.job === 'smith' ? 'smith' : still ? STILL_WARDROBE[res.job] : undefined;",
     "new": "  const kind = STILL_WARDROBE[res.job];",
     "tests": [
       "test/characters/mwnpc10c_roads.test.js"
@@ -128,8 +128,8 @@
   {
     "name": "MWNPC10c-still-undyed",
     "file": "src/characters/rosterBodies.js",
-    "old": "    const d = dressPerson({ role: kind, gender, seed, cut: kind === 'priest' ? 'robe' : null }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears",
-    "new": "    const d = dressPerson({ role: kind, gender, seed: 0, cut: kind === 'priest' ? 'robe' : null }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears",
+    "old": "    const d = dressFlatPerson({ role: kind, gender, seed, caption: caption || (kind === 'priest' ? 'robe' : '') }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears",
+    "new": "    const d = dressFlatPerson({ role: kind, gender, seed: 0, caption: caption || (kind === 'priest' ? 'robe' : '') }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears",
     "tests": [
       "test/characters/mwnpc10c_roads.test.js"
     ]

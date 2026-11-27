@@ -92,7 +92,7 @@
   {
     "name": "MWNPC17-picks-dropped",
     "file": "src/net/peer/peerBodies.js",
-    "old": "    armor: [...(npc ? withNpcPicks(worn, npc) : worn), ...outfitPiece(look, wolf)], // MWNPC17: each garment its rung and its pick; BEAST-BOOTS: a beast NPC's helm and boots go to the composer as a player's do; MW-FOLK1: and a townsperson's outfit",
+    "old": "    armor: [...(npc ? withNpcPicks(worn, npc, look.race) : worn), ...outfitPiece(look, wolf)], // MWNPC17: each garment its rung and its pick; BEAST-BOOTS: a beast NPC's helm and boots go to the composer as a player's do; MW-FOLK1: and a townsperson's outfit",
     "new": "    armor: [...worn, ...outfitPiece(look, wolf)], // MWNPC17: each garment its rung and its pick; BEAST-BOOTS: a beast NPC's helm and boots go to the composer as a player's do; MW-FOLK1: and a townsperson's outfit",
     "tests": [
       "test/characters/mwnpc17_wardrobe.test.js"
@@ -101,8 +101,8 @@
   {
     "name": "MWNPC17-face-one-hash",
     "file": "src/characters/wardrobe.js",
-    "old": "export const npcFaceOf = (n) => ({ head: wmix(n.seed ^ 0x4ead5eed), hair: wmix(n.seed ^ 0x4a12b0b5) });",
-    "new": "export const npcFaceOf = (n) => ({ head: wmix(n.seed ^ 0x4ead5eed), hair: wmix(n.seed ^ 0x4ead5eed) });",
+    "old": "  hair: wmix(n.seed ^ 0x4a12b0b5),",
+    "new": "  hair: wmix(n.seed ^ 0x4ead5eed),",
     "tests": [
       "test/characters/mwnpc17_wardrobe.test.js"
     ]
@@ -146,8 +146,8 @@
   {
     "name": "MWNPC17-role-rungs-unread",
     "file": "src/characters/wardrobe.js",
-    "old": "  return { items, npc: npcHint(s, tier, lo, hi), role: name, cut: k, tier };",
-    "new": "  return { items, npc: npcHint(s, tier), role: name, cut: k, tier };",
+    "old": "  return { items, npc: { ...npcHint(s, tier, lo, hi), role: role === 'smith' ? 'smith' : name, cut: k }, role: name, cut: k, tier };",
+    "new": "  return { items, npc: { ...npcHint(s, tier), role: role === 'smith' ? 'smith' : name, cut: k }, role: name, cut: k, tier };",
     "tests": [
       "test/characters/mwnpc17_wardrobe.test.js"
     ]
@@ -200,7 +200,7 @@
   {
     "name": "MWNPC17-still-unhinted",
     "file": "src/characters/rosterBodies.js",
-    "old": "    return { race: res.race ?? 'Breton', gender, faceIndex: (seed >>> 0) % 10, items: d.items, npc: d.npc };",
+    "old": "    return { race: res.race ?? 'Breton', gender, faceIndex: (seed >>> 0) % 10, items: d.items, npc: { ...d.npc, faceSpriteArchive: res.civvies ?? res.archive } };",
     "new": "    return { race: res.race ?? 'Breton', gender, faceIndex: (seed >>> 0) % 10, items: d.items };",
     "tests": [
       "test/characters/mwnpc17_wardrobe.test.js"
@@ -209,8 +209,8 @@
   {
     "name": "AUDIT-MWNPC16-18-R2-door-priest-unrobed",
     "file": "src/characters/rosterBodies.js",
-    "old": "    const d = dressPerson({ role: kind, gender, seed, cut: kind === 'priest' ? 'robe' : null }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears",
-    "new": "    const d = dressPerson({ role: kind, gender, seed, cut: null }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears",
+    "old": "    const d = dressFlatPerson({ role: kind, gender, seed, caption: caption || (kind === 'priest' ? 'robe' : '') }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears",
+    "new": "    const d = dressFlatPerson({ role: kind, gender, seed, caption }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears",
     "tests": [
       "test/characters/mwnpc17_wardrobe.test.js"
     ]

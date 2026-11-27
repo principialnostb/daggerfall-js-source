@@ -695,7 +695,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     if (pn._mwLook !== undefined) return pn._mwLook;
     const dict = townTalk.factionDict ?? null;
     if (!dict) return null;   // never before the faction table: asked again
-    return personLook(pn, staticNpcData(pn, { getFaction: (id) => dict.get(id) ?? null, raceOfCurrentRegion: () => REGION_RACES[dfLocation.regionIndex] + 1 }), dict.get(pn.factionID) ?? null);
+    return personLook(pn, staticNpcData(pn, { getFaction: (id) => dict.get(id) ?? null, raceOfCurrentRegion: () => REGION_RACES[dfLocation.regionIndex] + 1 }), dict.get(pn.factionID) ?? null, null, standFigureCtx.flats?.getFlatData(pn.textureArchive, pn.textureRecord));
   };
   collider.cover = createCoverIndex();   // TACT1: the location's solid flats are cover, with the switch on
   let colliderTris = 0;

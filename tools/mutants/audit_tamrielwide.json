@@ -163,7 +163,7 @@
   {
     "name": "AUDIT-TW-II-W3-the-street-feet-dropped",
     "file": "src/scenes/world.js",
-    "old": "dict.get(pn.factionID) ?? null, feet);",
+    "old": "dict.get(pn.factionID) ?? null, feet, yardFigureCtx.flats?.getFlatData(pn.textureArchive, pn.textureRecord));",
     "new": "dict.get(pn.factionID) ?? null);",
     "tests": [
       "test/world/worldWide/audit_tamrielwide.test.js"

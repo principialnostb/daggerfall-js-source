@@ -3488,7 +3488,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     if (pn._mwLook !== undefined) return pn._mwLook;
     const dict = _questStore()?.dict ?? null;
     if (!dict) return null;   // never before the faction table: asked again
-    return personLook(pn, staticNpcData(pn, { getFaction: (id) => dict.get(id) ?? null, raceOfCurrentRegion: () => REGION_RACES[_questRegionIndex()] + 1 }), dict.get(pn.factionID) ?? null, feet);
+    return personLook(pn, staticNpcData(pn, { getFaction: (id) => dict.get(id) ?? null, raceOfCurrentRegion: () => REGION_RACES[_questRegionIndex()] + 1 }), dict.get(pn.factionID) ?? null, feet, yardFigureCtx.flats?.getFlatData(pn.textureArchive, pn.textureRecord));
   };
   /** CARDS4b: THE REGULARS AT THE CARD TABLE (world/card/cardRegulars.js) - stood by the interior host each frame on layers of
    *  their own, seated through the pose's `st` as a seated peer is; what they say, over their heads. */
@@ -32301,7 +32301,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         const kin = person.living?.res;
         if (kin?.look && (familyStreet ??= makeFamilyBodies()).stand(kin, batch.origin, person.yaw, person.state === 'move')) continue;
         livePersonBatches.push(batch);
-        if (_folkOn) { const a = person.living?.res ? residentWalkerActor(person, batch.origin) : folkActor(person, batch.origin, p.population.race); if (a) folkStreet.offer(a, batch); else batch.castOnly = false; }   // MWNPC7: a walker offered their body; AUDIT MW-NPC C4: a living resident as themselves - the billboard casts alone where it stands   // AUDIT MW-NPC II K1: a beggar's picture keeps the street (null)
+        if (_folkOn) { const a = person.living?.res ? residentWalkerActor(person, batch.origin, pipeline.flatsFile?.()) : folkActor(person, batch.origin, p.population.race); if (a) folkStreet.offer(a, batch); else batch.castOnly = false; }   // MWNPC7: a walker offered their body; AUDIT MW-NPC C4: a living resident as themselves - the billboard casts alone where it stands   // AUDIT MW-NPC II K1: a beggar's picture keeps the street (null)
         else batch.castOnly = false;
       }
     }

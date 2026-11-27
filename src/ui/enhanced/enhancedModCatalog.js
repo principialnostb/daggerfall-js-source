@@ -1,3 +1,4 @@
+import { t } from '../../systems/textManager.js';
 import { emcText } from './emcLanguage.js';
 import { morrowindDataCount } from '../../scenes/dataSource.js';
 import { textureIntro } from './texturePresentation.js';
@@ -54,6 +55,19 @@ export function enhancedModCatalog({ section, render, openFiles, textureNodes, p
     const inventory=node('div','card');
     inventory.append(node('h3',null,'Отображение инвентаря'),node('p','meta','Выберите 2D-карточку персонажа или 3D-инвентарь. В режиме 2D модели Morrowind продолжают работать в игровом мире, а персонаж и значки предметов в инвентаре остаются двумерными. Paperdoll Enhanced улучшает 2D-карточку.'),button(getPref('morrowindThirdPersonOnly')?'Инвентарь: 2D':'Инвентарь: 3D',()=>{setInventory2D(!getPref('morrowindThirdPersonOnly'));render();}));
     page.append(inventory);
+    const npcCard = node('section', 'card');
+    const enabled = getPref('enhancedNpcs') !== false;
+    const toggleNpcs = button(enabled ? 'Отключить' : 'Включить', () => {
+      setPref('enhancedNpcs', !enabled);
+      render();
+    });
+    toggleNpcs.setAttribute('aria-pressed', String(enabled));
+    npcCard.append(
+      node('h3', null, t('features.enhancedNpcs.title', 'Enhanced NPCs')),
+      node('p', 'meta', t('features.enhancedNpcs.note', 'Show animated townspeople and guards.')),
+      toggleNpcs,
+    );
+    page.append(npcCard);
     for(const group of MOD_GROUPS){
       const box=node('section','card emc-group');
       const packs=MOD_PACKS.filter(p=>p.group===group.id);

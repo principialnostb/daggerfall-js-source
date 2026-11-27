@@ -262,8 +262,8 @@
   {
     "name": "MWFOLK1-AUDIT-one-face-for-all",
     "file": "src/characters/folkBodies.js",
-    "old": "    return { race, gender, faceIndex, items: [], npc: npcHint(seed, 0), outfit: own.id };",
-    "new": "    return { race, gender, faceIndex, items: [], npc: npcHint(1, 0), outfit: own.id };",
+    "old": "    return { race, gender, faceIndex, items: [], npc: { ...npcHint(seed, 0), spriteArchive: person.archive }, outfit: own.id };",
+    "new": "    return { race, gender, faceIndex, items: [], npc: { ...npcHint(1, 0), spriteArchive: person.archive }, outfit: own.id };",
     "tests": [
       "test/tooling/mwfolk1.test.js"
     ],
@@ -643,8 +643,8 @@
   {
     "name": "MWFOLK1-AUDIT-outfit-face-index-fixed",
     "file": "src/characters/folkBodies.js",
-    "old": "    return { race, gender, faceIndex, items: [], npc: npcHint(seed, 0), outfit: own.id };",
-    "new": "    return { race, gender, faceIndex: 0, items: [], npc: npcHint(seed, 0), outfit: own.id };",
+    "old": "    return { race, gender, faceIndex, items: [], npc: { ...npcHint(seed, 0), spriteArchive: person.archive }, outfit: own.id };",
+    "new": "    return { race, gender, faceIndex: 0, items: [], npc: { ...npcHint(seed, 0), spriteArchive: person.archive }, outfit: own.id };",
     "tests": [
       "test/tooling/mwfolk1.test.js"
     ],

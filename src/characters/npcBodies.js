@@ -245,6 +245,8 @@ export function createNpcBodies({ renderer, enabled = () => true, generation = (
      */
     stand(laneName, actor, conceal = null, flash = 0, fx = null, anchored = false) {
       if (!actor?.look || !actor.feet || npcBodiesHeld()) return;   // AUDIT MW-NPC II H2: none under the Overworld
+      const civilianLane = laneName === 'folk' || laneName === 'people' || laneName === 'room' || laneName === 'watch';
+      if (civilianLane && getPref('enhancedNpcs') === false) return;
       conceal ??= actor.look.veil ?? null;   // MWNPC13: a spectral's standing veil - the host's concealment first
       const id = npcPeerId(laneName, actor.id);
       peers.push({ id, name: '', told: true, look: actor.look, shown: npcShown(actor) });

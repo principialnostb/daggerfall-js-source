@@ -9313,3 +9313,5 @@ wild.zone.revenantOne,"В Cyrodiil рядом с вами может идти л
 wild.zone.unstuckOut,"/unstuck не работает под открытым небом в Cyrodiil."
 features.worldPixelObjects.title,Пикселизация предметов и декора
 features.worldPixelObjects.note,"Отдельные 3D-предметы: в том числе весь костёр (камни, дрова и пламя), классическая мебель. Для них применяется только эта настройка, без повторной пикселизации настройкой мира."
+features.enhancedNpcs.title,"Улучшенные NPC"
+features.enhancedNpcs.note,"Показывать анимированные модели жителей и стражи."

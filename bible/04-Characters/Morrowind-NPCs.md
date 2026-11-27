@@ -56,6 +56,9 @@ The player turns it on and sizes it under Settings, Combat > With Morrowind data
 - One build queue serves every lane (`BODY_BUILD_GATE`).
 - The setting `mwNpcBodies` (Off, Near, All) defaults to Near (`NPC_BODIES_DEFAULT`; `mw-npc-bodies` in
   `src/systems/features.js`).
+- The Enhanced NPCs card controls the models and portraits of townspeople and guards.
+  Their outfits and faces use the sprite archive and caption where available. Westly clothing is used when its
+  records are attached.
 - Barely any two NPCs look alike: people are dressed procedurally by role and seed (Mac).
 - Morrowind Model Detail (`mwModelDetail`): Pixelated, the default and the owner's look, draws a Morrowind texel
   `MW_ARM_PIXEL` (3) screen pixels; Sharp draws one. The sprite target grows on demand up to `CHAR_SPRITE_RT_MAX`

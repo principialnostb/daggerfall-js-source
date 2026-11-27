@@ -193,8 +193,8 @@
   {
     "name": "AUDITMWNPC2-K1-picture-unstill",
     "file": "src/characters/rosterBodies.js",
-    "old": "  k.look ??= residentLook(k, res, { still, cls, guard });",
-    "new": "  k.look ??= residentLook(k, res, { cls, guard });",
+    "old": "  k.look = residentLook(k, res, { still, cls, guard, caption: flat?.caption });",
+    "new": "  k.look = residentLook(k, res, { cls, guard, caption: flat?.caption });",
     "tests": [
       "test/characters/mwnpc_audit2.test.js"
     ]

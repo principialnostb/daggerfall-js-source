@@ -51,7 +51,7 @@ import {
   lightRecords, pickTorchRecord, blendMaskBones, overlayTracks, overlaySampler, weaponFlags, MW_TWO_HANDED,   // The held torch
   pickLanternRecord, hangAnchor, hookOnBone, hangAffine,   // The lantern at the waist, and the part that hangs
   tpAnimSources, TP_BASE_MODEL, playerBodyRows, werewolfHeadRows, MW_UNITS_PER_METER, resolveBodyParts, ARM_PARTS, raceRecords, armorRecords, clothingRecords,
-  appearanceHairPool, distinctAppearanceModels, facePools, femaleHairAsset, meshBounds, curatedAnswersFace,   // The match stands down where the curated table answers
+  appearanceHairPool, distinctAppearanceModels, facePools, femaleHairAsset, spriteHeadProfile, spriteHeadRecords, meshBounds, curatedAnswersFace,   // The match stands down where the curated table answers
   movementAnimState, composeMovementGroup, MOVEMENT_FALLBACK_SPEED, MOVEMENT_SPEED_CAP, turnAnimSpeed,
   jumpAnimState,
   sourcesKeyTime, sourceVelocityOf,
@@ -498,6 +498,14 @@ async function appearanceHairChoices(archives, records, female) {
 const npcHairPalettes = new WeakMap();
 async function npcHairOf(archives, parts, race, female, walk, beast) {
   if (!walk || beast || /^(argonian|khajiit)$/i.test(race)) return null;
+  const profile = spriteHeadProfile(walk.spriteArchive, race, female);
+  const picturedHair = profile?.hairs ?? (female && race === 'breton' && walk.hairColor === '#d7ae68' ? ['02'] : null);
+  if (picturedHair) {
+    const has = archiveHas(archives);
+    const candidates = spriteHeadRecords(facePools(parts, race, female).hairs, picturedHair, 'hair')
+      .filter(p => p.model && has(normalizeBsaPath('meshes/' + p.model)));
+    if (candidates.length) return { id: candidates[walk.hair % candidates.length].id, color: profile?.color ?? walk.hairColor };
+  }
   let palettes = npcHairPalettes.get(parts);
   if (!palettes) npcHairPalettes.set(parts, (palettes = new Map()));
   const sex = !!female;
@@ -513,7 +521,7 @@ async function npcHairOf(archives, parts, race, female, walk, beast) {
   const choice = choices[walk.hair % choices.length];
   if (!choice) return null;
   const colors = HAIR_SWATCHES.slice(1);
-  const color = colors[(Math.imul(walk.hair ^ walk.head, 0x9e3779b1) >>> 0) % colors.length][0];
+  const color = walk.hairColor ?? colors[(Math.imul(walk.hair ^ walk.head, 0x9e3779b1) >>> 0) % colors.length][0];
   return { id: choice.id, color };
 }
 
