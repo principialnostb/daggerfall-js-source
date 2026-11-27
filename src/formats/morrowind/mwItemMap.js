@@ -1,4 +1,4 @@
-import { itemOwnStyleFields } from '../../systems/item/itemAppearanceKey.js';
+import { itemModelDye, itemOwnStyleFields } from '../../systems/item/itemAppearanceKey.js';
 // Map Daggerfall equipment templates and materials to Morrowind records. Weapons and armour use different
 // material tables.
 
@@ -16,7 +16,6 @@ import { t } from '../../systems/textManager.js'; // MW-FOLK1's notes in the pla
 import { ARMOR_MATERIAL } from '../../systems/armorMaterials.js';
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';
 import { selectedShieldLook } from '../../characters/ownModels/shieldLooks.js';
-import { wolfArmorPalette, wolfArmorModel } from '../../characters/ownModels/wolfArmorPalette.js';
 import templates from '../../characters/itemTemplates.json' with { type: 'json' };
 
 /** ARMOR_ENUM.Helm, held as its own name because the composer's
@@ -831,6 +830,7 @@ export function dfWornEquipment(slots, EQUIP_SLOTS, ARMOR_ENUM_) {
   for (const k of ['ChestClothes', 'LegsClothes', 'Feet', 'Cloak1', 'Cloak2']) {
     const it = slots[S[k]];
     if (it && typeof it.templateIndex === 'number' && it.templateIndex in CLOTHING_NAME) {
+      const cosmeticDye = itemModelDye(it);
       const look = modelLookFor(it); // MODEL-LOOKS: the player's own garment look (null on anyone else's)
       worn.push({
         ...itemOwnStyleFields(it),
@@ -838,7 +838,7 @@ export function dfWornEquipment(slots, EQUIP_SLOTS, ARMOR_ENUM_) {
         templateIndex: it.templateIndex,
         name: CLOTHING_NAME[it.templateIndex],
         dye: it.dye ?? 0,
-        ...(it.cosmeticDye != null ? { cosmeticDye: it.cosmeticDye } : {}),
+        ...(cosmeticDye != null ? { cosmeticDye } : {}),
         ...(look ? { mwRecord: look } : {}),
       });
     }
@@ -903,7 +903,6 @@ export function composeWornArmor({
   beastWear = BEAST_WEAR_WORN,
 }) {
   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
-  const palette = wolfArmorPalette(pieces, cloakLooks);
   const notes = [];
   const wear = beast ? beastWear : null; // BEAST-BOOTS
   const bodyById = new Map((bodyPool ?? []).map((b) => [String(b.id || '').toLowerCase(), b]));
@@ -1088,7 +1087,7 @@ export function composeWornArmor({
           slot: `${row.name} (${own.id})`,
           partName: row.name,
           bones: row.bones,
-          model: wolfArmorModel(p.model, palette),
+          model: p.model,
           recordId: own.id,
           piece,
           ...(p.showsSkin ? { showsSkin: true } : {}),

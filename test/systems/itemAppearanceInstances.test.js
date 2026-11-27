@@ -10,7 +10,7 @@ import { modelLookOf, setModelLook, noteModelLookPlayer } from '../../src/system
 import { lookVariantsOf, setLookVariant } from '../../src/systems/lookVariants.js';
 import { itemAppearanceKey, itemOwnStyleFields } from '../../src/systems/item/itemAppearanceKey.js';
 import { modelDyeKey, modelDyeOf, setModelDye, modelDyeMips } from '../../src/systems/modelDye.js';
-import { dfWornArmor } from '../../src/formats/morrowind/mwItemMap.js';
+import { dfWornArmor, dfWornEquipment } from '../../src/formats/morrowind/mwItemMap.js';
 import { EQUIP_SLOTS } from '../../src/systems/equip.js';
 
 const mint = (template) => {
@@ -57,8 +57,9 @@ test('two identical 3D garments have independent dyes and only the equipped one 
   const key1=modelDyeKey(one,active),key2=modelDyeKey(two,active);
   assert.notEqual(key1,key2);setModelDye(key1,2);setModelDye(key2,9);
   const slots=[];slots[EQUIP_SLOTS.ChestClothes]=one;noteModelLookPlayer({items:[one,two],equip:{slots}});
-  assert.equal(modelDyeOf('same_shirt'),2);
-  slots[EQUIP_SLOTS.ChestClothes]=two;assert.equal(modelDyeOf('same_shirt'),9);
+  assert.equal(dfWornEquipment(slots,EQUIP_SLOTS,{})[0].cosmeticDye,2);
+  slots[EQUIP_SLOTS.ChestClothes]=two;assert.equal(dfWornEquipment(slots,EQUIP_SLOTS,{})[0].cosmeticDye,9);
+  assert.equal(modelDyeOf('same_shirt'),null);
   assert.equal(modelDyeOf(key1),2);assert.equal(modelDyeOf(key2),9);
   const source=[{width:1,height:1,rgba:new Uint8Array([180,50,30,255])}];
   assert.equal(modelDyeMips(source,'chest (same_shirt)','cloth.dds',null),source,'an untouched preview cannot borrow the equipped copy dye');

@@ -6,7 +6,7 @@ import { isPaperdollHelmet } from '../../systems/helmetPaperdollLooks.js';
 import { getPref } from '../../systems/uiPrefs.js';
 import { paperdollLookChoices, paperdollLookOf, setPaperdollLook, paperdollDyeOf, paperdollDyeChoices, setPaperdollDye } from '../../systems/paperdollLooks.js';
 import { DYE_NAMES } from '../../characters/dyes.js';
-import { DF_CLOTHING_DYE_RGB } from '../../formats/morrowind/mwItemMap.js';
+import { fabricRgb } from '../../systems/modelDye.js';
 import { dfmodGeneration } from '../../systems/dfmodTextures.js';
 import { itemDyeColor } from '../../systems/item/itemDye.js';
 import { getTemplate } from '../../characters/paperdoll/paperdoll.js';
@@ -132,7 +132,7 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
   const panel = make('div', 'look-panel'); panel.setAttribute('role', 'tabpanel');
   const buttons = [];
   // Key the thumbnail on dye as well as template and material.
-  const drawKey = () => `${key}|${item.variant ?? 0}|${item.dye ?? ''}|${itemDyeColor(item) ?? ''}|${dye ?? ''}|${identity?.gender}|${identity?.race}|${dfmodGeneration()}`;
+  const drawKey = () => `${key}|${item.variant ?? 0}|${item.dye ?? ''}|${itemDyeColor(item) ?? ''}|${dye ?? ''}|${lookId(shapeOf(paperdollLookOf(item)))}|${identity?.gender}|${identity?.race}|${dfmodGeneration()}`;
   let framed = drawn.get(drawKey()) ?? null;
   const draw = () => {
     for (const [mode, button] of buttons) {
@@ -155,7 +155,7 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
       const dyes = make('div', 'look-dyes');
       dyes.setAttribute('role', 'radiogroup'); dyes.setAttribute('aria-label', 'Цвет');
       for (const d of paperdollDyeChoices(item)) {
-        const rgb = DF_CLOTHING_DYE_RGB[d] ?? [128, 128, 128];
+        const rgb = fabricRgb(d) ?? [128, 128, 128];
         const chip = make('button', `look-dye${d === dye ? ' on' : ''}`);
         chip.type = 'button'; chip.title = DYE_NAMES[d] ?? String(d);
         chip.setAttribute('role', 'radio'); chip.setAttribute('aria-checked', String(d === dye));
@@ -183,7 +183,7 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
       const url = framed?.urls.get(lookId(look));
       if (url) { const image = make('img', ''); image.alt = label; image.src = url; button.append(image); }
       else button.append(make('span', 'look-name', label));
-      button.onclick = () => { if (setPaperdollLook(item, look)) { draw(); onChange(); } };
+      button.onclick = () => { if (setPaperdollLook(item, look)) { framed = drawn.get(drawKey()) ?? null; draw(); loadPictures(); onChange(); } };
       cards.append(button);
     }
     const navigation = make('div', 'look-pages');
@@ -214,7 +214,8 @@ export function paperdollAppearancePicker({ item, identity, modelRow = null, onC
   function loadPictures() {
     if (framed || !modes.includes('2d')) return;
     const request = ++pictureRequest, cacheKey = drawKey();
-    Promise.all(allLooks.map((look) => Promise.resolve(layerPixels(item, identity, dye === null ? look : { ...(look ?? {}), d: dye })).catch(() => null).then((pixels) => ({ look, pixels }))))
+    const selected = shapeOf(paperdollLookOf(item));
+    Promise.all(allLooks.map((look) => Promise.resolve(layerPixels(item, identity, dye === null ? look : { ...(look ?? {}), d: sameLook(look, selected) ? dye : itemDyeColor(item) ?? 0 })).catch(() => null).then((pixels) => ({ look, pixels }))))
       .then((entries) => {
         if (request !== pictureRequest || cacheKey !== drawKey()) return;
         if (!entries.some((e) => e.pixels)) return;

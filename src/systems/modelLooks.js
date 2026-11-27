@@ -1,5 +1,4 @@
 import { enhancedAxeRecord } from '../characters/ownModels/enhancedBattleaxe.js';
-import { noteModelDyePlayer } from './modelDye.js';
 import { itemAppearanceKey } from './item/itemAppearanceKey.js';
 // Choose the 3D equipment record shown on the player's model independently of the 2D inventory appearance.
 import { getPref, setPref } from './uiPrefs.js';
@@ -18,7 +17,7 @@ const AMMO_TYPES = new Set([MW_WEAPON_TYPE.Arrow, MW_WEAPON_TYPE.Bolt, MW_WEAPON
 
 /** The player whose pieces may wear a look - noted where the player's body is built (combat/weapon/weaponRig.js). */
 let _player = null;
-export function noteModelLookPlayer(entity) { if (entity) { _player = entity; noteModelDyePlayer(entity); } }
+export function noteModelLookPlayer(entity) { if (entity) _player = entity; }
 
 /** Whether a piece is the player's own: worn, carried, or the Wardrobe's drawn copy of one worn. */
 export function isPlayersOwn(item) {

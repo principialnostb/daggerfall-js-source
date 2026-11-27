@@ -45,12 +45,15 @@ test('idle fitting advances the real cloth solver only while Animated Cloaks is 
   const normals = Float32Array.from([0,1,0, 0,1,0, 0,1,0, 0,1,0]);
   const piece = { slot:'cloak (daggerfall_cloak)', positions, normals, batch:{ positions, normals, skin:{ bones:[{ref:1,indices:Uint16Array.from([0,1,2,3]),weights:Float32Array.from([1,1,1,1])}] } }, indices:Uint16Array.from([0,1,2,0,2,3]), sourceGen:0 };
   piece.clothPhysics = createCloakPhysics(piece);
-  const rig = {arm:{pieces:[piece]}};
+  const rig = {arm:{pieces:[piece], cpuSkinned:true, mats:new Map(),
+    fns:{skinBatch(batch, skeleton, pose, mats, out) { out.set(batch.positions); }} }};
   try {
     setPref('modelCustomization',true); setModGroupEnabled('cloak-animation',true);
     const rest = positions.slice();
     for(let i=0;i<30;i++) stepFittingCloth(rig,true,i*1000/30);
     assert.notDeepEqual(positions,rest);
+    assert.deepEqual(piece.clothPhysics.pos,rest);
+    assert.equal(piece.clothPhysics.time,0, 'painting the preview does not advance the world');
     const moved=positions.slice(), time=piece.clothPhysics.time;
     setModGroupEnabled('cloak-animation',false);
     for(let i=30;i<60;i++) stepFittingCloth(rig,true,i*1000/30);
