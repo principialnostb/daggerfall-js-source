@@ -7,7 +7,6 @@ import { animatedCloaksEnabled } from '../systems/extraAppearance.js';
 import { MW_ARM_PIXEL } from '../render/renderer.js';
 import { modGroupEnabled, modGroupReady, modResourceSignature } from '../systems/enhancedModResources.js';
 import { modResourceGlob } from '../systems/enhancedModResources.js';
-import { cloakPaletteChange, interimFurTexture } from '../characters/ownModels/cloakPalette.js';
 import { isWolfCloakSlot } from '../characters/ownModels/wolfCloak.js';
 import { createWolfPeltMotion, stepWolfPeltMotion } from '../formats/morrowind/mwWolfPeltMotion.js';
 import { HAIR_SWATCHES, hairColorMips, hairMaterialCanTint } from '../characters/hairColor.js';
@@ -2012,9 +2011,9 @@ export function wornVerdicts(pieces, worn) {
 }
 
 export function wornEquipKeyOf(pieces) {
-  // MW-D37: the dye is part of a garment's identity now - a re-dyed
+  // The dye is part of a garment's identity now - a re-dyed
   // shirt resolves to a different MW shirt, so it is a change.
-  return (pieces ?? []).map((p) => `${p.kind || 'armor'}:${p.templateIndex ?? p.id}:${p.material ?? ''}:${p.dye ?? ''}${p.cosmeticDye != null ? '/d' + p.cosmeticDye : ''}${p.ownStyle ? '/s' + p.ownStyle : ''}${p.mwRecord ? '/r' + p.mwRecord : ''}`).join('|');   // MW-FOLK1: an outfit by its id
+  return (pieces ?? []).map((p) => `${p.kind || 'armor'}:${p.templateIndex ?? p.id}:${p.material ?? ''}:${p.dye ?? ''}`).join('|');   // An outfit by its id
 }
 
 /** APPEARANCES: a build's hands as they are drawn - its opts themselves where neither hand wears a look. */
@@ -3402,8 +3401,7 @@ async function buildTpBody({
       mwType: resolvedWeapon.mwType,
       textures,
       hairColor: chosenHairColor, hairTints,
-      cosmeticDyes: new Map(worn.adds.filter((row) => row.piece?.kind === 'clothing' && !isWolfCloakSlot(row.slot))
-        .map((row) => [row.slot, row.piece.cosmeticDye ?? (ownHeads && !remoteCosmetics && getPref('modelCustomization') && isCloakSlot(row.slot) ? 0 : null)])),
+      cosmeticDyes: remoteCosmetics ? new Map(worn.adds.filter((row) => row.piece?.cosmeticDye != null).map((row) => [row.slot, row.piece.cosmeticDye])) : null,
       skeletonPath,
       settingsSkeleton,
       weapon: resolvedWeapon.weaponInfo,
@@ -5609,48 +5607,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (!entry) continue;
       const m = r.piece.material;
       const mips = skin ? skinnedMipsOf(entry.image, skin, skinUseOf(r.piece, r.textureFile))
-        : rangeHairMips(modelDyeMips(entry.image.mips, r.slot, r.textureFile, cosmeticDyes?.get(r.slot) ?? null), r.slot, hairColor, m, hairTints);
+        : rangeHairMips(modelDyeMips(entry.image.mips, r.slot, r.textureFile, cosmeticDyes ? cosmeticDyes.get(r.slot) ?? null : undefined), r.slot, hairColor, m, hairTints);
       r.tex = acquireCharacterTexture(renderer, mips, wrapModes(m ? m.clampMode : 3));
       r.alphaCut = m && m.alphaTest ? (m.alphaThreshold || 0) / 255 : 0;
     }
-  }
-
-  function refreshCloakTextures(body, slot) {
-    for (const range of thirdMesh?.ranges ?? []) {
-      if (range.slot !== slot || !body.textures.has(range.textureFile)) continue;
-      const old = range.tex;
-      hangRangeTextures([range], body.textures, { skin: bodySkin() }, body.cosmeticDyes);
-      if (old) releaseCharacterTexture(renderer, old);
-    }
-    for (const fn of listeners) { try { fn(); } catch { /* a closed inventory */ } }
-  }
-
-  async function recolourCloak(body, slot, change, key) {
-    if (change.fur) {
-      const files = [...new Set(body.arm.pieces.filter(p => p.slot === slot).map(p => p.material?.textureFile).filter(Boolean))];
-      const targets = files.map(file => ({ material: { textureFile: file.replace(/wolf_pelt_(brown|white|black)_/i, 'wolf_pelt_' + change.fur + '_') } }));
-      if (!files.length || files.some(file => !/wolf_pelt_(brown|white|black)_(clumps|hide)\.dds$/i.test(file))) {
-        return api.build(lastBuildOpts);
-      }
-      const { archives, texGen, gen } = built.catalog;
-      if (targets.some(p => !TEXTURE_CACHE.has((texGen ?? gen) + ':' + p.material.textureFile))) {
-        body.furSources ??= new Map(files.map(file => [file, body.textures.get(file)]));
-        for (const file of files) {
-          const preview = interimFurTexture(body.furSources.get(file), change.fur);
-          if (preview) body.textures.set(file, preview);
-        }
-        refreshCloakTextures(body, slot);
-        await preloadArmTextures(targets, archives, texGen ?? gen, playerAppearance);
-      }
-      if (thirdBuilt !== body || wornEquipKey !== key) return false;
-      const loaded = collectArmTextures(targets, archives, texGen ?? gen);
-      if (!targets.length || targets.some(p => !loaded.get(p.material.textureFile)?.ok)) return api.build(lastBuildOpts);
-      for (let i = 0; i < files.length; i++) body.textures.set(files[i], loaded.get(targets[i].material.textureFile));
-    } else {
-      body.cosmeticDyes.set(slot, change.dye ?? (playerAppearance && getPref('modelCustomization') ? 0 : null));
-    }
-    refreshCloakTextures(body, slot);
-    return true;
   }
 
   /** MW-D38: one ground mesh, textured, rendered to an icon-sized image. */
@@ -5867,7 +5827,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * layout refused - a vertex past the shader's influences - answers false for that list, its sentence on the notes,
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
-  function thirdSkinReady(t, bodyProportions = null, fitting = false) {
+  function thirdSkinReady(t, bodyProportions = null) {
     // Local vertex morphs modify the CPU-skinned output positions. The GPU path
     // uploads the bind-pose stream only once and updates bone palettes, so it
     // cannot display those edits. When any player morph is active, deliberately
@@ -5889,7 +5849,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // mutable representation of the cloak and can desynchronise from its pose.
     const liveVanillaCloth = playerAppearance && vanillaAnimatedCloaksEnabled()
       && (t.arm.wolfPeltMotion || t.arm.pieces.some((piece) => piece.clothPhysicsFallbackMesh && piece.clothPhysics));
-    if (liveVanillaCloth || (fitting && t.arm.pieces.some(p => p.clothPhysics || isWolfCloakSlot(p.slot)))) {
+    if (liveVanillaCloth) {
       if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
       thirdSkin = null;
       thirdSkinRefused = null;
@@ -7589,12 +7549,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
       wornEquipKey = key;
       // WEREWOLF1: THE WOLF WEARS NONE OF IT - the table is kept for the way back, and the wolf is not rebuilt
       if (lastBuildOpts.werewolf) { lastBuildOpts = { ...lastBuildOpts, armor: pieces }; return false; }
-      const slot = thirdBuilt?.arm?.pieces.find(p => isCloakSlot(p.slot))?.slot;
-      const palette = cloakPaletteChange(lastBuildOpts.armor, pieces, slot);
-      if (palette) {
-        lastBuildOpts = { ...lastBuildOpts, armor: pieces };
-        return recolourCloak(thirdBuilt, slot, palette, key);
-      }
       return this.build({ ...lastBuildOpts, armor: pieces, weapon: lastBuildOpts.weapon });
     },
     /**
@@ -9716,9 +9670,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  {width, height, data} or null when no third-person body stands -
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
-    hasAnimatedCloak() {
-      return !!thirdBuilt?.arm?.pieces.some(p => p.clothPhysics || isWolfCloakSlot(p.slot) && thirdBuilt.arm.wolfPeltMotion);
-    },
     figure({ yaw = 0, height = 384, force = false, neutral = false, bodyProportions = null, stableFrame = false } = {}) {
       // The editor explicitly asks for a preview; do not let the inventory-display preference
       // suppress it. The built rig and renderer are still required below.
@@ -9754,7 +9705,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // A portrait must be posed even when this race/rig has no named idle group.
       // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
       // saved values but the preview kept uploading the last unmodified mesh.
-      thirdSkinReady(t, bodyProportions, stableFrame);   // MWV2-APPEARANCE: draft morphs require CPU skinning
+      thirdSkinReady(t, bodyProportions);   // MWV2-APPEARANCE: draft morphs require CPU skinning
       if (t.hipHang) t.hipHang.rot.set(PLUMB);   // HT-WAIST: a still portrait, a plumb lantern (stepHipSwing re-swings it)
       poseAssembly(t.arm, {
         tracks: pose?.source?.trackMap ?? null,

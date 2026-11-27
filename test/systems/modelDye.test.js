@@ -71,15 +71,3 @@ test('duplicate mod dye pictures recolour without replacing authored colour vari
   assert.equal(clothReplacementPixels(authored, duplicate, 9, 2), authored);
   assert.equal(clothReplacementPixels(image, duplicate, 9, 0), image);
 });
-
-test('the whole cloak changes hue through its mip chain and white is lighter than grey', () => {
-  const pixels = [12,17,26,255, 48,70,125,255, 60,58,64,150];
-  const source = [pixels, pixels.slice(0,4)].map(rgba => ({ rgba: Uint8Array.from(rgba) }));
-  const tint = dye => modelDyeMips(source, 'cloak (daggerfall_cloak)', 'cloak_blue.dds', dye);
-  for (const level of tint(2)) for (let i=0; i<level.rgba.length; i+=4) {
-    assert.ok(level.rgba[i] > level.rgba[i+2]);
-    assert.equal(level.rgba[i+3], pixels[i+3]);
-  }
-  assert.ok(tint(6)[0].rgba[4] > tint(1)[0].rgba[4] * 1.7);
-  assert.deepEqual([...source[0].rgba], pixels);
-});

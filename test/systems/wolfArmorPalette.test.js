@@ -19,16 +19,21 @@ test('steel and warm helmet horns get only a subtle shift; leather retains the s
     assert.ok(Math.max(...leather.map((v, i) => Math.abs(v - [120, 80, 40][i]))) > 35, 'leather gets a distinctly stronger transformation');
   }
 });
-test('a cloak colour change preserves the material of the equipped cuirass', () => {
-  const armor = { kind:'armor', templateIndex:102, material:513 };
-  const legacy = {};
-  const armourModels = pieces => composeWornArmor({ pieces, looks: { daggerfall_steel_cuirass:'iron' },
-    cloakLooks: legacy, armors: [], bodyPool: [] }).adds.filter(row => row.piece === armor).map(row => row.model);
-  const plain = armourModels([armor]);
-  assert.ok(plain.length > 0);
-  for (const ownStyle of ['wolf-white','wolf-black','classic']) {
-    assert.deepEqual(armourModels([armor,{ ...cloak, ownStyle }]), plain);
+test('worn cloak selects iron palette; removing it or returning to classic restores existing model', () => {
+  const armor = { kind: 'armor', templateIndex: 102, material: 513 };
+  const args = { pieces: [armor, cloak], armors: [], bodyPool: [], looks: { daggerfall_steel_cuirass: 'iron' } };
+  for (const [look, palette] of [['wolf-white', 'white'], ['wolf-black', 'black'], ['wolf-brown', 'classic'], ['classic', 'classic']]) {
+    const cloakLooks = { 154: look };
+    assert.equal(wolfArmorPalette(args.pieces, cloakLooks), palette);
+    const composed = composeWornArmor({ ...args, cloakLooks });
+    assert.ok(composed.adds.some((a) => a.model === wolfArmorModel('iron_cuirass.nif', palette)));
+    assert.ok(!composed.adds.some((a) => /wolf_armor_.*wolf_pelt/.test(a.model)));
+    const removed = composeWornArmor({ ...args, pieces: [armor], cloakLooks });
+    assert.ok(removed.adds.some((a) => a.model === 'iron_cuirass.nif'));
   }
+  assert.equal(wolfArmorModel('steel_plate_cuirass.nif', 'white'), 'steel_plate_cuirass.nif');
+  assert.equal(wolfArmorModel('wolf_pelt_white.nif', 'black'), 'wolf_pelt_white.nif');
+  assert.equal(wolfArmorPalette([], { 154: 'wolf-white' }), 'classic');
 });
 
 test('every local palette preserves complete NIF data except texture paths, and palette keeps detail contrast', { skip: !existsSync('src/assets/mw/meshes/wolf_armor_white_iron_cuirass.nif') }, () => {

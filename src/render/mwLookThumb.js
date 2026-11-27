@@ -1,4 +1,4 @@
-import { modelDyeMips } from '../systems/modelDye.js';
+import { modelDyeOf, modelDyeMips } from '../systems/modelDye.js';
 // Draw the selected model's thumbnail from the player's attached archives using the same rasterizer as the
 // locally authored looks.
 import { parseNif } from '../formats/morrowind/mwNifFile.js';
@@ -102,7 +102,7 @@ async function wornCopies(records, catalog, { partFilter = null } = {}) {
 export function mwLookThumb(records, kind, catalog, { size = 96, pauldron = false, dye = undefined } = {}) {
   const live = (records ?? []).filter(Boolean);
   if (!live.length || !catalog?.archives) return Promise.resolve(null);
-  const key = `${catalog.gen ?? 0}:${kind}:${size}:${live.map((r) => `${r.id}:${r.model}:${dye}`).join('+')}`;
+  const key = `${catalog.gen ?? 0}:${kind}:${size}:${live.map((r) => `${r.id}:${r.model}:${dye === undefined ? modelDyeOf(r.id) : dye}`).join('+')}`;
   if (!cache.has(key)) {
     if (cache.size > 400) cache.clear();
     cache.set(key, (async () => {
@@ -124,10 +124,7 @@ export function mwLookThumb(records, kind, catalog, { size = 96, pauldron = fals
       const textures = collectArmTextures(all, catalog.archives, catalog.gen ?? null);
       const textureOf = (file) => {
         const e = textures.get(file);
-        const levels = e?.ok ? e.image?.mips : null;
-        if (!levels?.length) return null;
-        // An icon spans at most size pixels. Sample the authored mip just above that resolution.
-        const m0 = levels.find(m => Math.max(m.width, m.height) <= size * 2) ?? levels[levels.length - 1];
+        const m0 = e?.ok ? e.image?.mips?.[0] : null;
         if (!m0) return null;
         const dyed = modelDyeMips([{ ...m0, rgba: m0.data ?? m0.rgba }], `clothing (${live[0].id})`, file, dye)[0];
         return { width: dyed.width, height: dyed.height, data: dyed.rgba };

@@ -1,17 +1,5 @@
 # Cloaks: classic placement, secondary motion, and Simply Animated Cloaks
 
-The inventory shows one fabric cloak and one wolf mantle. The mantle offers brown, white and black fur.
-A fabric cloak starts with the blue swatch selected. Dye belongs to the item instance. Other model cards
-show their own fabric, and the armour under a mantle retains its own materials. DFU's ImageProcessing.ChangeDye
-remaps sprite palette indices. The 3D fabric pass uses texture brightness to retain folds across mip levels.
-
-The fitting preview advances its own animation state.
-
-Choosing a fabric swatch or another wolf colour updates the cloak's material on the standing rig.
-The fitting keeps its pose and simulation history through a colour change. The inventory loads the
-two authored textures on the first use of a fur colour. A small tinted mip shows that choice while the files load.
-Later selections reuse the decoded textures.
-
 The cloth force blends continuously from walk to run as the gait weight
 changes. The idle wave runs on its own clock.
 As gait weight falls, the cloth briefly damps its residual velocity.

@@ -1,22 +1,30 @@
 import { itemAppearanceKey } from './item/itemAppearanceKey.js';
+import { equipTableOf } from './equip.js';
 import { getPref, setPref } from './uiPrefs.js';
 import { CLOTHING_DYES } from '../characters/dyes.js';
 import { CLOAK_TEMPLATES } from '../characters/ownModels/wolfCloak.js';
 import { DF_CLOTHING_DYE_RGB } from '../formats/morrowind/mwItemMap.js';
 
 export const MODEL_DYES_PREF = 'mwItemDyes';
+let player = null;
+const bindings = new Map();
+export function noteModelDyePlayer(entity) { player = entity; }
 const dyeValue = (entry) => typeof entry === 'number' ? entry : entry?.d ?? null;
 export function modelDyeOf(key) {
   if (getPref('modelCustomization') !== true) return null;
   const dyes = getPref(MODEL_DYES_PREF) ?? {};
   if (Object.hasOwn(dyes, key)) return dyeValue(dyes[key]);
+  if (player) for (const item of equipTableOf(player).filter(Boolean)) {
+    const entry = dyes[itemAppearanceKey(item)];
+    if (entry?.record === key) return dyeValue(entry);
+  }
   return null;
 }
 export function setModelDye(key, dye) {
   if (!key || (dye !== null && !CLOTHING_DYES.includes(dye))) return false;
   if (modelDyeOf(key) === dye) return false;
   const next = { ...(getPref(MODEL_DYES_PREF) ?? {}) };
-  if (dye === null) delete next[key]; else next[key] = dye;
+  if (dye === null) delete next[key]; else next[key] = { d: dye, record: bindings.get(key) ?? key };
   setPref(MODEL_DYES_PREF, next);
   return true;
 }
@@ -26,6 +34,9 @@ export function modelDyeKey(item, active) {
     ? active?.value?.startsWith('wolf-') ? 'wolf_pelt_cloak' : 'daggerfall_cloak'
     : active?.records?.[0]?.id ?? null;
   if (!record) return null;
+  bindings.set(key, record);
+  const dyes = getPref(MODEL_DYES_PREF) ?? {}, entry = dyes[key];
+  if (entry && entry.record !== record) setPref(MODEL_DYES_PREF, { ...dyes, [key]: { d: dyeValue(entry), record } });
   return key;
 }
 export const clothTextureCanDye = (file) => !/(?:^|[\\/ _-])skin(?:[\\/_.-]|$)|buckle|button|belt|metal|(?:^|[\\/])(?:tx_)?b_[nk]_/i.test(file);
@@ -36,28 +47,9 @@ const hue = (r, g, b) => {
 };
 const distance = (a, b) => Math.min(Math.abs(a - b), 1 - Math.abs(a - b));
 
-// Daggerfall's matching swatches and the displayed colour of white linen differ.
-export const fabricRgb = dye => dye === 6 ? [236, 233, 226] : DF_CLOTHING_DYE_RGB[dye];
-
-function dyeCloakPixels(data, dye) {
-  const rgb = fabricRgb(dye);
-  const ramp = new Uint8Array(256 * 3);
-  for (let level = 0; level < 256; level++) {
-    const shade = Math.sqrt(level / 255) * 1.55;
-    for (let c = 0; c < 3; c++) ramp[level*3+c] = Math.min(255, Math.round(rgb[c]*shade));
-  }
-  const out = new Uint8Array(data);
-  for (let i = 0; i < out.length; i += 4) {
-    if (!out[i+3]) continue;
-    const level = ((56*data[i] + 174*data[i+1] + 26*data[i+2] + 128) >> 8)*3;
-    out[i] = ramp[level]; out[i+1] = ramp[level+1]; out[i+2] = ramp[level+2];
-  }
-  return out;
-}
-
 // Replace the main cloth hue. Other hues, alpha and the shading stay authored.
 export function dyeClothPixels(data, dye, anchor = undefined) {
-  const rgb = fabricRgb(dye);
+  const rgb = DF_CLOTHING_DYE_RGB[dye];
   if (!rgb) return data;
   const bins = new Float64Array(24);
   for (let i = 0; i < data.length; i += 4) {
@@ -89,8 +81,6 @@ export function modelDyeMips(mips, slot, file = '', override = undefined) {
   if (dye === null || !Array.isArray(mips) || !clothTextureCanDye(file)) return mips;
   let byDye = cache.get(mips);
   if (!byDye) { byDye = new Map(); cache.set(mips, byDye); }
-  const cloak = id === 'daggerfall_cloak';
-  const key = cloak ? 'cloak:' + dye : dye;
-  if (!byDye.has(key)) byDye.set(key, mips.map((m) => m.rgba ? { ...m, rgba: cloak ? dyeCloakPixels(m.rgba, dye) : dyeClothPixels(m.rgba, dye) } : m));
-  return byDye.get(key);
+  if (!byDye.has(dye)) byDye.set(dye, mips.map((m) => m.rgba ? { ...m, rgba: dyeClothPixels(m.rgba, dye) } : m));
+  return byDye.get(dye);
 }

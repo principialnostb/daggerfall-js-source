@@ -12,7 +12,7 @@ import { isShieldTemplate, shieldLooksFor, shieldLookKey } from '../characters/o
 import { WEAPON_LOOKS_PREF, weaponLookKey, weaponSkinsFor, weaponSkinAvailable } from '../characters/ownModels/localWeaponModels.js';
 
 /** The looks' names as the tooltip says them. */
-const LOOK_LABEL = Object.freeze({ closed: 'Closed', open: 'Open', horned: 'Horned', plate: 'Steel plate', iron: 'Iron', classic: 'Original', 'wolf-brown': 'Бурый волк', 'wolf-white': 'Белый волк', 'wolf-black': 'Чёрный волк' });
+const LOOK_LABEL = Object.freeze({ closed: 'Closed', open: 'Open', horned: 'Horned', plate: 'Steel plate', iron: 'Iron', classic: 'Original', 'wolf-brown': 'Классика', 'wolf-white': 'Белый волк', 'wolf-black': 'Чёрный волк' });
 
 /** Every own piece but the steel helm keeps its look here, by the piece's id (the helm's is its switch). */
 export const ARMOR_LOOKS_PREF = 'mwArmorLooks';
@@ -40,13 +40,10 @@ export function lookVariantsOf(item) {
     return scoped({ values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(ARMOR_LOOKS_PREF, { ...(getPref(ARMOR_LOOKS_PREF) ?? {}), [key]: value }) });
   }
   if (CLOAK_TEMPLATES.includes(item.templateIndex)) {
-    const values = ['classic', ...WOLF_CLOAK_LOOKS.filter((look) => {
-      const model = wolfCloakModel(look);
-      return model && (!IN_BROWSER || `meshes/${model}` in OWN_MW_URLS);
-    })];
+    const values = ['classic', ...WOLF_CLOAK_LOOKS.filter((look) => !IN_BROWSER || `meshes/${wolfCloakModel(look)}` in OWN_MW_URLS)];
     if (values.length < 2) return null;
     const stored = getPref(CLOAK_LOOKS_PREF)?.[item.templateIndex];
-    const current = stored === 'wolf-grey' || itemOwnStyle(item) === 'wolf-grey' ? 'wolf-brown' : stored;
+    const current = stored === 'wolf-grey' ? 'wolf-brown' : stored;
     return scoped({ values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(CLOAK_LOOKS_PREF, { ...(getPref(CLOAK_LOOKS_PREF) ?? {}), [item.templateIndex]: value }) });
   }
   const own = ownArmorModelFor({ templateIndex: item.templateIndex, material: item.material ?? 0 });

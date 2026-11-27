@@ -20,13 +20,6 @@ export function setItemOwnStyle(item, value) {
   looks[key] = value; setPref('mwItemOwnLooks', looks);
 }
 
-export function itemModelDye(item) {
-  if (item?.cosmeticDye != null) return item.cosmeticDye;
-  if (getPref('modelCustomization') !== true) return null;
-  const entry = getPref('mwItemDyes')?.[itemAppearanceKey(item)];
-  return typeof entry === 'number' ? entry : entry?.d ?? null;
-}
-
 export function itemOwnStyleFields(item) {
   const ownStyle = itemOwnStyle(item);
   return ownStyle ? { ownStyle } : {};

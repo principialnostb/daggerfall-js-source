@@ -3868,7 +3868,6 @@ function itemActs(picked, side, { qty = true } = {}) {
   // the port's own looks and every Morrowind record together; a choice rebuilds the body as a look's switch does
   const recordRow = side === 'local' && getPref('modelCustomization') === true ? modelLookRow({
     item: picked, fpArm: deps.fpArm, ownLooks: looks,
-    onColour: () => { retainAppearanceCard(acts, picked); refresh(); },
     onChange: () => { retainAppearanceCard(acts, picked); render(); rebuildForLook(deps.entity).then(() => { refresh(); render(); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e)); },
   }) : null;
   if (looks && !recordRow) {

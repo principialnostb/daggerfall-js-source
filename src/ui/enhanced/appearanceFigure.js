@@ -34,7 +34,6 @@ export function appearanceFigure(rig, anchor, { back = false } = {}) {
     canvas.hidden = false;
     paintPreview(canvas, pixels, canvas.clientHeight || 510);
     canvas.hidden = false; status.textContent = '';
-    if (!animationFrame && animatedCloaksEnabled() && rig.hasAnimatedCloak?.()) animationFrame = requestAnimationFrame(animate);
   };
   const refresh = () => { if (active && !frame) frame = requestAnimationFrame(paint); };
   const layout = () => {
@@ -47,7 +46,7 @@ export function appearanceFigure(rig, anchor, { back = false } = {}) {
   };
   const animate = (time) => {
     animationFrame = 0;
-    if (!active || !animatedCloaksEnabled() || !rig.hasAnimatedCloak?.()) return;
+    if (!active || !animatedCloaksEnabled()) return;
     if (time - lastAnimation >= 1000 / 30) { lastAnimation = time; refresh(); }
     animationFrame = requestAnimationFrame(animate);
   };
@@ -79,6 +78,7 @@ export function appearanceFigure(rig, anchor, { back = false } = {}) {
         resize = new globalThis.ResizeObserver(layout); resize.observe(card);
         window.addEventListener('resize', layout); window.addEventListener('scroll', layout, true);
         paint(); panel.style.visibility = 'visible';
+        if (animatedCloaksEnabled()) animationFrame = requestAnimationFrame(animate);
       });
     });
   }
