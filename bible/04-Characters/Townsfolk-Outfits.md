@@ -31,8 +31,10 @@ what the picture wore. A picture with no outfit yet keeps the wardrobe (`Morrowi
 - Each sprite wears its own outfit; a sprite without one keeps the wardrobe (the owner).
 - `hides` follows the measured coverage in the outfit's bind pose (`test/tooling/mwfolk1.test.js`). A hem short of a
   part's span leaves its skin visible. Outfits 386, 387 and 390 supply complete gloves with skinned fingers, so their
-  bare hands are hidden. Outfit 387's bake gives the shoulder cloth clearance and raises the boot cuffs to meet the
-  exposed shins.
+  bare hands are hidden.
+- `fitTownsfolkOutfit` in `tools/bakeTownsfolk.mjs` adjusts ankle straps, tunic shoulders, the back of the hoods and the
+  dress bodice and sleeves in the bind pose. The back hem has room for the calf during a step. The bake retains the original weights, textures and skin coverage rules.
+  Outfit 387 also has raised boot cuffs that meet the exposed shins.
 
 ## Daggerfall Unity
 

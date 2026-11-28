@@ -38,7 +38,7 @@ import { S, I, dArr, iArr, writeFbx } from '../../tools/fbxWrite.mjs';   // AUDI
 import { bakeMesh, objectMaterials } from '../../tools/fbxMesh.mjs';
 import { objectTree, plateBind, RETAIL_SKELETON, HELM_LIFT, SCENE_BODY } from '../../tools/bakeSteelPlate.mjs';
 import { SOURCE, PAINTINGS, OBJECTS, OUTFITS, RECOLOURS, CUT, PACK_ARM_FALL, HANG_TOP, HANG_SHARE, HANG_CENTRE, KNEE_BLEND, HIP_JOINTS, ARM_REACH, ARM_FADE, RIGS,
-  packBind, hangOf, islandsOf, islandClass, liftHoods, materialMesh, checkObject, bakeTownsfolk, meshFile, textureFile, textureName, fitNordGreenOutfit } from '../../tools/bakeTownsfolk.mjs';
+  packBind, hangOf, islandsOf, islandClass, liftHoods, materialMesh, checkObject, bakeTownsfolk, meshFile, textureFile, textureName, fitTownsfolkOutfit } from '../../tools/bakeTownsfolk.mjs';
 import { segmentDistance } from '../../tools/skinWeights.mjs';
 import { retailSkeleton } from '../fixtures/mw/retailRig.mjs';
 
@@ -371,7 +371,7 @@ test('MW-FOLK1: garment weights follow the island rig and baked adjustments keep
     const batches = nifOf(o.archive);
     classes[o.archive] = o.shapes.map((s, i) => {
       const mesh = shapeMesh(o, s);
-      const fitted = o.archive === 387 ? fitNordGreenOutfit(mesh, s.paint) : mesh;
+      const fitted = fitTownsfolkOutfit(mesh, o.archive, s.paint);
       const scene = materialMesh(tree, o.object, s.material);
       const b = batches[i];
       const n = mesh.positions.length / 3;
@@ -532,7 +532,7 @@ test('MW-FOLK1: what each outfit hides is the skin it covers all round - every r
     assert.ok(TOWNSFOLK_OUTFITS[a].hides.every((h) => ARMO_PART.some((p) => p.name === h && p.shadows)), `${a}: every hide a part with a skin`);
   }
   // the near misses that keep their skin: a V-neck, a cuff short of the wrist, the open bodice
-  assert.deepEqual([seen[381].chest, seen[387].chest, seen[385].wrist, seen[398].chest, seen[398].neck], [77 / 80, 77 / 80, 60 / 80, 50 / 80, 47 / 80]);
+  assert.deepEqual([seen[381].chest, seen[387].chest, seen[385].wrist, seen[398].chest, seen[398].neck], [77 / 80, 77 / 80, 60 / 80, 52 / 80, 47 / 80]);
   // the legs in one skirt: the dress closes round both thighs; its hem rises to 29.4 at the sides, over the knee's
   // lowest ray (27.1), so the knees are hers; every hem above the knee stops short of the thigh's span (its lowest ray,
   // 47.2 up), so the leg below a tunic is the body's
@@ -715,7 +715,7 @@ test('MW-FOLK1: through the binder - every outfit the producer composes a skinne
           // crown, up the bone from the neck joint
           const inHead = (q, m) => { const d = sub(q, m.t); return [0, 1, 2].map((j) => m.a[j] * d[0] + m.a[3 + j] * d[1] + m.a[6 + j] * d[2]); };
           const idle = inHead(at, asm.mats.get(asm.skeleton.byName.get('bip01 head')));
-          const bound = inHead(centroid(shapeMesh(o, o.shapes[i]).positions, isl.verts), packBind(SKELETON).get('Bip01 Head'));
+          const bound = inHead(centroid(fitTownsfolkOutfit(shapeMesh(o, o.shapes[i]), a, o.shapes[i].paint).positions, isl.verts), packBind(SKELETON).get('Bip01 Head'));
           assert.ok([0, 1, 2].every((k) => Math.abs(idle[k] - bound[k]) < 1e-3), `${a}: the hood where the bind put it on the head (${idle} against ${bound})`);
           assert.ok(bound[0] > 10, `${a}: over the crown, ${bound[0].toFixed(1)} up the head bone`);
         }

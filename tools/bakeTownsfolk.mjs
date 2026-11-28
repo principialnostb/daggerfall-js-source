@@ -658,28 +658,10 @@ export function shapeWeights(mesh, bind) {
   return { weights, used };
 }
 
-/** Clearance for the green Nord outfit on the Better Bodies shoulders and calves. */
-export function fitNordGreenOutfit(mesh, paint) {
-  if (!['shoulders_nord3', 'tunic_nord3', 'skirt_redguard2'].includes(paint)) return mesh;
-  const positions = mesh.positions.slice();
+const ramp = (value, start, span) => Math.max(0, Math.min(1, (value - start) / span));
+
+function fittedMesh(mesh, positions) {
   const normals = mesh.normals.slice();
-  const ramp = (z, start, span) => Math.max(0, Math.min(1, (z - start) / span));
-  for (let i = 0; i < positions.length; i += 3) {
-    const [x, y, z] = positions.slice(i, i + 3);
-    if (paint === 'shoulders_nord3') {
-      positions[i] += Math.sign(x) * (-1.6 + 2.5 * ramp(Math.abs(x), 8, 14));
-      positions[i + 1] = y * 1.31;
-      positions[i + 2] += 1.1;
-    } else if (paint === 'tunic_nord3' && Math.abs(x) <= 15 && y < 0) {
-      positions[i + 1] = y * (1 + 0.24 * ramp(z, 99, 10));
-    } else if (paint === 'skirt_redguard2' && z < 30) {
-      positions[i + 2] += 4 * ramp(z, 18, 11);
-    } else if (paint === 'skirt_redguard2' && z > 50 && z < 78) {
-      const ease = 1 + 0.09 * (1 - ramp(z, 52, 26));
-      positions[i] = x * ease;
-      positions[i + 1] = y * ease;
-    }
-  }
   rebuildNormals(positions, mesh.indices, normals, mesh.normals);
   for (let i = 0; i < positions.length; i += 3) {
     if (positions[i] === mesh.positions[i] && positions[i + 1] === mesh.positions[i + 1] && positions[i + 2] === mesh.positions[i + 2]) {
@@ -689,6 +671,74 @@ export function fitNordGreenOutfit(mesh, paint) {
     }
   }
   return { ...mesh, positions, normals };
+}
+
+/** Clearance for the green Nord outfit on the Better Bodies shoulders and calves. */
+function fitNordGreenOutfit(mesh, paint) {
+  if (!['shoulders_nord3', 'tunic_nord3', 'skirt_redguard2'].includes(paint)) return mesh;
+  const positions = mesh.positions.slice();
+  for (let i = 0; i < positions.length; i += 3) {
+    const [x, y, z] = positions.slice(i, i + 3);
+    if (paint === 'shoulders_nord3') {
+      positions[i] += Math.sign(x) * (-1.6 + 2.5 * ramp(Math.abs(x), 8, 14));
+      positions[i + 1] = y * 1.31;
+      positions[i + 2] += 1.1;
+    } else if (paint === 'tunic_nord3' && Math.abs(x) <= 15 && y < 0) {
+      positions[i + 1] = y * (1 + (0.24 + 0.16 * (1 - ramp(Math.abs(x), 3, 5))) * ramp(z, 99, 10));
+    } else if (paint === 'skirt_redguard2' && z < 30) {
+      positions[i + 2] += 4 * ramp(z, 18, 11);
+    } else if (paint === 'skirt_redguard2' && z > 50 && z < 78) {
+      const ease = 1 + 0.09 * (1 - ramp(z, 52, 26));
+      positions[i] = x * ease;
+      positions[i + 1] = y * ease;
+    }
+  }
+  return fittedMesh(mesh, positions);
+}
+
+/** Fit the close-cut panels in the authored bind, before they follow the wearer. */
+export function fitTownsfolkOutfit(mesh, archive, paint) {
+  if (archive === 387) return fitNordGreenOutfit(mesh, paint);
+  if (![381, 382, 383, 388, 389, 398].includes(archive)) return mesh;
+  const positions = mesh.positions.slice();
+  let changed = false;
+  for (const island of islandsOf(mesh)) {
+    const cls = islandClass(island);
+    for (const v of island.verts) {
+      const at = v * 3;
+      const [x, y, z] = positions.slice(at, at + 3);
+      const ax = Math.abs(x);
+      if (archive <= 383 && cls.startsWith('leg:') && island.max[2] < 12) {
+        // The shoe is an ankle strap. Keep the sole and toes of the wearer visible.
+        positions[at] = Math.sign(x) * (6 + (ax - 6) * 1.34);
+        positions[at + 1] = 1.7 + (y - 1.7) * 1.5;
+      } else if ((archive === 381 || archive === 383) && (cls === 'skirt' || cls.startsWith('arm:'))) {
+        positions[at + 1] = y * (1 + 0.23 * ramp(z, 96, 14));
+        positions[at + 2] += 1.1 * ramp(ax, 7, 7) * ramp(z, 108, 7);
+      } else if (cls === 'hood' && (archive === 388 || archive === 389 || archive === 398)) {
+        // Leave the front opening intact. The back and sides need room for different heads.
+        const back = ramp(-y, 0, 7);
+        positions[at] = x * (1 + 0.16 * back);
+        positions[at + 1] = y - 2.8 * back;
+      } else if ((archive === 388 || archive === 389) && cls === 'torso') {
+        const shoulder = ramp(ax, 5, 9);
+        positions[at + 1] = y * (1 + 0.36 * shoulder);
+        positions[at + 2] += (2.8 * ramp(z, 108, 10) - 1.0) * shoulder;
+      } else if (archive === 398 && cls === 'torso') {
+        const panel = ramp(z, 93, 9) * (1 - ramp(z, 112, 8));
+        positions[at + 1] = y + 4.0 * ramp(y, 0, 7) * panel - 1.9 * ramp(-y, 0, 6);
+      } else if (archive === 398 && cls.startsWith('arm:')) {
+        positions[at + 1] = y * 1.48;
+        positions[at + 2] = 114 + (z - 114) * 1.38;
+      } else if (archive === 398 && cls === 'skirt') {
+        const hem = 1 - ramp(z, 25, 24);
+        positions[at] = x * (1 + 0.12 * hem);
+        positions[at + 1] = y - 5.0 * ramp(-y, 0, 6) * hem;
+      }
+      if (positions[at] !== x || positions[at + 1] !== y || positions[at + 2] !== z) changed = true;
+    }
+  }
+  return changed ? fittedMesh(mesh, positions) : mesh;
 }
 
 /** Every bone any outfit rig names, in one order - the NIF's bones are these, at the outfits' bind. */
@@ -717,7 +767,7 @@ export function bakeTownsfolk({ source, pngs, skeleton }) {
         );
       const mesh = meshOf(o.object, s.material);
       const { weights, used } = shapeWeights(mesh, bind);
-      const fitted = o.archive === 387 ? fitNordGreenOutfit(mesh, s.paint) : mesh;
+      const fitted = fitTownsfolkOutfit(mesh, o.archive, s.paint);
       return { mesh: fitted, texture: textureName(s.paint), name: `Tri Chest ${i}`, weights, used };
     });
     const bones = ALL_BONES.filter((n) => shapes.some((s) => s.used.has(n))).map((name) => ({
