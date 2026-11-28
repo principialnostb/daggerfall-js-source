@@ -28,8 +28,9 @@
     "label": "Dmitry Tkach"
   },
   {
-    "hash": "c4dfddbf03c1d80d44b654ce6d62406a4db1befe4ca072b8ffbf27eae435e844",
-    "label": "Lattymoy"
+    "hash": "96d2151580feff69e4a5b8b1974cde3bd82f7165c1c21accb8b152a3b27a7745",
+    "label": "Lattymoy",
+    "revoked": true
   },
   {
     "hash": "dd0f46e76a5a408a69ec47a760b318838373196f8545a221e7c06916f6436cca",
