@@ -333,7 +333,7 @@ test('PR-BOW1b (2): portraitWindow - the tight box of the SHOWN ranges at this y
 test('PR-BOW1b: the wiring, by source - poseAssembly folds through foldPieceBounds, the portrait frames through portraitWindow after its flags and never over every piece, and the record names every door to drawThird: world.js, exterior.js, worldModes.js and dungeon.js through mwView.mwViewDrawBody, the peers through peerBodies', () => {
   const mw = rd('src/formats/morrowind/mwFirstPerson.js');
   const pose = mw.slice(mw.indexOf('export function poseAssembly('), mw.indexOf('export function hangAffine('));
-  assert.match(pose, /assembly\.bounds = pieces\.length \? foldPieceBounds\(pieces\) : null;/, 'the one walk');
+  assert.match(pose, /assembly\.bounds = pieces\.length \? foldPieceBounds\(pieces, deferSkin\) : null;/, 'the one walk');
   const arm = rd('src/combat/fpArm.js');
   const fig = arm.slice(arm.indexOf('    figure({ yaw = 0, height = 384 } = {}) {'), arm.indexOf('    status() {'));
   // PIN MOVED (PROFILE-SLOTS): the flags are posePortrait's, which figure() runs before it frames
