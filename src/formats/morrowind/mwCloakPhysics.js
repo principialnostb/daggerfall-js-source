@@ -5,7 +5,8 @@
 
 // Deliberately visible secondary motion in Morrowind's authored world units.
 // The old 1.6-unit envelope and 0.28-unit step made the hem look nearly rigid.
-import { meetCloakBody } from './mwCloakColliders.js';   // CLOAK-CONTACT, CLOAK-BODY
+import { clearCloakFaces, meetCloakBody } from './mwCloakColliders.js';
+import { foldPieceBounds } from './mwFirstPerson.js';   // CLOAK-CONTACT, CLOAK-BODY
 import { SHIELD_PRESS as SHIELD_PRESS_LIMIT } from './mwCloakFit.js';
 
 const MAX_OFFSET = 5.0;
@@ -27,6 +28,13 @@ const distance3 = (p, a, b) => Math.hypot(
   p[a * 3 + 1] - p[b * 3 + 1],
   p[a * 3 + 2] - p[b * 3 + 2],
 );
+
+/** Refresh the CPU stream after solving the current frame's bind vertices. */
+export function poseSolvedCloth(arm, piece) {
+  if (arm.cpuSkinned !== true || !arm.mats) return;
+  arm.fns.skinBatch(piece.batch, arm.skeleton, arm.pose, arm.mats, piece.positions, piece.normals ?? null);
+  foldPieceBounds([piece]);
+}
 
 /** Make a bounded cloth state from one skinned mesh, after its body-fit has been applied. */
 export function createCloakPhysics(piece) {
@@ -393,7 +401,10 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   }
 
   // Last, past the envelope's clamp - a leg stepping back takes the hem as far as it goes
-  if (typeof motion === 'object' && motion !== null) meetCloakBody(state, motion.colliders, fixed);
+  if (typeof motion === 'object' && motion !== null) {
+    meetCloakBody(state, motion.colliders, fixed);
+    clearCloakFaces(state, motion.colliders, indices);
+  }
 
   positions.set(pos);
   if (state.normals && piece.batch.normals === state.normals) rebuildNormals(positions, indices, state.normals, state.baseNormals);

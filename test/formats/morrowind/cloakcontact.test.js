@@ -7,9 +7,12 @@ import { assembleFirstPersonArm, poseAssembly } from '../../../src/formats/morro
 import { composeWornArmor } from '../../../src/formats/morrowind/mwItemMap.js';
 import { fitCloakOver, fitStowedGear, cloakSheet, posePiecePositions, CLOAK_FIT_POSES, CLOAK_STILL_POSES, SHIELD_PRESS, SHIELD_BODY_GAP } from '../../../src/formats/morrowind/mwCloakFit.js';
 import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact } from '../../../src/formats/morrowind/mwCloakPhysics.js';
-import { cloakColliders, meetCloakBody, bodyBackAt, cloakGearDue, CLOAK_CONTACT } from '../../../src/formats/morrowind/mwCloakColliders.js';
+import { clearCloakFaces, cloakColliders, meetCloakBody, bodyBackAt, cloakGearDue, CLOAK_CONTACT } from '../../../src/formats/morrowind/mwCloakColliders.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 import { body, set, CLOAK, isCloak, isUnder, SWEEP, turned, crossings } from '../../fixtures/mw/cloakRig.mjs';
+
+import { affineApply, affineMul } from '../../../src/formats/morrowind/mwAffine.js';
+import { skinPost } from '../../../src/formats/morrowind/mwSkin.js';
 
 const fitted = async () => {
   const a = await body(ARMOR_MATERIAL.Steel);
@@ -19,6 +22,30 @@ const fitted = async () => {
   poseAssembly(a);
   return { a, piece, st: piece.clothPhysics };
 };
+
+test('an armour ridge between cloth vertices clears the whole face', () => {
+  const field = { ox: 0, oz: 0, w: 11, h: 11, back: new Float32Array(121).fill(4) };
+  field.back[3 * field.w + 3] = -2;
+  const pos = Float32Array.from([0, 0, 0, 9, 0, 0, 0, 0, 9]);
+  const state = { pos, prev: pos.slice(), edges: [{ a: 0, b: 1 }, { a: 1, b: 2 }, { a: 0, b: 2 }] };
+  const expected = Float32Array.from([0, -3, 0, 9, -3, 0, 0, -3, 9]);
+  clearCloakFaces(state, { field }, [0, 1, 2]);
+  assert.deepEqual(state.pos, expected);
+  assert.deepEqual(state.prev, expected);
+});
+
+test('a posed plate enters the contact grid in the rendered cloak mesh frame', async () => {
+  const { a, piece, st } = await fitted();
+  const skin = piece.batch.skin, bone = skin.bones[0];
+  const affine = affineMul(skinPost(skin, a.skeleton, a.pose), affineMul(a.mats.get(bone.ref), bone.invBind));
+  const z = Math.round((st.minZ + st.maxZ) * .5), y = -12;
+  const patch = Float32Array.from([[-3, y, z - 3], [3, y, z - 3], [3, y, z + 3], [-3, y, z + 3]]
+    .flatMap(([x, depth, height]) => Array.from(affineApply(affine, x, depth, height))));
+  const plate = { kind: 'rigid', source: patch, positions: patch, indices: Uint16Array.of(0, 1, 2, 0, 2, 3) };
+  a.pieces.push(plate);
+  const { field } = cloakColliders(a, piece, p => p === plate);
+  assert.ok(Math.abs(bodyBackAt(field, 0, z) - y) < .001);
+});
 
 test('CLOAK-BODY: the body field pushes a free vertex back behind the body, takes its speed into it, and leaves a fixed one, a far one and one deep through alone', () => {
   const back = new Float32Array(9 * 9).fill(Infinity);
@@ -41,13 +68,16 @@ test('CLOAK-CONTACT: the gear footprint is taken five times a second, not every 
   assert.equal(CLOAK_CONTACT.gearEvery, 0.2);
 });
 
-test('CLOAK-BODY: every cloak is fitted to the eleven poses; standing, the cloth stays by its fit and the body pushes nothing; through the sweep nothing comes through it', async () => {
+test('CLOAK-BODY: the standing cloth settles near its fit and the body clears the pose sweep', async () => {
   assert.equal(CLOAK_FIT_POSES.length, 4);
   assert.equal(CLOAK_STILL_POSES.length, 11);
   const { a, piece, st } = await fitted();
   const rest = cloakColliders(a, piece, isUnder);
   assert.ok(rest.field.back.some((y) => y !== Infinity), 'the worn pieces are in the field');
-  assert.equal(meetCloakBody({ pos: Float32Array.from(st.base), prev: Float32Array.from(st.base) }, rest, () => false), 0, 'standing, the fitted cloth is behind the body');
+  const settled = { pos: st.base.slice(), prev: st.base.slice() };
+  meetCloakBody(settled, rest, () => false);
+  assert.ok(st.base.every((x, i) => Math.abs(settled.pos[i] - x) < .5), 'the standing fit needs only sub-unit contact');
+  assert.equal(meetCloakBody(settled, rest, () => false), 0, 'standing contact settles in one correction');
   const off = () => { let sum = 0; for (let i = 0; i < st.pos.length; i += 3) sum += Math.hypot(st.pos[i] - st.base[i], st.pos[i + 1] - st.base[i + 1], st.pos[i + 2] - st.base[i + 2]); return sum / (st.pos.length / 3); };
   for (let i = 0; i < 180; i++) stepCloakPhysics(piece, 1 / 60, { gait: 0, gaitPhase: 0, colliders: cloakColliders(a, piece, isUnder) });
   assert.ok(off() < 1, `standing three seconds the cloth is ${off().toFixed(2)} units off its fit`);

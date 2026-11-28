@@ -1,6 +1,8 @@
 // @ts-check
 // Use the posed surfaces of worn pieces to keep the animated cloak clear of the body and the stowed shield.
 import { placeAtBone } from './mwFirstPerson.js';
+import { affineMul } from './mwAffine.js';
+import { enableRigidBatchSkin, skinPost } from './mwSkin.js';
 
 /** Units the cloth keeps behind the body; the most one frame pushes it (deeper is a limb over the cloak, not under it);
  *  units a piece is rounded by, sideways;
@@ -10,6 +12,7 @@ export const CLOAK_CONTACT = Object.freeze({ clearance: 1, deep: 6, margin: 8, r
 const RIGS = new WeakMap();
 const GEAR = new WeakMap();
 const SCRATCH = new WeakMap();
+const FULL_CLOAK_BIND = new WeakMap();
 
 const inv3 = (a) => {
   const d = a[0] * (a[4] * a[8] - a[5] * a[7]) - a[1] * (a[3] * a[8] - a[5] * a[6]) + a[2] * (a[3] * a[7] - a[4] * a[6]);
@@ -57,11 +60,22 @@ export function cloakColliders(arm, piece, isUnder = isUnderOf(piece)) {
   const state = piece?.clothPhysics;
   if (!state || !arm?.mats || !arm.pose || !arm.skeleton || !arm.fns) return null;
   const rig = rigOf(arm), restChest = rig.rest.get(rig.chest), liveChest = arm.mats.get(rig.chest);
-  if (!restChest || !liveChest) return null;
+  const batch = piece.batch, skin = batch?.skin;
+  let bind = null;
+  if (skin) {
+    if (!FULL_CLOAK_BIND.has(skin)) FULL_CLOAK_BIND.set(skin, enableRigidBatchSkin(batch));
+    if (FULL_CLOAK_BIND.get(skin)) {
+      const bone = skin.bones[0], live = arm.mats.get(bone.ref);
+      if (live) bind = affineMul(skinPost(skin, arm.skeleton, arm.pose), affineMul(live, bone.invBind));
+    }
+  }
+  if (!bind && (!restChest || !liveChest)) return null;
   const f = boxOf(state), { ox, oz, w, h, yTop, back } = f;
   back.fill(Infinity);
-  // the worn piece's posed point into the cloak's bind: rest chest after the live one undone
-  const R = mul33(restChest.a, inv3(liveChest.a)), lt = liveChest.t, rt = restChest.t;
+  // A chest-bound mesh can have its own frame. Invert its actual skinning
+  // transform so the live collision surface lines up with the drawn cloth.
+  const R = bind ? inv3(bind.a) : mul33(restChest.a, inv3(liveChest.a));
+  const lt = bind?.t ?? liveChest.t, rt = bind ? [0, 0, 0] : restChest.t;
   const lift = (x, y, z) => { x -= lt[0]; y -= lt[1]; z -= lt[2]; return [R[0] * x + R[1] * y + R[2] * z + rt[0], R[3] * x + R[4] * y + R[5] * z + rt[1], R[6] * x + R[7] * y + R[8] * z + rt[2]]; };
   const put = (i, j, y) => { if (i >= 0 && j >= 0 && i < w && j < h && y < back[j * w + i]) back[j * w + i] = y; };
   for (const p of arm.pieces) {
@@ -70,12 +84,15 @@ export function cloakColliders(arm, piece, isUnder = isUnderOf(piece)) {
     const n = p.kind === 'skinned' ? p.batch?.positions?.length : p.source?.length;
     if (!n) continue;
     if (!s || s.posed.length !== n) { s = { posed: new Float32Array(n), bind: new Float32Array(n) }; SCRATCH.set(p, s); }
-    if (p.kind === 'skinned') arm.fns.skinBatch(p.batch, arm.skeleton, arm.pose, arm.mats, s.posed, null);
-    else if (arm.fns.attachmentTransform) placeAtBone(p.source, arm.fns.attachmentTransform(arm.mats, p.attachRef), p.mirrored, s.posed, p.boneOffset);
-    else continue;
+    const posed = arm.cpuSkinned && p.positions?.length === n ? p.positions : s.posed;
+    if (posed === s.posed) {
+      if (p.kind === 'skinned') arm.fns.skinBatch(p.batch, arm.skeleton, arm.pose, arm.mats, posed, null);
+      else if (arm.fns.attachmentTransform) placeAtBone(p.source, p.followAt ?? arm.fns.attachmentTransform(arm.mats, p.attachRef), p.mirrored, posed, p.boneOffset);
+      else continue;
+    }
     const P = s.bind;
     for (let o = 0; o < n; o += 3) {
-      const q = lift(s.posed[o], s.posed[o + 1], s.posed[o + 2]);
+      const q = lift(posed[o], posed[o + 1], posed[o + 2]);
       P[o] = q[0] - ox; P[o + 1] = q[1]; P[o + 2] = q[2] - oz;
       put(Math.round(P[o]), Math.round(P[o + 2]), q[1]);
     }
@@ -119,8 +136,11 @@ export function bodyBackAt(field, x, z) {
   const u = fx - i, v = fz - j;
   const a = back[j * w + i], b = back[j * w + i + 1], c = back[(j + 1) * w + i], d = back[(j + 1) * w + i + 1];
   if (a !== Infinity && b !== Infinity && c !== Infinity && d !== Infinity) return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
-  const near = [[a, u * u + v * v], [b, (1 - u) ** 2 + v * v], [c, u * u + (1 - v) ** 2], [d, (1 - u) ** 2 + (1 - v) ** 2]].filter(([y]) => y !== Infinity);
-  return near.length ? near.sort((p, q) => p[1] - q[1])[0][0] : Infinity;
+  const u0 = u * u, u1 = (1 - u) ** 2, v0 = v * v, v1 = (1 - v) ** 2;
+  const da = a === Infinity ? Infinity : u0 + v0, db = b === Infinity ? Infinity : u1 + v0;
+  const dc = c === Infinity ? Infinity : u0 + v1, dd = d === Infinity ? Infinity : u1 + v1;
+  const nearest = Math.min(da, db, dc, dd);
+  return nearest === da ? a : nearest === db ? b : nearest === dc ? c : d;
 }
 
 /** Push the free vertices of a cloth state back behind the body (bind -y), the push taking their speed into the body;
@@ -139,6 +159,38 @@ export function meetCloakBody(state, colliders, fixed) {
     moved++;
   }
   return moved;
+}
+
+/** Keep armour ridges clear between cloth vertices without moving the shoulder anchors sideways. */
+export function clearCloakFaces(state, colliders, indices) {
+  const field = colliders?.field;
+  if (!field) return;
+  const { pos, prev } = state;
+  const push = state.facePush ??= new Float32Array(pos.length / 3);
+  push.fill(0);
+  const depth = (x, y, z) => Math.min(3, y - bodyBackAt(field, x, z) + CLOAK_CONTACT.clearance);
+  for (let i = 0; i < pos.length; i += 3) push[i / 3] = Math.max(0, depth(pos[i], pos[i + 1], pos[i + 2]));
+  for (const { a, b } of state.edges) {
+    const x = a * 3, y = b * 3;
+    const amount = depth((pos[x] + pos[y]) * .5, (pos[x + 1] + pos[y + 1]) * .5, (pos[x + 2] + pos[y + 2]) * .5);
+    push[a] = Math.max(push[a], amount);
+    push[b] = Math.max(push[b], amount);
+  }
+  for (let i = 0; i + 2 < indices.length; i += 3) {
+    const a = indices[i], b = indices[i + 1], c = indices[i + 2];
+    const x = a * 3, y = b * 3, z = c * 3;
+    const amount = depth((pos[x] + pos[y] + pos[z]) / 3, (pos[x + 1] + pos[y + 1] + pos[z + 1]) / 3,
+      (pos[x + 2] + pos[y + 2] + pos[z + 2]) / 3);
+    push[a] = Math.max(push[a], amount);
+    push[b] = Math.max(push[b], amount);
+    push[c] = Math.max(push[c], amount);
+  }
+  for (let v = 0; v < push.length; v++) {
+    if (!push[v]) continue;
+    const y = v * 3 + 1;
+    pos[y] -= push[v];
+    prev[y] = Math.min(prev[y], pos[y]);
+  }
 }
 
 /** Is the stowed gear's footprint on the cloth due again? It moves with the back it hangs from: five times a second. */

@@ -387,7 +387,7 @@ import { fpLightingOn } from './fpsWeapon.js';   // The first-person lighting sw
 import { createParticleSystem, packParticleQuads, particleDrawState, affineOfTransform, affineMul, affineApply, affineScale } from '../formats/morrowind/mwParticles.js';   // The torch's flame, and any other particle system a part carries
 import { boneSourcesFor, resolveHolsterParts, holsterPartPaths, holsterHidden, HOLSTER_SLOTS } from '../systems/weaponSheathing.js';   // WS1
 import { fitCloakOver, fitCloakDuringBuild, fitStowedGear, followCloak, posePiecePositions, CLOAK_STILL_POSES, CLOAK_ANIMATED_FIT_POSES, HIP_PITCH_LIMIT, CLOAK_PUSH_LIMIT, SLUNG_MOVE_LIMIT } from '../formats/morrowind/mwCloakFit.js';   // MW-CLOAK1: the cloak over what the body wears, stowed gear against it; AUDIT MW-CLOAK: and going with it
-import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact, releaseCloakShieldContact } from '../formats/morrowind/mwCloakPhysics.js';
+import { createCloakPhysics, stepCloakPhysics, poseSolvedCloth, resolveCloakShieldContact, releaseCloakShieldContact } from '../formats/morrowind/mwCloakPhysics.js';
 import { cloakColliders, cloakGearDue } from '../formats/morrowind/mwCloakColliders.js';   // CLOAK-CONTACT
 import { isCloakSlot, ownCloakFor, isOutfitSlot, isSimplyCloakModel } from '../characters/ownModels/ownClothingModels.js';   // MW-CLOAK1; AUDIT MW-CLOAK: and its picture; AUDIT MW-FOLK1: an outfit's add, by its label
 import { injectSkeletonNodes } from '../formats/morrowind/mwSkin.js';   // The dry injection the holster's bone probe runs
@@ -8940,6 +8940,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
                 resolveCloakShieldContact(clothPieces[i], posed[rigidGear.length + 2 * i], surfaces, null, posed[rigidGear.length + 2 * i + 1]);
               }
             }
+            for (const piece of clothPieces) poseSolvedCloth(t.arm, piece);
           }
           if (t.arm.wolfPeltMotion) {
             const backGear = (piece) => {
