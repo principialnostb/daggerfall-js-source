@@ -2,7 +2,7 @@
   {
     "name": "pose-folds-no-piece-boxes",
     "file": "src/formats/morrowind/mwFirstPerson.js",
-    "old": "  assembly.bounds = pieces.length ? foldPieceBounds(pieces) : null;",
+    "old": "  assembly.bounds = pieces.length ? foldPieceBounds(pieces, deferSkin) : null;",
     "new": "  assembly.bounds = pieces.length ? meshBounds(pieces) : null;",
     "tests": [
       "test/formats/morrowind/prbow1b_followups.test.js"

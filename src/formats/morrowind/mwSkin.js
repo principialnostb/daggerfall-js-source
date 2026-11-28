@@ -475,9 +475,46 @@ export function skinPost(skin, skeleton, pose) {
  * CPU-skin one batch (from flattenNif, carrying batch.skin) into out
  * arrays. positionsOut/normalsOut must be sized like the batch's own.
  */
+const rigidSkins = new WeakSet();
+
+/** Use one affine for a mesh whose single bone fully owns every vertex. */
+export function enableRigidBatchSkin(batch) {
+  const bones = batch.skin?.bones, count = batch.positions.length / 3;
+  if (bones?.length !== 1 || bones[0].ref == null || bones[0].indices.length !== count) return false;
+  const seen = new Uint8Array(count);
+  for (let i = 0; i < count; i++) {
+    const v = bones[0].indices[i];
+    if (v >= count || seen[v] || bones[0].weights[i] !== 1) return false;
+    seen[v] = 1;
+  }
+  rigidSkins.add(batch.skin);
+  return true;
+}
+
+function skinRigidBatch(batch, skelMats, post, positionsOut, normalsOut) {
+  const bone = batch.skin.bones[0];
+  const bound = affineMul(skelMats.get(bone.ref), bone.invBind);
+  const { a, t } = affineMul(post, { a: bound.a, t: bound.t.map(Math.fround) });
+  const { positions, normals } = batch;
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+    positionsOut[i] = a[0] * x + a[1] * y + a[2] * z + t[0];
+    positionsOut[i + 1] = a[3] * x + a[4] * y + a[5] * z + t[1];
+    positionsOut[i + 2] = a[6] * x + a[7] * y + a[8] * z + t[2];
+  }
+  if (!normalsOut || !normals) return;
+  for (let i = 0; i < normals.length; i += 3) {
+    const x = normals[i], y = normals[i + 1], z = normals[i + 2];
+    const nx = a[0] * x + a[1] * y + a[2] * z, ny = a[3] * x + a[4] * y + a[5] * z, nz = a[6] * x + a[7] * y + a[8] * z;
+    const length = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+    normalsOut[i] = nx / length; normalsOut[i + 1] = ny / length; normalsOut[i + 2] = nz / length;
+  }
+}
+
 export function skinBatch(batch, skeleton, pose, skelMats, positionsOut, normalsOut) {
   const skin = batch.skin;
   const post = skinPost(skin, skeleton, pose);   // MW-D20 / MWNPC1: the one home of the post
+  if (rigidSkins.has(skin)) return skinRigidBatch(batch, skelMats, post, positionsOut, normalsOut);
   const n = batch.positions.length / 3;
   // PERF-RIG1 (2026-09-21, Mac: "continue looking into fixing exterior
   // performance issues"): THE ACCUMULATORS ARE THE BATCH'S. This runs

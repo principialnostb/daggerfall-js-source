@@ -918,6 +918,7 @@ export function fitStowedGear(
     slungLimit = SLUNG_PITCH_LIMIT,
     moveLimit = SLUNG_MOVE_LIMIT,
     pressed = false,
+    compressPelt = false,
     isUnder = null,
     stableHip = null,
   },
@@ -926,6 +927,7 @@ export function fitStowedGear(
   if (!cloaks.length) return null;
   const rest = poseOf(assembly);
   const sheets = cloaks.map((c) => cloakSheet(rest.place(c), c.indices));
+  const seatPelt = compressPelt && cloaks.some(c => /^Wolf_/.test(c.batch?.name ?? ''));
   const front = (surfaces, x, z) => {
     let y = null;
     for (const s of surfaces) {
@@ -999,7 +1001,14 @@ export function fitStowedGear(
         let here = false;
         each(set, deg, (x, y, z) => {
           const s = back(x, z),
-            b = press ? bodySheet?.at(x, z)?.back : null;
+            b = press || seatPelt ? bodySheet?.at(x, z)?.back : null;
+          if (seatPelt && b != null) {
+            here = true;
+            const room = seated ? 2.8 : 2;
+            need = Math.max(need, y - (b - Math.max(SHIELD_BODY_GAP + .38, groupClearance) - room));
+            return;
+          }
+          if (seatPelt && bodySheet) return;
           if (b != null) need = Math.max(need, y - (b - SHIELD_BODY_GAP));
           if (s == null) return;
           here = true;
@@ -1007,7 +1016,7 @@ export function fitStowedGear(
           need = Math.max(need, press ? y - (s + SHIELD_PRESS - groupClearance) : y - (s - groupClearance));
         });
         if (!here) return null;
-        return seated ? Math.max(-SHIELD_DRAW_IN, need) : Math.max(0, need);
+        return seated || seatPelt ? Math.max(-SHIELD_DRAW_IN, need) : Math.max(0, need);
       };
       const turns = [];
       for (let k = 0; k <= 2 * slungLimit; k++) {
@@ -1032,7 +1041,7 @@ export function fitStowedGear(
         rows.push({ bone, slung, how: 'unresolved', by: 0 });
         continue;
       }
-      if (best.need > 1e-4 || best.deg || (seated && best.need < -1e-4))
+      if (best.need > 1e-4 || best.deg || ((seated || seatPelt) && best.need < -1e-4))
         move = {
           rot: best.deg ? pitch(best.deg) : null,
           d: [0, -best.need, 0],

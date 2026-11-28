@@ -2316,8 +2316,9 @@ export function fitThirdPersonCloak(arm, underSlots, prepared = undefined) {
   // until they clear the cloak; the larger clearance is isolated to this call
   // so ordinary holsters keep their existing fit.
   const hasBackShield = arm.pieces.some((p) => /^shield-back\b/i.test(p.slot ?? ''));
-  const gear = fitStowedGear(arm, { isCloak, isGear, stableHip: isHipSheath, shieldClearance: hasBackShield ? 1.5 : undefined, pressed: vanillaAnimatedCloaksEnabled() || simplyAnimatedCloaksEnabled(), isUnder: (p) => (underSlots ? covered(p.slot) : !/^(shield\b|tail$)/.test(p.slot ?? '')) });   // SHIELD-SEAT: animated cloth is pressed under the shield, the shield stops short of the body
-  const follow = followCloak(arm, { isCloak, isGear: isFollowGear });
+  const compressPelt = vanillaAnimatedCloaksEnabled() && arm.pieces.some(p => isWolfCloakSlot(p.slot));
+  const gear = fitStowedGear(arm, { isCloak, isGear, stableHip: isHipSheath, compressPelt, shieldClearance: hasBackShield ? 1.5 : undefined, pressed: vanillaAnimatedCloaksEnabled() || simplyAnimatedCloaksEnabled(), isUnder: (p) => (underSlots ? covered(p.slot) : !/^(shield\b|tail$)/.test(p.slot ?? '')) });   // SHIELD-SEAT: animated cloth is pressed under the shield, the shield stops short of the body
+  const follow = compressPelt ? null : followCloak(arm, { isCloak, isGear: isFollowGear });
   const notes = (gear ?? []).filter((r) => r.how === 'unresolved').map((r) => (r.slung
     ? `holster @ ${r.bone}: over the cloak it would hang more than ${SLUNG_MOVE_LIMIT} units off the back - it hangs as it was`
     : `holster @ ${r.bone}: no pitch within ${HIP_PITCH_LIMIT} degrees keeps it in front of the cloak - it hangs as it was`));
@@ -5906,7 +5907,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // used by non-default body morphs; the GPU stream is otherwise a second
     // mutable representation of the cloak and can desynchronise from its pose.
     const liveVanillaCloth = playerAppearance && vanillaAnimatedCloaksEnabled()
-      && (t.arm.wolfPeltMotion || t.arm.pieces.some((piece) => piece.clothPhysicsFallbackMesh && piece.clothPhysics));
+      && t.arm.pieces.some((piece) => piece.clothPhysicsFallbackMesh && piece.clothPhysics);
     if (liveVanillaCloth) {
       if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
       thirdSkin = null;
@@ -5916,7 +5917,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
-    const layout = skinLayout(t.arm.pieces);
+    const layout = skinLayout(t.arm.pieces, t.arm.wolfPeltMotion?.moving);
     if (!layout.ok) {
       thirdSkinRefused = t.arm.pieces;
       const say = `third body: skinned on the CPU - ${layout.reason}`;
@@ -5933,12 +5934,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
     if (thirdSkin && gpuSkinOn(renderer) && skinSamePieces(thirdSkin, t.arm.pieces)) {
       if (!thirdMesh) {
         const packed = packSkinStream(thirdSkin, pieceLanes);
-        thirdMesh = renderer.createSkinnedCharacterMesh(packed.stream, { floats: packed.floats, pairs: thirdSkin.pairs, width: thirdSkin.width, height: thirdSkin.height });
+        thirdMesh = renderer.createSkinnedCharacterMesh(packed.stream, { floats: packed.floats, pairs: thirdSkin.pairs, width: thirdSkin.width, height: thirdSkin.height, mutablePositions: thirdSkin.mutablePositions });
         thirdMesh.ranges = packed.ranges;
         hangRangeTextures(thirdMesh.ranges, t.textures, { skin: bodySkin(), hairColor: t.hairColor, hairTints: t.hairTints }, t.cosmeticDyes);
       } else {
         // MW-BOW1 x MWNPC1: a part the weapon clock re-posed (the bow drawing, the arrow on its ArrowBone) - its corners alone
-        for (const m of restreamMovedRows(thirdSkin, pieceLanes)) renderer.updateSkinStream(thirdMesh, m.offset, m.data);
+        for (const m of restreamMovedRows(thirdSkin, pieceLanes)) renderer.updateSkinStream(thirdMesh, m.offset, m.data, m.positionsOnly);
       }
       writeSkinPalette(thirdSkin, t.arm);
       renderer.updateSkinPalette(thirdMesh, thirdSkin.palette);
@@ -8804,6 +8805,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
             // peer's and townsperson's body runs this rig at pitch 0
             aim: cam?.pitch && upper > UPPER_BODY.WeaponEquipped ? spineAimSlot(-cam.pitch * spinePitchFactor({ upper: UPPER_BODY_NAME[upper], weaponType: stanceOf(), group: weaponGroup, time: actionState ? actionState.time : -1, startTime: keyTime(attackKeys(attackType).windUp.start), minAttackTime: keyTime(attackKeys(attackType).minAttack), completion: clipCompletion(actionState) })) : null,
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
+            deferSkin: dt > 0 && Number.isFinite(dt) && !globalThis.__mwPoseAssemblyProbe && !globalThis.__mwPoseAssemblyEdit
+              ? t.arm.wolfPeltMotion?.moving : null,
           });
           // TEMP POSE-AUDIT: per-frame bones and layers for the automated check - never committed
           const AUD = globalThis.__poseAudit;
@@ -8939,11 +8942,22 @@ export function createFpArm({ playerAppearance = false } = {}) {
             }
           }
           if (t.arm.wolfPeltMotion) {
-            stepWolfPeltMotion(t.arm.wolfPeltMotion, t.arm, dt, {
+            const backGear = (piece) => {
+              if (/^shield-back\b/i.test(piece.slot ?? '')) return modGroupEnabled('bodies') && !shieldCombatReadyNow;
+              if (piece.kind !== 'rigid' || !HOLSTER_SLOTS.includes(piece.slot)
+                  || holsterHidden(piece.slot, weaponShown, { arrowShown, tag: piece.tag })) return false;
+              const bone = t.arm.skeleton.nodes.get(piece.attachRef);
+              if (/^bip01 (shortblade|longblade|blunt)onehand$/i.test(bone?.name ?? '')) return false;
+              for (let ref = bone?.parent; ref != null && ref >= 0; ref = t.arm.skeleton.nodes.get(ref)?.parent) {
+                if (/^bip01 spine1$/i.test(t.arm.skeleton.nodes.get(ref)?.name ?? '')) return true;
+              }
+              return false;
+            };
+            stepWolfPeltMotion(t.arm.wolfPeltMotion, t.arm, dt > 0 && Number.isFinite(dt) ? dt : 1 / 60, {
               gait: cloakMotion,
               gaitPhase: Number.isFinite(cloakStride.phase) ? cloakStride.phase : movementState ? clipCompletion(movementState) % 1 : 0,
               yaw: cam?.yaw, attack: cloakAttack, attackProgress: cloakAttackProgress, attackGroup: cloakAttackGroup,
-            }, t.arm.wolfPeltUnderSlots);
+            }, t.arm.wolfPeltUnderSlots, backGear);
           }
           if (thirdBlendWeight >= 1) thirdBlendFrom = null;
           uploadThirdMesh(t);

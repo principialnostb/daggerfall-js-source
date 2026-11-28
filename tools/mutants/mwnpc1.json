@@ -119,8 +119,8 @@
   {
     "name": "MWNPC1-one-pair-always",
     "file": "src/formats/morrowind/mwGpuSkin.js",
-    "old": "  return { ok: true, entries, pairs: most > 4 ? 2 : 1, most, width, height, rows, pieces: list, byPiece, palette };",
-    "new": "  return { ok: true, entries, pairs: most > 8 ? 2 : 1, most, width, height, rows, pieces: list, byPiece, palette };",
+    "old": "  return { ok: true, entries, pairs: most > 4 ? 2 : 1, most, width, height, rows, pieces: list, byPiece, palette,\n    mutablePositions: rows.some(row => row.kind === 'posed') };",
+    "new": "  return { ok: true, entries, pairs: most > 8 ? 2 : 1, most, width, height, rows, pieces: list, byPiece, palette,\n    mutablePositions: rows.some(row => row.kind === 'posed') };",
     "tests": [
       "test/formats/morrowind/mwnpc1_gpuskin.test.js"
     ]

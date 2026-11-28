@@ -2075,10 +2075,11 @@ export function meshBounds(shapes) {
  *  The third-person pass folds what it draws off these boxes
  *  (fpArm.js foldRangeBoxes) - it walked every posed vertex a SECOND time,
  *  per body per frame, the repeated walk AUDIT MWBODY A4 removed once. */
-export function foldPieceBounds(pieces) {
+export function foldPieceBounds(pieces, deferred = null) {
   let minX = Infinity; let minY = Infinity; let minZ = Infinity;
   let maxX = -Infinity; let maxY = -Infinity; let maxZ = -Infinity;
   for (const s of pieces) {
+    if (deferred?.has(s)) continue;
     const p = s.positions;
     let aX = Infinity; let aY = Infinity; let aZ = Infinity;
     let bX = -Infinity; let bY = -Infinity; let bZ = -Infinity;
@@ -3001,7 +3002,7 @@ export { deformPlayerBodyGeometry } from '../../characters/bodyShape.js';
 
 let cloakProbeQuery = null;
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
-  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, motion = null, bodyProportions = false, blendFrom = null, blendWeight = 1, aim = null } = {}) {
+  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, deferSkin = null, mirror = null, run = null, hold = null, motion = null, bodyProportions = false, blendFrom = null, blendWeight = 1, aim = null } = {}) {
   const { fns, skeleton, pieces } = assembly;
   if (!fns || !skeleton) return assembly;
   const geometryMorph = bodyProportions ? (typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : null;
@@ -3085,8 +3086,10 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
     return assembly;
   }
   for (const p of pieces) {
+    if (deferSkin?.has(p)) continue;
     if (p.kind === 'skinned') {
       fns.skinBatch(p.batch, skeleton, pose, mats, p.positions, p.normals ?? null);   // MW-SMOOTH: and its normals
+      if (assembly.wolfPeltMotion?.moving.has(p)) p.sourceGen = ((p.sourceGen | 0) + 1) >>> 0;
     } else {
       const at = fns.attachmentTransform(mats, p.attachRef);
       const placed = p.hang ? hangAffine(at, p.hang) : at;   // HT-WAIST
@@ -3113,7 +3116,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // AUDIT MW-CLOAK: what the assembly's owner places after every piece is posed - the stowed gear that goes with the
   // cloak (formats/morrowind/mwCloakFit.js followCloak), which reads the cloak where this pose just put it
   if (assembly.afterPose) assembly.afterPose(assembly);
-  assembly.bounds = pieces.length ? foldPieceBounds(pieces) : null;   // PR-BOW1b: and each piece's own box, in the same walk
+  assembly.bounds = pieces.length ? foldPieceBounds(pieces, deferSkin) : null;   // PR-BOW1b: and each piece's own box, in the same walk
   if (typeof globalThis.__mwPoseAssemblyProbe === 'function') globalThis.__mwPoseAssemblyProbe(assembly);
   // MW-CLOAK-PROBE: opt-in, read-only telemetry. Enabled only by
   // ?mwcloakprobe=1 or the Playwright harness. The browser overlay lives

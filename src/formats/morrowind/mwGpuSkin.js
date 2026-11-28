@@ -91,10 +91,10 @@ const drawable = (p) => !!(p && p.positions && p.indices);
  * bone its skin names (a missing bone - ref null - takes none); a rigid piece takes its PLACEMENT.
  *
  * @returns {{ok:true, entries:number, pairs:number, most:number, width:number, height:number,
- *   rows:object[], pieces:object[], byPiece:Map<object, object>, palette:Float32Array}
+ *   rows:object[], pieces:object[], byPiece:Map<object, object>, palette:Float32Array, mutablePositions:boolean}
  *   | {ok:false, reason:string}}
  */
-export function skinLayout(pieces) {
+export function skinLayout(pieces, posedRows = null) {
   let next = 1;
   let most = 1;
   const rows = [];
@@ -102,7 +102,14 @@ export function skinLayout(pieces) {
   for (const p of pieces ?? []) {
     if (!drawable(p)) continue;
     list.push(p);
-    if (p.kind === 'skinned') {
+    if (posedRows?.has(p)) {
+      const n = p.positions.length / 3;
+      const infW = new Float32Array(n * SKIN_MAX_INFLUENCES);
+      for (let v = 0; v < n; v++) infW[v * SKIN_MAX_INFLUENCES] = 1;
+      rows.push({ piece: p, kind: 'posed', n, pos: p.positions, nrm: p.normals,
+        infW, infE: new Int32Array(infW.length), postE: new Int32Array(n),
+        corner0: 0, sub: null, gen: -1 });
+    } else if (p.kind === 'skinned') {
       const batch = p.batch;
       const skin = batch && batch.skin;
       if (!skin || !batch.positions) return { ok: false, reason: `${p.slot}: a skinned piece with no skin to blend` };
@@ -284,7 +291,8 @@ export function skinLayout(pieces) {
   const height = Math.ceil(entries / SKIN_PAL_ROW);
   const palette = new Float32Array(width * height * 4);
   const byPiece = new Map(rows.map((r) => [r.piece, r]));
-  return { ok: true, entries, pairs: most > 4 ? 2 : 1, most, width, height, rows, pieces: list, byPiece, palette };
+  return { ok: true, entries, pairs: most > 4 ? 2 : 1, most, width, height, rows, pieces: list, byPiece, palette,
+    mutablePositions: rows.some(row => row.kind === 'posed') };
 }
 
 /**
@@ -369,6 +377,10 @@ export function packSkinStream(layout, lanesOf) {
     if (o !== r.corner0 * floats)
       throw new Error(`MWNPC1: ${p.slot}'s corners begin at ${o / floats}, the layout says ${r.corner0}`);
     o = writeRowCorners(layout, r, lanesOf(p), stream, o);
+    if (r.kind === 'posed') {
+      r.sub = new Float32Array(Math.floor(p.indices.length / 3) * 18);
+      r.gen = p.sourceGen | 0;
+    }
     const textured = !!(p.uvs && p.material && p.material.textureFile);
     const count = Math.floor(p.indices.length / 3) * 3; // the corners written - a whole triangle list, as every retail piece is
     ranges.push({
@@ -439,6 +451,21 @@ export function restreamMovedRows(layout, lanesOf) {
   out.length = 0;
   const floats = skinStreamFloats(layout.pairs);
   for (const r of layout.rows) {
+    if (r.kind === 'posed') {
+      const gen = r.piece.sourceGen | 0;
+      if (r.gen === gen) continue;
+      r.gen = gen;
+      const { indices } = r.piece;
+      for (let i = 0, o = 0; o < r.sub.length; i++, o += 6) {
+        const v = indices[i] * 3;
+        for (let k = 0; k < 3; k++) {
+          r.sub[o + k] = r.pos[v + k];
+          r.sub[o + 3 + k] = r.nrm?.[v + k] ?? 0;
+        }
+      }
+      out.push({ offset: r.corner0, data: r.sub, positionsOnly: true });
+      continue;
+    }
     let changed = false;
     if (r.kind === 'rigid') {
       changed = syncRigidRow(r);
@@ -517,6 +544,7 @@ export function writeSkinPalette(layout, assembly, pal = layout.palette) {
   putEntry(pal, 0, IDENTITY);
   for (const r of layout.rows) {
     const p = r.piece;
+    if (r.kind === 'posed') continue;
     if (r.kind === 'skinned') {
       const skin = p.batch.skin;
       putEntry(pal, r.post, skinPost(skin, skeleton, pose));
@@ -541,7 +569,7 @@ export function writeSkinPalette(layout, assembly, pal = layout.palette) {
  *  placement) with the fit laid over it, as mwPoseLab.js fitPieces moves the CPU skin's vertices. */
 function fitEntries(layout, pal) {
   for (const r of layout.rows) {
-    if (!r.piece.labFit) continue;
+    if (!r.piece.labFit || r.kind === 'posed') continue;
     const e = r.kind === 'skinned' ? r.post : r.entry;
     putEntry(pal, e, fitOver(r.piece.labFit, getEntry(pal, e, _bone)));
   }
@@ -611,6 +639,10 @@ const _tb = emptyBox();
 function skinBoxes(layout, pal) {
   const all = emptyBox();
   for (const r of layout.rows) {
+    if (r.kind === 'posed') {
+      if (r.piece.box) unionInto(all, r.piece.box);
+      continue;
+    }
     let hull = emptyBox();
     for (const [e, b] of r.boxes) unionInto(hull, boxThrough(getEntry(pal, e, _m), b, _tb));
     const box = emptyBox();

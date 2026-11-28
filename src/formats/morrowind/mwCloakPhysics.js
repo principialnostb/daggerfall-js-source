@@ -246,7 +246,8 @@ export function rebuildNormals(positions, indices, out, fallback, winding = 1) {
     out[c] += nx; out[c + 1] += ny; out[c + 2] += nz;
   }
   for (let i = 0; i < out.length; i += 3) {
-    const length = Math.hypot(out[i], out[i + 1], out[i + 2]);
+    const x = out[i], y = out[i + 1], z = out[i + 2];
+    const length = Math.sqrt(x * x + y * y + z * z);
     if (length > 1e-8) {
       out[i] *= winding / length; out[i + 1] *= winding / length; out[i + 2] *= winding / length;
     } else if (fallback?.length === out.length) {

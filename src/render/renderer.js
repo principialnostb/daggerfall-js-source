@@ -1762,6 +1762,17 @@ const CLASSIC_SET = Object.freeze({ key: 'classic', meshFs: FS, bbFs: BB_FS, ter
  *  @returns {Array<[string, string]>} */
 export const worldSetPrograms = (src) => [[VS, src.meshFs], [CHAR_SKIN_VS, skinFaceFs(src.charFs)], [bbVertexShader(src.bbVs), billboardPixelShader(src.bbFs)], [TERRAIN_VS, src.terrainFs], [DECAL_VS, src.decalFs ?? DECAL_FS]];
 
+function copySkinPositions(stream, floats) {
+  const result = new Float32Array(stream.length / floats * 6);
+  for (let i = 0, o = 0; i < stream.length; i += floats, o += 6) {
+    for (let k = 0; k < 3; k++) {
+      result[o + k] = stream[i + k];
+      result[o + 3 + k] = stream[i + 6 + k];
+    }
+  }
+  return result;
+}
+
 export class Renderer {
   // HARD3: two fields this class mints LAZILY, with `??=` at their point
   // of use, and so never declares anywhere a reader or a checker can see
@@ -3740,7 +3751,7 @@ export class Renderer {
    * carries (1 or 2). No sphere: the body is drawn only through the sprite target, which never casts (MW-CROWD) - an NPC's
    * body casts through recordShadowBody, under the sphere of its posed box (MWNPC16).
    */
-  createSkinnedCharacterMesh(stream, { floats, pairs, width, height }) {
+  createSkinnedCharacterMesh(stream, { floats, pairs, width, height, mutablePositions = false }) {
     const gl = this.gl;
     const vao = gl.createVertexArray();
     this._bindVao(vao);
@@ -3760,8 +3771,16 @@ export class Renderer {
       gl.enableVertexAttribArray(8); gl.vertexAttribPointer(8, 4, gl.FLOAT, false, stride, 104);
     }
     gl.enableVertexAttribArray(9); gl.vertexAttribPointer(9, 1, gl.FLOAT, false, stride, (floats - 1) * 4);   // the post
+    let poseVbo = null;
+    if (mutablePositions) {
+      poseVbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, poseVbo);
+      gl.bufferData(gl.ARRAY_BUFFER, copySkinPositions(stream, floats), gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+      gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 24, 12);
+    }
     this._bindVao(null);
-    return { vao, count: stream.length / floats, buffers: [vbo], vbo, floats, bounds: null,
+    return { vao, count: stream.length / floats, buffers: poseVbo ? [vbo, poseVbo] : [vbo], vbo, poseVbo, floats, bounds: null,
       skin: this.createSkinPalette({ pairs, width, height }) };
   }
 
@@ -3786,11 +3805,18 @@ export class Renderer {
 
   /** MW-BOW1 x MWNPC1: a part that moved on its own clock - its corners alone put back into the static stream at
    *  `offset` floats (formats/morrowind/mwGpuSkin.js restreamMovedRows). Nothing else of the body is re-sent. */
-  updateSkinStream(mesh, offset, data) {
+  updateSkinStream(mesh, offset, data, positionsOnly = false) {
     const gl = this.gl;
     if (!mesh || !mesh.skin || !mesh.vbo) return;
-    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
-    gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, data);
+    if (mesh.poseVbo) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.poseVbo);
+      const corner = positionsOnly ? offset : offset / mesh.floats;
+      gl.bufferSubData(gl.ARRAY_BUFFER, corner * 24, positionsOnly ? data : copySkinPositions(data, mesh.floats));
+    }
+    if (!positionsOnly) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
+      gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, data);
+    }
     mesh._poseGen = (mesh._poseGen ?? 0) + 1;   // AUDIT MWNPC16-18 A2: a new shape - the shadow pass's body look (shadowPass.js recordCharacter)
   }
 

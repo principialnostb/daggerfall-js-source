@@ -111,7 +111,7 @@
   {
     "name": "MWNPCMERGE-rig-never-restreams",
     "file": "src/combat/fpArm.js",
-    "old": "        for (const m of restreamMovedRows(thirdSkin, pieceLanes)) renderer.updateSkinStream(thirdMesh, m.offset, m.data);",
+    "old": "        for (const m of restreamMovedRows(thirdSkin, pieceLanes)) renderer.updateSkinStream(thirdMesh, m.offset, m.data, m.positionsOnly);",
     "new": "        void restreamMovedRows;",
     "tests": [
       "test/formats/morrowind/mwnpc_mainmerge.test.js"

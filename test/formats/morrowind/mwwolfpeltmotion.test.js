@@ -3,13 +3,18 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { assembleFirstPersonArm, poseAssembly } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { createWolfPeltMotion, stepWolfPeltMotion } from '../../../src/formats/morrowind/mwWolfPeltMotion.js';
+import { enableRigidBatchSkin } from '../../../src/formats/morrowind/mwSkin.js';
+import { fitStowedGear } from '../../../src/formats/morrowind/mwCloakFit.js';
+import { packSkinStream, restreamMovedRows, skinLayout, skinnedVertex, writeSkinPalette } from '../../../src/formats/morrowind/mwGpuSkin.js';
 import { FEMALE_SKELETON } from '../../../tools/skyrim/mwBody.mjs';
+import { SHEATHED } from '../../fixtures/mw/cloakRig.mjs';
+import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 
 const asset = 'src/assets/mw/meshes/wolf_pelt_brown.nif';
 const local = { skip: !existsSync(asset) || !existsSync(FEMALE_SKELETON) };
-async function rig() {
+async function rig(mesh = asset) {
   const arm = await assembleFirstPersonArm({ skeletonBytes: new Uint8Array(readFileSync(FEMALE_SKELETON)),
-    parts: [{ slot: 'cloak (wolf_pelt_cloak)', bones: [], bytes: new Uint8Array(readFileSync(asset)) }] });
+    parts: [{ slot: 'cloak (wolf_pelt_cloak)', bones: [], bytes: new Uint8Array(readFileSync(mesh)) }] });
   assert.equal(arm.ok, true);
   poseAssembly(arm);
   return { arm, state: createWolfPeltMotion(arm.pieces) };
@@ -19,6 +24,47 @@ function frame(r, dt, motion = {}) {
   return stepWolfPeltMotion(r.state, r.arm, dt, motion);
 }
 const maxNode = (s) => Math.max(...s.nodes.map((n) => Math.hypot(n.x, n.y)));
+
+const denseAsset = 'src/assets/mw/meshes/pixal_wolf_cloak.nif';
+test('dense pelt uses the single-bone CPU path without changing the fitted static pose', {
+  skip: !existsSync(denseAsset) || !existsSync(FEMALE_SKELETON),
+}, async () => {
+  const { arm, state } = await rig(denseAsset);
+  for (const { piece } of state.layers) {
+    const reference = Float32Array.from(piece.positions);
+    assert.equal(enableRigidBatchSkin(piece.batch), true);
+    poseAssembly(arm);
+    assert.ok(piece.positions.every((v, i) => Math.abs(v - reference[i]) < 0.0001));
+  }
+});
+
+test('deferred skinning renders the same fur pose as the full CPU pass', local, async () => {
+  const standard = await rig(), deferred = await rig();
+  for (let i = 0; i < 12; i++) {
+    const motion = { gait: .9, gaitPhase: i / 24, yaw: i / 20 };
+    frame(standard, 1 / 60, motion);
+    poseAssembly(deferred.arm, { deferSkin: deferred.state.moving });
+    stepWolfPeltMotion(deferred.state, deferred.arm, 1 / 60, motion);
+  }
+  for (const [i, layer] of standard.state.layers.entries()) {
+    const other = deferred.state.layers[i].piece;
+    assert.deepEqual(other.positions, layer.piece.positions);
+    assert.deepEqual(other.normals, layer.piece.normals);
+  }
+});
+
+test('a gait phase reset is filtered and opposite strikes bend the pelt in opposite directions', local, async () => {
+  const left = await rig(), right = await rig();
+  frame(left, 1 / 60, { gait: .65, gaitPhase: .9 });
+  frame(left, 1 / 60, { gait: 1, gaitPhase: .3 });
+  assert.ok(Math.abs(left.state.phase - .9) <= .067);
+  const strike = { attack: 1, attackProgress: .5 };
+  for (let f = 0; f < 24; f++) {
+    frame(left, 1 / 60, { ...strike, attackSide: -1 });
+    frame(right, 1 / 60, { ...strike, attackSide: 1 });
+  }
+  assert.ok(left.state.nodes[2].x < -.3 && right.state.nodes[2].x > .3);
+});
 
 test('actual five-layer pelt moves as one, preserves fitted shoulders, and settles after a stop', local, async () => {
   const r = await rig();
@@ -110,4 +156,77 @@ test('live rear contact pushes the continuous base and fur together, with an unc
   assert.ok(r.state.contacts > 0);
   assert.ok(panel.piece.positions.some((v, i) => i % 3 === 1 && v < before[i] - .1));
   for (const l of r.state.layers) if (!l.movable && !l.fur) assert.deepEqual(l.piece.batch.positions, l.base);
+});
+
+test('a heel below the solver hide still pushes the free guard coat out of its path', local, async () => {
+  const r = await rig();
+  const panel = r.state.layers.find((l) => l.piece.batch.name === 'Wolf_Back_Panel');
+  const fur = r.state.layers.find((l) => l.piece.batch.name === 'Wolf_Back_Locks').piece;
+  const lowestZ = (positions) => {
+    let z = Infinity;
+    for (let i = 2; i < positions.length; i += 3) z = Math.min(z, positions[i]);
+    return z;
+  };
+  const bottom = lowestZ(fur.positions), top = lowestZ(panel.piece.positions) - 2;
+  assert.ok(top > bottom + 3);
+  let rear = Infinity;
+  for (let i = 0; i < fur.positions.length; i += 3) {
+    if (fur.positions[i + 2] < top) rear = Math.min(rear, fur.positions[i + 1]);
+  }
+  const y = rear - 2;
+  r.arm.pieces.push({ slot: 'heel', indices: new Uint16Array([0,1,2,0,2,3]),
+    positions: new Float32Array([-25,y,bottom-4, 25,y,bottom-4, 25,y,top, -25,y,top]) });
+  stepWolfPeltMotion(r.state, r.arm, 1 / 60, {}, new Set(['heel']));
+  assert.ok(r.state.contacts > 0);
+  assert.ok(r.state.contactBands.every((depth, i, bands) => !i || Math.abs(depth - bands[i - 1]) < 1.87),
+    'a contact spike is spread along the hide before it can stretch the UVs across one row');
+  for (let i = 0; i < fur.positions.length; i += 3) {
+    if (fur.positions[i + 2] < top - 3) assert.ok(fur.positions[i + 1] < y);
+  }
+});
+
+test('the dense pelt compresses under stowed gear without changing its bone mounts', { skip: !existsSync(denseAsset) }, async () => {
+  const bytes = name => new Uint8Array(readFileSync(`src/assets/mw/meshes/${name}.nif`));
+  const arm = await assembleFirstPersonArm({ skeletonBytes: retailSkeleton(), parts: [
+    { slot: 'cloak (wolf_pelt_cloak)', bones: [], bytes: bytes('pixal_wolf_cloak') },
+    { slot: 'shield (steel)', bones: ['Shield Bone'], bytes: bytes('shield_sky_steel'), model: 'shield_sky_steel.nif' },
+    { slot: 'cuirass', bones: [], bytes: bytes('pixal_barbarian_cuirass') },
+    { slot: 'sheath', bones: ['Bip01 LongBladeTwoClose'], bytes: SHEATHED('w_claymore_daedric_sh.nif'), bare: true },
+    { slot: 'holster', bones: ['Bip01 MarksmanBow'], bytes: SHEATHED('w_longbow_steel_sh.nif'), bare: true },
+  ] });
+  const isCloak = p => /^cloak/.test(p.slot), isGear = p => /^(shield-back|sheath|holster)/.test(p.slot);
+  const rows = fitStowedGear(arm, { isCloak, isGear, isUnder: p => p.slot === 'cuirass', seatToBody: true, pressed: true, compressPelt: true });
+  assert.equal(rows.filter(r => r.slung && r.how === 'over').length, 3);
+  poseAssembly(arm);
+  const mounts = new Map(arm.pieces.filter(isGear).map(p => [p, Float32Array.from(p.positions)]));
+  arm.wolfPeltMotion = createWolfPeltMotion(arm.pieces);
+  const state = arm.wolfPeltMotion;
+  const layout = skinLayout(arm.pieces, state.moving);
+  assert.equal(layout.ok, true);
+  const lanes = p => new Float32Array(p.indices.length * 8);
+  packSkinStream(layout, lanes);
+  const heel = { slot: 'heel', indices: new Uint16Array([0, 1, 2, 0, 2, 3]),
+    positions: new Float32Array([-32, -38, 15, 32, -38, 15, 32, -38, 75, -32, -38, 75]) };
+  // A heel swing sends the lower pelt out and across the stowed gear's plane.
+  for (const skin of [true, false]) {
+    poseAssembly(arm, { skin });
+    arm.pieces.push(heel);
+    stepWolfPeltMotion(state, arm, 1 / 60, { gait: 1 }, new Set(['heel', 'cuirass']), isGear);
+    arm.pieces.pop();
+    assert.ok(state.contacts > 0);
+    assert.ok(state.pressedVertices > 0);
+    writeSkinPalette(layout, arm);
+    const moved = restreamMovedRows(layout, lanes);
+    assert.equal(moved.length, state.moving.size);
+    assert.equal(moved.reduce((sum, row) => sum + row.data.length, 0),
+      [...state.moving].reduce((sum, p) => sum + p.indices.length * 6, 0));
+    for (const p of state.moving) {
+      assert.deepEqual(skinnedVertex(layout, p, 0), Array.from(p.positions.slice(0, 3)));
+    }
+    for (const [p, before] of mounts) {
+      assert.deepEqual(p.positions, before);
+      const rendered = skinnedVertex(layout, p, 0);
+      assert.ok(Math.abs(rendered[1] - before[1]) < 0.001);
+    }
+  }
 });
