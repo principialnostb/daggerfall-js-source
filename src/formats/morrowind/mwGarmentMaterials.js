@@ -10,6 +10,30 @@ export function garmentSideBatch(batch, slot, siblings) {
   const opposite = authored === 'left' ? 'right' : 'left';
   const counterpart = opposite + ' ' + shape[2].toLowerCase();
   if (siblings.some(other => other.name?.trim().toLowerCase().replace(/^tri /, '').startsWith(counterpart))) return undefined;
+  const kept = legSideIndices(batch, target[1].toLowerCase(), authored);
+  if (!kept?.length || kept.length === batch.indices.length) return undefined;
+  return { ...batch, indices: kept };
+}
+
+// Better Bodies can put both legs in the right section and leave a placeholder
+// in the left section. When only one side is covered, keep the other side's
+// triangles on their authored bones.
+export function visibleBodyLegBatch(batch, key, shadows) {
+  const hidden = shadows.includes(key);
+  const limb = /^(upperleg|knee|ankle|foot):(left|right)$/.exec(key ?? '');
+  if (limb) {
+    const [, region, authored] = limb;
+    const opposite = authored === 'left' ? 'right' : 'left';
+    const oppositeKey = `${region}:${opposite}`;
+    if (hidden !== shadows.includes(oppositeKey)) {
+      const indices = legSideIndices(batch, hidden ? opposite : authored, authored);
+      if (indices) return indices.length ? { batch: { ...batch, indices }, key: hidden ? oppositeKey : key } : null;
+    }
+  }
+  return hidden ? null : { batch, key };
+}
+
+function legSideIndices(batch, target, authored) {
   const bones = batch.skin?.bones ?? [];
   if (!['l', 'r'].every(side => bones.some(b => b.name?.toLowerCase().startsWith('bip01 ' + side + ' ')))) return undefined;
   const weights = new Float32Array(batch.positions.length / 3);
@@ -23,10 +47,9 @@ export function garmentSideBatch(batch, slot, siblings) {
   for (let i = 0; i < idx.length; i += 3) {
     const sum = weights[idx[i]] + weights[idx[i + 1]] + weights[idx[i + 2]];
     const side = sum === 0 ? authored : sum > 0 ? 'left' : 'right';
-    if (side === target[1].toLowerCase()) kept.push(idx[i], idx[i + 1], idx[i + 2]);
+    if (side === target) kept.push(idx[i], idx[i + 1], idx[i + 2]);
   }
-  if (!kept.length || kept.length === idx.length) return undefined;
-  return { ...batch, indices: new Uint16Array(kept) };
+  return new Uint16Array(kept);
 }
 
 const materialFiles = new WeakMap();

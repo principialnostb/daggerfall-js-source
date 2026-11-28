@@ -15,6 +15,7 @@ import { activeAppearanceIdentity, appearanceEditorEnabled } from '../characters
 import { getBodyMorphs, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { setPlayerBusyProbe } from '../characters/playerBuildHold.js';   // LOAD-STALL 3
 import { texturedPartBytes } from '../formats/morrowind/mwGarmentMaterials.js';
+import { tuckTrouserCuffs } from '../formats/morrowind/mwBootFit.js';
 import { modDiagnostics } from '../systems/modDiagnostics.js';   // Use the Morrowind rig's camera and animation rules from mwFirstPerson.js and mwAnim.js. The first-person pass
 // has its own projection and depth buffer. Composite it after the world so nearby walls cannot clip the weapon.
 
@@ -3104,20 +3105,42 @@ async function buildTpBody({
     }
     // HEAD-HELD: a helm that bound nothing gives back the head and hair it hid - assembled again with them, never headless
     const bare = bareHeadRows(rows, worn, arm.pieces, werewolf);
-    if (bare.length) {
-      await loadFromArchives(archives, bare.map((r) => `meshes/${r.model}`), urgent);
-      const back = bare.flatMap((r) => {
+    const boundSlots = new Set(arm.pieces.map((p) => p.slot));
+    const failedTrousers = worn.adds.filter((row) => worn.shadows.includes(row.missingMeshSkin) && !boundSlots.has(row.slot));
+    const bareLegs = new Set(failedTrousers.map((row) => row.missingMeshSkin));
+    if (failedTrousers.some((row) => row.wholeTrousers)) {
+      for (const slot of worn.shadows.filter((key) => /^(upperleg|knee):/.test(key))) {
+        const [region, side] = slot.split(':');
+        const part = `${side} ${region === 'upperleg' ? 'upper leg' : region}`;
+        if (!worn.adds.some((row) => row.partName === part)) bareLegs.add(slot);
+      }
+    }
+    if (bare.length || bareLegs.size) {
+      const recoveredLegs = betterBodiesPart ? [] : shadowSkinRows(
+        rows.filter((row) => row.record && /^(groin|upperleg|knee|ankle|foot)$/.test(row.slot)).flatMap(skinPartsOf),
+        worn.shadows.filter((slot) => !bareLegs.has(slot)),
+      ).map((row) => ({ ...row, bones: row.bones.filter((bone) => bareLegs.has(`${row.slot}:${bone.split(' ')[0]}`) || bareLegs.has(row.slot)) }))
+        .filter((row) => row.bones.length);
+      await loadFromArchives(archives, [...bare, ...recoveredLegs].map((r) => `meshes/${r.model}`), urgent);
+      const back = [...bare, ...recoveredLegs].flatMap((r) => {
         const path = `meshes/${r.model}`, arc = find(path);
         return arc ? [{ ...r, slot: r.hairMode === 'ears' ? 'ears' : r.slot, partName: r.hairMode ? 'hair' : undefined, bytes: nifBytes(arc, path) }] : [];
       });
-      const again = back.length ? await assembleFirstPersonArm({ skeletonBytes, parts: [...partBytes, ...back], boneSources, parseNif: parseNifOnce, offWeaponBone: true }) : null;
+      const revivedBody = betterBodiesPart && bareLegs.size;
+      const retryParts = revivedBody ? partBytes.map((row) => row === betterBodiesPart
+        ? { ...row, hideSlots: row.hideSlots.filter((slot) => !bareLegs.has(slot)) } : row) : partBytes;
+      const again = back.length || revivedBody ? await assembleFirstPersonArm({ skeletonBytes, parts: [...retryParts, ...back], boneSources, parseNif: parseNifOnce, offWeaponBone: true }) : null;
       if (again?.ok) {
         arm = again;
-        skinRows.push(...bare);
-        const cap = worn.adds.find(capsHead);
-        missing.push(`${cap?.partName === 'outfit' ? cap.slot : 'helm'}: none of it bound - the ${bare.map((r) => r.slot).join(' and ')} drawn bare`);   // MW-FOLK1: a hood's outfit by its own name
+        skinRows.push(...bare, ...recoveredLegs);
+        if (bare.length) {
+          const cap = worn.adds.find(capsHead);
+          missing.push(`${cap?.partName === 'outfit' ? cap.slot : 'helm'}: none of it bound - the ${bare.map((r) => r.slot).join(' and ')} drawn bare`);   // MW-FOLK1: a hood's outfit by its own name
+        }
+        if (bareLegs.size) missing.push(`trousers: panels did not bind - ${[...bareLegs].join(', ')} drawn bare`);
       }
     }
+    if (tuckTrouserCuffs(arm, worn.adds)) poseAssembly(arm);
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
     const cloakUnderRows = [...skinRows, ...worn.adds, ...(betterBodiesPart ? [{ slot: 'betterBodies' }] : [])];
     const cloakFit = await fitUnpublishedCloak(arm, new Set(cloakUnderRows.map((row) => row.slot)));   // MW-CLOAK1

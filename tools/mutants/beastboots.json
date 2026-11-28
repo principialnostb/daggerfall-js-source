@@ -101,8 +101,8 @@
   {
     "name": "BEAST-BOOTS-shoes-worn",
     "file": "src/formats/morrowind/mwItemMap.js",
-    "old": "      composeRefs(cut?.rec ?? res.record, prio, female, bodyById, claim, notes, piece);",
-    "new": "      composeRefs(res.record, prio, female, bodyById, claim, notes, piece);",
+    "old": "      const rec = cut?.rec ?? res.record;",
+    "new": "      const rec = res.record;",
     "tests": [
       "test/formats/morrowind/mwbeast1_beastboots.test.js"
     ]

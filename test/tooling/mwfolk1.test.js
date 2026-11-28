@@ -38,7 +38,7 @@ import { S, I, dArr, iArr, writeFbx } from '../../tools/fbxWrite.mjs';   // AUDI
 import { bakeMesh, objectMaterials } from '../../tools/fbxMesh.mjs';
 import { objectTree, plateBind, RETAIL_SKELETON, HELM_LIFT, SCENE_BODY } from '../../tools/bakeSteelPlate.mjs';
 import { SOURCE, PAINTINGS, OBJECTS, OUTFITS, RECOLOURS, CUT, PACK_ARM_FALL, HANG_TOP, HANG_SHARE, HANG_CENTRE, KNEE_BLEND, HIP_JOINTS, ARM_REACH, ARM_FADE, RIGS,
-  packBind, hangOf, islandsOf, islandClass, liftHoods, materialMesh, checkObject, bakeTownsfolk, meshFile, textureFile, textureName } from '../../tools/bakeTownsfolk.mjs';
+  packBind, hangOf, islandsOf, islandClass, liftHoods, materialMesh, checkObject, bakeTownsfolk, meshFile, textureFile, textureName, fitNordGreenOutfit } from '../../tools/bakeTownsfolk.mjs';
 import { segmentDistance } from '../../tools/skinWeights.mjs';
 import { retailSkeleton } from '../fixtures/mw/retailRig.mjs';
 
@@ -361,7 +361,7 @@ test('MW-FOLK1: the outfits\' pose - retail\'s bind with each clavicle turned le
   }
 });
 
-test('MW-FOLK1: each garment piece weighted by what it is - its island\'s class and that class\'s rig, cloth hanging round the legs the hang\'s one law of position (the thighs\' whole share from the hip joints down, the calves\' past the knees), a torso piece\'s arm bones within their reach; every vertex\'s weights whole; the hoods raised HELM_LIFT and nothing else moved', () => {
+test('MW-FOLK1: garment weights follow the island rig and baked adjustments keep the authored weights', () => {
   const classes = {};
   const pack = packBind(SKELETON);
   const hang = hangOf(pack);
@@ -371,6 +371,7 @@ test('MW-FOLK1: each garment piece weighted by what it is - its island\'s class 
     const batches = nifOf(o.archive);
     classes[o.archive] = o.shapes.map((s, i) => {
       const mesh = shapeMesh(o, s);
+      const fitted = o.archive === 387 ? fitNordGreenOutfit(mesh, s.paint) : mesh;
       const scene = materialMesh(tree, o.object, s.material);
       const b = batches[i];
       const n = mesh.positions.length / 3;
@@ -389,7 +390,7 @@ test('MW-FOLK1: each garment piece weighted by what it is - its island\'s class 
           const sum = [...w.values()].reduce((t, x) => t + x, 0);
           assert.ok(Math.abs(sum - 1) < 1e-5, `${o.archive} ${s.paint} vertex ${v}: weighs ${sum}`);
           for (const name of w.keys()) assert.ok(rig.has(name), `${o.archive} ${s.paint} (${c}) vertex ${v}: ${name} is no bone of its rig`);
-          for (let k = 0; k < 3; k++) assert.ok(Math.abs(b.positions[v * 3 + k] - mesh.positions[v * 3 + k]) < 1e-4, `${o.archive} vertex ${v}: the bake's place`);
+          for (let k = 0; k < 3; k++) assert.ok(Math.abs(b.positions[v * 3 + k] - fitted.positions[v * 3 + k]) < 1e-4, `${o.archive} vertex ${v}: the bake's place`);
           const lift = c === 'hood' ? HELM_LIFT : 0;
           assert.ok(Math.abs(mesh.positions[v * 3 + 2] - scene.positions[v * 3 + 2] - lift) < 1e-6, `${o.archive} ${c} vertex ${v}: raised ${lift}`);
           if (RIGS[c].hang) {
@@ -515,6 +516,14 @@ test('MW-FOLK1: what each outfit hides is the skin it covers all round - every r
       seen[a][`both ${part}`] = both;
       if (r === 1 || both === 1) hides.push(`right ${part}`);
       if (l === 1 || both === 1) hides.push(`left ${part}`);
+    }
+    // The straight hand-axis probe misses the separate curled fingers.
+    if ([386, 387, 390].includes(a)) {
+      const bones = new Set(nifOf(a).flatMap((batch) => batch.skin.bones.map((bone) => bone.name)));
+      for (const side of ['l', 'r']) {
+        assert.ok(['finger01', 'finger11', 'finger21'].every((tip) => bones.has(`bip01 ${side} ${tip}`)), `${a}: the gloves skin the fingertips`);
+      }
+      hides.push('left hand', 'right hand');
     }
     const hooded = outfitOf(a).shapes.some((s) => islandsOf(shapeMesh(outfitOf(a), s)).some((isl) => islandClass(isl) === 'hood'));
     if (hooded) hides.push('hair');

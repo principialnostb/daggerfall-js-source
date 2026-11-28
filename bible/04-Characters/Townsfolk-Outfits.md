@@ -29,8 +29,10 @@ what the picture wore. A picture with no outfit yet keeps the wardrobe (`Morrowi
 ## Rules
 
 - Each sprite wears its own outfit; a sprite without one keeps the wardrobe (the owner).
-- `hides` is measured: a part is hidden only if every ray out of its bone line meets the cloth, in the pose the outfit
-  was made in (`test/tooling/mwfolk1.test.js`). A hem short of a part's span hides none of it.
+- `hides` follows the measured coverage in the outfit's bind pose (`test/tooling/mwfolk1.test.js`). A hem short of a
+  part's span leaves its skin visible. Outfits 386, 387 and 390 supply complete gloves with skinned fingers, so their
+  bare hands are hidden. Outfit 387's bake gives the shoulder cloth clearance and raises the boot cuffs to meet the
+  exposed shins.
 
 ## Daggerfall Unity
 

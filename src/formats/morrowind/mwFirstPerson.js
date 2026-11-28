@@ -180,7 +180,7 @@ import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipG
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
 import { batchMoves, posePartBatch, nodeAffineAt, nodeClockAt, clockFor } from './mwPartClock.js';   // A part's own clock
 import { applyClimbRig } from '../../combat/climbRig.js';   // The climb's pose on the rig's own bones
-import { garmentSideBatch } from './mwGarmentMaterials.js';
+import { garmentSideBatch, visibleBodyLegBatch } from './mwGarmentMaterials.js';
 import { applyMirrorRig, limbSkeleton, offWeaponBoneAddon, WEAPON_BONE_LEFT_SOURCE, mirrorBindSources } from '../../combat/twoHands/mirrorRig.js';   // The second hand - an arm, or the body, in the mirror; the left hand's weapon bone   // MIRROR-BIND: the skins it is mirrored by
 import { normalizeVfsPath } from './mwTexture.js';
 import { OWN_HEADS, ownFacePools } from '../../characters/ownModels/ownHeadModels.js';   // The port's own heads and hairs - a race's pools where it has them
@@ -2536,20 +2536,18 @@ export function bindPartsInto(assembly, parts) {
         const sideBatch = part.partName && garmentSideBatch(batch, geomFilter, bound.skinned);
         if (sideBatch) batch = sideBatch;
         else if (geomFilter && !shapeMatchesBone(batch.name, geomFilter)) continue;
-        // The full-body Better Bodies NIF bypasses ordinary per-slot skin rows.
-        // Apply the same worn-slot shadows section-by-section before drawing it.
-        if (part.slot === 'betterBodies' && Array.isArray(part.showSlots) && !betterBodiesSectionVisible(batch.name, part.showSlots)) continue;
-        if (part.slot === 'betterBodies' && betterBodiesSectionShadowed(batch.name, part.hideSlots)) continue;
+        let betterBodiesSection = null;
+        if (part.slot === 'betterBodies') {
+          const visible = visibleBetterBodiesSection(batch, part);
+          if (!visible) continue;
+          ({ batch, key: betterBodiesSection } = visible);
+        }
         // A gauntlet whose hands a donor mesh draws keeps only its cuff (fpArm.js, the Robert's gauntlet substitution).
         // CUFF-FIT: its whole shape kept beside, trimmed where the donor hand begins once the donor is bound
         const whole = part.forearmShapesOnly ? batch : null;
         if (part.forearmShapesOnly && !(batch = armWeightedTriangles(batch))) { if (ridesTheArm(whole)) cuffWholes.push({ part, bone, whole }); continue; }
         if (part.handShapesOnly && isDonorCuffShape(batch)) continue;   // CUFF-FIT: and the donor its hands alone
-        // MW-D7: the piece KEEPS its batch, and `positions` is its own
-        // buffer - never an alias of batch.positions, which poseAssembly
-        // reads every frame. Aliasing them is the runaway the viewer
-        // documents at mwViewer.js:"Skinned batches are".
-        const betterBodiesSection = part.slot === 'betterBodies' ? betterBodiesSectionKey(batch.name) : null;
+        // MW-D7: the piece KEEPS its batch, and positions is its own buffer.
         // A section name alone is not proof that its geometry can replace the
         // retail arm. Missing skin bones are skipped by the skin blend; if we
         // mark such a section as supplied, its vanilla fallback is suppressed
@@ -3631,9 +3629,9 @@ export function betterBodiesSectionKey(shapeName) {
   return side && region ? region + ':' + side : null;
 }
 
-function betterBodiesSectionShadowed(shapeName, shadows = []) {
-  const key = betterBodiesSectionKey(shapeName);
-  return Boolean(key && (shadows ?? []).includes(key));
+function visibleBetterBodiesSection(batch, part) {
+  if (Array.isArray(part.showSlots) && !betterBodiesSectionVisible(batch.name, part.showSlots)) return null;
+  return visibleBodyLegBatch(batch, betterBodiesSectionKey(batch.name), part.hideSlots ?? []);
 }
 
 /** Apply the project's checked-in UV corrections to matching flattened NIF sections.

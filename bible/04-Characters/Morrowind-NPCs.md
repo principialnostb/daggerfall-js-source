@@ -27,6 +27,12 @@ The player turns it on and sizes it under Settings, Combat > With Morrowind data
   armour kits for martial roles, and a wealth tier on Morrowind's clothing ladder. The look carries an `npc` hint so
   the build picks each garment's record and walks the head and hair off the seed. It is pure: every machine dresses
   the same person the same way.
+- **Lower-leg seams.** Better Bodies can store both knees, ankles or feet in one named section. If equipment
+  covers one side, the rig keeps the other side using the mesh's skin weights. Westly's full-length miscellaneous
+  trousers and paired miscellaneous or Summerset boots cover the bare ankle when both meshes are present.
+  The third-person rig fits trouser cuffs to the measured boot shafts during assembly. The fitted geometry keeps
+  its skin weights and serves both the GPU and CPU render paths. Empty or failed trouser knee panels leave skin
+  on the leg when the rest of the garment does not cover it.
 - **Creatures.** `CREATURE_MATCH` names every creature mobile: a list of Morrowind creature ids (the first the
   attached masters carry wins) or a declared miss with its reason, which keeps the sprite. Flyers stand only in a
   record that flies. Spectral foes draw translucent under `SPECTRAL_VEIL`. A mod's monsters register their own rows

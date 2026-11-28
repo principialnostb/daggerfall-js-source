@@ -62,6 +62,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { readFbx } from './fbxRead.mjs';
+import { rebuildNormals } from '../src/formats/morrowind/mwCloakPhysics.js';
 import { bakeMesh, objectMaterials } from './fbxMesh.mjs';
 import { mipChain, writeDds } from './meshTexture.mjs';
 import { skinnedMeshesToNif } from './nifWrite.mjs';
@@ -657,6 +658,39 @@ export function shapeWeights(mesh, bind) {
   return { weights, used };
 }
 
+/** Clearance for the green Nord outfit on the Better Bodies shoulders and calves. */
+export function fitNordGreenOutfit(mesh, paint) {
+  if (!['shoulders_nord3', 'tunic_nord3', 'skirt_redguard2'].includes(paint)) return mesh;
+  const positions = mesh.positions.slice();
+  const normals = mesh.normals.slice();
+  const ramp = (z, start, span) => Math.max(0, Math.min(1, (z - start) / span));
+  for (let i = 0; i < positions.length; i += 3) {
+    const [x, y, z] = positions.slice(i, i + 3);
+    if (paint === 'shoulders_nord3') {
+      positions[i] += Math.sign(x) * (-1.6 + 2.5 * ramp(Math.abs(x), 8, 14));
+      positions[i + 1] = y * 1.31;
+      positions[i + 2] += 1.1;
+    } else if (paint === 'tunic_nord3' && Math.abs(x) <= 15 && y < 0) {
+      positions[i + 1] = y * (1 + 0.24 * ramp(z, 99, 10));
+    } else if (paint === 'skirt_redguard2' && z < 30) {
+      positions[i + 2] += 4 * ramp(z, 18, 11);
+    } else if (paint === 'skirt_redguard2' && z > 50 && z < 78) {
+      const ease = 1 + 0.09 * (1 - ramp(z, 52, 26));
+      positions[i] = x * ease;
+      positions[i + 1] = y * ease;
+    }
+  }
+  rebuildNormals(positions, mesh.indices, normals, mesh.normals);
+  for (let i = 0; i < positions.length; i += 3) {
+    if (positions[i] === mesh.positions[i] && positions[i + 1] === mesh.positions[i + 1] && positions[i + 2] === mesh.positions[i + 2]) {
+      normals[i] = mesh.normals[i];
+      normals[i + 1] = mesh.normals[i + 1];
+      normals[i + 2] = mesh.normals[i + 2];
+    }
+  }
+  return { ...mesh, positions, normals };
+}
+
 /** Every bone any outfit rig names, in one order - the NIF's bones are these, at the outfits' bind. */
 const ALL_BONES = [...new Set(Object.values(RIGS).flatMap((r) => r.bones.map((b) => b.name)))];
 
@@ -683,7 +717,8 @@ export function bakeTownsfolk({ source, pngs, skeleton }) {
         );
       const mesh = meshOf(o.object, s.material);
       const { weights, used } = shapeWeights(mesh, bind);
-      return { mesh, texture: textureName(s.paint), name: `Tri Chest ${i}`, weights, used };
+      const fitted = o.archive === 387 ? fitNordGreenOutfit(mesh, s.paint) : mesh;
+      return { mesh: fitted, texture: textureName(s.paint), name: `Tri Chest ${i}`, weights, used };
     });
     const bones = ALL_BONES.filter((n) => shapes.some((s) => s.used.has(n))).map((name) => ({
       name,

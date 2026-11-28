@@ -1051,7 +1051,23 @@ export function composeWornArmor({
       if (cut?.bared) notes.push(`${name}: ${beastBared(res.record.id)}`);
       const base = res.row.reserve === 'robe' ? 11 : res.row.reserve === 'skirt' ? 3 : 0;
       const prio = ((base + 1) << 1) + 0;
-      composeRefs(cut?.rec ?? res.record, prio, female, bodyById, claim, notes, piece);
+      const rec = cut?.rec ?? res.record;
+      const legWear = rec.type === MW_CLOTHING_TYPE.Pants ? 'trousers' : rec.type === MW_CLOTHING_TYPE.Shoes ? 'footwear' : null;
+      const groin = legWear === 'trousers' && rec.parts?.find(({ part }) => ARMO_PART[part]?.name === 'groin');
+      const groinModel = groin && bodyById.get((female && groin.female) || groin.male || groin.female)?.model;
+      const wholeTrousers = /(?:^|[\\/])war_misc_trsr0[23][a-f]\.nif$/i.test(groinModel || '') &&
+        (!hasMesh || hasMesh(`meshes/${groinModel}`));
+      const claimClothing = (part, priority, add) => {
+        if (!add && legWear === 'trousers' && !wholeTrousers && /^(upperleg|knee|ankle):/.test(ARMO_PART[part].shadows ?? '')) {
+          // A one-piece trouser NIF uses empty slots to cover the legs.
+          // Segmented trousers need a mesh in the slot before they cover it.
+          return;
+        }
+        claim(part, priority, add && legWear ? { ...add, legWear,
+          ...(part === groin?.part && wholeTrousers ? { wholeTrousers: true } : {}),
+        } : add);
+      };
+      composeRefs(rec, prio, female, bodyById, claimClothing, notes, piece);
       for (const part of RESERVES[res.row.reserve] ?? []) claim(part, prio, null);
       continue;
     }
@@ -1096,6 +1112,7 @@ export function composeWornArmor({
             p.fitMode === 'rigid' ? ['upperleg'] : undefined),
           ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}),
         }; // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
+        if (piece.templateIndex === ARMOR_ENUM.Boots) add.legWear = 'footwear';
         claim(at, prio, add);
         if (p.showsSkin && row.shadows) covers.add(row.shadows); // MW-IRON1: open where its picture is - the skin under it stays drawn, but it is covered
         // MW-STEEL1: what the part covers beyond its own slot is OCCUPIED with no mesh (reserveIndividualPart), so its
@@ -1170,7 +1187,7 @@ export function composeWornArmor({
           return;
         }
         if (add && footOrLeg && hasMesh && !hasMesh(`meshes/${add.model}`)) return;
-        claim(part, priority, add);
+        claim(part, priority, add && piece.templateIndex === ARMOR_ENUM.Boots ? { ...add, legWear: 'footwear' } : add);
       };
       composeRefs(cut?.rec ?? armo, prio, female, bodyById, claimArmor, notes, piece);
     }
@@ -1185,6 +1202,16 @@ export function composeWornArmor({
     const coversClothing = slot?.add?.piece?.kind === 'clothing' && h.under && h.under !== outfitAdd;
     if (slot && (!slot.add || coversClothing)) claim(h.part, h.prio, null, h.under);
     else if (slot?.add?.showsSkin) slot.hiddenUnder = true; // MW-IRON5: a part that shows its skin still hides it when another part covers it whole
+  }
+  // These Westly trousers and boots are both authored as paired meshes. Their
+  // cuffs overlap across the ankle, which neither record otherwise reserves.
+  const westlyTrousers = slots.find(({ add }) => /(?:^|[\\/])war_misc_trsr0[23][a-f]\.nif$/i.test(add?.model ?? ''))?.add;
+  const westlyBoots = slots.find(({ add }) => /(?:^|[\\/])war_(?:misc_bt01[a-e]|smmrst_bt1[a-d])\.nif$/i.test(add?.model ?? ''))?.add;
+  if (westlyTrousers && westlyBoots && (!hasMesh || [westlyTrousers, westlyBoots].every(({ model }) => hasMesh(`meshes/${model}`)))) {
+    for (const name of ['left ankle', 'right ankle']) {
+      const part = ARMO_PART.findIndex((row) => row.name === name);
+      claim(part, 2, null);
+    }
   }
   if (hairHidden) claim(1, hairHidden, null);
   const adds = [];

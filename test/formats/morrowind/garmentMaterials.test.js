@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { garmentSideBatch, texturedPartBytes } from '../../../src/formats/morrowind/mwGarmentMaterials.js';
+import { garmentSideBatch, texturedPartBytes, visibleBodyLegBatch } from '../../../src/formats/morrowind/mwGarmentMaterials.js';
 
 test('one bilateral knee shape gives each slot only its own triangles', () => {
   const batch = { name: 'Right Knee', positions: new Float32Array(18), indices: Uint16Array.of(0,1,2,3,4,5),
@@ -21,4 +21,18 @@ test('only an incomplete override gives way to a textured model of the same path
   assert.equal((await choose(() => true)).records[1].fileName, 'custom.dds');
   assert.equal((await choose(() => false)).records[1].fileName, 'custom.dds');
   assert.deepEqual(reports, ['custom.dds']);
+});
+
+test('covering one knee keeps the other knee from a bilateral Better Bodies section', () => {
+  const batch = { positions: new Float32Array(18), indices: Uint16Array.of(0, 1, 2, 3, 4, 5),
+    skin: { bones: [{ name: 'bip01 l calf', indices: [0, 1, 2], weights: [1, 1, 1] },
+      { name: 'bip01 r calf', indices: [3, 4, 5], weights: [1, 1, 1] }] } };
+  const left = visibleBodyLegBatch(batch, 'knee:right', ['knee:right']);
+  assert.equal(left.key, 'knee:left');
+  assert.deepEqual([...left.batch.indices], [0, 1, 2]);
+  const right = visibleBodyLegBatch(batch, 'knee:right', ['knee:left']);
+  assert.equal(right.key, 'knee:right');
+  assert.deepEqual([...right.batch.indices], [3, 4, 5]);
+  assert.equal(visibleBodyLegBatch(batch, 'knee:right', []).batch, batch);
+  assert.equal(visibleBodyLegBatch(batch, 'knee:right', ['knee:left', 'knee:right']), null);
 });

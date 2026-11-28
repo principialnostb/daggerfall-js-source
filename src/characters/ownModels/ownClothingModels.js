@@ -131,11 +131,11 @@ export const TOWNSFOLK_OUTFITS = Object.freeze(
       outfit(383, ['groin']), // Redguard: the teal robe with the yellow hem
       outfit(384, ['groin', ...PAIR('ankle', 'foot')]), // Redguard: the striped skirt and the boots
       outfit(385, ['cuirass', 'groin', ...PAIR('upper arm', 'forearm', 'upper leg', 'knee', 'ankle', 'foot')]), // Breton: the tunic, the long sleeves, the striped hose
-      outfit(386, ['cuirass', 'groin', ...PAIR('wrist', 'upper leg', 'knee', 'ankle', 'foot')]), // Breton: the tunic, the wraps, the breeches, the boots
-      outfit(387, ['groin', ...PAIR('wrist', 'ankle', 'foot')]), // Nord: the green vest, the wraps, the striped skirt, the boots
+      outfit(386, ['cuirass', 'groin', ...PAIR('hand', 'wrist', 'upper leg', 'knee', 'ankle', 'foot')]), // Breton: the tunic, the gloves, the breeches, the boots
+      outfit(387, ['groin', ...PAIR('hand', 'wrist', 'ankle', 'foot')]), // Nord: the green vest, the gloves, the striped skirt, the boots
       outfit(388, ['cuirass', 'groin', 'hair', ...PAIR('upper leg', 'knee', 'ankle', 'foot')]), // Nord: the green hood, the orange tunic, the striped hose
       outfit(389, ['cuirass', 'groin', 'hair', ...PAIR('upper leg', 'knee', 'ankle', 'foot')]), // Nord: the hooded tunic in teal
-      outfit(390, ['cuirass', 'groin', ...PAIR('wrist', 'upper leg', 'knee', 'ankle', 'foot')]), // Nord: the teal tunic, the striped boots
+      outfit(390, ['cuirass', 'groin', ...PAIR('hand', 'wrist', 'upper leg', 'knee', 'ankle', 'foot')]), // Nord: the teal tunic, the striped boots
       outfit(398, ['groin', 'hair', ...PAIR('upper leg', 'foot')], ['chest']), // Redguard woman: the hooded dress
     ].map((o) => [o.archive, o]),
   ),

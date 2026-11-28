@@ -2199,6 +2199,40 @@ test('default Casual Pants keep their knee seams and boots replace only covered 
   assert.equal(parts((path) => path !== 'meshes/shaft.nif')['left ankle'].recordId, 'ankle');
 });
 
+test('paired Westly trousers and boots hide skin in their overlap only when both meshes exist', () => {
+  const part = (name) => ARMO_PART.findIndex((row) => row.name === name);
+  const trousers = { kind: 'clothing', name: 'Casual Pants', mwRecord: 'war_misc_trsrs_03e' };
+  const boots = { kind: 'clothing', name: 'Boots', mwRecord: 'war_misc_boots_01a' };
+  const options = {
+    pieces: [trousers, boots], armors: [],
+    clothes: [
+      { id: trousers.mwRecord, type: 0, model: 'trousers-ground.nif', parts: [{ part: part('groin'), male: 'trousers' }] },
+      { id: boots.mwRecord, type: 1, model: 'boots-ground.nif', parts: [{ part: part('left foot'), male: 'boots' }] },
+    ],
+    bodyPool: [
+      { id: 'trousers', model: 'cmsc/t/war_misc_trsr03e.nif' },
+      { id: 'boots', model: 'cmsc/sh/war_misc_bt01a.nif' },
+    ],
+  };
+  const hidden = (hasMesh) => composeWornArmor({ ...options, hasMesh }).shadows.filter((key) => key.startsWith('ankle:'));
+  assert.deepEqual(hidden(() => true), ['ankle:right', 'ankle:left']);
+  assert.deepEqual(hidden((path) => !path.includes('bt01a')), []);
+  assert.deepEqual(hidden((path) => !path.includes('trsr03e')), []);
+});
+
+test('an empty trouser knee slot retains skin unless a whole trouser mesh covers it', () => {
+  const part = (name) => ARMO_PART.findIndex((row) => row.name === name);
+  const pants = { kind: 'clothing', name: 'Casual Pants', mwRecord: 'fixture_pants' };
+  const options = { pieces: [pants], armors: [], clothes: [{
+    id: pants.mwRecord, type: 0, model: 'ground.nif',
+    parts: [{ part: part('right knee') }, { part: part('groin'), male: 'groin' }],
+  }] };
+  const shadows = (model, hasMesh = () => true) => composeWornArmor({ ...options, bodyPool: [{ id: 'groin', model }], hasMesh }).shadows;
+  assert.ok(!shadows('c/c_m_pants_g.nif').includes('knee:right'));
+  assert.ok(shadows('cmsc/t/war_misc_trsr03e.nif').includes('knee:right'));
+  assert.ok(!shadows('cmsc/t/war_misc_trsr03e.nif', () => false).includes('knee:right'));
+});
+
 test('MW-D31: the first person wears gauntlets, sleeves and the shield - never a helmet in your face', () => {
   const adds = [
     { slot: 'right hand (iron_gauntlet)', bones: ['right hand'], model: 'g.nif', recordId: 'b_gr' },
