@@ -24,8 +24,9 @@
     "revoked": true
   },
   {
-    "hash": "216fdddd89eaa98c1c8ca2c681f5fb63c348d525129cf725a1fa1dd5da79f762",
-    "label": "Dmitry Tkach"
+    "hash": "c2b05ce6d3840d92998e2f644454fa25d9849e9bdc421574309eb99be7463d63",
+    "label": "Dmitry Tkach",
+    "revoked": true
   },
   {
     "hash": "96d2151580feff69e4a5b8b1974cde3bd82f7165c1c21accb8b152a3b27a7745",
