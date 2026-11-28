@@ -33,8 +33,9 @@
     "revoked": true
   },
   {
-    "hash": "dd0f46e76a5a408a69ec47a760b318838373196f8545a221e7c06916f6436cca",
-    "label": "Daniil Ribal"
+    "hash": "b3ce4e7f7ee0668a00a9193b09322ad41011672edf8746b59976cec8132a8d6b",
+    "label": "Daniil Ribal",
+    "revoked": true
   },
   {
     "hash": "9cc792d6c5c907c6a5100f022d8b16c44c5257be15a77c4c5b313221774962ef",
