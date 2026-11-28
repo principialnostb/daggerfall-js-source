@@ -114,6 +114,7 @@ import { combatVisualsOn, foeDraw, markConcealedHit } from '../systems/combatVis
 import { registerFoeDoor } from '../systems/artifactEffects.js';   // AUDIT PSCALE1 DOORS-2: Namira's reflection on a watchman through his own door
 import { foeHitFlash, setBatchHitFlash, setBatchGlint, prefersReducedMotion } from '../systems/hitFlash.js';   // HITFLASH1; TELL2: a wind-up's glint
 import { reportPlayerKill, killFxOf } from '../systems/playerKills.js';
+import { textSeed } from '../systems/livingWorld/seed.js';
 import { createHostNpcBodies, npcBodiesOn, WATCH_BODY_TIERS } from '../characters/npcBodies.js';   // MWNPC6: the watch in Morrowind bodies
 import { isClassFoe, foeActor, foeFx } from '../characters/foeBodies.js';   // SET2: my own kills, told
 
@@ -155,7 +156,7 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
   levelBonus = null,   // SEAT1d (Seats-Arc 7.6): CURFEW - () => the levels a watchman is posted stronger (at night in a Curfew town)
   guardScale = null,   // ZONE-WATCH: () => how many times as strong a watchman is posted (the open zone's towns: ten)
   // MWNPC6: the watch's Morrowind bodies - whether the lane is wanted and how one is made; a test hands its own
-  wantNpcBodies = npcBodiesOn, makeNpcBodies = null,
+  wantNpcBodies = npcBodiesOn, makeNpcBodies = null, watchTown = () => null,
   shake = null,   // AUDIT TELL H6: the host's camera kick (its player's maxShake), for my blow that staggers a watchman
   // GameObjectHelper.CreateEnemyCorpseMarker (:836-839) hands an
   // OUTSIDE corpse to StreamingWorld.TrackLooseObject, which stamps it
@@ -311,7 +312,12 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
     try {
       const g = await spawnGuardAt(p.pos, p.fwdYaw, attackerFeet, opts);
       if (!g) return null;
-      if (p.person?.living) g.livingFrom = p.person.living;
+      if (p.person?.living) {
+        g.livingFrom = p.person.living;
+        const resident = g.livingFrom.res;
+        if (resident?.sex === 'male') g._mwWatch = { ...g._mwWatch, seed: textSeed(String(resident.id)),
+          race: resident.race, faceSpriteArchive: resident.civvies ?? resident.archive };
+      }
       p.disable();   // "Classic disables the NPC that the guard is spawned from"
       return g;
     } finally {
@@ -406,6 +412,8 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
         // = false`: a monster's blow is not the player's, so it levies
         // no Murder (DaggerfallEntityBehaviour.cs:203).
         hurtFromFoe: (dmg, dir, striker = null) => damageGuard(g, dmg, null, dir ?? null, { fromPlayer: false, striker }) };   // AUDIT 24 (wave 41); TELL1: and whose blow (its weight on a wind-up)
+      const town = watchTown();
+      if (town != null && !bearer && !mirror) g._mwWatch = { town: textSeed(String(town)) };
       // A5: the CONCEALMENT closure the illusion gate has read since
       // MT-i and nothing ever built (the encounter pool's law, one
       // spelling). BlockedByIllusionEffect (EnemySenses.cs:658-683)

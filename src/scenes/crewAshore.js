@@ -287,6 +287,7 @@ export function createCrewAshore(deps) {
             return;
           } // the place changed under the stand, or he went back
           rec.companion = k;
+          rec._mwCrewCompanion = Number.isInteger(c.boat);
           rec.person = companionPerson(c); // FB1012d ALLY-RACE: his own person in every place - never the stand's draw
           rec.folk = c.folk ?? null; // AUDIT PROVINCE-FOLK A1: a sworn one's race as it was born (foeBodies.js ownRace)
           rec.shipmate = true;

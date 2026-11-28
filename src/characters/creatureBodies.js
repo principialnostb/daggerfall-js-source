@@ -13,7 +13,7 @@ import { BaseImageFile } from '../formats/baseImageFile.js'; // MWNPC13: the spe
 /** The match: mobile type -> `{ creature: [CREA ids, first carried wins] }` or `{ miss: reason }`. Every creature
  *  mobile is named - the table is the census. MWNPC13: `veil` a spectral's - its body drawn translucent (SPECTRAL_VEIL).
  *  AUDIT MW-NPC II K5: `flies` a flyer's - stood only in a record that flies.
- *  @type {Readonly<Record<number, { creature?: string[], miss?: string, veil?: boolean, flies?: boolean }>>} */
+ *  @type {Readonly<Record<number, { creature?: string[], miss?: string, veil?: boolean, flies?: boolean, swims?: boolean, glides?: boolean }>>} */
 export const CREATURE_MATCH = Object.freeze({
   [M.Rat]: { creature: ['rat'] },
   // AUDIT MW-NPC D4: Daggerfall's imp FLIES (its behaviour, its hover at the gate) and Morrowind's scamp walks - stood,
@@ -30,7 +30,7 @@ export const CREATURE_MATCH = Object.freeze({
     miss: "a werewolf is a person in its beast form - Bloodmoon's wolf (MWNPC15, foeBodies.js isPersonFoe), never a creature",
   },
   [M.Nymph]: { miss: 'no nymph' },
-  [M.Slaughterfish]: { miss: 'a water creature - the swimming groups are not driven yet' },
+  [M.Slaughterfish]: { creature: ['slaughterfish'], swims: true },
   [M.OrcSergeant]: { miss: 'an orc is a person' },
   [M.Harpy]: { miss: 'no harpy' },
   [M.Wereboar]: { miss: 'no wereboar' },
@@ -50,10 +50,8 @@ export const CREATURE_MATCH = Object.freeze({
   [M.Vampire]: {
     miss: "a vampire is a person - its race's vampire head (MWNPC14, foeBodies.js isPersonFoe), never a creature",
   },
-  // AUDIT MW-NPC II K5: transformed she FLIES (mobileUnit.js setSpecialTransformationCompleted: 'Flying'), so her body
-  // must be a creature that flies - the build asks the record's own Flies flag (fpArm.js buildCreatureBody) and a
-  // winged twilight that walks keeps her sprite
-  [M.DaedraSeducer]: { creature: ['winged twilight'], flies: true },
+  // The Daggerfall motor supplies flight. Winged Twilight glides in its idle pose and keeps its own attacks.
+  [M.DaedraSeducer]: { creature: ['winged twilight'], flies: true, glides: true },
   [M.VampireAncient]: { miss: 'a vampire is a person' },
   [M.DaedraLord]: { creature: ['dremora_lord'] },
   [M.Lich]: { creature: ['lich'] }, // Tribunal's
@@ -65,7 +63,7 @@ export const CREATURE_MATCH = Object.freeze({
   [M.IceAtronach]: { creature: ['atronach_frost'] },
   [M.Horse_Invalid]: { miss: 'not a foe' },
   [M.Dragonling_Alternate]: { miss: 'no dragon' },
-  [M.Dreugh]: { miss: 'a water creature - the swimming groups are not driven yet' }, // AUDIT MW-NPC D5: the slaughterfish's law - it swims (Aquatic), and its body walked through the water
+  [M.Dreugh]: { creature: ['dreugh'], swims: true },
   [M.Lamia]: { miss: 'no lamia' },
 });
 
@@ -81,6 +79,8 @@ const lookOf = (m) =>
     creature: Object.freeze([...m.creature]),
     ...(m.veil ? { veil: SPECTRAL_VEIL } : {}),
     ...(m.flies ? { flies: true } : {}),
+    ...(m.swims ? { swims: true } : {}),
+    ...(m.glides ? { glides: true } : {}),
   });
 /** The looks, one a mobile type. */
 const LOOKS = new Map(
@@ -94,8 +94,8 @@ const LOOKS = new Map(
  *  each here, a match or a declared miss, and creatureLook reads them after the classic table. CREATURE_MATCH stays the
  *  census of DFU's own; a mod names only its own mobiles. A row is refused where the classic table's audits would refuse
  *  it: a match or a miss, never both; ids as the reader keeps them; and a creature that flies or swims in Daggerfall
- *  never stood in one that walks (AUDIT MW-NPC D4/D5 - a flyer's row says `flies`, a swimmer has none).
- *  @type {Map<number, Readonly<{ creature?: string[], miss?: string, veil?: boolean, flies?: boolean }>>} */
+ *  requests motion suited to the motor. Mod swimmers supply `swims`; mod flyers supply `flies`.
+ *  @type {Map<number, Readonly<{ creature?: string[], miss?: string, veil?: boolean, flies?: boolean, swims?: boolean }>>} */
 const _modMatch = new Map();
 /** Register a mod's rows: `[mobileType, row]` pairs, each mobile once. */
 export function registerCreatureMatches(rows) {
@@ -118,7 +118,7 @@ export function registerCreatureMatches(rows) {
       throw new Error(`registerCreatureMatches: mobile ${t}'s ids as the reader keeps them (lower case, trimmed)`);
     if (m.miss && !(String(m.miss).length > 4)) throw new Error(`registerCreatureMatches: mobile ${t}'s miss says why`);
     const b = ENEMY_BASICS[t]?.behaviour ?? 'General';
-    if (m.creature && (b === 'Aquatic' || (b === 'Flying' && !m.flies)))
+    if (m.creature && ((b === 'Aquatic' && !m.swims) || (b === 'Flying' && !m.flies)))
       throw new Error(`registerCreatureMatches: mobile ${t} (${b}) needs a Morrowind creature that moves as it does`);
     _modMatch.set(t, Object.freeze({ ...m, ...(m.creature ? { creature: Object.freeze([...m.creature]) } : {}) }));
     if (m.creature) LOOKS.set(t, lookOf(m));

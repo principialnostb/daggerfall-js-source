@@ -15,7 +15,7 @@ import { activeAppearanceIdentity, appearanceEditorEnabled } from '../characters
 import { getBodyMorphs, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { setPlayerBusyProbe } from '../characters/playerBuildHold.js';   // LOAD-STALL 3
 import { texturedPartBytes } from '../formats/morrowind/mwGarmentMaterials.js';
-import { tuckTrouserCuffs } from '../formats/morrowind/mwBootFit.js';
+import { fitThighPlates, tuckTrouserCuffs } from '../formats/morrowind/mwBootFit.js';
 import { modDiagnostics } from '../systems/modDiagnostics.js';   // Use the Morrowind rig's camera and animation rules from mwFirstPerson.js and mwAnim.js. The first-person pass
 // has its own projection and depth buffer. Composite it after the world so nearby walls cannot clip the weapon.
 
@@ -510,15 +510,17 @@ async function npcHairOf(archives, parts, race, female, walk, beast) {
   let palettes = npcHairPalettes.get(parts);
   if (!palettes) npcHairPalettes.set(parts, (palettes = new Map()));
   const sex = !!female;
-  if (!palettes.has(sex)) {
-    const records = appearanceHairPool(parts, sex, archiveHas(archives));
-    palettes.set(sex, appearanceHairChoices(archives, records, sex).then(choices =>
+  const key = String(race).toLowerCase() + (sex ? ':female' : ':male');
+  if (!palettes.has(key)) {
+    const has = archiveHas(archives);
+    const records = facePools(parts, race, sex).hairs.filter(record => record.model && has(normalizeBsaPath('meshes/' + record.model)));
+    palettes.set(key, appearanceHairChoices(archives, records, sex).then(choices =>
       choices.filter(choice => !choice.bald)).catch(() => {
-      palettes.delete(sex);
+      palettes.delete(key);
       return [];
     }));
   }
-  const choices = await palettes.get(sex);
+  const choices = await palettes.get(key);
   const choice = choices[walk.hair % choices.length];
   if (!choice) return null;
   const colors = HAIR_SWATCHES.slice(1);
@@ -2717,6 +2719,7 @@ const capsHead = (a) => a.partName === 'head' || a.partName === 'hair' || (a.hid
  */
 function skinPartsOf(row) {
   const part = { slot: row.slot, bones: PART_BONES[row.slot] ?? [], model: row.record.model };
+  if (row.earsOnly) return [{ ...part, hairMode: 'ears' }];
   return row.earRecord || row.splitHair ? [
     { ...part, hairMode: 'hair' },
     ...(row.earRecord ? [{ ...part, model: row.earRecord.model, hairMode: 'ears' }] : []),
@@ -3140,7 +3143,9 @@ async function buildTpBody({
         if (bareLegs.size) missing.push(`trousers: panels did not bind - ${[...bareLegs].join(', ')} drawn bare`);
       }
     }
-    if (tuckTrouserCuffs(arm, worn.adds)) poseAssembly(arm);
+    arm.legWear = worn.adds.filter((row) => row.legWear);
+    const fittedCuffs = tuckTrouserCuffs(arm, arm.legWear);
+    if (fitThighPlates(arm, arm.legWear) || fittedCuffs) poseAssembly(arm);
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
     const cloakUnderRows = [...skinRows, ...worn.adds, ...(betterBodiesPart ? [{ slot: 'betterBodies' }] : [])];
     const cloakFit = await fitUnpublishedCloak(arm, new Set(cloakUnderRows.map((row) => row.slot)));   // MW-CLOAK1
@@ -3466,12 +3471,13 @@ async function buildTpBody({
  * buildTpBody's so the rig, the GPU skin and the sprite take it unchanged, standing also as `built` (no arm), with the
  * record (`creature`) and XSCL as a uniform scale (Creature::adjustScale - weight and height alike).
  */
-async function buildCreatureBody({ creature, flies = false, deps = null }) {
+async function buildCreatureBody({ creature, flies = false, swims = false, glides = false, deps = null }) {
   const ids = [].concat(creature).map((c) => String(c || '').toLowerCase());   // the candidates, in the match's order (characters/creatureBodies.js)
   try {
     const d = deps || await import('../scenes/dataSource.js');
     const archives = await d.loadMorrowindArchives();
     if (!archives.length) return { ok: false, stage: 'data', error: 'no Morrowind .bsa attached' };
+
     const esmNames = await morrowindRecordLoadOrder(d);   // AUDIT MW-NPC D6
     if (!esmNames.length) return { ok: false, stage: 'data', error: 'no Morrowind .esm attached - the creature records live there' };
     const gen = adoptMemoGeneration(d.morrowindDataGeneration);
@@ -3490,10 +3496,10 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
     }
     const rec = ids.map((i) => found.get(i)).find(Boolean) ?? null;   // the first candidate the masters carry
     if (!rec) return { ok: false, stage: 'record', error: `no CREA record ${ids.map((i) => `"${i}"`).join(' or ')} in ${esmNames.join(', ')}` };
-    // AUDIT MW-NPC II K5: A FLYER STANDS ONLY IN A CREATURE THAT FLIES - D4's law asked of the data itself: a walker's legs
-    // paddle its walk cycle where the flyer hangs (the transformed Seducer flies, mobileUnit.js), so a record without
-    // CREA's Flies flag is refused at the record, and the sprite stands
-    if (flies && (rec.flags & CREA_FLAG.Flies) === 0) return { ok: false, stage: 'record', error: `"${rec.id}" does not fly - a flyer keeps its sprite` };
+    // Winged Twilight has no flight cycle. The Seducer's motor translates its idle pose through the air.
+    const glide = flies && glides && rec.id === 'winged twilight';
+    if (swims && (rec.flags & CREA_FLAG.Swims) === 0) return { ok: false, stage: 'record', error: 'the creature record does not swim' };
+    if (flies && !glide && (rec.flags & CREA_FLAG.Flies) === 0) return { ok: false, stage: 'record', error: 'the creature record does not fly' };
     const exists = (p) => archives.some((a) => a.has(p));
     const find = (p) => findLoaded(archives, p);
     const modelPath = correctActorModelPath(`meshes/${rec.model}`, exists);
@@ -3503,6 +3509,19 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
     const modelBytes = nifBytes(arc, modelPath);
     const arm = await assembleCreature({ modelBytes, parseNif: parseNifOnce });   // MWNPC3: one parse a mesh, every body
     if (!arm.ok) return { ok: false, stage: arm.stage || 'assembly', error: arm.error, notes: arm.notes || [] };
+    if (ids.includes('skeleton warrior')) {
+      // TEXTURE.270: an axe in the right hand and a round shield on the left.
+      const kit = [
+        ['creatureAxe', 'Weapon Bone', 'meshes/w/w_waraxe_iron.nif'],
+        ['creatureShield', 'Shield Bone', 'meshes/a/shield_nordic_leather.nif'],
+      ];
+      for (const [slot, bone, path] of kit) {
+        if (!arm.skeleton.byName.has(bone.toLowerCase()) || !exists(path)) continue;
+        await loadFromArchives(archives, [path]);
+        const archive = find(path);
+        if (archive) bindPartsInto(arm, [{ slot, bones: [bone], bytes: nifBytes(archive, path) }]);
+      }
+    }
     const texGen = textureGen(gen, CHAR_TEXTURE_MAX);   // a creature is always another's body
     await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, texGen);
     const textures = collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, texGen);
@@ -3565,7 +3584,7 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
     poseAssembly(arm, { tracks: idlePick.source.trackMap, sampleTrack, time: idlePick.state.startTime, accumRoot });
     const third = {
       ok: true, arm, tracks: idlePick.source.trackMap, accumRoot, keys: idlePick.source.keys, sources, sourcePaths,
-      clip: idlePick.state, groups: [...groupSet].sort(), groupSet, mwType: MW_WEAPON_TYPE.None, textures,
+      clip: idlePick.state, groups: [...groupSet].sort(), groupSet, mwType: arm.pieces.some(p => p.slot === 'creatureAxe') ? MW_WEAPON_TYPE.AxeOneHand : MW_WEAPON_TYPE.None, textures,
       skeletonPath: modelPath, settingsSkeleton: modelPath,
       weapon: null, arrow: null, torch: null, hipLight: null, hipLightTried: false, holster: null, boneSources: [], sheathing: false,
       werewolf: false, leftArm: new Set(), rows: [], notes: [...(arm.notes || [])], pieces: armPieceRows(arm.pieces).length, skeletonBytes: modelBytes,
@@ -3577,7 +3596,7 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
     const height = bb ? ((bb.maxZ - Math.min(bb.minZ, 0)) * scale) / MW_UNITS_PER_METER : null;
     return {
       ...third, third,
-      creature: { id: rec.id, name: rec.name, flags: rec.flags, bipedal, scale, height },
+      creature: { id: rec.id, name: rec.name, flags: rec.flags, bipedal, scale, height, ...(glide ? { glides: true } : {}) },
       raceScale: { weight: scale, height: scale },
       catalog: null, cameraRef: -1, reach: 0, idleReach: 0, allWeapons: [], allLights: [], worn: [], face: null,
     };
@@ -3862,7 +3881,10 @@ export async function buildFpArm({
   reachSweep = true,   // MWNPC3: PX27's every-clip reach sweep - the first-person far plane's; false for a rig that never draws first person
   creature = null,   // MWNPC9: a CREA id, or the match's candidates in order - a creature's body instead (buildCreatureBody)
   vampire = false,   // MWNPC14: a vampire's face - the race's vampire head
-  flies = false,   // AUDIT MW-NPC II K5: a creature body that must fly (its CREA record's Flies flag)
+  flies = false,
+  swims = false,
+  glides = false,
+  npcFrame = null,
   npcFace = null,   // MWNPC17: an NPC's head and hair, each walked off its seed ({ head, hair } - characters/wardrobe.js npcFaceOf): no portrait to match
   npcHint = null,   // MWNPC17: stable NPC seed/tier used by deterministic animation variant selection
   ownHeads = false,   // MW-HEADS2 (the owner: "only the player Britons should recieve the new heads, not npcs"): a player's body - the local player's (weaponRig.js armBuildOptsOf) and a peer's (net/peer/peerBodies.js playerBuildOpts) - wears the port's own heads; every other the data's
@@ -3870,7 +3892,7 @@ export async function buildFpArm({
   textureMax = null,   // the body's largest texture (CHAR_TEXTURE_MAX), null for the full files
   offWeapon = null,   // TWO-HANDS AUDIT 2: a pair's left-hand weapon, bound in the build on both rigs - the rig's own rebuilds hand the one it holds (setOffWeapon records it)
 } = {}) {
-  if (creature) return buildCreatureBody({ creature, flies, deps });   // MWNPC9
+  if (creature) return buildCreatureBody({ creature, flies, swims, glides, deps });   // MWNPC9
   const d = deps || await import('../scenes/dataSource.js');
   // WEREWOLF1: THE WOLF HOLDS NOTHING. setWerewolf's unequipAll empties both hands and every slot
   // (mechanicsmanagerimp.cpp:1896-1901), and the player's items are refused while transformed - so no weapon, no
@@ -3990,6 +4012,10 @@ export async function buildFpArm({
       if (rrec && rrec.radt) {
         raceScale = { weight: rrec.weight[female ? 1 : 0], height: rrec.height[female ? 1 : 0] };
       }
+    }
+    if (npcFace && npcFrame && !werewolf) {
+      raceScale.weight *= Math.min(1.25, Math.max(0.85, Number(npcFrame.width) || 1));
+      raceScale.height *= Math.min(1.12, Math.max(0.90, Number(npcFrame.height) || 1));
     }
     // MW-D14 / RULE 18: the settings name is not the final name. The
     // x-form is used only when its .kf is in the archive, which for a
@@ -6670,7 +6696,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // the jump slot beneath it is what shows. The null flows into the
     // existing empty-movement branch, which already carries the
     // reset-both law (:646-651).
-    const base = inJump ? null : movementAnimState({
+    const base = inJump || built.creature?.glides ? null : movementAnimState({
       forward: mv ? mv.forward : 0,
       strafe: mv ? mv.strafe : 0,
       running: !!(mv && mv.running),
@@ -6703,7 +6729,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       ownHeads: !!lastBuildOpts?.ownHeads,
       female: !!lastBuildOpts?.female,
     };
-    const movementPreference = isWalkingGroup ? walkVariantForActor({
+    const movementPreference = built.creature ? null : isWalkingGroup ? walkVariantForActor({
       ...actorOptions,
       playerChoice: modSetting('morrowind-animation', 'PlayerWalkSource') ?? 0,
       npcMaleChoice: modSetting('morrowind-animation', 'NpcMaleWalk') ?? 0,
@@ -6721,7 +6747,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       && movementBase === base && movementStance === stance);
     if (fresh) movementClipPreference = preferenceKey;
     if (fresh) {
-      const composed = guardMovementGroup(base, stance, hasGroup, viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0);
+      const movementSources = rig().sources.filter((source) => {
+        if (isWalkingGroup) return isWalkVariantEnabled(source, movementPreference ?? 'vanilla');
+        if (isRunningGroup) return isRunVariantEnabled(source, movementPreference ?? 'vanilla');
+        return !source?.walkOnly && !source?.runOnly;
+      });
+      const composed = guardMovementGroup(base, stance, (group) => anySourceHasGroup(movementSources, group),
+        viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0);
       if (!composed.group) {
         if (movementState) { resetMovement(); resetIdle(); }   // :701-707 resets BOTH
         movementBase = base; movementStance = stance;
@@ -6729,11 +6761,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       if (!(movementState && movementState.playing && movementGroup === composed.group && !preferenceChanged)) {
         const startPoint = movementGroup === composed.group ? clipCompletion(movementState) : 0;
-        const movementSources = rig().sources.filter((source) => {
-          if (isWalkingGroup) return isWalkVariantEnabled(source, movementPreference ?? 'vanilla');
-          if (isRunningGroup) return isRunVariantEnabled(source, movementPreference ?? 'vanilla');
-          return !source?.walkOnly && !source?.runOnly;
-        });
         const pick = pickAnimSource(movementSources, composed.group, resetClip,
           { loopFallback: true, loopCount: Infinity, startPoint });
         // Record the actual gameplay resolver result, not just successful

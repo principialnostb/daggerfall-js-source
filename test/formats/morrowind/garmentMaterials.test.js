@@ -1,6 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { garmentSideBatch, texturedPartBytes, visibleBodyLegBatch } from '../../../src/formats/morrowind/mwGarmentMaterials.js';
+import { composeWornArmor } from '../../../src/formats/morrowind/mwItemMap.js';
+
+test('short Summerset robes keep knees and ankles visible beneath the hem', () => {
+  const robes = ['war_highelf_robe_01b', 'war_highelf_robe_03b'].map(id => ({
+    id, type: 4, name: id, model: 'robe_ground.nif', enchanted: false,
+    parts: [{ part: 3, male: 'robe_body' }, { part: 17, male: null }, { part: 18, male: null }],
+  }));
+  const wear = mwRecord => composeWornArmor({
+    pieces: [{ kind: 'clothing', name: 'Plain Robes', mwRecord }],
+    armors: [], clothes: robes, bodyPool: [{ id: 'robe_body', model: 'robe.nif' }],
+  });
+  const lowerLegShadows = result => result.shadows.filter(slot => /^(knee|ankle):/.test(slot)).sort();
+  assert.deepEqual(lowerLegShadows(wear(robes[0].id)), []);
+  assert.deepEqual(lowerLegShadows(wear(robes[1].id)), ['ankle:left', 'ankle:right', 'knee:left', 'knee:right']);
+});
 
 test('one bilateral knee shape gives each slot only its own triangles', () => {
   const batch = { name: 'Right Knee', positions: new Float32Array(18), indices: Uint16Array.of(0,1,2,3,4,5),

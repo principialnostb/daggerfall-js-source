@@ -8,6 +8,8 @@
 // road's or a roster's in DFU's own kit for it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { ownArmorModelFor } from '../../src/characters/ownModels/ownArmorModels.js';
+import { peerBuildOpts, peerWeaponOf } from '../../src/net/peer/peerBodies.js';
 import { mwArmorRecords } from '../../src/formats/morrowind/mwItemMap.js';
 import { ARMOR_MATERIAL } from '../../src/systems/armorMaterials.js';
 import { ARMOR_ENUM, WEAPONS_ENUM as W } from '../../src/combat/enemyEquipment.js';
@@ -75,6 +77,186 @@ test('MWNPC12-2 an orc foe is a person: not a class, not a creature - Morrowind\
   assert.notEqual(foeActor(foe({ mobileType: M.Thief })).look.race, 'Orc', 'a class foe the Bay\'s');
   assert.deepEqual(foeActor(foe({ mobileType: M.Rat })).look, { creature: ['rat'] });
   assert.equal(isPersonFoe(foe({ mobileType: M.Rat })), false);
+});
+
+test('city watch wears the same plate on patrol, in combat, and in a roster', () => {
+  const patrol = folkLook({ archive: GUARD_TEXTURE, gender: GENDERS.Male }, 'Breton');
+  const blade = { templateIndex: W.Longsword, group: 'Weapons', material: 0 };
+  const leather = { templateIndex: ARMOR_ENUM.Cuirass, group: 'Armor', material: ARMOR_MATERIAL.Leather };
+  const guard = foe({ mobileType: M.Knight_CityWatch, slots: { RightHand: blade, ChestArmor: leather } });
+  assert.deepEqual(armour(foeActor(guard).look), armour(patrol));
+  assert.deepEqual(armour(rosterLook({}, { mobileType: M.Knight_CityWatch })), armour(patrol));
+  const resident = residentLook({}, { id: 'watch', cls: M.Warrior, race: 'Breton', sex: 'male' }, { guard: true });
+  assert.deepEqual(armour(resident), armour(patrol));
+  assert.equal(peerWeaponOf(foeActor(guard).look).templateIndex, W.Longsword);
+  guard.raidBearer = true;
+  assert.equal(armour(foeActor(guard).look)[0].material, ARMOR_MATERIAL.Leather);
+});
+
+test('enemy frames and sprite equipment follow the mobile through the body compositor', () => {
+  const look = (mobileType, slots) => foeActor(foe({ mobileType, slots })).look;
+  const warrior = look(M.Warrior);
+  const orc = look(M.Orc);
+  const sergeant = look(M.OrcSergeant);
+  const warlord = look(M.OrcWarlord);
+  assert.ok(warrior.npcFrame.width < orc.npcFrame.width);
+  assert.ok(orc.npcFrame.width < sergeant.npcFrame.width);
+  assert.ok(sergeant.npcFrame.width < warlord.npcFrame.width);
+  assert.deepEqual(peerBuildOpts(warlord).npcFrame, warlord.npcFrame);
+
+  const shaman = look(M.OrcShaman);
+  assert.ok(shaman.npcFrame.width < orc.npcFrame.width);
+  const shield = { templateIndex: ARMOR_ENUM.Buckler, group: 'Armor', material: ARMOR_MATERIAL.Leather };
+  const blade = { templateIndex: W.Longsword, group: 'Weapons', material: 0 };
+  const equippedShaman = look(M.OrcShaman, { LeftHand: shield, RightHand: blade });
+  assert.equal(equippedShaman.items.find(item => item.equipSlot === EQUIP_SLOTS.RightHand).templateIndex, W.Longsword);
+  assert.equal(equippedShaman.items.find(item => item.equipSlot === EQUIP_SLOTS.LeftHand).templateIndex, ARMOR_ENUM.Buckler);
+  assert.equal(peerWeaponOf(equippedShaman).templateIndex, W.Staff);
+  assert.equal(peerWeaponOf(equippedShaman, { lh: true }), null);
+  assert.ok(!peerBuildOpts(equippedShaman).armor.some(piece => [ARMOR_ENUM.Buckler, ARMOR_ENUM.Helm, ARMOR_ENUM.Cuirass].includes(piece.templateIndex)));
+  for (const mobileType of ORC_MOBILES) {
+    for (const gender of ['male', 'female']) {
+      const outfit = peerBuildOpts(rosterLook({}, { mobileType, gender, seed: 9 })).armor;
+      const clothes = outfit.filter(piece => piece.kind === 'clothing');
+      assert.ok(clothes.every(piece => (mobileType === M.OrcShaman ? /Robes/ : /Boots|Cloak/).test(piece.name)));
+      if (mobileType === M.OrcShaman) assert.equal(clothes.length, 1);
+      const greaves = outfit.find(piece => piece.templateIndex === ARMOR_ENUM.Greaves);
+      if (mobileType === M.OrcShaman) {
+        assert.equal(greaves, undefined);
+      } else if (mobileType === M.OrcSergeant) {
+        assert.equal(greaves.mwRecord, 'orcish_greaves');
+      } else {
+        assert.deepEqual(ownArmorModelFor(greaves).parts.map(({ part, model }) => [part, model]), [
+          ['right upper leg', 'steel_plate_greave_right.nif'],
+          ['left upper leg', 'steel_plate_greave_left.nif'],
+        ]);
+      }
+      const drawsBoots = outfit.some(piece => piece.templateIndex === ARMOR_ENUM.Boots || piece.name?.includes('Boots'));
+      assert.equal(drawsBoots, mobileType === M.OrcSergeant || mobileType === M.OrcWarlord);
+    }
+  }
+  assert.equal(peerWeaponOf(orc).templateIndex, W.Saber);
+  assert.equal(warrior.npc.spriteKit, M.Warrior);
+  for (const armored of [sergeant, warlord]) assert.equal(peerWeaponOf(armored).templateIndex, W['Battle Axe']);
+  assert.ok(peerBuildOpts(warlord).armor.some(piece => piece.name?.endsWith('Cloak') && piece.dye === 2));
+  assert.ok(peerBuildOpts(sergeant).armor.some(piece => piece.mwRecord === 'trollbone_helm'));
+  assert.ok(peerBuildOpts(warlord).armor.some(piece => piece.mwRecord === 'nordic_iron_helm'));
+  assert.ok(peerBuildOpts(orc).armor.every(piece => piece.templateIndex !== ARMOR_ENUM.Helm));
+  assert.ok(!peerBuildOpts(sergeant).armor.some(piece => piece.name?.endsWith('Cloak')));
+  assert.equal(peerWeaponOf(rosterLook({}, { mobileType: M.OrcShaman, seed: 9 })).templateIndex, W.Staff);
+
+  const ally = foe({ mobileType: M.Warrior, slots: { RightHand: blade } });
+  ally.companion = {};
+  assert.equal(peerWeaponOf(foeActor(ally).look).templateIndex, W.Longsword);
+  assert.equal(rosterLook({}, { mobileType: M.Warrior }).npcFrame, undefined);
+  assert.deepEqual(rosterLook({}, { mobileType: M.Warrior, enemy: true, person: warrior.npc.seed }).npcFrame, warrior.npcFrame);
+});
+
+test('enemy faces and frames vary by identity and stay consistent across the roster', () => {
+  const looks = Array.from({ length: 16 }, (_, person) => rosterLook({}, {
+    mobileType: M.Ranger, person, race: 'DarkElf', enemy: true,
+  }));
+  assert.ok(looks.every(look => look.race === 'DarkElf' && look.npc.hairColor));
+  assert.ok(new Set(looks.map(look => look.npc.hairColor)).size >= 3);
+  assert.ok(new Set(looks.map(look => `${look.npcFrame.width}/${look.npcFrame.height}`)).size >= 6);
+  assert.ok(new Set(looks.map(look => peerBuildOpts(look).npcFace.hair)).size >= 12);
+});
+
+test('hostile rogues choose a fixed outfit and keep their equipped weapons', () => {
+  for (const gender of ['male', 'female']) {
+    const rogue = (person, enemy) => rosterLook({}, { mobileType: M.Rogue, gender, person, enemy });
+    const raider = peerBuildOpts(rogue(4, true));
+    const ambusher = peerBuildOpts(rogue(5, true));
+    assert.ok(raider.armor.some(piece => piece.mwRecord === 'netch_leather_boiled_cuirass'));
+    assert.ok(ambusher.armor.some(piece => piece.name === 'Casual Cloak' && piece.dye === 1));
+    for (const look of [raider, ambusher]) {
+      assert.ok(look.armor.some(piece => piece.mwRecord === 'war_misc_trsrs_03e'));
+    }
+    assert.deepEqual(raider.weapon, peerBuildOpts(rogue(4, false)).weapon);
+    assert.deepEqual(ambusher.weapon, peerBuildOpts(rogue(5, false)).weapon);
+    assert.equal(rogue(4, false).npc.spriteKit, undefined);
+  }
+});
+
+test('hostile warriors and barbarians choose coordinated kits and retain their weapons', () => {
+  const expected = new Map([
+    [M.Warrior, ['steel_cuirass', 'iron_cuirass']],
+    [M.Barbarian, ['nordic_iron_cuirass', 'nordic_ringmail_cuirass']],
+  ]);
+  for (const [mobileType, cuirasses] of expected) {
+    for (const gender of ['male', 'female']) {
+      for (const person of [0, 1]) {
+        const look = (enemy) => rosterLook({}, { mobileType, gender, person, enemy });
+        const kit = peerBuildOpts(look(true));
+        assert.equal(kit.armor.find((p) => p.templateIndex === ARMOR_ENUM.Cuirass)?.mwRecord, cuirasses[person]);
+        assert.equal(kit.armor.some((p) => p.templateIndex === ARMOR_ENUM.Helm), mobileType === M.Warrior);
+        if (mobileType === M.Warrior) {
+          const metal = person === 0 ? 'steel' : 'iron';
+          assert.equal(kit.armor.find((p) => p.templateIndex === ARMOR_ENUM.Greaves)?.mwRecord, `${metal}_greaves`);
+          assert.equal(kit.armor.find((p) => p.templateIndex === ARMOR_ENUM.Boots)?.mwRecord, `${metal}_boots`);
+          assert.equal(kit.armor.find((p) => p.templateIndex === ARMOR_ENUM.Gauntlets)?.mwRecord, `${metal}_gauntlet`);
+        }
+        assert.deepEqual(kit.weapon, peerBuildOpts(look(false)).weapon);
+        assert.equal(look(false).npc.spriteKit, undefined);
+      }
+    }
+  }
+});
+
+test('hostile kits distinguish plate gauntlets, travel gloves and hand wraps without replacing the race', () => {
+  const pairOf = (mobileType, person) => {
+    const look = rosterLook({}, { mobileType, person, enemy: true, race: 'DarkElf' });
+    const kit = peerBuildOpts(look);
+    assert.equal(kit.race, 'dark elf');
+    return kit.armor.find((piece) => piece.templateIndex === ARMOR_ENUM.Gauntlets)?.mwRecord;
+  };
+  for (const person of [0, 1]) {
+    assert.equal(pairOf(M.Knight, person), 'imperial_gauntlet');
+    assert.equal(pairOf(M.Archer, person), 'leather_bracer');
+    assert.equal(pairOf(M.Ranger, person), 'fur_gauntlet');
+    assert.equal(pairOf(M.Monk, person), 'cloth_bracer');
+    assert.equal(pairOf(M.Healer, person), undefined);
+  }
+  assert.equal(pairOf(M.Thief, 0), undefined);
+  assert.equal(pairOf(M.Thief, 1), 'netch_leather_gauntlet');
+});
+
+test('each hostile career and vampire rank has distinct kit variants while keeping its weapons', () => {
+  const careers = Object.values(M).filter((id) => id >= M.Mage && id <= M.Knight);
+  const humanoids = [...careers, M.Vampire, M.VampireAncient];
+  for (const gender of ['male', 'female']) {
+    const signatures = new Set();
+    for (const mobileType of humanoids) {
+      for (const person of [0, 1]) {
+        const look = (enemy) => rosterLook({}, { mobileType, gender, person, enemy });
+        const hostile = look(true);
+        assert.equal(hostile.npc.spriteKit, mobileType);
+        const outfit = peerBuildOpts(hostile);
+        const signature = JSON.stringify(outfit.armor.map((p) => [p.templateIndex, p.mwRecord, p.dye]));
+        assert.ok(!signatures.has(signature), `${mobileType}/${person} duplicates another kit`);
+        signatures.add(signature);
+        assert.deepEqual(outfit.weapon, peerBuildOpts(look(false)).weapon);
+      }
+    }
+  }
+});
+
+test('orc shaman robes retain their cut and vary predictably with the actor seed', () => {
+  const robes = new Map();
+  for (let person = 0; person < 4; person++) {
+    const options = { mobileType: M.OrcShaman, person };
+    const robeOf = gender => peerBuildOpts(rosterLook({}, { ...options, gender })).armor
+      .find(piece => piece.kind === 'clothing').mwRecord;
+    const robe = robeOf('male');
+    assert.equal(robeOf('female'), robe);
+    assert.equal(robeOf('male'), robe);
+    robes.set(robe, (robes.get(robe) ?? 0) + 1);
+  }
+  assert.deepEqual(robes, new Map([
+    ['war_khajiit_robe_01d', 2],
+    ['war_khajiit_robe_01c', 1],
+    ['war_khajiit_robe_01e', 1],
+  ]));
 });
 
 test('MWNPC12-3 an orc with no table to read (a road\'s, a roster\'s) wears DFU\'s own kit for it: the orc and its shaman a one-hander and half the time a shield, half their armour; the sergeant and the warlord a two-hander, three pieces in four and nine in ten; the armour leather, chain or plate by DFU\'s odds - and a caravan beset by orcs is beset by Orcs', () => {

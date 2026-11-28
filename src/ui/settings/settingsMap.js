@@ -450,7 +450,7 @@ export const CATEGORIES = Object.freeze([
     ]),
   ]),
   tab('mods', 'Mods & files', [
-    sec('morrowind-display', 'Отображение Morrowind', ['feat:mw-npc-bodies', 'feat:mw-billboard-look']),
+    sec('morrowind-display', 'Отображение Morrowind', ['feat:enhancedEnemies', 'feat:enhancedNpcs', 'feat:mw-npc-bodies', 'feat:mw-billboard-look']),
     sec('files', 'Your files', ['card:morrowind', 'card:packs']),
     sec('dfu', "Daggerfall Unity's mod system", [
       'Enhancements/LypyL_ModSystem',

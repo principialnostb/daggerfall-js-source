@@ -1,3 +1,4 @@
+import { textSeed } from '../systems/livingWorld/seed.js';
 import { markStreetLanternCenter, placeStreetLight } from '../world/streetLanternPlacement.js';
 import { layoutTownFlats, layoutTownLights } from '../world/townLanternLayout.js';
 import { markPlacedFurnishing } from '../render/furnishingMorrowind.js';
@@ -452,6 +453,7 @@ export async function bootExterior(canvas, renderer, params, status) {
   }
   const climateBase = dfLocation.climate.climateType;
   // FS-slice: the location's raw CLIMATE.PAK index (the snow gate reads it)
+  const watchColors = dfLocation.mapTableData?.mapId == null ? null : textSeed(String(dfLocation.mapTableData.mapId));
   const _locPixel = longitudeLatitudeToMapPixel(dfLocation.mapTableData.longitude, dfLocation.mapTableData.latitude);
   const locClimateIndex = maps.getClimateIndex(_locPixel.x, _locPixel.y);
   const footsteps = new FootstepMachine();
@@ -2009,6 +2011,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     feet: detectFeet,
   });
   const cityGuards = createCityGuards({
+    watchTown: () => dfLocation.mapTableData?.mapId ?? null,
     renderer, collider, fetchBytes, getTexture, uploadRecordFrame, playerEntity, audio, hitEffects,
     playerWeaponSheathed: () => !!weaponRig.playerWeapon.sheathed,   // AUDIT 24 (wave 42): pacification's drawn-weapon penalty
     shake: (k) => betterAmbience.weaponKick(k),   // AUDIT TELL H6: my blow that staggers a watchman kicks the camera

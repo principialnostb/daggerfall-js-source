@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AFFINE_IDENTITY } from '../../../src/formats/morrowind/mwAffine.js';
-import { tuckTrouserCuffs } from '../../../src/formats/morrowind/mwBootFit.js';
+import { fitThighPlates, tuckTrouserCuffs } from '../../../src/formats/morrowind/mwBootFit.js';
 
 function tube(slot, top, bottom, radius) {
   const positions = Float32Array.from([top, bottom].flatMap((x) => Array.from({ length: 8 }, (_, i) => {
@@ -39,4 +39,32 @@ test('low shoes and missing boots do not tuck trousers', () => {
   const pants = tube('pants', 4, 30, 6);
   assert.equal(tuckTrouserCuffs(rig(tube('boot', 31, 36, 5), pants), worn), false);
   assert.equal(tuckTrouserCuffs({ pieces: [pants] }, worn), false);
+});
+
+test('pose-only cuff fitting follows the current shaft without editing shared source vertices', () => {
+  const boot = tube('boot', 12, 36, 5);
+  const pants = tube('pants', 4, 30, 6);
+  pants.positions = pants.source.slice();
+  boot.positions = boot.source.map((value, i) => i % 3 === 0 ? value : value * 0.8);
+  assert.equal(tuckTrouserCuffs(rig(boot, pants), worn, { poseOnly: true }), true);
+  assert.equal(pants.positions[25].toFixed(2), '2.56');
+  assert.equal(pants.source[25], 6);
+  assert.equal(pants.positions[1], 6);
+});
+
+test('the rim of an open thigh plate clears the knee and leaves its upper edge in place', () => {
+  const plate = tube('right upper leg (plate)', 4, 28, 4);
+  const knee = tube('knee', 18, 34, 6);
+  const arm = {
+    pieces: [plate, knee],
+    skeleton: { byName: new Map([['bip01 r thigh', 'thigh'], ['bip01 r calf', 'calf']]) },
+    mats: new Map([['thigh', AFFINE_IDENTITY], ['calf', { ...AFFINE_IDENTITY, t: [36, 0, 0] }]]),
+  };
+  plate.attachRef = 'thigh';
+  const original = plate.source;
+  assert.equal(fitThighPlates(arm, [{ slot: plate.slot, legWear: 'thighPlate' }]), true);
+  assert.deepEqual(plate.source.slice(0, 24), original.slice(0, 24));
+  assert.equal(plate.source[25].toFixed(2), '6.90');
+  assert.equal(original[25], 4);
+  assert.equal(knee.source[25], 6);
 });

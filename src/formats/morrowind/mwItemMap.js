@@ -1052,12 +1052,17 @@ export function composeWornArmor({
       const base = res.row.reserve === 'robe' ? 11 : res.row.reserve === 'skirt' ? 3 : 0;
       const prio = ((base + 1) << 1) + 0;
       const rec = cut?.rec ?? res.record;
+      // Summerset short robes end above the knee even though their CLOT
+      // records reserve the same leg slots as the floor-length variants.
+      const shortRobe = /^war_highelf_robe_01[a-d]x?$/i.test(rec.id);
       const legWear = rec.type === MW_CLOTHING_TYPE.Pants ? 'trousers' : rec.type === MW_CLOTHING_TYPE.Shoes ? 'footwear' : null;
       const groin = legWear === 'trousers' && rec.parts?.find(({ part }) => ARMO_PART[part]?.name === 'groin');
       const groinModel = groin && bodyById.get((female && groin.female) || groin.male || groin.female)?.model;
       const wholeTrousers = /(?:^|[\\/])war_misc_trsr0[23][a-f]\.nif$/i.test(groinModel || '') &&
         (!hasMesh || hasMesh(`meshes/${groinModel}`));
       const claimClothing = (part, priority, add) => {
+        if (shortRobe && !add && /^(knee|ankle):/.test(ARMO_PART[part].shadows ?? '')) return;
+        if (shortRobe && add?.partName === 'cuirass') add = { ...add, fitBodySlots: [...add.fitBodySlots, 'knee'] };
         if (!add && legWear === 'trousers' && !wholeTrousers && /^(upperleg|knee|ankle):/.test(ARMO_PART[part].shadows ?? '')) {
           // A one-piece trouser NIF uses empty slots to cover the legs.
           // Segmented trousers need a mesh in the slot before they cover it.
@@ -1068,7 +1073,7 @@ export function composeWornArmor({
         } : add);
       };
       composeRefs(rec, prio, female, bodyById, claimClothing, notes, piece);
-      for (const part of RESERVES[res.row.reserve] ?? []) claim(part, prio, null);
+      for (const part of RESERVES[res.row.reserve] ?? []) claimClothing(part, prio, null);
       continue;
     }
     const prio = ((0 + 1) << 1) + 1;
@@ -1113,6 +1118,7 @@ export function composeWornArmor({
           ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}),
         }; // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
         if (piece.templateIndex === ARMOR_ENUM.Boots) add.legWear = 'footwear';
+        if (own.id === 'daggerfall_steel_greaves') add.legWear = 'thighPlate';
         claim(at, prio, add);
         if (p.showsSkin && row.shadows) covers.add(row.shadows); // MW-IRON1: open where its picture is - the skin under it stays drawn, but it is covered
         // MW-STEEL1: what the part covers beyond its own slot is OCCUPIED with no mesh (reserveIndividualPart), so its
@@ -1187,7 +1193,9 @@ export function composeWornArmor({
           return;
         }
         if (add && footOrLeg && hasMesh && !hasMesh(`meshes/${add.model}`)) return;
-        claim(part, priority, add && piece.templateIndex === ARMOR_ENUM.Boots ? { ...add, legWear: 'footwear' } : add);
+        const legWear = piece.templateIndex === ARMOR_ENUM.Boots ? 'footwear'
+          : /^(daedric|dwemer)_greaves$/.test(armo.id) && /upper leg$/.test(add?.partName ?? '') ? 'thighPlate' : null;
+        claim(part, priority, add && legWear ? { ...add, legWear } : add);
       };
       composeRefs(cut?.rec ?? armo, prio, female, bodyById, claimArmor, notes, piece);
     }

@@ -148,8 +148,13 @@ export function npcShown(a) {
   return {
     x: finite(a.feet[0]), y: finite(a.feet[1]), z: finite(a.feet[2]),
     yaw: finite(a.yaw), pitch: 0,
-    mv: a.moving ? (a.running ? 2 : 1) : 0,
+    // The native aquatic movement cycle is filed under walkforward, even when it is a swim.
+    mv: a.moving ? (a.running && !a.look?.swims ? 2 : 1) : 0,
+    ...(a.look?.swims || a.look?.glides ? { mair: a.look.swims ? 2 : 3 } : {}),
+    ...(Number.isFinite(a.centerLift) ? { centerLift: a.centerLift, centerScale: a.scale ?? 1 } : {}),
     wd: a.drawn ? 1 : 0,
+    ...(a.ammo ? { am: 1 } : {}),
+    ...(a.attackMode ? { npcAttackMode: a.attackMode } : {}),
     an: count(a.swings), as: count(a.strike),
     cn: count(a.casts), cr: count(a.castRange),
     ht: count(a.hits),
@@ -245,8 +250,8 @@ export function createNpcBodies({ renderer, enabled = () => true, generation = (
      */
     stand(laneName, actor, conceal = null, flash = 0, fx = null, anchored = false) {
       if (!actor?.look || !actor.feet || npcBodiesHeld()) return;   // AUDIT MW-NPC II H2: none under the Overworld
-      const civilianLane = laneName === 'folk' || laneName === 'people' || laneName === 'room' || laneName === 'watch';
-      if (civilianLane && getPref('enhancedNpcs') === false) return;
+      const enemy = actor.enemy ?? (laneName === 'foe' || laneName === 'gate' || laneName === 'siege');
+      if (getPref(enemy ? 'enhancedEnemies' : 'enhancedNpcs') === false) return;
       conceal ??= actor.look.veil ?? null;   // MWNPC13: a spectral's standing veil - the host's concealment first
       const id = npcPeerId(laneName, actor.id);
       peers.push({ id, name: '', told: true, look: actor.look, shown: npcShown(actor) });

@@ -10,11 +10,13 @@
 import { composeLook } from '../net/remotePlayers.js';
 import { LOOK_GROUPS } from '../net/wire.js'; // AUDIT MW-NPC II K2: a worn piece's group, by its index on the wire
 import { EQUIP_SLOTS, equipTableOf } from '../systems/equip.js';
+import { hasEnemySpriteKit } from './enemySpriteKits.js';
+import { cityWatchUniform } from './folkBodies.js';
 import { creatureLook } from './creatureBodies.js'; // MWNPC9: a creature foe's look, its Morrowind creature
 import { ARMOR_ENUM, WEAPONS_ENUM, equipmentVariantFor } from '../combat/enemyEquipment.js';
 import { ARMOR_MATERIAL } from '../systems/armorMaterials.js';
 import { MOBILE_TYPES } from './mobile/mobileTypes.js'; // MWNPC10: a roster's people, armoured and armed by their class
-import { npcHint } from './wardrobe.js'; // MWNPC17: the man under the kit his own - his head, his hair, the clothes' records
+import { MENS, WOMENS, npcHint, sailorDress } from './wardrobe.js'; // MWNPC17: the man under the kit his own - his head, his hair, the clothes' records
 import { folkHere, folkWhere, folkRace, folkOfKey, FOLK_RACE_KEYS } from './provinceFolk.js'; // PROVINCE-FOLK: past the Bay a foe is one of the province's people
 import { isClassEnemyId, isClassicEnemyId } from './enemy/enemyBasics.js'; // DEX1: DFU's class test (DaggerfallEntity.IsClassEnemyId) - a mod's monster past 255 is no class; DEX7: a mod's person row names its own mobile
 
@@ -140,19 +142,66 @@ export function bodyRaceOf(f) {
     r = personRace(f, h, bayPerson(h).race);
   return FOLK_RACE_KEYS.includes(r) ? r : null;
 }
+// Distinct builds for enemy families. Use the model transform so armor, skin
+// and attachment points keep their fit and the rig stays on GPU skinning.
+const FOE_APPEARANCE = [
+  { mobiles: [MOBILE_TYPES.Orc], cut: 'orc', width: 1.14, height: 1.04 },
+  { mobiles: [MOBILE_TYPES.OrcSergeant], cut: 'orc', width: 1.19, height: 1.06 },
+  { mobiles: [MOBILE_TYPES.OrcShaman], cut: 'orcShaman', width: 1.10, height: 1.03 },
+  { mobiles: [MOBILE_TYPES.OrcWarlord], cut: 'orc', width: 1.23, height: 1.08 },
+  { mobiles: [MOBILE_TYPES.Barbarian], cut: 'raider', width: 1.12, height: 1.04 },
+  { mobiles: [MOBILE_TYPES.Knight, MOBILE_TYPES.Warrior, MOBILE_TYPES.Spellsword], cut: 'soldier', width: 1.06, height: 1.02 },
+  { mobiles: [MOBILE_TYPES.Battlemage, MOBILE_TYPES.Nightblade], cut: 'arcane', width: 1, height: 1 },
+  { mobiles: [MOBILE_TYPES.Mage, MOBILE_TYPES.Healer, MOBILE_TYPES.Sorcerer], cut: 'arcane', width: 0.95, height: 1, robe: true },
+  { mobiles: [MOBILE_TYPES.Assassin, MOBILE_TYPES.Burglar, MOBILE_TYPES.Thief, MOBILE_TYPES.Rogue, MOBILE_TYPES.Acrobat], cut: 'scout', width: 0.94, height: 0.99 },
+  { mobiles: [MOBILE_TYPES.Archer, MOBILE_TYPES.Ranger], cut: 'ranger', width: 0.98, height: 1.02 },
+  { mobiles: [MOBILE_TYPES.Bard], cut: 'traveller', width: 1, height: 1 },
+  { mobiles: [MOBILE_TYPES.Monk], cut: 'traveller', width: 1.02, height: 1 },
+  { mobiles: [MOBILE_TYPES.Vampire, MOBILE_TYPES.VampireAncient], cut: 'vampire', width: 0.94, height: 1.04 },
+];
+const foeAppearanceOf = new Map(FOE_APPEARANCE.flatMap(style => style.mobiles.map(mobile => /** @type {const} */ ([mobile, style]))));
+
+const ENEMY_HAIR = {
+  Nord: ['#b7a275', '#80523c', '#51433b', '#b6b3ad'],
+  Breton: ['#4d382c', '#856849', '#3c2f2a', '#7d7670'],
+  Redguard: ['#231e1b', '#392c24', '#4b382b', '#77716b'],
+  HighElf: ['#c1a66e', '#716041', '#b7a994', '#7b6c51'],
+  WoodElf: ['#513b28', '#755039', '#b19563', '#433a31'],
+  DarkElf: ['#242226', '#493537', '#887e82', '#514c50'],
+  Orc: ['#28211e', '#42372b', '#5d5145', '#767268'],
+};
+
+function enemyHint(seed, mobileType, style, race) {
+  const hint = npcHint(seed, 0);
+  if (!style) return hint;
+  const roll = mix(seed ^ 0xdeca7);
+  const veteran = race === 'Nord' || race === 'Breton' || race === 'Redguard';
+  const face = mobileType === MOBILE_TYPES.Monk && veteran && (roll & 3) === 0 ? 'bald'
+    : veteran && (roll & 7) === 1 ? 'older' : veteran && (roll & 7) === 2 ? 'bearded' : undefined;
+  const hairColor = ENEMY_HAIR[race]?.[(roll >>> 6) & 3];
+  return { ...hint, enemyCut: style.cut, hairColor, face, ...(hasEnemySpriteKit(mobileType) ? { spriteKit: mobileType } : {}) };
+}
+
+function enemyFrame(style, seed) {
+  const roll = mix(seed ^ 0x5eeb1);
+  return { width: style.width + ((roll & 3) - 1.5) * 0.024,
+    height: style.height + (((roll >>> 8) & 3) - 1.5) * 0.015 };
+}
+
 /** MWNPC10: the clothes under what `items` already holds - a shirt, legs and shoes for each slot nothing fills, dyed
  *  off the seed (the reference's slot law: the armour shows, the clothes are under it). */
-function clothesUnder(items, W, h) {
+function clothesUnder(items, W, h, style = null) {
   const has = new Set(items.map((it) => it.equipSlot));
   const dye = (k) => pick(FOE_DYES, mix(h ^ k));
+  const robe = style?.robe && ![EQUIP_SLOTS.ChestArmor, EQUIP_SLOTS.LegsArmor, EQUIP_SLOTS.ChestClothes, EQUIP_SLOTS.LegsClothes].some(slot => has.has(slot));
   if (!has.has(EQUIP_SLOTS.ChestClothes))
     items.push({
-      templateIndex: pick(W.shirts, mix(h ^ 0xc1)),
+      templateIndex: robe ? (W === FOE_WARDROBE.female ? WOMENS.plainRobes : MENS.plainRobes) : pick(W.shirts, mix(h ^ 0xc1)),
       group: W.group,
       equipSlot: EQUIP_SLOTS.ChestClothes,
       dye: dye(0xd1),
     });
-  if (!has.has(EQUIP_SLOTS.LegsClothes))
+  if (!robe && !has.has(EQUIP_SLOTS.LegsClothes))
     items.push({
       templateIndex: pick(W.legs, mix(h ^ 0xc2)),
       group: W.group,
@@ -251,8 +300,12 @@ export function foeLook(f) {
   // no allocation) is the same look; only a change composes it again
   const slots = f._mwWire === 'kit' ? f._mwWornWireSlots : equipTableOf(e);
   const held = f._mwLookSlots;
+  const watch = f._mwWatch;
+  const cityWatch = f.mobileType === MOBILE_TYPES.Knight_CityWatch && !f.raidBearer && !f.hunter;
+  const style = f.companion == null && !f.shipmate && !watch && f.entity?.team !== 'PlayerAlly' ? foeAppearanceOf.get(f.mobileType) : null;
+  const sailor = f._mwCrewCompanion === true && !VAMPIRE_MOBILES.has(f.mobileType) && f.mobileType !== WOLF_MOBILE;
   const h = foeSeed(f); // AUDIT MW-NPC C5: a seed that moved (a watchman's first number) is another look
-  if (f._mwLook && held && held.length === slots.length && f._mwLookSeed === h) {
+  if (f._mwLook && held && held.length === slots.length && f._mwLookSeed === h && f._mwLookSailor === sailor && f._mwLookWatch === watch && f._mwLookStyle === style && f._mwLookCityWatch === cityWatch) {
     let same = true;
     for (let i = 0; i < slots.length; i++)
       if (slots[i] !== held[i]) {
@@ -271,19 +324,30 @@ export function foeLook(f) {
         `${it.equipSlot}:${it.templateIndex}:${it.material ?? ''}:${it.dye ?? ''}:${it.variant ?? ''}:${it.ap ?? ''}`,
     )
     .join('|');
-  if (f._mwLook && f._mwLookKey === wornKey && f._mwLookSeed === h) return f._mwLook;
+  if (f._mwLook && f._mwLookKey === wornKey && f._mwLookSeed === h && f._mwLookSailor === sailor && f._mwLookWatch === watch && f._mwLookStyle === style && f._mwLookCityWatch === cityWatch) return f._mwLook;
   f._mwLookSeed = h;
+  f._mwLookSailor = sailor;
+  f._mwLookWatch = watch;
+  f._mwLookCityWatch = cityWatch;
+  f._mwLookStyle = style;
   const bay = bayPerson(h),
     faceIndex = bay.faceIndex;
   const race = ORC_MOBILES.has(f.mobileType) ? 'Orc' : (modRace(f.mobileType) ?? personRace(f, h, bay.race)); // MWNPC12: an orc in Morrowind's Orc body; DEX7: a mod's person in its row's race
   const gender = f.gender === 'female' ? 'female' : 'male';
+  const watchNpc = watch ? { ...npcHint(watch.seed ?? h, 0), watchTown: watch.town,
+    faceSpriteArchive: watch.faceSpriteArchive } : null;
   f._mwLookKey = wornKey;
   return (f._mwLook = {
-    race,
+    race: watch?.race ?? race,
     gender,
     faceIndex,
-    items: clothesUnder([...worn], FOE_WARDROBE[gender], h),
-    npc: npcHint(h, 0),
+    ...(sailor ? sailorDress(worn, gender, h) : {
+      items: cityWatch
+        ? [...cityWatchUniform(), ...worn.filter(it => it.equipSlot === EQUIP_SLOTS.RightHand || it.equipSlot === EQUIP_SLOTS.LeftHand)]
+        : clothesUnder([...worn], FOE_WARDROBE[gender], h, style),
+      npc: watchNpc ?? enemyHint(h, f.mobileType, style, race),
+    }),
+    ...(style ? { npcFrame: enemyFrame(style, h) } : {}),
     ...(VAMPIRE_MOBILES.has(f.mobileType) ? { vampire: true } : {}),
     ...(f.mobileType === WOLF_MOBILE ? { wolf: true } : {}),
   }); // MWNPC14: a vampire's face; MWNPC15: a werewolf's beast; MWNPC17: the seed every machine shares, so the copy is the same man
@@ -420,9 +484,15 @@ export function foeActor(f, id = foeId(f), { scale = 1 } = {}) {
     f._mwHits = ((f._mwHits | 0) + 1) & 0xffff;
   }
   const swings = (f._atkA | 0) >> 1;
+  const person = isPersonFoe(f);
+  const look = person ? foeLook(f) : creatureLook(f);
+  const ranged = !!(f._atkA & 1);
+  const bowFoe = person && (ranged || f.ai.hasBowAttack);
   return {
     id,
-    look: isPersonFoe(f) ? foeLook(f) : creatureLook(f), // MWNPC9: a creature's is its Morrowind creature; MWNPC12: an orc a person's
+    ...(f.companion != null ? { enemy: false } : {}),
+    look,
+    ...(!f.dead && (look?.swims || look?.glides) && Number.isFinite(f.idleH) ? { centerLift: f.idleH / 2 } : {}),
     // AUDIT MW-NPC D1: the dead where the corpse lies - every host lays it on the floor below (C12: a flyer dies mid-air;
     // the dungeon's corpsePos, the marker's pos outdoors, carried by a deck that moves) - never the air it died in
     feet: f.dead ? (f.corpsePos ?? f.corpseMarker?.pos ?? f.ai.feet) : f.ai.feet,
@@ -431,6 +501,9 @@ export function foeActor(f, id = foeId(f), { scale = 1 } = {}) {
     moving: !!f.ai.moving,
     running: !!f.ai.moving && f.ai.giveUpTimer > 0, // pursuing (EnemyMotor's GiveUpTimer running): a Morrowind NPC runs at its foe
     drawn: true, // a class foe's weapon is out - Daggerfall's foes never sheathe
+    // Enemy bow attacks supply their own arrows without drawing from the foe's loot inventory.
+    ammo: !!bowFoe,
+    ...(bowFoe && swings ? { attackMode: ranged ? 'bow' : 'melee' } : {}),
     swings,
     strike: 1 + (swings % 6), // POSE_STRIKES 1..6: down, down-left, left, right, down-right, up
     casts: f._castN | 0,
@@ -441,13 +514,12 @@ export function foeActor(f, id = foeId(f), { scale = 1 } = {}) {
 }
 
 /** MWNPC10: the classes that go in steel when no equip table says what they wear - the knight, the warrior, the
- *  spellsword, the watch (the watch helmed, as the street's guard is). */
+ *  spellsword. The city watch uses its own uniform. */
 /** @type {Set<number>} */
 const STEEL_CLASSES = new Set([
   MOBILE_TYPES.Knight,
   MOBILE_TYPES.Warrior,
   MOBILE_TYPES.Spellsword,
-  MOBILE_TYPES.Knight_CityWatch,
 ]);
 const STEEL_PLATE = Object.freeze([
   ['ChestArmor', 'Cuirass'],
@@ -528,15 +600,15 @@ function orcKit(mobileType, h) {
  * its armour in their dyes, and steel for the classes that go in it (the watch helmed) - MWNPC10c: and its class's
  * blade in its hand (`rosterBlade`), and `race` its own where the caller knows it (a living world's resident). Kept on
  * `rec` while the mobile, gender, seed and race hold - one build for its life.
- * @param {any} rec @param {{ mobileType: number, gender?: string, seed?: number, race?: string, home?: string|null }} o
+ * @param {any} rec @param {{ mobileType: number, gender?: string, seed?: number, race?: string, home?: string|null, person?: number, enemy?: boolean }} o
  */
-export function rosterLook(rec, { mobileType, gender = 'male', seed = 0, race = undefined, home = undefined }) {
+export function rosterLook(rec, { mobileType, gender = 'male', seed = 0, race = undefined, home = undefined, person = undefined, enemy = false }) {
   if (
     rec._mwRosterMob === mobileType &&
     rec._mwRosterG === gender &&
     rec._mwRosterSeed === seed &&
     rec._mwRosterRace === race &&
-    rec._mwRosterHome === home
+    rec._mwRosterHome === home && rec._mwRosterPerson === person && rec._mwRosterEnemy === enemy
   )
     return rec._mwRosterLook; // no key built a frame
   rec._mwRosterMob = mobileType;
@@ -544,6 +616,8 @@ export function rosterLook(rec, { mobileType, gender = 'male', seed = 0, race = 
   rec._mwRosterSeed = seed;
   rec._mwRosterRace = race;
   rec._mwRosterHome = home;
+  rec._mwRosterPerson = person;
+  rec._mwRosterEnemy = enemy;
   const orc = ORC_MOBILES.has(mobileType); // MWNPC12: a person, never a creature
   const vampire = VAMPIRE_MOBILES.has(mobileType); // MWNPC14: and a vampire
   const wolf = mobileType === WOLF_MOBILE; // MWNPC15: and a werewolf
@@ -551,12 +625,14 @@ export function rosterLook(rec, { mobileType, gender = 'male', seed = 0, race = 
   if (mod?.sprite) return (rec._mwRosterLook = null);
   if (!orc && !vampire && !wolf && !mod && !isClassEnemyId(mobileType))
     return (rec._mwRosterLook = creatureLook({ mobileType }));
-  const h = mix((seed >>> 0) ^ mix((mobileType | 0) + 0x9e3779b9));
-  const bay = bayPerson(h, race ? null : home === undefined ? folkHere() : folkOfKey(home)); // AUDIT PROVINCE-FOLK A3: `home` a roster's own people (provinceFolk.js folkOfKey - a ship's waters'; null the Bay's), else the place's
+  const h = person ?? mix((seed >>> 0) ^ mix((mobileType | 0) + 0x9e3779b9));
+  const bay = bayPerson(h, race || person != null ? null : home === undefined ? folkHere() : folkOfKey(home)); // AUDIT PROVINCE-FOLK A3: `home` a roster's own people (provinceFolk.js folkOfKey - a ship's waters'; null the Bay's), else the place's
   const g = gender === 'female' ? 'female' : 'male';
   const items = /** @type {any[]} */ (
     orc ? orcKit(mobileType, h) : vampire || wolf || (mod && !isClassEnemyId(mobileType)) ? [] : [rosterBlade(h)]
   ); // MWNPC14: a vampire's claws are its own; DEX7: and a mod's monster's (SetEnemyCareer's table arms none - equipmentVariantFor)
+  const cityWatch = mobileType === MOBILE_TYPES.Knight_CityWatch;
+  if (cityWatch) items.push(...cityWatchUniform());
   if (STEEL_CLASSES.has(mobileType)) {
     for (const [slot, piece] of STEEL_PLATE)
       items.push({
@@ -565,20 +641,16 @@ export function rosterLook(rec, { mobileType, gender = 'male', seed = 0, race = 
         equipSlot: EQUIP_SLOTS[slot],
         material: ARMOR_MATERIAL.Steel,
       }); // steel (MWNPC12: by mwArmorRecords' own table)
-    if (mobileType === MOBILE_TYPES.Knight_CityWatch)
-      items.push({
-        templateIndex: ARMOR_ENUM.Helm,
-        group: 'Armor',
-        equipSlot: EQUIP_SLOTS.Head,
-        material: ARMOR_MATERIAL.Steel,
-      });
   }
+  const style = enemy || orc || vampire ? foeAppearanceOf.get(mobileType) : null;
+  const bodyRace = orc ? 'Orc' : (mod?.race ?? race ?? bay.race);
   return (rec._mwRosterLook = {
-    race: orc ? 'Orc' : (mod?.race ?? race ?? bay.race),
+    race: bodyRace,
     gender: g,
     faceIndex: bay.faceIndex,
-    items: clothesUnder(items, FOE_WARDROBE[g], h),
-    npc: npcHint(h, 0),
+    items: cityWatch ? items : clothesUnder(items, FOE_WARDROBE[g], h, style),
+    npc: enemyHint(h, mobileType, style, bodyRace),
+    ...(style ? { npcFrame: enemyFrame(style, h) } : {}),
     ...(vampire ? { vampire: true } : {}),
     ...(wolf ? { wolf: true } : {}),
   }); // MWNPC17

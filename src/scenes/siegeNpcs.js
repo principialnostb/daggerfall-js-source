@@ -90,7 +90,7 @@ export function siegeNpcAct(n, now, look) {
  * @param {{ renderer?: any, getTexture?: ((archive: number) => Promise<any>)|null,
  *   uploadRecordFrame?: ((archive: number, record: number, frame: number) => void)|null, audio?: any,
  *   cam?: () => number[]|null, toScene?: (x: number, z: number) => number[]|null,
- *   wantBodies?: () => boolean, makeBodies?: (() => any)|null }} deps
+ *   watchTown?: () => number|null, wantBodies?: () => boolean, makeBodies?: (() => any)|null }} deps
  *   `toScene(x, z)` a point of the room's units as this scene's feet (its ground found), or null.
  */
 export function createSiegeNpcs({
@@ -99,6 +99,7 @@ export function createSiegeNpcs({
   uploadRecordFrame = null,
   audio = null,
   cam = () => null,
+  watchTown = () => null,
   toScene = () => null,
   wantBodies = undefined,
   makeBodies = null,
@@ -269,8 +270,15 @@ export function createSiegeNpcs({
       bodiesLane.frame();
       for (const b of bodies.values()) {
         if (!b.shown || !b.batch) continue;
-        const look = rosterLook(b, { mobileType: b.look.mobile, gender: 'male', seed: b.seed });
-        if (!look) continue;
+        const classLook = rosterLook(b, { mobileType: b.look.mobile, gender: 'male', seed: b.seed, enemy: b.look.mobile !== KNIGHT_CITY_WATCH });
+        if (!classLook) continue;
+        const town = b.look.mobile === KNIGHT_CITY_WATCH ? watchTown() : null;
+        if (town != null && (b.watchLookSource !== classLook || b.watchLookTown !== town)) {
+          b.watchLookSource = classLook;
+          b.watchLookTown = town;
+          b.watchLook = { ...classLook, npc: { ...classLook.npc, watchTown: town } };
+        }
+        const look = town == null ? classLook : b.watchLook;
         bodiesLane.offer(
           rosterActor(b, {
             id: b.id,
@@ -282,6 +290,7 @@ export function createSiegeNpcs({
             hitKey: b.down ? null : b.hurtAt, // `atk` 0 is no attack
             dead: b.down ? 1 + (b.seed % 3) : 0,
             scale: b.look.scale,
+            enemy: b.look.mobile !== KNIGHT_CITY_WATCH,
           }),
           b.batch,
         );

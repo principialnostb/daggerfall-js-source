@@ -1,9 +1,10 @@
 import { enhancedAxeRecord } from '../../characters/ownModels/enhancedBattleaxe.js';
 import { bindElbowSkin } from '../../characters/bodyMotion/elbowSkin.js';
 import { configureEquipmentFit, poseEquipmentMorph } from './mwEquipmentFit.js';
+import { fitThighPlates, tuckTrouserCuffs } from './mwBootFit.js';
 import { preserveOwnedPose } from './mwPoseContinuity.js';
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
-// THE DIAGNOSTIC, and it deliberately draws nothing.
+// MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
 //
 // The Morrowind import arc was reverted whole on 2026-08-28 after three
 // "fixes" that all failed. Every one failed the same way: a rule was
@@ -1886,6 +1887,7 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
       record: chosen,
       ...(earRecord ? { earRecord } : {}),
       ...(slot === 'hair' && walk?.face === 'bald' && !beast ? { earsOnly: true } : {}),
+      ...(slot === 'hair' && walk?.face === 'bald' && !beast ? { earsOnly: true } : {}),
       ...(slot === 'hair' && how?.startsWith('selected') ? { splitHair: true } : {}),
       verdict: chosen ? (how ? `third-person record found, ${how}` : 'third-person record found') : 'NOTHING for this slot',
       counts: { all: sorted.length },   // AUDIT MW-HEADS1 (L2-F7): the pool chosen among - the port's own where it stands
@@ -3093,13 +3095,19 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
     }
   }
   fitPieces(pieces);   // POSE-LAB: a tool's fit of a piece, the CPU skin's half
-  if (geometryMorph && Object.values(geometryMorph).some((value) => Math.abs(Number(value) || 0) > 1e-6)) {
+  const morphed = geometryMorph && Object.values(geometryMorph).some((value) => Math.abs(Number(value) || 0) > 1e-6);
+  if (morphed) {
     poseEquipmentMorph(pieces, geometryMorph, { skeleton, pose, mats, skinBatch: fns.skinBatch });
   }
   assembly.pose = pose;
   // The rig-space transform of every node, kept so rule 54 can read the
   // camera node's translation without re-posing the skeleton.
   assembly.mats = mats;
+  if (morphed && assembly.legWear?.length) {
+    const options = { poseOnly: true };
+    tuckTrouserCuffs(assembly, assembly.legWear, options);
+    fitThighPlates(assembly, assembly.legWear, options);
+  }
   assembly.time = time;
   // AUDIT MW-CLOAK: what the assembly's owner places after every piece is posed - the stowed gear that goes with the
   // cloak (formats/morrowind/mwCloakFit.js followCloak), which reads the cloak where this pose just put it

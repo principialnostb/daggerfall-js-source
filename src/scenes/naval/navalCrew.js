@@ -20,7 +20,7 @@ import { createCrewLife, CREW_MUSTER_M } from '../../systems/naval/crewLife.js';
 import { createPersonTextureKeys } from '../townScratch.js';
 import { createPopulationLane } from '../../characters/npcBodies.js';
 import { rosterLook } from '../../characters/foeBodies.js';
-import { rosterActor } from '../../characters/rosterBodies.js'; // MWNPC10: the crews in their Morrowind bodies
+import { crewWorkLook, rosterActor } from '../../characters/rosterBodies.js'; // MWNPC10: the crews in their Morrowind bodies
 
 /** Her main deck's level - the deck's own (navalDeck.js), read here by the suites as it always was. */
 export { mainLevel };
@@ -213,10 +213,12 @@ export function createNavalCrew({
           held: !!w.hold,
           seed: w.seed | 0,
           home: w.home ?? null,
+          faction: w.faction ?? null,
         }; // MWNPC10: her seed, her hands' looks; AUDIT PROVINCE-FOLK A3: her waters' people (none: the Bay's)
         for (const m of life.members) ship.sprites.set(m, sprite(m));
         ships.set(w.key, ship);
       }
+      ship.faction = w.faction ?? null;
       ship.battle = !!w.battle;
       ship.struck = !!w.struck; // AUDIT NAV2 F46: her colours down - no song, no talk
       ship.mine = w.mine ?? null; // SHIP-CREW: a boat of the player's - her crew's order, spirits and lines (navalHost myCrew)
@@ -310,13 +312,25 @@ export function createNavalCrew({
       for (const [m, s] of ship.sprites) {
         i++;
         if (!s?.batch || !s.unit || m.below) continue; // turned in below her deck: kept, not drawn (a gone hand's sprite is already dropped)
-        const look = rosterLook(s, {
+        const pirate = ship.faction === 'pirate';
+        const classLook = rosterLook(s, {
           mobileType: m.mobile,
           gender: m.gender,
           seed: Math.imul((ship.seed | 0) + i, 0x9e3779b1) >>> 0,
           home: ship.home,
+          person: m.person,
+          enemy: pirate,
         });
-        if (!look) continue;
+        if (!classLook) continue;
+        const merchant = ship.faction === 'merchant';
+        const workwear = merchant || ship.faction == null;
+        const colors = merchant ? (Math.imul(ship.seed ^ (ship.seed >>> 16), 0x45d9f3b) >>> 0) % 4 : null;
+        if (workwear && (s.workLookSource !== classLook || s.workLookColors !== colors)) {
+          s.workLookSource = classLook;
+          s.workLookColors = colors;
+          s.workLook = crewWorkLook(classLook, colors);
+        }
+        const look = workwear ? s.workLook : classLook;
         bodiesLane.offer(
           rosterActor(s, {
             id: s.id,
@@ -325,6 +339,7 @@ export function createNavalCrew({
             yaw: s.yaw,
             moving: !!m.moving,
             swingKey: s.swings || null,
+            enemy: pirate,
           }),
           s.batch,
           ship.boat.conceal ?? null,

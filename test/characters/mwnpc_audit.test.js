@@ -23,6 +23,8 @@ import { createExteriorFoes } from '../../src/scenes/exteriorFoes.js';
 import { PeerBodies } from '../../src/net/peer/peerBodies.js';
 import { ENEMY_BASICS } from '../../src/characters/enemy/enemyBasics.js';
 
+import { getPref, setPref } from '../../src/systems/uiPrefs.js';
+
 const rd = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const close = (a, b, tol = 2e-5) => Math.abs(a - b) <= tol * (1 + Math.abs(b));
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -93,6 +95,37 @@ test('AUDIT MW-NPC A1 (MWNPC2\'s law, for the veiled): every concealed or spectr
   assert.ok(log.every((d) => d.batched));
   lane.destroy();
 });
+
+
+test('Enhanced character cards independently stand their populations or return them to billboards', async () => {
+  const lane = stubLane(batchingRenderer(), []);
+  const look = creatureLook({ mobileType: M.SkeletalWarrior });
+  const actors = [
+    ['foe', { id: 'foe', look, feet: [0, 0, -3] }],
+    ['watch', { id: 'watch', look, feet: [1, 0, -3] }],
+    ['foe', { id: 'companion', look, feet: [2, 0, -3], enemy: false }],
+  ];
+  const previous = ['enhancedEnemies', 'enhancedNpcs'].map(getPref);
+  try {
+    for (const [enemies, npcs] of [[true, true], [false, true], [true, false], [false, false], [true, true]]) {
+      setPref('enhancedEnemies', enemies);
+      setPref('enhancedNpcs', npcs);
+      for (let frame = 0; frame < 12; frame++) {
+        lane.begin();
+        for (const [slot, actor] of actors) lane.stand(slot, actor);
+        lane.end(1 / 60, [0, 0, 0]);
+        await flush();
+      }
+      lane.draw({}, { proj: null, view: null, eye: [0, 0, 0] });
+      assert.deepEqual(actors.map(([slot, actor]) => lane.has(slot, actor.id)), [enemies, npcs, npcs]);
+    }
+  } finally {
+    setPref('enhancedEnemies', previous[0]);
+    setPref('enhancedNpcs', previous[1]);
+    lane.destroy();
+  }
+});
+
 
 /** the encounter pool over a lane that records its offers and stands what it is told (mwnpc5_pool's shape) */
 const stubTex = { getSize: () => ({ width: 64, height: 100 }), getScale: () => ({ width: 0, height: 0 }), recordCount: 8 };

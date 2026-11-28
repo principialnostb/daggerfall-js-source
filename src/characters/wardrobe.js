@@ -193,16 +193,18 @@ export const WARDROBE_ROLES = Object.freeze({
     cloak: 0.6,
     formal: 0.05,
     male: {
+      robe: { w: 30, robe: [M.plainRobes], feet: [M.boots] },
       pants: {
-        w: 100,
+        w: 70,
         top: [...M.longShirts, M.shortTunic, M.openTunic, M.vest],
         legs: [M.breeches, M.casualPants],
         feet: [M.tallBoots, M.tallBoots, M.boots],
       },
     },
     female: {
+      robe: { w: 25, robe: [W.plainRobes], feet: [W.boots] },
       pants: {
-        w: 75,
+        w: 50,
         top: [...W.longShirts, W.vest, W.openTunic],
         legs: [W.casualPants, W.tights],
         feet: [W.tallBoots, W.tallBoots, W.boots],
@@ -558,10 +560,7 @@ export function npcHintOf(look) {
 /** The key a hint adds to a body's (net/peer/peerBodies.js peerBodyKey): two people in the same garments are two bodies. */
 export const npcKeyOf = (look) => {
   const n = npcHintOf(look);
-  if (!n) return '';
-  const appearance = [n.role, n.cut, n.spriteArchive, n.faceSpriteArchive, n.fabric, n.hairColor, n.face];
-  const detail = appearance.some(value => value != null) ? '|' + appearance.join('/') : '';
-  return `|npc${n.seed}.${n.tier}.${n.lo}${n.hi}${detail}`;
+  return n ? `|npc${n.seed}.${n.tier}.${n.lo}${n.hi}${n.role ? '|' + n.role + '.' + n.cut : ''}${n.spriteArchive ? '|flat' + n.spriteArchive : ''}${n.faceSpriteArchive ? '|portrait' + n.faceSpriteArchive : ''}${n.sailorColors != null ? '|ship' + n.sailorColors : ''}${n.enemyCut ? '|enemy' + n.enemyCut : ''}${n.spriteKit != null ? '|kit' + n.spriteKit : ''}${n.watchTown != null ? '|watch' + n.watchTown : ''}${n.sailorTemplates ? '|work' + n.sailorTemplates.join(',') : ''}${n.fabric || n.hairColor || n.face ? '|' + [n.fabric, n.hairColor, n.face].join('/') : ''}` : '';
 };
 
 /**
@@ -604,6 +603,33 @@ function clothierSet(n, race) {
   const h = wmix(n.seed ^ 0x734b);
   const variant = (letters) => letters[h % letters.length];
   const { Shirt, Pants, Shoes, Skirt, Robe } = MW_CLOTHING_TYPE;
+  if (n.enemyCut) {
+    // Select coordinated colorways from Westly's Fine Clothiers, including
+    // the layers that show around armor.
+    const palettes = {
+      orc: [['06b', '07a'], ['02d', '03c'], ['01a', '01e']],
+      orcShaman: [['04a', '08b'], ['02b', '03e'], ['01a', '01e']],
+      raider: [['06a', '07a'], ['02a', '03f'], ['01a', '01e']],
+      soldier: [['03b', '09a'], ['02a', '03e'], ['01b', '01e']],
+      arcane: [['04a', '08a'], ['02c', '03e'], ['01b', '01e'], ['mlsnd_robe_02', 'mlsnd_robe_02z']],
+      scout: [['04b', '11g'], ['03d', '03e'], ['01b', '01e']],
+      ranger: [['05a', '06b'], ['02d', '03f'], ['01a', '01e']],
+      traveller: [['06a', '09a'], ['02a', '03a'], ['01a', '01e']],
+      vampire: [['11e', '04a'], ['02b', '03e'], ['01b', '01e']],
+    };
+    const cloth = Object.hasOwn(palettes, n.enemyCut) ? palettes[n.enemyCut] : null;
+    if (cloth) {
+      const [tops, trousers, boots, robes] = cloth;
+      const top = variant(tops);
+      return { [Shirt]: 'misc_shirt' + top, [Skirt]: 'misc_skirt' + top,
+        [Pants]: 'misc_trsrs_' + variant(trousers), [Shoes]: 'misc_boots_' + variant(boots),
+        ...(robes ? { [Robe]: variant(robes) } : {}) };
+    }
+  }
+  if (n.watchTown != null) {
+    const [shirt, trousers] = [['05a', '02d'], ['06a', '02a'], ['08a', '02c'], ['09a', '02b']][wmix(n.watchTown) % 4];
+    return { [Shirt]: 'misc_shirt' + shirt, [Pants]: 'misc_trsrs_' + trousers };
+  }
   const sprite = SPRITE_CLOTHING[n.spriteArchive];
   if (sprite?.robe) return { [Robe]: variant(sprite.robe), [Shoes]: 'mlsnd_boot_02' };
   if (sprite?.shirt) return {
@@ -611,6 +637,11 @@ function clothierSet(n, race) {
     [Shoes]: 'highelf_boot_01' + variant('abcd'),
     ...(sprite.skirt ? { [Skirt]: 'misc_skirt' + variant(sprite.skirt) } : {}),
     ...(sprite.pants ? { [Pants]: 'misc_trsrs_' + variant(sprite.pants) } : {}),
+  };
+  if (n.role === 'sailor') return {
+    [Shirt]: 'misc_shirt' + (n.sailorColors == null ? variant(['05a', '06a', '08a', '09a'])
+      : variant([['05a', '06b'], ['06a', '09a'], ['08a', '02b'], ['09a', '07b']][n.sailorColors & 3])),
+    [Pants]: 'misc_trsrs_' + variant(['02a', '02c', '03a', '03f']), [Shoes]: 'highelf_boot_01' + variant('abcd'),
   };
   if (n.fabric === 'greenApron') return { [Shirt]: 'misc_shirt05a', [Pants]: 'blacksmith_apron01', [Shoes]: 'misc_boots_01b' };
   if (n.fabric === 'blueRust') return { [Shirt]: 'misc_shirt09a', [Skirt]: 'misc_skirt08a', [Shoes]: 'highelf_boot_01a' };
@@ -664,11 +695,15 @@ function clothierSet(n, race) {
 
 /** Civilian clothes use the same set throughout a look. Missing plugin records resolve through the normal dye and tier. */
 export function withNpcPicks(worn, n, race = '') {
-  const set = (n.role === 'smith' || Object.hasOwn(WARDROBE_ROLES, n.role)) ? clothierSet(n, race) : {};
+  const set = (n.enemyCut || n.watchTown != null || n.role === 'smith' || n.role === 'sailor' || Object.hasOwn(WARDROBE_ROLES, n.role)) ? clothierSet(n, race) : {};
+  // Westly's trousers can leave an open seam between greaves and boots.
+  const wearsGreaves = n.enemyCut && worn.some(piece => piece.kind === 'armor' && piece.templateIndex === ARMOR_ENUM.Greaves);
   return worn.map(piece => {
     if (piece.kind !== 'clothing') return piece;
+    const useSet = n.role !== 'sailor' || n.sailorTemplates?.includes(piece.templateIndex);
     const type = DF_CLOTHING_ROWS[piece.name]?.type;
-    const record = !piece.mwRecord && !piece.name?.endsWith('Cloak') && set[type];
+    const record = useSet && !piece.mwRecord && !piece.name?.endsWith('Cloak') &&
+      !(wearsGreaves && type === MW_CLOTHING_TYPE.Pants) && set[type];
     return { ...piece, ...npcGarmentPick(n, piece), ...(record ? { mwRecord: 'war_' + record } : {}) };
   });
 }
@@ -709,10 +744,18 @@ export function dressFlatPerson({ role, gender, seed, caption = '', archive = 0,
   return { ...dress, npc: { ...dress.npc, fabric: paintedFabric ?? fabric?.[1] ?? fabric?.[2] ?? null, hairColor: hair, face } };
 }
 
-/** @param {{ role?: string, gender?: string, seed: number, cut?: string|null }} o */
+/** A sailor's clothing fills empty slots so equipment and appearance overrides can travel with them. */
+export function sailorDress(items, gender, seed) {
+  const dress = dressPerson({ role: 'sailor', gender, seed, cut: 'pants' });
+  const occupied = new Set(items.map(item => item.equipSlot));
+  const clothes = dress.items.filter(item => !occupied.has(item.equipSlot));
+  return { items: [...items, ...clothes], npc: { ...dress.npc, sailorTemplates: clothes.map(item => item.templateIndex) } };
+}
+
 export function dressPerson({ role = 'commoner', gender = 'male', seed, cut = null }) {
-  const name = Object.prototype.hasOwnProperty.call(WARDROBE_ROLES, role) ? role : 'commoner';
-  const R = WARDROBE_ROLES[role === 'smith' ? 'tradesman' : name];
+  const wardrobeRole = role === 'smith' || role === 'sailor' ? 'tradesman' : role;
+  const name = Object.hasOwn(WARDROBE_ROLES, wardrobeRole) ? wardrobeRole : 'commoner';
+  const R = WARDROBE_ROLES[name];
   const female = gender === 'female';
   const C = female ? R.female : R.male;
   const group = female ? 'WomensClothing' : 'MensClothing';
@@ -770,7 +813,7 @@ export function dressPerson({ role = 'commoner', gender = 'male', seed, cut = nu
   // the feet: the armour's boots where the kit gave them (one slot - Daggerfall's Feet), else the cut's shoes
   if (!armor.some((it) => it.equipSlot === EQUIP_SLOTS.Feet))
     items.push({ templateIndex: pickOf(S.feet, wmix(s ^ 0xc3)), group, equipSlot: EQUIP_SLOTS.Feet, dye: dye(0xd3) });
-  if (chance(R.cloak, wmix(s ^ 0xc10a))) {
+  if (!(name === 'traveller' && k === 'robe') && chance(R.cloak, wmix(s ^ 0xc10a))) {
     const formal = chance(R.formal, wmix(s ^ 0xf0a1));
     const cloak = female ? (formal ? W.formalCloak : W.casualCloak) : formal ? M.formalCloak : M.casualCloak;
     items.push({
@@ -781,7 +824,7 @@ export function dressPerson({ role = 'commoner', gender = 'male', seed, cut = nu
     });
   }
   items.push(...armor);
-  return { items, npc: { ...npcHint(s, tier, lo, hi), role: role === 'smith' ? 'smith' : name, cut: k }, role: name, cut: k, tier };
+  return { items, npc: { ...npcHint(s, tier, lo, hi), role: role === 'smith' || role === 'sailor' ? role : name, cut: k }, role: name, cut: k, tier };
 }
 
 /**

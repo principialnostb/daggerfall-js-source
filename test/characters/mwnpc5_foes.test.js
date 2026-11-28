@@ -9,6 +9,9 @@ import assert from 'node:assert/strict';
 import { FOE_RACES, FOE_WARDROBE, foeSeed, foeLook, foeActor, foeFx, foeId, isClassFoe } from '../../src/characters/foeBodies.js';
 import { EQUIP_SLOTS } from '../../src/systems/equip.js';
 import { createEquipTable } from '../../src/characters/equipTable.js';
+import { npcShown } from '../../src/characters/npcBodies.js';
+import { WEAPONS_ENUM as W } from '../../src/combat/enemyEquipment.js';
+import { PeerBodies, peerWeaponOf } from '../../src/net/peer/peerBodies.js';
 
 const foe = ({ mobileType = 130, marker = [3, 0, 7], gender = 'male', slots = {}, ai = {}, ...rest } = {}) => {
   const equip = createEquipTable();
@@ -77,6 +80,37 @@ test('MWNPC5b-1 the class foe alone; its look - the same foe the same person, th
   assert.equal(foeLook(f), l2, 'the same wear: the same look');
 });
 
+test('NPC blows wait for the weapon matching the streamed ranged bit', () => {
+  const sword = { templateIndex: W.Longsword, group: 'Weapons', material: 0 };
+  const f = foe({ slots: { RightHand: sword }, ai: { hasBowAttack: true } });
+  const events = [];
+  let settled = false;
+  const arm = new PeerBodies({ renderer: null });
+  const state = { weapon: peerWeaponOf(foeLook(f)), ammo: 1, swing: 0, cast: 0, rig: {
+    upperBodyReady: () => settled,
+    setWeapon: (weapon, { hasAmmo }) => { events.push(['equip', weapon.templateIndex, hasAmmo]); },
+    attack: () => { events.push(['attack', state.weapon.templateIndex]); return true; },
+  } };
+  const step = () => { const a = foeActor(f); arm._arm(state, npcShown(a), a.look); };
+  f._atkA = 3;
+  step();
+  assert.deepEqual(events, [], 'the new shot waits for the sword action to finish');
+  settled = true;
+  step();
+  f._atkA = 4;
+  step();
+  assert.deepEqual(events, [['equip', W['Short Bow'], true], ['attack', W['Short Bow']],
+    ['equip', W.Longsword, true], ['attack', W.Longsword]]);
+
+  const archer = foe({ ai: { hasBowAttack: true }, slots: { RightHand: {
+    templateIndex: W['Long Bow'], group: 'Weapons', material: 1,
+  } } });
+  archer._atkA = 3;
+  assert.equal(peerWeaponOf(foeLook(archer), npcShown(foeActor(archer))).templateIndex, W['Long Bow']);
+  archer._atkA = 4;
+  assert.equal(peerWeaponOf(foeLook(archer), npcShown(foeActor(archer))).templateIndex, W.Shortsword);
+});
+
 test('MWNPC5b-2 the actor: the stride (a run only in pursuit), a swing per new attack count, a cast per cast, a recoil per hit the flash marked, a death off its seed', () => {
   const f = foe({ seq: 41, ai: { moving: true, giveUpTimer: 0 } });
   let a = foeActor(f);
@@ -91,6 +125,9 @@ test('MWNPC5b-2 the actor: the stride (a run only in pursuit), a swing per new a
   f.ai.moving = false;
   assert.equal(foeActor(f).running, false, 'standing: neither');
   assert.equal(a.drawn, true);
+  assert.equal(npcShown(a).am, undefined);
+  const bowFoe = foe({ ai: { hasBowAttack: true } });
+  assert.equal(npcShown(foeActor(bowFoe)).am, 1, 'the 3D bow has arrows even with an empty loot inventory');
   assert.equal(a.swings, 0);
   f._atkA = (3 << 1) | 1;   // three blows, the last ranged
   a = foeActor(f);

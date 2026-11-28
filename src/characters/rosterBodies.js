@@ -8,7 +8,7 @@
 // characters/creatureBodies.js; a person's).
 import { rosterLook } from './foeBodies.js';
 import { folkLookOf } from './folkBodies.js';
-import { dressFlatPerson } from './wardrobe.js'; // MWNPC17: a still picture's kind, dressed by its role
+import { dressFlatPerson, sailorDress } from './wardrobe.js'; // MWNPC17: a still picture's kind, dressed by its role
 import { textSeed } from '../systems/livingWorld/seed.js';
 
 /** A key a host changed: a finite number or a string is one; null, undefined and NaN are none. */
@@ -22,7 +22,7 @@ const keyOf = (k) => (typeof k === 'string' || Number.isFinite(k) ? k : null);
  * clothes carries nothing to draw).
  * @param {any} rec
  * @param {{ id: any, look: any, feet: number[], yaw: number, moving?: boolean, running?: boolean, swingKey?: any,
- *   hitKey?: any, dead?: number, scale?: number, drawn?: boolean }} o
+ *   hitKey?: any, dead?: number, scale?: number, drawn?: boolean, enemy?: boolean }} o
  */
 export function rosterActor(
   rec,
@@ -38,6 +38,7 @@ export function rosterActor(
     dead = 0,
     scale = 1,
     drawn = true,
+    enemy,
   },
 ) {
   const a = (rec._mwActor ??= {
@@ -61,6 +62,7 @@ export function rosterActor(
   a.feet = feet;
   a.yaw = Number.isFinite(yaw) ? yaw : 0;
   a.drawn = !!drawn;
+  a.enemy = enemy;
   a.moving = !!moving;
   a.running = !!moving && !!running;
   const sk = keyOf(swingKey),
@@ -101,17 +103,18 @@ export const STILL_WARDROBE = Object.freeze({
  * are drawn (never a walker's per-spawn roll). `rec` keeps what it reads - the sprites ask once a body.
  * AUDIT MW-NPC II K1: what the sprite wears NOW is the caller's - `cls` the class it is armed in (default the
  * resident's own), `guard` the watch's uniform on (his own clothes off it), `still` a still picture.
- * @param {any} rec @param {any} res @param {{ still?: boolean, cls?: number|null, guard?: boolean, caption?: string }} [o]
+ * @param {any} rec @param {any} res @param {{ still?: boolean, cls?: number|null, guard?: boolean, caption?: string, watchTown?: number|null, enemy?: boolean }} [o]
  */
-export function residentLook(rec, res, { still = false, cls = res.cls, guard = false, caption = '' } = {}) {
+export function residentLook(rec, res, { still = false, cls = res.cls, guard = false, caption = '', watchTown = null, enemy = false } = {}) {
   const seed = textSeed(String(res.id));
-  if (cls != null)
-    return rosterLook(rec, { mobileType: cls, gender: res.sex === 'female' ? 'female' : 'male', seed, race: res.race });
+  if (cls != null && !guard)
+    return rosterLook(rec, { mobileType: cls, gender: res.sex === 'female' ? 'female' : 'male', seed, race: res.race, enemy });
   const kind = res.job === 'smith' ? 'smith' : still ? STILL_WARDROBE[res.job] : undefined;
-  if (kind) {
+  if (kind && !guard) {
     const gender = res.sex === 'female' ? 'female' : 'male';
-    const d = dressFlatPerson({ role: kind, gender, seed, caption: caption || (kind === 'priest' ? 'robe' : '') }); // MWNPC17: their kind's role, off their own id's seed - a priest at the door in the robes his picture wears
-    return { race: res.race ?? 'Breton', gender, faceIndex: (seed >>> 0) % 10, items: d.items, npc: { ...d.npc, faceSpriteArchive: res.civvies ?? res.archive } };
+    const d = dressFlatPerson({ role: kind, gender, seed, caption: caption || (kind === 'priest' ? 'robe' : '') });
+    return { race: res.race ?? 'Breton', gender, faceIndex: (seed >>> 0) % 10, items: d.items,
+      npc: { ...d.npc, faceSpriteArchive: res.civvies ?? res.archive } };
   }
   return folkLookOf(
     {
@@ -119,10 +122,20 @@ export function residentLook(rec, res, { still = false, cls = res.cls, guard = f
       personFaceRecordId: res.face ?? 0,
       gender: res.gender ?? 0,
       guard,
+      faceSpriteArchive: res.civvies ?? res.archive,
     },
     res.race ?? 'Breton',
     seed,
+    watchTown,
   ); // WATCH-DAY: on duty in the uniform, off it in his own clothes, as his sprite is
+}
+
+/** Dress a friendly ship's hand in work clothes while carrying the class's equipment. */
+export function crewWorkLook(look, sailorColors = null) {
+  if (!look || look.creature || look.vampire || look.wolf || !look.npc) return look;
+  const equipment = look.items.filter(it => it.group !== 'MensClothing' && it.group !== 'WomensClothing');
+  const dress = sailorDress(equipment, look.gender, look.npc.seed);
+  return { ...look, ...dress, npc: { ...dress.npc, ...(sailorColors == null ? {} : { sailorColors }) } };
 }
 
 /**
@@ -140,19 +153,20 @@ export function residentLook(rec, res, { still = false, cls = res.cls, guard = f
  * dress changes. A BEGGAR's picture sits or lies at their pitch, and no body does: null - their picture stands.
  * @param {any} person @param {number[]} feet @returns {any} the actor, or null (the picture stands)
  */
-export function residentWalkerActor(person, feet, flats = null) {
+export function residentWalkerActor(person, feet, flats = null, watchTown = null) {
   const res = person.living.res;
   const role = person.stillLook ? (person.stillRole ?? null) : null;
   if (role === 'beggar') return null;
   const cls = person.stillLook ? null : (person.cls ?? null);
   const guard = !!person.guard;
   const still = !!person.stillLook;
+  const town = guard ? watchTown : null;
   let k = person._mwRes;
-  if (!k || k.res !== res || k.cls !== cls || k.guard !== guard || k.still !== still)
-    k = person._mwRes = { res, look: null, cls, guard, still }; // a compare a frame, no allocation
+  if (!k || k.res !== res || k.cls !== cls || k.guard !== guard || k.still !== still || k.town !== town)
+    k = person._mwRes = { res, look: null, cls, guard, still, town }; // a compare a frame, no allocation
   if (!k.look) {
     const flat = still ? flats?.getFlatData(person.stillLook.archive, person.stillLook.record) : null;
-    k.look = residentLook(k, res, { still, cls, guard, caption: flat?.caption });
+    k.look = residentLook(k, res, { still, cls, guard, caption: flat?.caption, watchTown: town });
   }
   return rosterActor(k, {
     id: `res:${res.id}`,

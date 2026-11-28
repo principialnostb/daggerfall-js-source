@@ -71,12 +71,13 @@ import { dfWornEquipment } from '../../formats/morrowind/mwItemMap.js';
 import { werewolfSkinOf } from '../../characters/werewolfSkin.js'; // SHADOW-FANG: a peer's wolf in the skin their signed glyphs name
 import { npcHintOf, npcKeyOf, withNpcPicks, npcFaceOf, WARDROBE_BEAST_RACES } from '../../characters/wardrobe.js'; // MWNPC17: an NPC's own garments, head and hair
 import { ownOutfitFor } from '../../characters/ownModels/ownClothingModels.js'; // MW-FOLK1: a townsperson's whole outfit
-import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';
+import { ARMOR_ENUM, WEAPONS_ENUM } from '../../combat/enemyEquipment.js';
 import { EQUIP_SLOTS } from '../../systems/equip.js';
 import { mwRaceId } from '../../formats/morrowind/mwNpc.js';
 import { CAPSULE_HEIGHT } from '../../player/motor.js';
 import { dissolveShadowless } from '../../systems/dissolve.js'; // AUDIT MWNPC16-18 R1: a body burnt more than half away casts none
 import { applyCosmeticItems, cosmeticBodyMorphs, cosmeticIdentityOptions } from '../cosmetics/identityOptions.js';
+import { enemySpriteKitOf } from '../../characters/enemySpriteKits.js';
 import { peerStubEntity, lookKey } from '../remotePlayers.js';
 import { POSE_STRIKES } from '../wire.js'; // MAC7 #1: the swing's kind, by the wire's index
 import { handDesc } from '../../combat/playerWeapon.js'; // AUDIT MIXED-PAIR L4-3: the look's hands, read as the local rig reads its own
@@ -278,8 +279,19 @@ const _stubSlots = new WeakMap(); // MW-CROWD: a look's stand-in's slots, once a
  *  metal) is a new weapon to the body; the template and the hand alone kept the old one, and its glow went out. */
 export const heldWeaponKey = (/** @type {any} */ it) =>
   it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|${appearanceSig(it)}|${it.__mwLook ?? ''}|${it.ownStyle ?? ''}` : '';
+const npcBow = Object.freeze({ group: 'Weapons', templateIndex: WEAPONS_ENUM['Short Bow'], material: 0, equipSlot: EQUIP_SLOTS.RightHand });
+const npcSidearm = Object.freeze({ group: 'Weapons', templateIndex: WEAPONS_ENUM.Shortsword, material: 0, equipSlot: EQUIP_SLOTS.RightHand });
+const isNpcBow = (item) => item?.group === 'Weapons' &&
+  (item.templateIndex === WEAPONS_ENUM['Short Bow'] || item.templateIndex === WEAPONS_ENUM['Long Bow']);
+
 export function peerWeaponOf(look, shown = null) {
-  return stubSlotsOf(look)[shown?.lh ? EQUIP_SLOTS.LeftHand : EQUIP_SLOTS.RightHand] ?? null;
+  const slots = stubSlotsOf(look);
+  const primary = slots[shown?.lh ? EQUIP_SLOTS.LeftHand : EQUIP_SLOTS.RightHand] ?? null;
+  if (!shown?.npcAttackMode) return primary;
+  const off = slots[EQUIP_SLOTS.LeftHand];
+  if (shown.npcAttackMode === 'bow') return isNpcBow(primary) ? primary : isNpcBow(off) ? off : npcBow;
+  if (!isNpcBow(primary)) return primary;
+  return off?.group === 'Weapons' && !isNpcBow(off) ? off : npcSidearm;
 }
 /** HAND-WRAPS (AUDIT C2): the glow a peer's fists wear - the first pair of Hand Wraps a fist wears, right then left
  *  (characters/handWrapsIds.js fistWrapsOf), whose look carries a glow word; else null. The hand in use is not asked. */
@@ -298,7 +310,20 @@ export function peerWrapsGlow(look) {
 function stubSlotsOf(look) {
   let slots = look && typeof look === 'object' ? _stubSlots.get(look) : null;
   if (!slots) {
-    slots = applyCosmeticItems(peerStubEntity(look).equip.slots, look?.cosmetic);
+    slots = peerStubEntity(look).equip.slots;
+    const spriteKit = enemySpriteKitOf(look, npcHintOf(look));
+    if (spriteKit) {
+      // Clothing kits without a weapon keep the hands from the actor's loadout.
+      const replacesHands = spriteKit.some(item => item.equipSlot === EQUIP_SLOTS.RightHand);
+      const right = slots[EQUIP_SLOTS.RightHand];
+      const left = slots[EQUIP_SLOTS.LeftHand];
+      slots.fill(null);
+      if (!replacesHands) {
+        slots[EQUIP_SLOTS.RightHand] = right;
+        slots[EQUIP_SLOTS.LeftHand] = left;
+      }
+      for (const item of spriteKit) slots[item.equipSlot] = item;
+    } else slots = applyCosmeticItems(slots, look?.cosmetic);
     if (look && typeof look === 'object') _stubSlots.set(look, slots);
   }
   return slots;
@@ -357,7 +382,7 @@ function wolfLookKey(look) {
  *  equip table tore the standing wolf down and built it again ten seconds on (a second refusal and warning, where it
  *  was refused). */
 export function peerBodyKey(look, shown = null, glyphs = null) {
-  if (look?.creature) return `crea|${look.creature}${look.flies ? '|flies' : ''}`; // MWNPC9: a creature is its record - every one of a kind one body, never a person's; AUDIT MW-NPC II K5: one asked to fly another
+  if (look?.creature) return `crea|${look.creature}${look.flies ? '|flies' : ''}${look.swims ? '|swims' : ''}${look.glides ? '|glides' : ''}`;
   if (look?.vampire && !peerIsWolf(shown)) return `vamp|${bodyLookKey(look)}`; // MWNPC14: a vampire's face is its own body - never a living look's spare
   return peerIsWolf(shown) ? `wolf|${wolfLookKey(look)}|${werewolfSkinOf(glyphs) ?? ''}` : bodyLookKey(look); // SHADOW-FANG: and the wolf's skin; MWNPC17: and an NPC's own picks (bodyLookKey) - two people in one outfit are two bodies
 }
@@ -379,7 +404,8 @@ function bodyLookKey(look) {
         ? lookKey({ ...look, items: items.filter((it) => it?.group !== 'Weapons') })
         : lookKey(look)) +
       npcKeyOf(look) +
-      outfitKeyOf(look) + (look.cosmeticKey ?? '');
+      outfitKeyOf(look) + (look.cosmeticKey ?? '') +
+      (look.npcFrame ? `|frame:${look.npcFrame.width}/${look.npcFrame.height}` : '');
     _bodyLookKeys.set(look, k);
   }
   return k;
@@ -397,7 +423,8 @@ export const outfitKeyOf = (look) => {
 };
 
 export function peerBuildOpts(look, shown = null, glyphs = null) {
-  if (look?.creature) return { creature: look.creature, reachSweep: false, ...(look.flies ? { flies: true } : {}) }; // MWNPC9: its CREA record (fpArm buildCreatureBody) - nothing worn or held; AUDIT MW-NPC II K5: a flyer's must fly
+  if (look?.creature) return { creature: look.creature, reachSweep: false, ...(look.flies ? { flies: true } : {}),
+    ...(look.swims ? { swims: true } : {}), ...(look.glides ? { glides: true } : {}) }; // MWNPC9: its CREA record (fpArm buildCreatureBody) - nothing worn or held; AUDIT MW-NPC II K5: a flyer's must fly
   const stub = peerStubEntity(look);
   const wolf = peerIsWolf(shown);
   const skin = wolf ? werewolfSkinOf(glyphs) : null; // SHADOW-FANG: the glyphs the relay read off the peer's own token
@@ -414,7 +441,7 @@ export function peerBuildOpts(look, shown = null, glyphs = null) {
     reachSweep: false, // MWNPC3: a peer is never looked out of - no first-person reach sweep in its build
     ...(wolf ? { werewolf: true, ...(skin ? { skin } : {}) } : {}), // WEREWOLF1: Bloodmoon's wolf - its skeleton, head, hair and robe; SHADOW-FANG: its skin
     ...(look?.vampire && !wolf ? { vampire: true } : {}), // MWNPC14: a vampire foe's face (an NPC's look - the wire's never carries it)
-    ...(npc ? { npcFace: npcFaceOf(npc), npcHint: npc } : {}), // MWNPC17: its head, hair and deterministic animation seed
+    ...(npc ? { npcFace: npcFaceOf(npc), npcHint: npc, ...(look.npcFrame ? { npcFrame: look.npcFrame } : {}) } : {}), // MWNPC17: its head, hair and deterministic animation seed
   };
 }
 
@@ -981,7 +1008,11 @@ export class PeerBodies {
 
   /** A body's feet, pace, range and camera for this frame. */
   _place(b, peer, toScene, dt, near) {
-    const f = toScene(peer.shown);
+    const atScene = toScene(peer.shown);
+    const height = Number.isFinite(peer.shown.centerLift) ? b.rig.bodyHeight?.() : null;
+    const f = atScene && height > 0
+      ? [atScene[0], atScene[1] + peer.shown.centerLift - height * (peer.shown.centerScale ?? 1) / 2, atScene[2]]
+      : atScene;
     // FIELD BUGS 2026-10-13b ONE-BAD-BODY: a drawn pose with no finite place holds the body where it last stood. The body
     // INTEGRATES its pose - the pace off the feet's travel, the yaw eased toward the pose's - so one NaN read stayed NaN
     // for as long as the body stood, its picture with it (the renderer's batch door refuses that one now), until a
@@ -1178,7 +1209,8 @@ export class PeerBodies {
     // built holding the look's RIGHT hand, always, so a peer fighting left-handed stood with the wrong weapon or a fist.
     // The pose says the hand (`lh`); the weapon follows it through setWeapon, the arm's own door, when the arm is quiet.
     // AUDIT MIXED-PAIR L4-3 / SPELL-HAND L4-2: the look's two hands, as the local rig holds its own (peerHandsOf)
-    const hands = look && !look.creature && !b.wolf && !tool ? peerHandsOf(look, shown) : null;
+    const hands = look && !look.creature && !b.wolf && !tool && shown.npcAttackMode !== 'bow' ? peerHandsOf(look, shown) : null;
+    const npcWeapon = shown.npcAttackMode ? peerWeaponOf(look, shown) : null;
     if (look && !look.creature) {
       // MWNPC9: a creature's claws are its body
       const want = b.wolf ? null : (tool ?? (hands?.dual ? hands.right : peerWeaponOf(look, shown))); // WEREWOLF1: the wolf's hands are its claws; PEER-ACTS: the act's tool before the look's weapon; AUDIT MIXED-PAIR L4-3: a pair's right hand holds the right's
@@ -1206,7 +1238,7 @@ export class PeerBodies {
     // WEAPON-GLOW1 (bible/05-Combat/Weapon-Glow.md): the weapon in their hand glows as its owner's card says (the look's
     // `glow`, net/wire.js LOOK_GLOW_RE) - off the look NOW (a weapon identified or socketed is a new look, the same
     // template in the same hand), when MY switch shows glows; a gatherer's tool, a wolf's claws and a creature carry none
-    const heldNow = hands ? (hands.dual ? hands.right : peerWeaponOf(look, shown)) : null;
+    const heldNow = shown.npcAttackMode === 'bow' ? npcWeapon : hands ? (hands.dual ? hands.right : peerWeaponOf(look, shown)) : null;
     b.rig.setWeaponGlow?.(heldNow && weaponGlowOn() ? glowFromWord(heldNow.glow) : null, heldNow); // AUDIT WEAPON-GLOW NET-1: and the weapon it is of
     b.rig.setHandGlow?.(
       !weaponGlowOn()
@@ -1283,6 +1315,7 @@ export class PeerBodies {
       }
       if (b.pending && b.pending.left-- > 0) {
         if (
+          (!shown.npcAttackMode || heldWeaponKey(b.weapon) === heldWeaponKey(npcWeapon)) &&
           b.rig.attack?.(b.pending.strike, {
             hold: b.pending.hold,
             blow: b.pending.blow ?? null,

@@ -726,7 +726,7 @@ import { drawNavalHud, navalTouchBrace, navalTouchGlass, navalPadPrompts, drawNa
 import { createNavalCrew, CREW_RANGE, CREW_KEEP } from './naval/navalCrew.js';   // LIVING CREW: the crews on the decks near the eye
 import { asleepHour } from '../systems/naval/shipWatch.js';   // SHIP-WATCH: the crews' sleeping hours
 import { crewRoster, crewCount } from '../systems/naval/crewLife.js';
-import { createCrewAshore } from './crewAshore.js';   // CREW-COMPANIONS: the party ashore, stood in every place
+import { companionPerson, createCrewAshore } from './crewAshore.js';   // CREW-COMPANIONS: the party ashore, stood in every place
 import { revenantParty, setRetinuePlayer, setRetinueListener, setRetinueBodies, revenantsWithYou, isRevenantCompanionKey, revenantIdOfKey, applySwornStrength, sendRevenantAway, forgetSwornMember, swornFightStep, swornFightWon, devotedWithYou } from '../systems/revenant/revenantCompanions.js';   // REVENANT-COMPANION: the sworn, stood by the same layer
 import { registerCompanionCount, registerCompanionRoster, companionsWithYou, COMPANION_SLOTS } from '../systems/companionSlots.js';   // COMPANION-SLOTS: the crew's hands ashore counted with the sworn
 import { PERSONALITIES } from '../systems/revenant/revenantPersonality.js';   // REVENANT-COMPANION: the party card's word for one
@@ -9540,7 +9540,12 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
    *  boat's place among the active), and "Hilda, Bard" floated over a male Warrior. */
   const navalMyRoster = (boat, seed, crew) => {
     const hands = naval?.crewOf?.(boat)?.hands ?? [];
-    return crewRoster({ hull: boat.hull, seed, crew }).map((r, i) => (hands[i] ? { mobile: hands[i].mobile, gender: hands[i].gender === 'female' ? 'female' : 'male' } : r));
+    return crewRoster({ hull: boat.hull, seed, crew }).map((row, i) => {
+      const hand = hands[i];
+      if (!hand) return row;
+      return { mobile: hand.mobile, gender: hand.gender === 'female' ? 'female' : 'male',
+        person: companionPerson({ boat: boat.uid, name: hand.name }) };
+    });
   };
   /** AUDIT CC-A5: my boats always say who is away - an empty set brings the last of the party home onto her deck. */
   const NO_HANDS_AWAY = new Set();
@@ -10324,7 +10329,13 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     ...exteriorFoes.foes, ...cityGuards.guards, ...(modes?.insideFoes?.() ?? []),
   ];
   const _makeEnemiesHostile = () => makeEnemiesHostile(_liveEnemyDatabase());
+  const watchTown = () => {
+    const { x, y } = playerTravelPixel();
+    return locationIndex.get(`${x},${y}`)?.mapTableData?.mapId ?? null;
+  };
+  const watchColors = () => { const town = watchTown(); return town == null ? null : textSeed(String(town)); };
   const cityGuards = createCityGuards({
+    watchTown,
     renderer, collider, fetchBytes, getTexture, uploadRecordFrame, playerEntity, audio, hitEffects, groundStands: (x, z) => Number.isFinite(heightAt(x, z)),   // FALL-HOLD: a watchman over a pixel not built is held, not stepped
     playerWeaponSheathed: () => !!weaponRig.playerWeapon.sheathed,   // AUDIT 24 (wave 42): pacification's drawn-weapon penalty
     shake: (k) => betterAmbience.weaponKick(k),   // AUDIT TELL H6: my blow that staggers a watchman kicks the camera
@@ -19318,6 +19329,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
         nowMs: battleNowMs, here: (seat) => atSeat(seat) });
       // SEAT2b part two (c): their feet on the town's ground, where the field's frame says they stand
       siegeNpcs = createSiegeNpcs({ renderer, getTexture, uploadRecordFrame, audio, cam: () => cam.pos,
+        watchTown: watchColors,
         toScene: (x, z) => { const q = onlineToScene({ x, y: 0, z }); const y = heightAt(q[0], q[2]); return [q[0], Number.isFinite(y) ? y : player.feetAt()[1], q[2]]; } });
       // CROWN1 part two: A ROYAL TOURNEY - the same room's words, the same HUD; the bouts won carried to the service
       royalClaims = createRoyalClaims({ claim: (r) => seatBook.claimRoyal(r), me: () => _seatDoor?.me() ?? null, storage: appStorage(), nowMs: battleNowMs });

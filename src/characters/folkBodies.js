@@ -64,45 +64,29 @@ let _shells = 0;
  * id and a new look. Kept on the walker until the next roll.
  * @param {any} person @param {string} race
  */
-function spawnOf(person, race) {
+function spawnOf(person, race, watchTown = null) {
   const roll = `${person.archive}|${person.personFaceRecordId ?? 0}|${person.nameNPC ?? ''}|${person.gender ?? 0}`,
-    key = `${roll}|${race}`;
+    key = `${roll}|${race}|${watchTown ?? ''}`;
   if (person._mwFolk && person._mwFolk.key === key) return person._mwFolk;
   const shell = (person._mwShell ??= ++_shells);
   const n = (person._mwFolk?.n ?? 0) + 1;
   const seed = mix(strHash(roll) ^ mix(shell)); // AUDIT PROVINCE-FOLK A7: dressed off the roll alone, as before - the race is in the key
-  return (person._mwFolk = { key, n, id: `${shell}.${n}`, seed, look: folkLookOf(person, race, seed) });
+  return (person._mwFolk = { key, n, id: `${shell}.${n}`, seed, look: folkLookOf(person, race, seed, watchTown) });
 }
 
 /** The look for a walker's roll: their race and gender, a face, the outfit's clothes in their dyes - or the guard's
  *  plate (texture 399's watchman). MWNPC10c: and a living world's resident's, on their own id's seed (rosterBodies.js
  *  residentLook) - one look for them wherever they are drawn. */
-export function folkLookOf(person, race, seed) {
+export function folkLookOf(person, race, seed, watchTown = null) {
   const female = person.gender === GENDERS.Female;
   const gender = female ? 'female' : 'male';
-  const items = [];
   if (person.guard || person.archive === GUARD_TEXTURE) {
-    // the street's guard: the watch's iron and steel, his longsword drawn at need - and none of it rolled
-    for (const [slot, piece] of [
-      ['ChestArmor', ARMOR_ENUM.Cuirass],
-      ['LegsArmor', ARMOR_ENUM.Greaves],
-      ['Head', ARMOR_ENUM.Helm],
-      ['Feet', ARMOR_ENUM.Boots],
-      ['LeftArm', ARMOR_ENUM.Left_Pauldron],
-      ['RightArm', ARMOR_ENUM.Right_Pauldron],
-      ['Gloves', ARMOR_ENUM.Gauntlets],
-    ]) {
-      items.push({
-        templateIndex: piece,
-        group: 'Armor',
-        equipSlot: EQUIP_SLOTS[slot],
-        material: ARMOR_MATERIAL.Steel,
-      }); // steel - MWNPC12: 1 named no material, so none of it was ever worn
-    }
-    items.push({ templateIndex: 165, group: 'MensClothing', equipSlot: EQUIP_SLOTS.ChestClothes, dye: 1 });
-    items.push({ templateIndex: 151, group: 'MensClothing', equipSlot: EQUIP_SLOTS.LegsClothes, dye: 1 });
+    const items = cityWatchUniform();
     // MWNPC17: the uniform is the watch's; the man in it his own - his head, his hair and the shirt under the plate
-    return { race, gender: 'male', faceIndex: mix(seed ^ 0xfa) % 10, items, npc: npcHint(seed, 0) };
+    const npc = npcHint(seed, 0);
+    return { race, gender: 'male', faceIndex: mix(seed ^ 0xfa) % 10, items,
+      npc: { ...npc, ...(person.faceSpriteArchive ? { faceSpriteArchive: person.faceSpriteArchive } : {}),
+        ...(watchTown == null ? {} : { watchTown }) } };
   }
   const faceIndex = ((person.personFaceRecordId ?? 0) + mix(seed ^ 0xfa)) % 10;
   // MW-FOLK1: A PICTURE WITH ITS OWN OUTFIT WEARS IT - the clothes it draws, made for the body (ownClothingModels.js
@@ -115,7 +99,7 @@ export function folkLookOf(person, race, seed) {
     return { race, gender, faceIndex, items: [], npc: { ...npcHint(seed, 0), spriteArchive: person.archive }, outfit: own.id };
   const { role, cut } = FOLK_DRESS[gender][folkVariant(person.archive, race)];
   const spriteCut = gender === 'female' && [393, 396, 454].includes(person.archive) ? 'skirt' : cut;
-  const d = dressPerson({ role, gender, seed, cut: spriteCut }); // MWNPC17: the role and cut their sprite shows, the rest their own
+  const d = dressPerson({ role, gender, seed, cut: spriteCut });
   return { race, gender, faceIndex, items: d.items, npc: { ...d.npc, spriteArchive: person.archive } };
 }
 
@@ -138,8 +122,8 @@ export const folkLook = (person, race) => spawnOf(person, person.folk ?? race).l
  * One object a walker, rewritten each frame.
  * @param {any} person @param {number[]} feet @param {string} race
  */
-export function folkActor(person, feet, race) {
-  const s = spawnOf(person, person.folk ?? race); // PROVINCE-FOLK: the walker's own people, past the Bay the province's
+export function folkActor(person, feet, race, watchTown = null) {
+  const s = spawnOf(person, person.folk ?? race, person.guard ? watchTown : null); // PROVINCE-FOLK: the walker's own people, past the Bay the province's
   const a = (person._mwActor ??= {
     id: '',
     look: null,
@@ -161,4 +145,28 @@ export function folkActor(person, feet, race) {
   a.yaw = Number.isFinite(person.yaw) ? person.yaw : (person.facingYaw ?? 0);
   a.moving = person.state === 'move';
   return a;
+}
+
+/** The fixed steel uniform worn by true city watchmen. */
+export function cityWatchUniform() {
+  const items = [];
+  for (const [slot, piece] of [
+    ['ChestArmor', ARMOR_ENUM.Cuirass],
+    ['LegsArmor', ARMOR_ENUM.Greaves],
+    ['Head', ARMOR_ENUM.Helm],
+    ['Feet', ARMOR_ENUM.Boots],
+    ['LeftArm', ARMOR_ENUM.Left_Pauldron],
+    ['RightArm', ARMOR_ENUM.Right_Pauldron],
+    ['Gloves', ARMOR_ENUM.Gauntlets],
+  ]) {
+    items.push({
+      templateIndex: piece,
+      group: 'Armor',
+      equipSlot: EQUIP_SLOTS[slot],
+      material: ARMOR_MATERIAL.Steel,
+    }); // steel - MWNPC12: 1 named no material, so none of it was ever worn
+  }
+  items.push({ templateIndex: 165, group: 'MensClothing', equipSlot: EQUIP_SLOTS.ChestClothes, dye: 1 });
+  items.push({ templateIndex: 151, group: 'MensClothing', equipSlot: EQUIP_SLOTS.LegsClothes, dye: 1 });
+  return items;
 }
