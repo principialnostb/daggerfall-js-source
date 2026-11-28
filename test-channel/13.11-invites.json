@@ -52,8 +52,9 @@
     "label": "Darya Tah"
   },
   {
-    "hash": "b9385b9e02f65c91a8b47fae063ef00433e9e19b10f227d5aa6ca1c61fc610cc",
-    "label": "TestPC1"
+    "hash": "1545dc6b9567e3a525909527d6d3bb7eb9a165792f54911f3f66abceb85f54e7",
+    "label": "TestPC1",
+    "revoked": true
   },
   {
     "hash": "d729cec466053ac43f74946a2eecc5b0d54d39d2b19b0e129cf80c519aa6a0bb",
