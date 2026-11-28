@@ -69,7 +69,8 @@
     "label": "YobaMashine"
   },
   {
-    "hash": "44e2e2f21eaa48453c5e893f1792d8d553f9ecc8e65991663a956d293927abe9",
-    "label": "KRblCA"
+    "hash": "253bd3ee4d61077f6cea1b159340116104085cd97ea3ff4771e923935ee6c150",
+    "label": "KRblCA",
+    "revoked": true
   }
 ]
