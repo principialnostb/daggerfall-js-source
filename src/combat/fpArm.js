@@ -15,7 +15,7 @@ import { activeAppearanceIdentity, appearanceEditorEnabled } from '../characters
 import { getBodyMorphs, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { setPlayerBusyProbe } from '../characters/playerBuildHold.js';   // LOAD-STALL 3
 import { texturedPartBytes } from '../formats/morrowind/mwGarmentMaterials.js';
-import { fitThighPlates, tuckTrouserCuffs } from '../formats/morrowind/mwBootFit.js';
+import { fitThighPlates, fitTrousersUnderGreaves, isGreavesPanel, tuckTrouserCuffs } from '../formats/morrowind/mwBootFit.js';
 import { modDiagnostics } from '../systems/modDiagnostics.js';   // Use the Morrowind rig's camera and animation rules from mwFirstPerson.js and mwAnim.js. The first-person pass
 // has its own projection and depth buffer. Composite it after the world so nearby walls cannot clip the weapon.
 
@@ -3143,9 +3143,10 @@ async function buildTpBody({
         if (bareLegs.size) missing.push(`trousers: panels did not bind - ${[...bareLegs].join(', ')} drawn bare`);
       }
     }
-    arm.legWear = worn.adds.filter((row) => row.legWear);
+    arm.legWear = worn.adds.filter(row => row.legWear || isGreavesPanel(row));
     const fittedCuffs = tuckTrouserCuffs(arm, arm.legWear);
     if (fitThighPlates(arm, arm.legWear) || fittedCuffs) poseAssembly(arm);
+    if (fitTrousersUnderGreaves(arm, arm.legWear)) poseAssembly(arm);
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
     const cloakUnderRows = [...skinRows, ...worn.adds, ...(betterBodiesPart ? [{ slot: 'betterBodies' }] : [])];
     const cloakFit = await fitUnpublishedCloak(arm, new Set(cloakUnderRows.map((row) => row.slot)));   // MW-CLOAK1

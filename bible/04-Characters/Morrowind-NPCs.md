@@ -32,7 +32,8 @@ The player turns it on and sizes it under Settings, Combat > With Morrowind data
   trousers and paired miscellaneous or Summerset boots cover the bare ankle when both meshes are present.
   The third-person rig fits trouser cuffs to the measured boot shafts during assembly. The fitted geometry keeps
   its skin weights and serves both the GPU and CPU render paths. Empty or failed trouser knee panels leave skin
-  on the leg when the rest of the garment does not cover it.
+  on the leg when the rest of the garment does not cover it. Whole trouser meshes fit beneath the bound greaves along
+  the covered height of the thigh. Parts outside the panels retain their own geometry.
 - **Creatures.** `CREATURE_MATCH` names every creature mobile: a list of Morrowind creature ids (the first the
   attached masters carry wins) or a declared miss with its reason, which keeps the sprite. Flyers stand only in a
   record that flies. Spectral foes draw translucent under `SPECTRAL_VEIL`. A mod's monsters register their own rows

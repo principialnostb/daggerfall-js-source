@@ -141,13 +141,13 @@ function moveVertices(arm, piece, target, poseOnly = false) {
 
 // Intersect a ray from the thigh axis with the knee surface at the same
 // height. Projecting onto (height, perpendicular) gives barycentric weights.
-function kneeRadius(triangles, height, y, z) {
+function legSurfaceRadius(triangles, height, y, z) {
   let radius = 0;
   for (const triangle of triangles) {
     if (height < triangle.min || height > triangle.max) continue;
     const [a, b, c] = triangle.points;
-    const p = (v) => y * v[2] - z * v[1];
-    const pa = p(a), pb = p(b) - pa, pc = p(c) - pa;
+    const pa = y * a[2] - z * a[1];
+    const pb = y * b[2] - z * b[1] - pa, pc = y * c[2] - z * c[1] - pa;
     const bx = b[0] - a[0], cx = c[0] - a[0], x = height - a[0];
     const determinant = bx * pc - pb * cx;
     if (Math.abs(determinant) < 1e-5) continue;
@@ -192,7 +192,7 @@ export function fitThighPlates(arm, wornAdds, { poseOnly = false } = {}) {
     for (const v of new Set(piece.indices)) {
       const [x, y, z] = local(piece.positions.subarray(v * 3, v * 3 + 3)), radius = Math.hypot(y, z);
       if (x < length * 0.45 || radius < 0.5) continue;
-      overlap = Math.max(overlap, kneeRadius(triangles, x, y / radius, z / radius) - radius);
+      overlap = Math.max(overlap, legSurfaceRadius(triangles, x, y / radius, z / radius) - radius);
     }
     if (overlap < 0.1) continue;
     const clearance = Math.min(length * 0.12, overlap + 0.9);
@@ -202,6 +202,95 @@ export function fitThighPlates(arm, wornAdds, { poseOnly = false } = {}) {
       if (!blend || radius < 0.5) return null;
       const shift = clearance * blend / radius;
       return mat33Apply(thigh.a, 0, y * shift, z * shift);
+    }, poseOnly) || fitted;
+  }
+  return fitted;
+}
+
+function legRings(pieces, local, count) {
+  const rings = Array.from({ length: count }, () => []);
+  for (const piece of pieces) {
+    const vertices = Array.from({ length: piece.positions.length / 3 }, (_, i) => local(piece.positions.subarray(i * 3, i * 3 + 3)));
+    for (let i = 0; i < piece.indices.length; i += 3) {
+      const points = [vertices[piece.indices[i]], vertices[piece.indices[i + 1]], vertices[piece.indices[i + 2]]];
+      const [a, b, c] = points.map(point => point[0]);
+      const triangle = { points, min: Math.min(a, b, c), max: Math.max(a, b, c) };
+      for (let height = Math.max(0, Math.ceil(triangle.min)); height <= Math.min(count - 1, Math.floor(triangle.max)); height++) {
+        rings[height].push(triangle);
+      }
+    }
+  }
+  return rings;
+}
+
+const LEG_DIRECTIONS = Array.from({ length: 16 }, (_, i) => {
+  const angle = i * Math.PI / 8;
+  return [Math.cos(angle), Math.sin(angle)];
+});
+
+export function isGreavesPanel(row) {
+  return row.legWear === 'thighPlate' || (row.piece?.kind === 'armor' && / (?:upper leg|knee)$/.test(row.partName));
+}
+
+/** Fit the cloth under an armour panel, including trousers carried on the groin slot. */
+export function fitTrousersUnderGreaves(arm, wornAdds, { poseOnly = false } = {}) {
+  const trousers = new Set(wornAdds.filter(row => row.legWear === 'trousers').map(row => row.slot));
+  const clothes = arm.pieces.filter(piece => trousers.has(piece.slot));
+  if (!clothes.length) return false;
+  const fittings = [];
+  for (const [side, boneSide] of [['left', 'l'], ['right', 'r']]) {
+    const slots = new Set(wornAdds.filter(row => isGreavesPanel(row) &&
+      (row.partName ?? row.slot).startsWith(side + ' ')).map(row => row.slot));
+    const plates = arm.pieces.filter(piece => slots.has(piece.slot));
+    const thigh = arm.mats.get(arm.skeleton.byName.get('bip01 ' + boneSide + ' thigh'));
+    const calf = arm.mats.get(arm.skeleton.byName.get('bip01 ' + boneSide + ' calf'));
+    const inverse = thigh && invert33(thigh.a);
+    if (!calf || !inverse) continue;
+    const local = point => mat33Apply(inverse, ...subtract(point, thigh.t));
+    const length = local(calf.t)[0];
+    if (length <= 0) continue;
+    const count = Math.ceil(length + 5);
+    if (!plates.length) {
+      fittings.push({ thigh, local, count, rings: null });
+      continue;
+    }
+    const armour = legRings(plates, local, count);
+    const cloth = legRings(clothes, local, count);
+    const rings = armour.map((section, height) => {
+      if (!section.length) return 1;
+      let scale = 1;
+      for (const [y, z] of LEG_DIRECTIONS) {
+        const outside = legSurfaceRadius(section, height, y, z);
+        if (outside < 0.8) continue;
+        const inside = legSurfaceRadius(cloth[height], height, y, z);
+        if (inside > outside - 0.65 && inside < 14) scale = Math.min(scale, Math.max(0.35, (outside - 0.65) / inside));
+      }
+      return scale;
+    });
+    fittings.push({ thigh, local, count, rings: rings.some(scale => scale < 1) ? rings : null });
+  }
+  if (!fittings.some(fit => fit.rings)) return false;
+  let fitted = false;
+  for (const piece of clothes) {
+    fitted = moveVertices(arm, piece, point => {
+      let fit = null, nearest = 14;
+      for (const candidate of fittings) {
+        const [x, y, z] = candidate.local(point);
+        const radius = Math.hypot(y, z);
+        if (x < -2 || x > candidate.count + 1 || radius >= nearest) continue;
+        fit = { candidate, x, y, z };
+        nearest = radius;
+      }
+      if (!fit?.candidate.rings) return null;
+      const { candidate, x, y, z } = fit;
+      // Spread the tightest neighbouring profile into the seam so long cloth
+      // triangles cannot bridge two fitted rings and cross the plate.
+      let scale = 1;
+      for (let i = Math.max(0, Math.ceil(x - 4)); i <= Math.min(candidate.rings.length - 1, Math.floor(x + 4)); i++) {
+        const weight = Math.min(1, (4 - Math.abs(x - i)) / 2);
+        scale = Math.min(scale, 1 - (1 - candidate.rings[i]) * weight);
+      }
+      return scale < 1 ? mat33Apply(candidate.thigh.a, 0, y * (scale - 1), z * (scale - 1)) : null;
     }, poseOnly) || fitted;
   }
   return fitted;

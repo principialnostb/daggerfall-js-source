@@ -1,7 +1,7 @@
 import { enhancedAxeRecord } from '../../characters/ownModels/enhancedBattleaxe.js';
 import { bindElbowSkin } from '../../characters/bodyMotion/elbowSkin.js';
 import { configureEquipmentFit, poseEquipmentMorph } from './mwEquipmentFit.js';
-import { fitThighPlates, tuckTrouserCuffs } from './mwBootFit.js';
+import { fitThighPlates, fitTrousersUnderGreaves, tuckTrouserCuffs } from './mwBootFit.js';
 import { preserveOwnedPose } from './mwPoseContinuity.js';
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
 // MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
@@ -3105,8 +3105,9 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   assembly.mats = mats;
   if (morphed && assembly.legWear?.length) {
     const options = { poseOnly: true };
-    tuckTrouserCuffs(assembly, assembly.legWear, options);
     fitThighPlates(assembly, assembly.legWear, options);
+    fitTrousersUnderGreaves(assembly, assembly.legWear, options);
+    tuckTrouserCuffs(assembly, assembly.legWear, options);
   }
   assembly.time = time;
   // AUDIT MW-CLOAK: what the assembly's owner places after every piece is posed - the stowed gear that goes with the

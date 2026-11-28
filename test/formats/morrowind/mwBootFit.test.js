@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AFFINE_IDENTITY } from '../../../src/formats/morrowind/mwAffine.js';
-import { fitThighPlates, tuckTrouserCuffs } from '../../../src/formats/morrowind/mwBootFit.js';
+import { fitThighPlates, fitTrousersUnderGreaves, tuckTrouserCuffs } from '../../../src/formats/morrowind/mwBootFit.js';
 
 function tube(slot, top, bottom, radius) {
   const positions = Float32Array.from([top, bottom].flatMap((x) => Array.from({ length: 8 }, (_, i) => {
@@ -67,4 +67,27 @@ test('the rim of an open thigh plate clears the knee and leaves its upper edge i
   assert.equal(plate.source[25].toFixed(2), '6.90');
   assert.equal(original[25], 4);
   assert.equal(knee.source[25], 6);
+});
+
+test('a single trouser mesh fits beneath a bound greave while its uncovered waist stays in place', () => {
+  const plate = tube('right upper leg (steel)', 9, 28, 5);
+  const pants = tube('groin (whole trousers)', 0, 24, 7);
+  plate.attachRef = pants.attachRef = 'thigh';
+  const arm = {
+    pieces: [plate, pants],
+    skeleton: { byName: new Map([['bip01 r thigh', 'thigh'], ['bip01 r calf', 'calf']]) },
+    mats: new Map([['thigh', AFFINE_IDENTITY], ['calf', { ...AFFINE_IDENTITY, t: [36, 0, 0] }]]),
+  };
+  const rows = [
+    { slot: plate.slot, partName: 'right upper leg', piece: { kind: 'armor' } },
+    { slot: pants.slot, legWear: 'trousers' },
+  ];
+  const original = pants.source;
+  assert.equal(fitTrousersUnderGreaves(arm, rows), true);
+  assert.deepEqual(pants.source.slice(0, 24), original.slice(0, 24));
+  assert.ok(pants.source[25] > 4 && pants.source[25] <= 4.35, 'the cloth fits inside the plate with clearance');
+  assert.equal(original[25], 7);
+  assert.equal(plate.source[25], 5);
+  arm.pieces.shift();
+  assert.equal(fitTrousersUnderGreaves(arm, rows), false, 'an unresolved plate leaves clothing intact');
 });

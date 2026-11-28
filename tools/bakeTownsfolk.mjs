@@ -709,9 +709,11 @@ export function fitTownsfolkOutfit(mesh, archive, paint) {
       const [x, y, z] = positions.slice(at, at + 3);
       const ax = Math.abs(x);
       if (archive <= 383 && cls.startsWith('leg:') && island.max[2] < 12) {
-        // The shoe is an ankle strap. Keep the sole and toes of the wearer visible.
-        positions[at] = Math.sign(x) * (6 + (ax - 6) * 1.34);
-        positions[at + 1] = 1.7 + (y - 1.7) * 1.5;
+        // Reprofile the flared ends as a band around the ankle.
+        const angle = Math.atan2((y - 1.7) / 1.28, ax - 6);
+        const lower = 1 - ramp(z, 5.4, 4.8);
+        positions[at] = Math.sign(x) * (6 + Math.cos(angle) * (3.15 + 0.28 * lower));
+        positions[at + 1] = 1.05 + 0.8 * lower + Math.sin(angle) * (3.55 + 0.45 * lower);
       } else if ((archive === 381 || archive === 383) && (cls === 'skirt' || cls.startsWith('arm:'))) {
         positions[at + 1] = y * (1 + 0.23 * ramp(z, 96, 14));
         positions[at + 2] += 1.1 * ramp(ax, 7, 7) * ramp(z, 108, 7);
@@ -726,10 +728,15 @@ export function fitTownsfolkOutfit(mesh, archive, paint) {
         positions[at + 2] += (2.8 * ramp(z, 108, 10) - 1.0) * shoulder;
       } else if (archive === 398 && cls === 'torso') {
         const panel = ramp(z, 93, 9) * (1 - ramp(z, 112, 8));
-        positions[at + 1] = y + 4.0 * ramp(y, 0, 7) * panel - 1.9 * ramp(-y, 0, 6);
+        const shoulderSeam = ramp(ax, 4, 5) * ramp(z, 104, 9);
+        positions[at] += Math.sign(x) * 3.2 * shoulderSeam;
+        positions[at + 1] = y + 4.0 * ramp(y, 0, 7) * panel - 1.9 * ramp(-y, 0, 6)
+          + 3.2 * ramp(y, 0, 4) * shoulderSeam;
       } else if (archive === 398 && cls.startsWith('arm:')) {
-        positions[at + 1] = y * 1.48;
-        positions[at + 2] = 114 + (z - 114) * 1.38;
+        const seam = (1 - ramp(ax, 10, 9)) * ramp(z, 106, 10);
+        positions[at] -= Math.sign(x) * 5.9 * seam;
+        positions[at + 1] = y * 1.35 + (4.6 * ramp(y, -0.2, 2.3) - 1.5 * ramp(-y, 0, 3)) * seam;
+        positions[at + 2] = 114 + (z - 114) * 1.24;
       } else if (archive === 398 && cls === 'skirt') {
         const hem = 1 - ramp(z, 25, 24);
         positions[at] = x * (1 + 0.12 * hem);

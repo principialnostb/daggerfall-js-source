@@ -33,7 +33,9 @@ what the picture wore. A picture with no outfit yet keeps the wardrobe (`Morrowi
   part's span leaves its skin visible. Outfits 386, 387 and 390 supply complete gloves with skinned fingers, so their
   bare hands are hidden.
 - `fitTownsfolkOutfit` in `tools/bakeTownsfolk.mjs` adjusts ankle straps, tunic shoulders, the back of the hoods and the
-  dress bodice and sleeves in the bind pose. The back hem has room for the calf during a step. The bake retains the original weights, textures and skin coverage rules.
+  dress bodice and sleeves in the bind pose. The straps follow the ankle contour and leave the foot open. The
+  bodice overlaps the sleeve caps at the shoulder seam. The back hem has room for the calf during a step. The bake
+  retains the original weights, textures and skin coverage rules.
   Outfit 387 also has raised boot cuffs that meet the exposed shins.
 
 ## Daggerfall Unity

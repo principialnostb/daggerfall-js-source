@@ -532,7 +532,7 @@ test('MW-FOLK1: what each outfit hides is the skin it covers all round - every r
     assert.ok(TOWNSFOLK_OUTFITS[a].hides.every((h) => ARMO_PART.some((p) => p.name === h && p.shadows)), `${a}: every hide a part with a skin`);
   }
   // the near misses that keep their skin: a V-neck, a cuff short of the wrist, the open bodice
-  assert.deepEqual([seen[381].chest, seen[387].chest, seen[385].wrist, seen[398].chest, seen[398].neck], [77 / 80, 77 / 80, 60 / 80, 52 / 80, 47 / 80]);
+  assert.deepEqual([seen[381].chest, seen[387].chest, seen[385].wrist, seen[398].chest, seen[398].neck], [77 / 80, 77 / 80, 60 / 80, 50 / 80, 65 / 80]);
   // the legs in one skirt: the dress closes round both thighs; its hem rises to 29.4 at the sides, over the knee's
   // lowest ray (27.1), so the knees are hers; every hem above the knee stops short of the thigh's span (its lowest ray,
   // 47.2 up), so the leg below a tunic is the body's
